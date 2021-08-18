@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"embed"
-	"fmt"
 	"io/ioutil"
 	"log"
 	"net"
@@ -21,14 +20,14 @@ import (
 
 // The go embed directive statement must be outside of function body
 // Embed the file content as string.
-//go:embed title.txt
+//go:embed web/static/title.txt
 var title string
 
 // Embed the entire directory.
-//go:embed templates
+//go:embed web/templates
 var indexHTML embed.FS
 
-//go:embed static
+//go:embed web/static
 var staticFiles embed.FS
 
 func check(e error) {
@@ -40,7 +39,7 @@ func check(e error) {
 func main() {
 
 	// Note the call to ParseFS instead of Parse
-	t, err := template.ParseFS(indexHTML, "templates/index.html.tmpl")
+	t, err := template.ParseFS(indexHTML, "web/templates/index.html.tmpl")
 	check(err)
 
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -72,7 +71,7 @@ func main() {
 		for {
 			select {
 			case event := <-w.Event:
-				fmt.Println(event) // Print the event's info.
+				log.Println("File Changed: ", event) // Print the event's info.
 			case err := <-w.Error:
 				log.Fatalln(err)
 			case <-w.Closed:
@@ -97,8 +96,8 @@ func main() {
 		//fmt.Printf("%s: %s\n", path, f.Name())
 		source, err := ioutil.ReadFile(path)
 		check(err)
-		fmt.Println(path)
-		// src := []byte("## Test")
+		log.Println("Watching", path)
+
 		if err := goldmark.Convert(source, &buf); err != nil {
 			panic(err)
 		}
@@ -123,7 +122,7 @@ func main() {
 	go func() {
 
 		// Serve static files
-		http.Handle("/static/", fs)
+		http.Handle("/web/", fs)
 		http.HandleFunc("/exit", func(w http.ResponseWriter, r *http.Request) {
 			os.Exit(0)
 		})
@@ -150,9 +149,16 @@ func main() {
 
 	debug := true
 	wv := webview.New(debug)
-	defer wv.Destroy()
-	wv.SetTitle(title)
+	//defer wv.Destroy()
+
+	wv.Dispatch(func() {
+		wv.SetTitle(title)
+	})
 	wv.SetSize(800, 600, webview.HintNone)
 	wv.Navigate("http://" + ln.Addr().String())
+	wv.Bind("quit", func() {
+		wv.Terminate()
+	})
+
 	wv.Run()
 }

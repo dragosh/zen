@@ -1,5 +1,5 @@
 * { margin: 0; padding: 0; box-sizing: border-box; font-family: Helvetica, Arial, sans-serif; }
-body { color: #eaeaea; background-color: #fff; text-decoration: uppercase; font-size: 16px; }
+body { color: #eaeaea; background-color: #fff; text-decoration: uppercase; font-size: 16px; overflow: hidden; }
 
 	.markdown-body {
 		box-sizing: border-box;
