@@ -1,4 +1,4 @@
-## ZENxxx
+## ZEN
 
 Create a small webview application that can be distributed as a binary and it can parse and (re)render on file change, a markdown file from the current execution folder.
 
