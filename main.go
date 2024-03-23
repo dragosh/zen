@@ -25,13 +25,7 @@ func main() {
 
 	// EXAMPLE: Override a template
 	cli.AppHelpTemplate = `
-	ooooooo_________________
-	_____oo__ooooo__oo_ooo__
-	____oo__oo____o_ooo___o_
-	___o____ooooooo_oo____o_
-	_oo_____oo______oo____o_
-	ooooooo__ooooo__oo____o_
-	________________________
+⊹╰(⌣ʟ⌣)╯⊹
 
 NAME:
 		{{.Name}} - {{.Usage}}
