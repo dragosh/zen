@@ -1,0 +1,35 @@
+{
+  "name": "app",
+  "version": "1.0.0",
+  "private": true,
+  "description": "",
+  "main": "src/main.ts",
+  "type": "module",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "scripts": {
+    "start": "esbuild --bundle src/main.ts --tsconfig=tsconfig.json --outdir=apps/markdown --serve-fallback=apps/markdown/index.dev.html --watch --servedir=apps/markdown"
+  },
+  "dependencies": {
+    "rehype-katex": "^7.0.0",
+    "rehype-mermaid": "^2.1.0",
+    "rehype-prism-plus": "^1.6.3",
+    "rehype-sanitize": "^6.0.0",
+    "rehype-stringify": "^10.0.0",
+    "rehype-template": "^0.3.0",
+    "remark-directive": "^3.0.0",
+    "remark-extract-frontmatter": "^3.2.0",
+    "remark-frontmatter": "^5",
+    "remark-gfm": "^4.0.0",
+    "remark-math": "^6.0.0",
+    "remark-parse": "^11",
+    "remark-rehype": "^11",
+    "unified": "^11",
+    "unist-util-visit": "^4.1.1",
+    "yaml": "^2.2.2"
+  },
+  "devDependencies": {
+    "esbuild": "^0.19.2"
+  }
+}

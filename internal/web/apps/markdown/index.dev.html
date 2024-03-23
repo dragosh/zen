@@ -1,0 +1,34 @@
+<html>
+
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Title</title>
+  <base href="/">
+
+  <link href="/main.css" rel="stylesheet" />
+  <link href="/md.css" rel="stylesheet" />
+  <script src="/main.js" defer></script>
+</head>
+<template>
+  <button id="quit">Close</button>
+  <p>Background routine working counter: <span id="counter">0</span></p>
+  <a href="http://example.com/" target="_blank">External link</a>
+  <div>
+    <input type="text" id="name">
+    <input type="button" id="sendBtn" value="gRPC Message" />
+    <div id="reply"></div>
+  </div>
+</template>
+<body class="markdown-body">
+
+  <main id="markdown"></main>
+
+  <script>
+    window.__init__ = {
+      userName: "user",
+      entryFile: "assets/README.test.md",
+      rootFile: ".",
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,84 @@
+aside.admonition {
+  width: 95%;
+  margin: 1.5625em auto;
+  padding: 0 0.6rem 0.8rem !important;
+  overflow: hidden;
+  page-break-inside: avoid;
+  border-left: 0.2rem solid #007bff;
+  border-radius: 0.1rem;
+  box-shadow: 0 0.2rem 0.5rem rgba(0, 0, 0, 0.05), 0 0 0.05rem rgba(0, 0, 0, 0.1);
+}
+
+aside.admonition > p.admonition-title {
+  position: relative;
+  margin: 0 -0.6rem !important;
+  /* Changed the final from 2rem, without icon */
+  padding: 0.4rem 0.6rem 0.4rem 1rem;
+  font-weight: 700;
+  background-color: #e7f2fa;
+}
+
+aside.admonition.attention {
+  border-left-color: #fd7e14;
+}
+aside.admonition.attention > header {
+  background-color: #ffedcc;
+}
+aside.admonition.caution {
+  border-left-color: #fd7e14;
+}
+aside.admonition.caution > header {
+  background-color: #ffedcc;
+}
+aside.admonition.warning {
+  border-left-color: #dc3545;
+}
+aside.admonition.warning > header {
+  background-color: #fdf3f2;
+}
+aside.admonition.danger {
+  border-left-color: #dc3545;
+}
+aside.admonition.danger > header {
+  background-color: #fdf3f2;
+}
+aside.admonition.error {
+  border-left-color: #dc3545;
+}
+aside.admonition.error > header {
+  background-color: #fdf3f2;
+}
+aside.admonition.hint {
+  border-left-color: #ffc107;
+}
+aside.admonition.hint > header {
+  background-color: #fff6dd;
+}
+aside.admonition.important {
+  border-left-color: #007bff;
+}
+aside.admonition.important > header {
+  background-color: #e7f2fa;
+}
+aside.admonition.note {
+  border-left-color: #007bff;
+}
+aside.admonition.note > header {
+  background-color: #e7f2fa;
+}
+aside.admonition.tip {
+  border-left-color: #ffc107;
+}
+aside.admonition.tip > header {
+  background-color: #fff6dd;
+}
+
+aside.admonition > p {
+  padding: 0 1.4rem;
+}
+
+abbr {
+  text-decoration: none;
+  border-bottom: 1px solid #ddd;
+  cursor: help;
+}

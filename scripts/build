@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+set -eu
+
+## for now USED only for CLI
+
+source $PWD/scripts/_common_.sh
+
+_reload_env
+
+cli_build() {
+  local bin_name="$BIN_NAME"
+  local arch="arm64"
+  local out_path=${CLI_OUT:-$HOME/bin/$bin_name}
+  _log_debug "Building \`${bin_name}\` binary for $arch to \`$out_path\`"
+  npm --progress false install --prefix internal/web
+  mkdir -p target/macos/bin
+  cd $CLI_PATH
+  local build_cmd="go build -o target/macos/bin/$bin_name"
+
+  # Build frontend
+
+  export CGO_ENABLED=1 && GOARCH=$arch
+  if [[ "${WATCH_FILES+x}" ]];then
+    go run build/main.go &
+    local command=${command:-help}
+    local arg=${arg:-''}
+    local flag=${flag:-''}
+     _log_debug "Running WATCH mode for: \`${command} ${arg} ${flag}\`"
+    build_cmd="CompileDaemon -include=\"*.html\" -exclude-dir=\"${PWD}/internal/web/node_modules\" -directory=\"${PWD}\" -build=\"${build_cmd}\" -command=\"$bin_name $command $flag $arg\" -graceful-kill=true -log-prefix=false -color=true"
+  else
+    go run build/main.go
+  fi
+
+  _log_debug "Build Command: \n ${build_cmd}"
+  eval $build_cmd
+  if [ ! -f $out_path ]; then
+      ln -s target/macos/bin/$bin_name $out_path
+  fi
+
+}
+
+BUILD=${BUILD:-cli}
+
+shift
+
+USAGE="Usage: Build usage todo ....."
+
+while getopts 'c:a:f:' OPTION; do
+  case "$OPTION" in
+    c)
+      command="$OPTARG"
+      ;;
+    a)
+      arg="$OPTARG"
+      ;;
+    f)
+      flag=$OPTARG
+      ;;
+    \? ) echo $USAGE
+         exit 1;;
+    * ) echo $usage
+        exit 1;;
+  esac
+
+done
+shift "$(($OPTIND -1))"
+
+# Let's see what it is to build
+case "$BUILD" in
+  cli)
+    cli_build
+    ;;
+  \? ) echo $USAGE
+      exit 1;;
+  * ) echo $usage
+      exit 1;;
+esac
