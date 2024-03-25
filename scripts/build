@@ -5,37 +5,40 @@ set -eu
 
 source $PWD/scripts/_common_.sh
 
+
 _reload_env
-
 cli_build() {
+  deps=(go node npm)
+  _check_dependencies ${deps[@]}
   local bin_name="$BIN_NAME"
+  # @todo make it dynamic
   local arch="arm64"
-  local out_path=${CLI_OUT:-$HOME/bin/$bin_name}
-  _log_debug "Building \`${bin_name}\` binary for $arch to \`$out_path\`"
-  npm --progress false install --prefix internal/web
   mkdir -p target/macos/bin
-  cd $CLI_PATH
-  local build_cmd="go build -o target/macos/bin/$bin_name"
 
+  local out_path=${PREFIX:-$HOME/.local/bin/$bin_name}
+  _log_debug "Building \`${bin_name}\` binary for $arch to \`$out_path\`"
+  npm --progress false install --prefix internal/web > /dev/null 2>&1
+
+  local build_cmd="go build -o $PWD/target/macos/bin/$bin_name"
   # Build frontend
 
   export CGO_ENABLED=1 && GOARCH=$arch
   if [[ "${WATCH_FILES+x}" ]];then
     go run build/main.go &
     local command=${command:-help}
-    local arg=${arg:-''}
+    local arg=t${arg:-''}
     local flag=${flag:-''}
      _log_debug "Running WATCH mode for: \`${command} ${arg} ${flag}\`"
     build_cmd="CompileDaemon -include=\"*.html\" -exclude-dir=\"${PWD}/internal/web/node_modules\" -directory=\"${PWD}\" -build=\"${build_cmd}\" -command=\"$bin_name $command $flag $arg\" -graceful-kill=true -log-prefix=false -color=true"
   else
-    go run build/main.go
+    go run build/main.go > /dev/null 2>&1
   fi
 
-  _log_debug "Build Command: \n ${build_cmd}"
   eval $build_cmd
-  if [ ! -f $out_path ]; then
-      ln -s target/macos/bin/$bin_name $out_path
-  fi
+  # ls -la $out_path
+  local alias_cmd="ln -sfn ${PWD}/target/macos/bin/${bin_name} ${out_path}"
+  _log_info "Creating symlink at:" $out_path
+  exec $alias_cmd
 
 }
 

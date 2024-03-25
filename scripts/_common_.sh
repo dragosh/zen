@@ -112,7 +112,7 @@ _try() {
 }
 
 _check_dependencies() {
-	local deps=(docker npm node go buf)
+	local deps=("$@")
 	_log_debug "Check main dependencies: ${deps[@]}"
 	for dep in "${deps[@]}"
 	do
