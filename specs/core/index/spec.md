@@ -21,7 +21,7 @@ markdown files of a workspace.
 3. With no `home`, top-level nodes are the files of the root directory sorted by path, each expanded the same way.
 4. Files not reachable are placed under one trailing group node `{kind: "group", title: "Other pages"}`, as a tree of folder groups and pages, sorted by path; titles there are the relative path without extension.
 5. `Breadcrumb(path)` returns the tree path from the top-level node to the page (inclusive). Pages under "Other pages" get only themselves. Unknown path → empty.
-6. `Update(changedPath, …)` rebuilds and reports whether the tree changed (deep comparison).
+6. Callers rebuild with `Build` and compare with `Equal` (deep comparison) to know whether the tree changed.
 7. Paths are matched case-insensitively against `files` (macOS file systems are case-insensitive): a link to `readme.md` is the node for `README.md`, and the node uses the spelling from `files`.
 8. Building 5 000 files with 50 000 links takes under 200 ms.
 

@@ -26,6 +26,8 @@ the real app does what the fake API does.
 8. `frontend/src/api/wails.ts` implements `Api` and exports it as `export default` (ui/shell's `getApi()` loads it from there) over the generated bindings and Wails events.
 9. Registers built-in plugins in order: `highlight`, `diagram` (those merged).
 10. Removes `documents.go` and the `Files` option.
+11. Closing the window with unsaved editor changes asks first: the window close hook asks the frontend (event `app:before-close`, answered by ui/editor) and only closes on Save/Discard.
+12. The watch callback never calls `Watcher.Stop` (it would deadlock); swapping workspaces stops the old watcher from the service goroutine.
 
 ## Architecture
 

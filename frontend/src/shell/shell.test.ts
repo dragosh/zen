@@ -253,15 +253,18 @@ test("shell sources never use innerHTML", async () => {
   }
 });
 
-test("shipped placeholder features make the app usable", async () => {
+test("shipped features make the app usable", async () => {
   const { features: shipped } = await import("./features");
   expect(shipped.map((f) => f.id).sort()).toEqual(["editor", "nav", "page"]);
   const s = boot(withWorkspace("README.md"), shipped);
   await s.start();
   expect(root.querySelector("nav")?.textContent).toContain("sample-docs");
-  expect(root.querySelector("main")?.textContent).toContain("README.md");
+  const settle = () => new Promise((r) => setTimeout(r, 0));
+  await settle();
+  expect(root.querySelector("main .zen-page")).not.toBeNull();
   s.store.set({ mode: "edit" });
-  expect(root.querySelector("main")?.textContent).toContain("README.md");
+  await settle();
+  expect(root.querySelector("main textarea")).not.toBeNull();
   s.store.set({ mode: "read" });
   s.destroy();
   shell = undefined;

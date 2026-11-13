@@ -17,13 +17,13 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 1 | [core/plugins](core/plugins/spec.md) | `internal/core/plugins` | – | done |
 | 1 | [ui/shell](ui/shell/spec.md) | `frontend/src/{main.ts,api,shell,styles}`, `frontend/index.html` | – | done |
 | 1 | [packaging/version](packaging/version/spec.md) | `VERSION`, `CHANGELOG.md`, `build/**/Taskfile.yml`, `Taskfile.yml` | – | done |
-| 2 | [core/render](core/render/spec.md) | `internal/core/render` | core/plugins, core/config, core/workspace | specified |
-| 2 | [core/index](core/index/spec.md) | `internal/core/index` | core/workspace | specified |
-| 2 | [core/watch](core/watch/spec.md) | `internal/core/watch` | core/workspace | specified |
-| 2 | [cli/commands](cli/commands/spec.md) | `internal/cli`, `main.go` (+ `Options` fields in `internal/app/app.go`) | packaging/version | specified |
-| 2 | [ui/navigation](ui/navigation/spec.md) | `frontend/src/nav` | ui/shell | specified |
-| 2 | [ui/page](ui/page/spec.md) | `frontend/src/page` | ui/shell | specified |
-| 2 | [ui/editor](ui/editor/spec.md) | `frontend/src/editor` | ui/shell | specified |
+| 2 | [core/render](core/render/spec.md) | `internal/core/render` | core/plugins, core/config, core/workspace | done |
+| 2 | [core/index](core/index/spec.md) | `internal/core/index` | core/workspace | done |
+| 2 | [core/watch](core/watch/spec.md) | `internal/core/watch` | core/workspace | done |
+| 2 | [cli/commands](cli/commands/spec.md) | `internal/cli`, `main.go` (+ `Options` fields in `internal/app/app.go`) | packaging/version | done |
+| 2 | [ui/navigation](ui/navigation/spec.md) | `frontend/src/nav` | ui/shell | done |
+| 2 | [ui/page](ui/page/spec.md) | `frontend/src/page` | ui/shell | done |
+| 2 | [ui/editor](ui/editor/spec.md) | `frontend/src/editor` | ui/shell | done |
 | 3 | [plugins/highlight](plugins/highlight/spec.md) | `internal/plugins/highlight` | core/render | specified |
 | 3 | [plugins/diagram](plugins/diagram/spec.md) | `internal/plugins/diagram` | core/render | specified |
 | 3 | [app/services](app/services/spec.md) | `internal/app`, `frontend/src/api/wails.ts` | all core, cli/commands | specified |

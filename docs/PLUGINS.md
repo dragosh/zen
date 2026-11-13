@@ -124,7 +124,7 @@ Unknown plugin ids and unknown options produce a warning in the page
 
 | ID | Version | Blocks | What it does |
 |---|---|---|---|
-| `highlight` | alpha | any fenced block with a language | syntax colouring in Go (chroma), CSS classes only |
+| `highlight` | alpha | none (HTML hook over every `pre > code.language-*`) | syntax colouring in Go (chroma), CSS classes only |
 | `diagram` | alpha | `mermaid`, `diagram` | emits a placeholder; a vendored mermaid script renders it in the page |
 | `slides` | 0.2 | `slides` | splits a container on `---` into a slide deck |
 | `polls` | 0.2 | `poll` | renders a list as a poll |
@@ -139,8 +139,10 @@ permission per plugin. The app never downloads plugin code.
 
 ## Security rules
 
-- Sanitiser runs after every hook; `Allow` rules are additive and limited to
-  the plugin's own blocks (`data-zen-plugin="<id>"` subtree).
+- Sanitiser runs after every hook; `Allow` rules are additive and apply to the
+  whole page while the plugin is enabled (alpha). They can never re-enable
+  `script`, `style`, `iframe`, `object`, `embed`, `form`, `on*`, `style` or
+  `srcdoc`. Scoping rules to the plugin's own subtree is a 0.2 item.
 - No plugin receives file or network access through `Context`.
 - Plugin JS (built-in only in alpha) is a static embedded file; no `eval`,
   no remote loading. Mermaid runs with `securityLevel: "strict"`.
