@@ -1,5 +1,7 @@
 import { expect, test } from "vitest";
-import css from "./page.css?raw";
+import { readFileSync } from "node:fs";
+
+const css = readFileSync(new URL("./page.css", import.meta.url), "utf8");
 
 const selectors = css.replace(/\/\*[\s\S]*?\*\//g, "").match(/[^{}]+(?=\{)/g)!.flatMap((s) => s.split(",").map((x) => x.trim()));
 const has = (needle: string) => selectors.some((s) => s.includes(needle));

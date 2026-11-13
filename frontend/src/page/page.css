@@ -1,0 +1,115 @@
+/* ui/page: the reader. Typography from docs/ui/mockup.html; tokens only. */
+.zen-progress {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  flex: none;
+  height: 2px;
+  margin-bottom: -2px;
+  background: var(--fg);
+  animation: zen-progress 1.2s ease-in-out infinite;
+  transform-origin: left;
+}
+.zen-progress[hidden] { display: none; }
+@keyframes zen-progress {
+  0% { transform: scaleX(0); opacity: 1; }
+  80% { transform: scaleX(1); opacity: 1; }
+  100% { transform: scaleX(1); opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .zen-progress { animation: none; opacity: .6; }
+}
+
+.zen-page-warnings {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  max-width: 68ch;
+  width: 100%;
+  margin: var(--space-4) auto 0;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-subtle);
+  color: var(--fg-muted);
+  border-radius: var(--radius);
+  font: 13px/1.5 var(--font-ui);
+  box-sizing: border-box;
+}
+.zen-page-warnings[hidden] { display: none; }
+.zen-page-warnings-text { flex: 1; white-space: pre-line; }
+.zen-page-warnings button { padding: 0 var(--space-2); }
+
+.zen-page-error {
+  margin: auto;
+  padding: var(--space-7) var(--space-6);
+  text-align: center;
+  font-family: var(--font-ui);
+}
+.zen-page-error[hidden] { display: none; }
+.zen-page-error-message { color: var(--fg-muted); margin: 0 0 var(--space-4); }
+
+.zen-page {
+  width: 100%;
+  max-width: 68ch;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-6) 96px;
+  box-sizing: content-box;
+  font: 17px/1.65 var(--font-body);
+  color: var(--fg);
+  overflow-wrap: break-word;
+}
+.zen-page[hidden] { display: none; }
+.zen-page > :first-child { margin-top: 0; }
+
+.zen-page h1, .zen-page h2, .zen-page h3, .zen-page h4, .zen-page h5, .zen-page h6 {
+  line-height: 1.25;
+  font-weight: 600;
+  scroll-margin-top: var(--space-5);
+}
+.zen-page h1 { font-size: 2.1rem; line-height: 1.2; margin: 0 0 .6em; padding-bottom: .3em; border-bottom: 1px solid var(--rule); }
+.zen-page h2 { font-size: 1.4rem; margin: 1.8em 0 .5em; }
+.zen-page h3 { font-size: 1.15rem; margin: 1.6em 0 .4em; }
+.zen-page h4 { font-size: 1rem; margin: 1.4em 0 .4em; }
+.zen-page h5 { font-size: .9rem; margin: 1.4em 0 .4em; }
+.zen-page h6 { font-size: .85rem; margin: 1.4em 0 .4em; color: var(--fg-muted); }
+
+.zen-page p { margin: 0 0 1em; }
+.zen-page a { color: var(--fg); text-underline-offset: 3px; cursor: pointer; }
+.zen-page a[data-zen-link="broken"] { color: var(--fg-muted); text-decoration: underline dotted; cursor: default; }
+.zen-page strong { font-weight: 600; }
+.zen-page del { color: var(--fg-muted); }
+
+.zen-page ul, .zen-page ol { margin: 0 0 1em; padding-left: 1.5em; }
+.zen-page li { margin: .25em 0; }
+.zen-page li > ul, .zen-page li > ol { margin-bottom: 0; }
+.zen-page li:has(> input[type="checkbox"]) { list-style: none; margin-left: -1.4em; }
+.zen-page li > input[type="checkbox"] { margin: 0 .45em 0 0; vertical-align: -1px; accent-color: var(--fg); }
+
+.zen-page code { font: .88em var(--font-mono); background: var(--bg-subtle); padding: .1em .35em; border-radius: 4px; }
+.zen-page pre { background: var(--bg-subtle); padding: 14px 16px; border-radius: var(--radius); overflow: auto; margin: 0 0 1em; line-height: 1.5; }
+.zen-page pre code { padding: 0; background: none; font-size: .85em; }
+
+.zen-page blockquote { margin: 1.2em 0; padding-left: 1em; border-left: 2px solid var(--fg); color: var(--fg-muted); font-style: italic; }
+.zen-page blockquote > :last-child { margin-bottom: 0; }
+
+.zen-page table { border-collapse: collapse; margin: 0 0 1em; display: block; overflow-x: auto; max-width: 100%; font-size: .92em; }
+.zen-page th, .zen-page td { border: 1px solid var(--rule); padding: 6px 12px; text-align: left; vertical-align: top; }
+.zen-page th { background: var(--bg-subtle); font-weight: 600; }
+
+.zen-page img { max-width: 100%; height: auto; }
+.zen-page hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
+
+.zen-page sup { line-height: 0; }
+.zen-page sup a { text-decoration: none; }
+.zen-page .footnotes { margin-top: 3em; padding-top: 1em; border-top: 1px solid var(--rule); color: var(--fg-muted); font-size: .9em; }
+.zen-page .footnotes hr { display: none; }
+.zen-page .footnotes ol { padding-left: 1.2em; }
+
+.zen-page .zen-plugin-error {
+  margin: 0 0 1em;
+  padding: var(--space-3) var(--space-4);
+  border: 1px dashed var(--rule);
+  border-radius: var(--radius);
+  color: var(--fg-muted);
+  font: 13px/1.5 var(--font-mono);
+  white-space: pre-wrap;
+}
