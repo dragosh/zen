@@ -11,7 +11,7 @@ import (
 )
 
 // frontendCSP is sent with everything that is not a workspace or plugin file.
-const frontendCSP = "default-src 'self'; script-src 'self'; style-src 'self'; " +
+const frontendCSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
 	"img-src 'self' https:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
 
 // middleware serves /_ws/<path> from the workspace and /_plugins/<id>/<file>

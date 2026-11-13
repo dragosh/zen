@@ -10,6 +10,8 @@ import (
 
 	"github.com/dragosh/zen/internal/core/config"
 	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zen/internal/plugins/diagram"
+	"github.com/dragosh/zen/internal/plugins/highlight"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -38,12 +40,12 @@ type Options struct {
 }
 
 // registerPlugins registers the built-in plugins in order: highlight, diagram.
-// INTEGRATION: the lead adds the merged plugins here, e.g.
-//
-//	if err := r.Register(highlight.New()); err != nil { return err }
-//	if err := r.Register(diagram.New()); err != nil { return err }
 func registerPlugins(r *plugins.Registry) error {
-	_ = r
+	for _, p := range []plugins.Plugin{highlight.New(), diagram.New()} {
+		if err := r.Register(p); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

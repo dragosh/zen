@@ -24,9 +24,9 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 2 | [ui/navigation](ui/navigation/spec.md) | `frontend/src/nav` | ui/shell | done |
 | 2 | [ui/page](ui/page/spec.md) | `frontend/src/page` | ui/shell | done |
 | 2 | [ui/editor](ui/editor/spec.md) | `frontend/src/editor` | ui/shell | done |
-| 3 | [plugins/highlight](plugins/highlight/spec.md) | `internal/plugins/highlight` | core/render | specified |
-| 3 | [plugins/diagram](plugins/diagram/spec.md) | `internal/plugins/diagram` | core/render | specified |
-| 3 | [app/services](app/services/spec.md) | `internal/app`, `frontend/src/api/wails.ts` | all core, cli/commands | specified |
+| 3 | [plugins/highlight](plugins/highlight/spec.md) | `internal/plugins/highlight` | core/render | done |
+| 3 | [plugins/diagram](plugins/diagram/spec.md) | `internal/plugins/diagram` | core/render | done |
+| 3 | [app/services](app/services/spec.md) | `internal/app`, `frontend/src/api/wails.ts` | all core, cli/commands | done |
 | 4 | [packaging/macos](packaging/macos/spec.md) | `build/darwin` | everything | specified |
 
 Features in the same wave own disjoint paths and can be built in parallel.
@@ -63,5 +63,5 @@ Features in the same wave own disjoint paths and can be built in parallel.
   to shared files (`frontend/src/shell/features.ts`, `internal/app`), runs
   `task test` and `task build`, then starts the next wave.
 - Adds the *Changelog* line of each merged spec to `CHANGELOG.md`.
-- Deletes `internal/deps/deps.go` once wave 3 is merged (`go mod tidy` then
-  keeps only what is used).
+- `internal/deps/deps.go` was deleted after wave 3; new Go dependencies are
+  added by the lead on the integration branch before a feature starts.

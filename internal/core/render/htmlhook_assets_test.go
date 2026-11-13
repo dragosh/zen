@@ -20,7 +20,7 @@ func (r rewriter) HTML(_ plugins.Context, h string) (string, error) {
 	}
 	return h, nil
 }
-func (rewriter) Assets() fs.FS { return fstest.MapFS{"rw.css": {Data: []byte("p{}")}} }
+func (rewriter) Assets() fs.FS         { return fstest.MapFS{"rw.css": {Data: []byte("p{}")}} }
 func (rewriter) Entry() plugins.Assets { return plugins.Assets{CSS: []string{"rw.css"}} }
 
 func TestHTMLHookAssetsOnlyWhenChanged(t *testing.T) {

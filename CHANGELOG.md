@@ -17,6 +17,9 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 - Open a folder as a workspace with safe file access (core).
 - Global `config.yml`, workspace `.zen.yml` and page frontmatter settings (core).
 - Plugin API v1 with fenced, container and inline directive syntax (core).
+- Folder workspaces in the app: folder picker, saving, live reload, confirm before opening external links, confirm before closing with unsaved edits.
+- Syntax highlighting plugin (grayscale).
+- Mermaid diagram plugin (mermaid 11.4.1 bundled).
 - Go-side markdown rendering with plugin pipeline and sanitising.
 - Navigation tree built from links between pages, sidebar and breadcrumb.
 - Live reload when files change on disk (core).
