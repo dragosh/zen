@@ -7,6 +7,12 @@ vars:
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
   # Target OS for build/package/run. Defaults to the host OS.
   GOOS: '{{.GOOS | default OS}}'
+  # SemVer version, read from the VERSION file (see docs/VERSIONING.md).
+  VERSION:
+    sh: cat "{{.ROOT_DIR}}/VERSION"
+  # Linker flag that stamps the version into every `go build`.
+  VERSION_LDFLAGS: '-X github.com/dragosh/zen/internal/cli.Version={{.VERSION}}'
+  SEMVER_RE: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$'
 
 includes:
   common: ./build/Taskfile.yml
@@ -74,3 +80,59 @@ tasks:
       INSTALL_DIR: '{{.INSTALL_DIR | default (print .HOME "/.local/bin")}}'
     cmds:
       - rm -f "{{.INSTALL_DIR}}/{{.APP_NAME}}"
+
+  version:
+    summary: Prints the version from the VERSION file
+    silent: true
+    cmds:
+      - echo "{{.VERSION}}"
+
+  version:ldflags:
+    summary: Prints the linker flag that stamps the version into builds (used by build/version_test.go)
+    silent: true
+    cmds:
+      - echo "{{.VERSION_LDFLAGS}}"
+
+  version:check:
+    summary: Fails if VERSION is not valid SemVer, build/config.yml disagrees with it, or CHANGELOG.md has no Unreleased section
+    silent: true
+    dir: '{{.ROOT_DIR}}'
+    cmds:
+      - |
+        test "$(wc -l < VERSION | tr -d ' ')" = 1 || { echo "VERSION must be exactly one line" >&2; exit 1; }
+        v="$(cat VERSION)"
+        printf '%s\n' "$v" | grep -Eq '{{.SEMVER_RE}}' || { echo "VERSION '$v' is not valid SemVer 2.0.0" >&2; exit 1; }
+        core="${v%%+*}"; core="${core%%-*}"
+        grep -Eq "^  version: \"$core\"" build/config.yml || { echo "build/config.yml info.version must be \"$core\"" >&2; exit 1; }
+        grep -Eq '^## \[Unreleased\][[:space:]]*$' CHANGELOG.md || { echo "CHANGELOG.md has no '## [Unreleased]' section" >&2; exit 1; }
+        echo "version $v ok"
+
+  version:bump:
+    summary: Rewrites VERSION. Usage - task version:bump PART=major|minor|patch|pre
+    silent: true
+    dir: '{{.ROOT_DIR}}'
+    requires:
+      vars: [PART]
+    cmds:
+      - |
+        v="$(cat VERSION)"
+        printf '%s\n' "$v" | grep -Eq '{{.SEMVER_RE}}' || { echo "VERSION '$v' is not valid SemVer 2.0.0" >&2; exit 1; }
+        v="${v%%+*}"
+        core="${v%%-*}"
+        pre=""
+        case "$v" in *-*) pre="${v#*-}" ;; esac
+        major="${core%%.*}"; rest="${core#*.}"; minor="${rest%%.*}"; patch="${rest#*.}"
+        case "{{.PART}}" in
+          major) new="$((major + 1)).0.0" ;;
+          minor) new="$major.$((minor + 1)).0" ;;
+          patch) new="$major.$minor.$((patch + 1))" ;;
+          pre)
+            n="${pre##*.}"
+            case "$pre" in *.*) ;; *) n="" ;; esac
+            case "$n" in ''|*[!0-9]*) echo "cannot bump pre-release of '$v': it does not end in a number (like alpha.1)" >&2; exit 1 ;; esac
+            new="$core-${pre%.*}.$((n + 1))" ;;
+          *) echo "PART must be major, minor, patch or pre" >&2; exit 1 ;;
+        esac
+        printf '%s\n' "$new" > VERSION
+        sed -i.bak -E "s/^  version: \"[^\"]*\"/  version: \"${new%%-*}\"/" build/config.yml && rm -f build/config.yml.bak
+        echo "$v -> $new"
