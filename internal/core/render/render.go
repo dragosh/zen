@@ -2,39 +2,32 @@
 package render
 
 import (
-	"bytes"
+	"errors"
 
-	"github.com/microcosm-cc/bluemonday"
-	"github.com/yuin/goldmark"
-	"github.com/yuin/goldmark/extension"
-	"github.com/yuin/goldmark/parser"
-	"github.com/yuin/goldmark/renderer/html"
+	"github.com/dragosh/zen/internal/core/config"
+	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zen/internal/core/workspace"
 )
 
-var (
-	md = goldmark.New(
-		goldmark.WithExtensions(extension.GFM, extension.Footnote),
-		goldmark.WithParserOptions(parser.WithAutoHeadingID()),
-		// Raw HTML is allowed through goldmark and then sanitised below.
-		goldmark.WithRendererOptions(html.WithUnsafe()),
-	)
-	policy = newPolicy()
-)
-
-func newPolicy() *bluemonday.Policy {
-	p := bluemonday.UGCPolicy()
-	p.AllowAttrs("id").OnElements("h1", "h2", "h3", "h4", "h5", "h6", "li", "sup")
-	p.AllowAttrs("class").Matching(bluemonday.SpaceSeparatedTokens).OnElements("code", "pre", "div", "span", "li", "ul", "ol", "section", "sup", "a")
-	p.AllowAttrs("type", "checked", "disabled").OnElements("input")
-	p.AllowElements("input", "section")
-	return p
+type Resolver interface {
+	ResolveLink(from, href string) workspace.Link
 }
 
-// HTML renders markdown source to sanitised HTML.
-func HTML(source []byte) (string, error) {
-	var buf bytes.Buffer
-	if err := md.Convert(source, &buf); err != nil {
-		return "", err
-	}
-	return policy.Sanitize(buf.String()), nil
+type Page struct {
+	Path, Title, HTML string
+	Frontmatter       map[string]any
+	Assets            plugins.Assets
+	Warnings          []string
 }
+
+type Renderer struct{}
+
+func New(reg *plugins.Registry, cfg *config.Config, links Resolver) *Renderer { return &Renderer{} }
+
+func (r *Renderer) Render(path string, src []byte) (Page, error) {
+	return Page{}, errors.New("not implemented")
+}
+
+func (r *Renderer) Links(path string, src []byte) []workspace.Link { return nil }
+
+func HTML(src []byte) (string, error) { return "", errors.New("not implemented") }
