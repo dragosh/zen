@@ -1,0 +1,402 @@
+package app
+
+import (
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+	"sync"
+
+	"github.com/dragosh/zen/internal/core/config"
+	"github.com/dragosh/zen/internal/core/index"
+	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zen/internal/core/render"
+	"github.com/dragosh/zen/internal/core/watch"
+	"github.com/dragosh/zen/internal/core/workspace"
+)
+
+// Event names emitted to the frontend.
+const (
+	EventWorkspaceChanged = "workspace:changed"
+	EventPageChanged      = "page:changed"
+)
+
+// EventSink delivers events to the frontend.
+type EventSink interface {
+	Emit(name string, data any)
+}
+
+// NavNode, Workspace, Crumb, Page and Startup are the JSON shapes of
+// docs/PLAN.md "Service API".
+type NavNode struct {
+	Title    string    `json:"title"`
+	Path     string    `json:"path"`
+	Kind     string    `json:"kind"`
+	Children []NavNode `json:"children"`
+}
+
+type Workspace struct {
+	Root string    `json:"root"`
+	Name string    `json:"name"`
+	Home string    `json:"home"`
+	Tree []NavNode `json:"tree"`
+}
+
+type Crumb struct {
+	Title string `json:"title"`
+	Path  string `json:"path"`
+}
+
+type PageAssets struct {
+	CSS []string `json:"css"`
+	JS  []string `json:"js"`
+}
+
+type Page struct {
+	Path        string         `json:"path"`
+	Title       string         `json:"title"`
+	HTML        string         `json:"html"`
+	Frontmatter map[string]any `json:"frontmatter"`
+	Breadcrumb  []Crumb        `json:"breadcrumb"`
+	Assets      PageAssets     `json:"assets"`
+	Warnings    []string       `json:"warnings"`
+}
+
+type Startup struct {
+	Workspace *Workspace `json:"workspace"`
+	Page      string     `json:"page"`
+	Mode      string     `json:"mode"`
+}
+
+// PageChanged is the payload of page:changed.
+type PageChanged struct {
+	Path string `json:"path"`
+}
+
+var errNoWorkspace = errors.New("no folder is open")
+
+// state holds the open workspace and everything derived from it. All fields
+// below mu are swapped together.
+type state struct {
+	reg        *plugins.Registry
+	globalPath string
+	events     EventSink
+
+	mu      sync.Mutex
+	ws      *workspace.Workspace
+	cfg     *config.Config
+	r       *render.Renderer
+	idx     *index.Index
+	tree    []NavNode
+	current string // last page served
+
+	watchMu sync.Mutex // serialises watcher start/stop
+	w       *watch.Watcher
+}
+
+func newState(reg *plugins.Registry, globalPath string, events EventSink) *state {
+	if reg == nil {
+		reg = plugins.NewRegistry()
+	}
+	return &state{reg: reg, globalPath: globalPath, events: events}
+}
+
+// open replaces the workspace with dir ("" closes it) and starts watching.
+// It must not be called from the watch callback.
+func (s *state) open(dir string) error {
+	var ws *workspace.Workspace
+	if dir != "" {
+		var err error
+		if ws, err = workspace.Open(dir); err != nil {
+			return err
+		}
+	}
+	s.watchMu.Lock()
+	defer s.watchMu.Unlock()
+	if s.w != nil {
+		s.w.Stop()
+		s.w = nil
+	}
+	s.mu.Lock()
+	s.ws, s.current, s.idx = ws, "", nil
+	s.rebuildLocked()
+	s.mu.Unlock()
+	if ws == nil {
+		return nil
+	}
+	w, err := watch.Start(ws.Root(), s.handle)
+	if err != nil {
+		return err // the workspace stays usable without live reload
+	}
+	s.w = w
+	return nil
+}
+
+func (s *state) stopWatch() {
+	s.watchMu.Lock()
+	defer s.watchMu.Unlock()
+	if s.w != nil {
+		s.w.Stop()
+		s.w = nil
+	}
+}
+
+// rebuildLocked reloads config, renderer and index and reports whether the
+// tree changed.
+func (s *state) rebuildLocked() bool {
+	if s.ws == nil {
+		s.cfg, s.r, s.idx, s.tree = nil, nil, nil, nil
+		return true
+	}
+	s.cfg = config.Load(s.globalPath, s.ws.Root())
+	s.r = render.New(s.reg, s.cfg, s.ws)
+	return s.reindexLocked()
+}
+
+// reindexLocked rebuilds the index and reports whether the tree changed.
+func (s *state) reindexLocked() bool {
+	files, _ := s.ws.Files()
+	srcs := make(map[string][]byte, len(files))
+	read := func(p string) []byte {
+		if b, ok := srcs[p]; ok {
+			return b
+		}
+		b, _ := s.ws.Read(p)
+		srcs[p] = b
+		return b
+	}
+	links := func(p string) []string {
+		var out []string
+		for _, l := range s.r.Links(p, read(p)) {
+			if l.Kind == "internal" && l.Path != "" {
+				out = append(out, l.Path)
+			}
+		}
+		return out
+	}
+	titles := func(p string) string {
+		if pg, err := s.r.Render(p, read(p)); err == nil && pg.Title != "" {
+			return pg.Title
+		}
+		return strings.TrimSuffix(filepath.Base(p), filepath.Ext(p))
+	}
+	idx := index.Build(files, s.ws.Home(), links, titles)
+	changed := s.idx == nil || !s.idx.Equal(idx)
+	s.idx = idx
+	s.tree = navNodes(idx.Tree())
+	return changed
+}
+
+func navNodes(ns []index.Node) []NavNode {
+	out := make([]NavNode, 0, len(ns))
+	for _, n := range ns {
+		out = append(out, NavNode{Title: n.Title, Path: n.Path, Kind: n.Kind, Children: navNodes(n.Children)})
+	}
+	return out
+}
+
+func (s *state) workspaceLocked() *Workspace {
+	if s.ws == nil {
+		return nil
+	}
+	return &Workspace{Root: s.ws.Root(), Name: s.ws.Name(), Home: s.ws.Home(), Tree: s.tree}
+}
+
+func (s *state) workspace() *Workspace {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.workspaceLocked()
+}
+
+func (s *state) home() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.ws == nil {
+		return ""
+	}
+	return s.ws.Home()
+}
+
+func (s *state) page(path string) (Page, error) {
+	if !isMarkdownPath(path) {
+		return Page{}, s.cleanErr(path, workspace.ErrNotMarkdown)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.ws == nil {
+		return Page{}, errNoWorkspace
+	}
+	src, err := s.ws.Read(path)
+	if err != nil {
+		return Page{}, s.cleanErr(path, err)
+	}
+	p, err := s.renderLocked(path, src)
+	if err == nil {
+		s.current = path
+	}
+	return p, err
+}
+
+func (s *state) source(path string) (string, error) {
+	if !isMarkdownPath(path) {
+		return "", s.cleanErr(path, workspace.ErrNotMarkdown)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.ws == nil {
+		return "", errNoWorkspace
+	}
+	src, err := s.ws.Read(path)
+	if err != nil {
+		return "", s.cleanErr(path, err)
+	}
+	return string(src), nil
+}
+
+func (s *state) preview(path, content string) (Page, error) {
+	if !isMarkdownPath(path) {
+		return Page{}, s.cleanErr(path, workspace.ErrNotMarkdown)
+	}
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.ws == nil {
+		return Page{}, errNoWorkspace
+	}
+	if _, err := s.ws.Resolve(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
+		return Page{}, s.cleanErr(path, err)
+	}
+	return s.renderLocked(path, []byte(content))
+}
+
+func (s *state) save(path, content string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.ws == nil {
+		return errNoWorkspace
+	}
+	return s.cleanErr(path, s.ws.Write(path, []byte(content)))
+}
+
+func (s *state) renderLocked(path string, src []byte) (Page, error) {
+	rp, err := s.r.Render(path, src)
+	if err != nil {
+		return Page{}, s.cleanErr(path, err)
+	}
+	p := Page{
+		Path: path, Title: rp.Title, HTML: rp.HTML,
+		Frontmatter: rp.Frontmatter, Breadcrumb: []Crumb{},
+		Assets:   PageAssets{CSS: rp.Assets.CSS, JS: rp.Assets.JS},
+		Warnings: rp.Warnings,
+	}
+	if p.Path == "" {
+		p.Path = path
+	}
+	if p.Frontmatter == nil {
+		p.Frontmatter = map[string]any{}
+	}
+	if p.Assets.CSS == nil {
+		p.Assets.CSS = []string{}
+	}
+	if p.Assets.JS == nil {
+		p.Assets.JS = []string{}
+	}
+	if p.Warnings == nil {
+		p.Warnings = []string{}
+	}
+	for _, c := range s.idx.Breadcrumb(path) {
+		p.Breadcrumb = append(p.Breadcrumb, Crumb{Title: c.Title, Path: c.Path})
+	}
+	return p, nil
+}
+
+// cleanErr turns an error into a message without absolute paths.
+func (s *state) cleanErr(rel string, err error) error {
+	if err == nil {
+		return nil
+	}
+	switch {
+	case errors.Is(err, workspace.ErrOutside), errors.Is(err, workspace.ErrTooLarge),
+		errors.Is(err, workspace.ErrNotMarkdown), errors.Is(err, workspace.ErrNotAsset):
+		return fmt.Errorf("%s: %s", rel, strings.TrimPrefix(rootErr(err).Error(), "workspace: "))
+	case errors.Is(err, fs.ErrNotExist):
+		return fmt.Errorf("%s: not found", rel)
+	case errors.Is(err, fs.ErrPermission):
+		return fmt.Errorf("%s: permission denied", rel)
+	}
+	var pe *fs.PathError
+	if errors.As(err, &pe) {
+		return fmt.Errorf("%s: %v", rel, pe.Err)
+	}
+	msg := err.Error()
+	if s.ws != nil {
+		msg = strings.ReplaceAll(msg, s.ws.Root()+string(os.PathSeparator), "")
+		msg = strings.ReplaceAll(msg, s.ws.Root(), ".")
+	}
+	return errors.New(msg)
+}
+
+func rootErr(err error) error {
+	for _, e := range []error{workspace.ErrOutside, workspace.ErrTooLarge, workspace.ErrNotMarkdown, workspace.ErrNotAsset} {
+		if errors.Is(err, e) {
+			return e
+		}
+	}
+	return err
+}
+
+// handle is the watch callback. It never stops the watcher.
+func (s *state) handle(evs []watch.Event) {
+	s.mu.Lock()
+	if s.ws == nil {
+		s.mu.Unlock()
+		return
+	}
+	var pages []string
+	seen := map[string]bool{}
+	reindex, assets, cfg := false, false, false
+	for _, e := range evs {
+		switch {
+		case e.Path == config.WorkspaceFile:
+			cfg = true
+		case isMarkdownPath(e.Path):
+			reindex = true
+			if !seen[e.Path] {
+				seen[e.Path] = true
+				pages = append(pages, e.Path)
+			}
+		default:
+			assets = true
+		}
+	}
+	changed := false
+	if cfg {
+		changed = s.rebuildLocked() // plugins may change titles and links
+	} else if reindex {
+		changed = s.reindexLocked()
+	}
+	var ws *Workspace
+	if changed {
+		ws = s.workspaceLocked()
+	}
+	if (assets || cfg) && s.current != "" && !seen[s.current] {
+		pages = append(pages, s.current)
+	}
+	s.mu.Unlock()
+
+	if ws != nil {
+		s.events.Emit(EventWorkspaceChanged, ws)
+	}
+	for _, p := range pages {
+		s.events.Emit(EventPageChanged, PageChanged{Path: p})
+	}
+}
+
+func isMarkdownPath(p string) bool {
+	switch strings.ToLower(filepath.Ext(p)) {
+	case ".md", ".markdown":
+		return true
+	}
+	return false
+}

@@ -322,6 +322,14 @@ export const editorFeature: Feature = {
       void confirmLeave().then((ok) => { if (ok) window.close(); });
     };
     window.addEventListener("beforeunload", onBeforeUnload);
+    // Closing the native window (app/services): api/wails.ts dispatches this.
+    const onBeforeClose = (e: Event) => {
+      if (!dirty) return;
+      e.preventDefault();
+      const close = (e as CustomEvent<{ close?: () => void }>).detail?.close;
+      void confirmLeave().then((ok) => { if (ok) close?.(); });
+    };
+    window.addEventListener("zen:before-close", onBeforeClose);
 
     // Navigating to another page while in edit mode.
     const offStore = store.subscribe((s) => {
@@ -357,6 +365,7 @@ export const editorFeature: Feature = {
     return () => {
       document.removeEventListener("keydown", onKey);
       window.removeEventListener("beforeunload", onBeforeUnload);
+      window.removeEventListener("zen:before-close", onBeforeClose);
       offStore();
       offChanged();
       dialog?.close();
