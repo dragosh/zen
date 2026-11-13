@@ -1,11 +1,8 @@
-import { Documents } from "../bindings/github.com/dragosh/zen/internal/app";
-import { renderDocument, renderEmptyState } from "./shell";
+import "./styles/tokens.css";
+import "./styles/base.css";
+import "./styles/shell.css";
+import { getApi } from "./api";
+import { features } from "./shell/features";
+import { createShell } from "./shell/shell";
 
-const root = document.getElementById("app")!;
-renderEmptyState(root);
-
-Documents.Startup()
-  .then((docs) => {
-    if (docs && docs.length > 0) renderDocument(root, docs[0]);
-  })
-  .catch((err) => console.error("zen: loading documents failed", err));
+void getApi().then((api) => createShell(document.getElementById("app")!, { api, features }).start());

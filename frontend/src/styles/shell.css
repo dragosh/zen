@@ -1,0 +1,199 @@
+/* Welcome, error and the frame (docs/ui/mockup.html). */
+
+/* welcome and error */
+.zen-welcome,
+.zen-error {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.zen-logo {
+  width: 56px;
+  height: 56px;
+}
+
+.zen-welcome h1,
+.zen-error h1 {
+  font: 600 2rem var(--font-body);
+  margin: 0 0 18px;
+}
+
+.zen-welcome .primary,
+.zen-error .primary {
+  padding: 12px 28px;
+  font-size: 15px;
+}
+
+.zen-welcome p {
+  color: var(--fg-muted);
+  margin: 6px 0 0;
+}
+
+.zen-welcome-status:empty {
+  display: none;
+}
+
+.zen-error h1 {
+  font-size: 1.4rem;
+  margin-bottom: 0;
+}
+
+.zen-error-message {
+  max-width: 60ch;
+  margin: 0 0 var(--space-4);
+  color: var(--fg-muted);
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+
+/* frame */
+.zen-frame {
+  --sidebar-width: 260px;
+  height: 100%;
+  display: flex;
+  min-height: 0;
+}
+
+.zen-frame.is-resizing {
+  cursor: col-resize;
+  user-select: none;
+}
+
+.zen-sidebar {
+  width: var(--sidebar-width);
+  flex: none;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-subtle);
+  border-right: 1px solid var(--rule);
+  overflow: hidden;
+}
+
+/* A 7px grab area centred on the sidebar's 1px border. */
+.zen-resizer {
+  flex: none;
+  width: 7px;
+  margin: 0 -3px 0 -4px;
+  cursor: col-resize;
+  position: relative;
+  z-index: 1;
+}
+
+.zen-resizer:hover,
+.zen-frame.is-resizing .zen-resizer {
+  background: linear-gradient(to right, transparent 3px, var(--fg-muted) 3px, var(--fg-muted) 4px, transparent 4px);
+}
+
+.zen-resizer:focus-visible {
+  outline-offset: -2px;
+}
+
+.zen-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.zen-top {
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 14px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.zen-top-controls {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  margin-left: -6px;
+}
+
+.zen-top-controls button {
+  min-width: 28px;
+  padding: 4px 8px;
+}
+
+.zen-breadcrumb {
+  flex: 1;
+  min-width: 0;
+  color: var(--fg-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zen-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.zen-main {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+}
+
+.zen-empty {
+  margin: auto;
+  padding: var(--space-7) var(--space-6);
+  color: var(--fg-muted);
+}
+
+/* placeholder features (shell/features.ts), until ui/navigation merges */
+.zen-ph-ws {
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 14px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--rule);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.zen-ph-logo {
+  width: 18px;
+  height: 18px;
+  flex: none;
+}
+
+.zen-ph-tree {
+  padding: var(--space-2);
+  overflow: auto;
+}
+
+.zen-ph-row {
+  display: block;
+  width: 100%;
+  padding: 4px 8px;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zen-ph-group {
+  color: var(--fg-muted);
+}
+
+.zen-ph-row[aria-current] {
+  background: var(--btn-bg);
+  font-weight: 600;
+}

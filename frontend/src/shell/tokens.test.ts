@@ -1,5 +1,7 @@
 import { expect, test } from "vitest";
-import css from "../styles/tokens.css?raw";
+import { readFileSync } from "node:fs";
+
+const css = readFileSync(new URL("../styles/tokens.css", import.meta.url), "utf8");
 
 // docs/UI.md "Tokens"
 const light: Record<string, string> = {
@@ -15,23 +17,32 @@ const dark: Record<string, string> = {
 const shared = ["--font-body", "--font-ui", "--font-mono", "--radius",
   "--space-1", "--space-2", "--space-3", "--space-4", "--space-5", "--space-6", "--space-7"];
 
-/** Declarations of every rule whose selector matches, keyed by selector. */
-function rules(source: string): { selector: string; media: string; decls: Record<string, string> }[] {
-  const out: { selector: string; media: string; decls: Record<string, string> }[] = [];
+type Rule = { selector: string; media: string; decls: Record<string, string> };
+
+/** Flat list of rules with their enclosing @media (one level of nesting). */
+function rules(source: string): Rule[] {
+  const out: Rule[] = [];
   const clean = source.replace(/\/\*[\s\S]*?\*\//g, "");
-  const re = /([^{}]+)\{([^{}]*)\}/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(clean))) {
-    let selector = m[1].trim();
-    let media = "";
-    const at = selector.match(/^(@media[^{]*)\{\s*([\s\S]*)$/);
-    if (at) { media = at[1].trim(); selector = at[2].trim(); }
-    const decls: Record<string, string> = {};
-    for (const d of m[2].split(";")) {
-      const i = d.indexOf(":");
-      if (i > 0) decls[d.slice(0, i).trim()] = d.slice(i + 1).trim();
-    }
-    out.push({ selector, media, decls });
+  let media = "";
+  let buf = "";
+  for (const ch of clean) {
+    if (ch === "{") {
+      const head = buf.trim();
+      buf = "";
+      if (head.startsWith("@media")) media = head;
+      else out.push({ selector: head, media, decls: {} });
+    } else if (ch === "}") {
+      if (buf.trim() === "" && out.length && Object.keys(out[out.length - 1].decls).length && !buf.includes(":")) {
+        media = ""; // closing an @media block
+      } else {
+        const decls = out[out.length - 1].decls;
+        for (const d of buf.split(";")) {
+          const i = d.indexOf(":");
+          if (i > 0) decls[d.slice(0, i).trim()] = d.slice(i + 1).trim();
+        }
+      }
+      buf = "";
+    } else buf += ch;
   }
   return out;
 }

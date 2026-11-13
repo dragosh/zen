@@ -30,7 +30,7 @@ const key = (k: string) =>
   document.dispatchEvent(new KeyboardEvent("keydown", { key: k, metaKey: true, bubbles: true, cancelable: true }));
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const button = (label: string) =>
-  [...root.querySelectorAll("button")].find((b) => b.textContent === label || b.getAttribute("aria-label") === label);
+  Array.from(root.querySelectorAll("button")).find((b) => b.textContent === label || b.getAttribute("aria-label") === label);
 const withWorkspace = (page = "", mode: "read" | "edit" = "read") =>
   createFakeApi({ startup: { workspace: sampleWorkspace(), page, mode } });
 
