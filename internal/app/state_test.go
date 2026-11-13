@@ -1,6 +1,7 @@
 package app
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -90,11 +91,11 @@ func newTestZen(t *testing.T, dir, page, mode string) (*Zen, *sink, *fakeDialogs
 }
 
 var docs = map[string]string{
-	"README.md":       "# Home\n\n[Guide](docs/guide.md)\n",
-	"docs/guide.md":   "# Guide\n\n[Deep](deep.md) ![i](../img/a.png)\n",
-	"docs/deep.md":    "# Deep\n",
-	"img/a.png":       "\x89PNG\r\n\x1a\n",
-	"img/x.svg":       `<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`,
+	"README.md":        "# Home\n\n[Guide](docs/guide.md)\n",
+	"docs/guide.md":    "# Guide\n\n[Deep](deep.md) ![i](../img/a.png)\n",
+	"docs/deep.md":     "# Deep\n",
+	"img/a.png":        "\x89PNG\r\n\x1a\n",
+	"img/x.svg":        `<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script></svg>`,
 	"notes/secret.txt": "nope",
 }
 
@@ -218,6 +219,10 @@ func TestPageLifecycle(t *testing.T) {
 		_, err1 := z.Page(bad)
 		_, err2 := z.Source(bad)
 		err3 := z.Save(bad, "x")
+		if bad == "missing.md" { // saving creates a new page
+			err3 = errors.New("ok")
+			os.Remove(filepath.Join(dir, "missing.md"))
+		}
 		for _, err := range []error{err1, err2, err3} {
 			if err == nil {
 				t.Fatalf("%s: expected error", bad)
@@ -290,7 +295,7 @@ func TestWatchEvents(t *testing.T) {
 	}
 
 	// Content change, tree unchanged: only page:changed.
-	os.WriteFile(filepath.Join(dir, "docs", "deep.md"), []byte("# Deep 2\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, "docs", "deep.md"), []byte("# Deep\n\nMore text.\n"), 0o644)
 	z.state.handle([]watch.Event{{Path: "docs/deep.md", Kind: watch.Changed}})
 	if !has("page:changed", PageChanged{"docs/deep.md"}) || has("workspace:changed", nil) {
 		t.Fatalf("change: %v", ev.all())
@@ -358,4 +363,3 @@ func TestWatchEvents(t *testing.T) {
 		t.Fatalf("batch: %v", ev.all())
 	}
 }
-
