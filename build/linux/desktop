@@ -1,0 +1,13 @@
+[Desktop Entry]
+Version=1.0
+Name=zen
+Comment=Markdown reader and editor
+# The Exec line includes %u to pass the URL to the application
+Exec=/usr/local/bin/zen %u
+Terminal=false
+Type=Application
+Icon=zen
+Categories=Utility;
+StartupWMClass=zen
+
+ 

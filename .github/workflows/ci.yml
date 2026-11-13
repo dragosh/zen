@@ -1,0 +1,38 @@
+name: ci
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: sudo apt-get update && sudo apt-get install -y libgtk-4-dev libwebkitgtk-6.0-dev
+      - run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
+      - run: wails3 task test
+
+  macos:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
+      - run: wails3 task darwin:package:dmg
+      - uses: actions/upload-artifact@v4
+        with:
+          name: zen-macos
+          path: bin/*.dmg

@@ -1,0 +1,58 @@
+version: '3'
+
+vars:
+  APP_NAME: "zen"
+  BIN_DIR: "bin"
+  PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
+  VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
+  # Target OS for build/package/run. Defaults to the host OS.
+  GOOS: '{{.GOOS | default OS}}'
+
+includes:
+  common: ./build/Taskfile.yml
+  darwin: ./build/darwin/Taskfile.yml
+  linux: ./build/linux/Taskfile.yml
+
+tasks:
+  build:
+    summary: Builds the application
+    cmds:
+      - task: "{{.GOOS}}:build"
+
+  package:
+    summary: Packages a production build of the application
+    cmds:
+      - task: "{{.GOOS}}:package"
+
+  run:
+    summary: Runs the application
+    cmds:
+      - task: "{{.GOOS}}:run"
+
+  dev:
+    summary: Runs the application in development mode
+    cmds:
+      - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
+
+  test:
+    summary: Runs Go and frontend tests
+    cmds:
+      - task: test:go
+      - task: test:frontend
+
+  test:go:
+    summary: Runs Go tests
+    deps:
+      - task: common:build:frontend
+    cmds:
+      - go vet ./...
+      - go test ./...
+
+  test:frontend:
+    summary: Type-checks and tests the frontend
+    dir: frontend
+    deps:
+      - task: common:install:frontend:deps
+    cmds:
+      - npx tsc
+      - npm test
