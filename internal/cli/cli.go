@@ -1,10 +1,12 @@
 // Package cli parses the zen command line and decides whether to print
-// information or start the GUI. It must not import Wails.
+// information or start the GUI. It uses the standard library only.
 package cli
 
 import (
+	"errors"
 	"fmt"
 	"io"
+	"os"
 	"path/filepath"
 	"strings"
 )
@@ -13,29 +15,45 @@ import (
 // -ldflags "-X github.com/dragosh/zen/internal/cli.Version=<v>".
 var Version = "dev"
 
-// Launcher starts the GUI with the given absolute file paths and blocks
-// until it exits.
-type Launcher func(files []string) error
+// Launch describes what the GUI opens.
+type Launch struct {
+	Dir  string // absolute directory to open
+	Page string // workspace-relative page, "" for default
+	Mode string // "read" | "edit"
+}
+
+// Launcher starts the GUI and blocks until it exits.
+type Launcher func(Launch) error
 
 const usage = `zen - markdown reader and editor
 
 Usage:
-  zen [file ...]
+  zen [path]          open a folder or markdown file (default: current folder)
+  zen edit [path]     open in the editor; a new .md file is created on save
+  zen help            show this help
+  zen version         show the version
 
 Options:
-  -h, --help       show this help
-  -v, --version    show the version
+  -h, --help          show this help
+  -v, --version       show the version
+  --                  treat the following arguments as paths
 `
 
+type usageError string
+
+func (e usageError) Error() string { return string(e) }
+
 // Run executes the command line and returns the process exit code.
-func Run(args []string, stdout, stderr io.Writer, launch Launcher) int {
-	var files []string
-	flags := true
+func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher) int {
+	mode := "read"
+	var paths []string
+	flags, first := true, true
 	for _, arg := range args {
 		switch {
+		case flags && strings.HasPrefix(arg, "-psn_"):
+			continue
 		case flags && arg == "--":
 			flags = false
-		case flags && strings.HasPrefix(arg, "-psn_"):
 		case flags && (arg == "-h" || arg == "--help"):
 			fmt.Fprint(stdout, usage)
 			return 0
@@ -43,21 +61,107 @@ func Run(args []string, stdout, stderr io.Writer, launch Launcher) int {
 			fmt.Fprintf(stdout, "zen %s\n", Version)
 			return 0
 		case flags && strings.HasPrefix(arg, "-") && arg != "-":
-			fmt.Fprintf(stderr, "zen: unknown option %s\n\n%s", arg, usage)
-			return 2
+			return fail(stderr, usageError("unknown option "+arg))
+		case flags && first && arg == "help":
+			fmt.Fprint(stdout, usage)
+			return 0
+		case flags && first && arg == "version":
+			fmt.Fprintf(stdout, "zen %s\n", Version)
+			return 0
+		case flags && first && arg == "edit":
+			mode = "edit"
 		default:
-			abs, err := filepath.Abs(arg)
-			if err != nil {
-				fmt.Fprintf(stderr, "zen: %v\n", err)
-				return 1
-			}
-			files = append(files, abs)
+			paths = append(paths, arg)
 		}
+		first = false
+	}
+	if len(paths) > 1 {
+		return fail(stderr, usageError("more than one path given"))
 	}
 
-	if err := launch(files); err != nil {
-		fmt.Fprintf(stderr, "zen: %v\n", err)
-		return 1
+	l := Launch{Dir: cwd, Mode: mode}
+	if len(paths) == 1 {
+		var err error
+		if l.Dir, l.Page, err = resolve(paths[0], cwd, mode == "edit"); err != nil {
+			return fail(stderr, err)
+		}
+	}
+	if err := launch(l); err != nil {
+		return fail(stderr, err)
 	}
 	return 0
+}
+
+func fail(stderr io.Writer, err error) int {
+	var u usageError
+	if errors.As(err, &u) {
+		fmt.Fprintf(stderr, "zen: %v\n\n%s", err, usage)
+		return 2
+	}
+	fmt.Fprintf(stderr, "zen: %v\n", err)
+	return 1
+}
+
+func isMarkdown(p string) bool {
+	switch strings.ToLower(filepath.Ext(p)) {
+	case ".md", ".markdown":
+		return true
+	}
+	return false
+}
+
+// resolve maps a path argument to a workspace directory and page.
+func resolve(arg, cwd string, allowNew bool) (dir, page string, err error) {
+	p := arg
+	if !filepath.IsAbs(p) {
+		p = filepath.Join(cwd, p)
+	}
+	p = filepath.Clean(p)
+
+	info, statErr := os.Stat(p)
+	switch {
+	case statErr == nil && info.IsDir():
+		return p, "", nil
+	case !isMarkdown(p):
+		return "", "", usageError(arg + " is neither a directory nor a markdown file")
+	case statErr == nil:
+	case allowNew && errors.Is(statErr, os.ErrNotExist):
+		if pi, err := os.Stat(filepath.Dir(p)); err != nil || !pi.IsDir() {
+			return "", "", usageError(arg + ": parent directory does not exist")
+		}
+	default:
+		return "", "", usageError(arg + ": no such markdown file")
+	}
+
+	dir = root(filepath.Dir(p))
+	rel, err := filepath.Rel(dir, p)
+	if err != nil {
+		return "", "", err
+	}
+	return dir, filepath.ToSlash(rel), nil
+}
+
+// root returns the nearest ancestor of start (inclusive) containing .zen.yml
+// or .git, searching only strictly below the user's home directory. Without
+// a marker, start itself is the root.
+func root(start string) string {
+	home, err := os.UserHomeDir()
+	if err != nil || home == "" {
+		return start
+	}
+	home = filepath.Clean(home)
+	for d := start; within(d, home); d = filepath.Dir(d) {
+		for _, m := range []string{".zen.yml", ".git"} {
+			if _, err := os.Stat(filepath.Join(d, m)); err == nil {
+				return d
+			}
+		}
+	}
+	return start
+}
+
+// within reports whether d is strictly inside home.
+func within(d, home string) bool {
+	rel, err := filepath.Rel(home, d)
+	return err == nil && rel != "." && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }

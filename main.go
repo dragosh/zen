@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"fmt"
 	"io/fs"
 	"os"
 
@@ -13,13 +14,18 @@ import (
 var dist embed.FS
 
 func main() {
-	os.Exit(cli.Run(os.Args[1:], os.Stdout, os.Stderr, launch))
+	cwd, err := os.Getwd()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "zen: %v\n", err)
+		os.Exit(1)
+	}
+	os.Exit(cli.Run(os.Args[1:], cwd, os.Stdout, os.Stderr, launch))
 }
 
-func launch(files []string) error {
+func launch(l cli.Launch) error {
 	assets, err := fs.Sub(dist, "frontend/dist")
 	if err != nil {
 		return err
 	}
-	return app.Run(app.Options{Assets: assets, Files: files})
+	return app.Run(app.Options{Assets: assets, Dir: l.Dir, Page: l.Page, Mode: l.Mode})
 }
