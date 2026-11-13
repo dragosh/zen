@@ -148,6 +148,9 @@ func (r *Renderer) Render(pagePath string, src []byte) (Page, error) {
 			st.warn(id, err)
 			continue
 		}
+		if res != out {
+			st.used[id] = true // its assets (e.g. CSS) are needed on this page
+		}
 		out = res
 	}
 
