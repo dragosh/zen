@@ -1,0 +1,80 @@
+/* highlight plugin, "zen" style: monochrome, built from the UI tokens
+   (docs/UI.md). Three gray levels plus weight and italics; light and dark. */
+.chroma {
+  --zen-hl-strong: var(--fg, #111111);
+  --zen-hl-mid: #3d3d3d;
+  --zen-hl-muted: var(--fg-muted, #6b6b6b);
+  color: var(--zen-hl-strong);
+  background: var(--bg-subtle, #f5f5f4);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .chroma {
+    --zen-hl-strong: var(--fg, #ededed);
+    --zen-hl-mid: #c4c4c4;
+    --zen-hl-muted: var(--fg-muted, #9a9a9a);
+  }
+}
+:root[data-theme="dark"] .chroma {
+  --zen-hl-strong: var(--fg, #ededed);
+  --zen-hl-mid: #c4c4c4;
+  --zen-hl-muted: var(--fg-muted, #9a9a9a);
+}
+:root[data-theme="light"] .chroma {
+  --zen-hl-strong: var(--fg, #111111);
+  --zen-hl-mid: #3d3d3d;
+  --zen-hl-muted: var(--fg-muted, #6b6b6b);
+}
+
+.chroma .line, .chroma .cl { display: inline; }
+.chroma .hl { background: var(--btn-bg, #ececeb); }
+
+/* line-number gutter: never copied with the code */
+.chroma .ln, .chroma .lnt, .chroma .lnlinks, .chroma .lntable, .chroma .lntd {
+  color: var(--zen-hl-muted);
+  -webkit-user-select: none;
+  user-select: none;
+}
+.chroma .ln { display: inline-block; min-width: 2.5em; padding-right: 1em; text-align: right; }
+
+/* plain text, names, operators and punctuation: strongest gray, regular */
+.chroma .x, .chroma .w, .chroma .n, .chroma .nx, .chroma .nv, .chroma .vc,
+.chroma .vg, .chroma .vi, .chroma .vm, .chroma .py, .chroma .nl, .chroma .na,
+.chroma .ni, .chroma .bp, .chroma .no, .chroma .o, .chroma .p, .chroma .g,
+.chroma .go, .chroma .gp, .chroma .bg, .chroma .err {
+  color: var(--zen-hl-strong);
+}
+
+/* keywords: strongest gray, bold */
+.chroma .k, .chroma .kc, .chroma .kd, .chroma .kn, .chroma .kp, .chroma .kr,
+.chroma .kt, .chroma .ow, .chroma .or, .chroma .nt, .chroma .gh, .chroma .gu,
+.chroma .gs {
+  color: var(--zen-hl-strong);
+  font-weight: 600;
+}
+
+/* definitions and builtins: strongest gray, medium weight */
+.chroma .nf, .chroma .fm, .chroma .nc, .chroma .nn, .chroma .ne, .chroma .nd,
+.chroma .nb {
+  color: var(--zen-hl-strong);
+  font-weight: 500;
+}
+
+/* literals: middle gray */
+.chroma .l, .chroma .ld, .chroma .s, .chroma .sa, .chroma .sb, .chroma .sc,
+.chroma .dl, .chroma .s2, .chroma .se, .chroma .sh, .chroma .si, .chroma .sx,
+.chroma .sr, .chroma .s1, .chroma .ss, .chroma .m, .chroma .mb, .chroma .mf,
+.chroma .mh, .chroma .mi, .chroma .il, .chroma .mo, .chroma .gi, .chroma .gd,
+.chroma .gr, .chroma .gt, .chroma .gl {
+  color: var(--zen-hl-mid);
+}
+.chroma .gd { text-decoration: line-through; }
+.chroma .gl { text-decoration: underline; }
+.chroma .ge { font-style: italic; }
+
+/* comments and docs: muted gray, italic */
+.chroma .c, .chroma .ch, .chroma .cm, .chroma .c1, .chroma .cs, .chroma .cp,
+.chroma .cpf, .chroma .sd {
+  color: var(--zen-hl-muted);
+  font-style: italic;
+}
+.chroma .cp, .chroma .cpf { font-style: normal; }
