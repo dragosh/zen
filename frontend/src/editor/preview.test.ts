@@ -1,10 +1,10 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+// @vitest-environment happy-dom
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeApi } from "../api/fake";
 import { createPreview } from "./preview";
 
 beforeEach(() => vi.useFakeTimers());
 afterEach(() => vi.useRealTimers());
-import { vi } from "vitest";
 
 describe("preview", () => {
   it("uses api.preview only, debounced 150 ms", async () => {

@@ -1,3 +1,4 @@
+// @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createFakeApi, type FakeApi } from "../api/fake";
 import { createStore } from "../shell/store";
