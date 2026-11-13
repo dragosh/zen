@@ -23,4 +23,4 @@ Scopes: `cli`, `core/document`, `core/watch`, `core/render`, `core/plugins`,
 
 | Feature | Status |
 |---|---|
-| [cli/entrypoint](cli/entrypoint/spec.md) | specified |
+| [cli/entrypoint](cli/entrypoint/spec.md) | done |

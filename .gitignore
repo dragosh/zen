@@ -9,3 +9,4 @@ frontend/bindings
 .DS_Store
 *.test
 *.out
+build/linux/zen.desktop

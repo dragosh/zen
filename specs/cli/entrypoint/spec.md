@@ -1,6 +1,6 @@
 # cli/entrypoint
 
-Status: specified
+Status: done
 
 ## Purpose
 
