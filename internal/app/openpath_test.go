@@ -2,7 +2,11 @@ package app
 
 import (
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zen/internal/core/workspace"
 )
 
 func TestOpenPath(t *testing.T) {
@@ -21,5 +25,29 @@ func TestOpenPath(t *testing.T) {
 
 	if _, err := z.openPath(filepath.Join(dir, "img", "a.png")); err == nil {
 		t.Fatal("non-markdown file should be refused")
+	}
+}
+
+func TestOpenTooLargeFolder(t *testing.T) {
+	f := workspace.MaxFiles
+	workspace.MaxFiles = 2
+	t.Cleanup(func() { workspace.MaxFiles = f })
+	dir := tree(t, map[string]string{"a.md": "", "b.md": "", "c.md": ""})
+
+	if _, err := newZen(zenOptions{Registry: plugins.NewRegistry(), Dir: dir, Events: &sink{}, Dialogs: &fakeDialogs{}}); err == nil ||
+		err.Error() != "this folder has more than 2 markdown files; open a smaller folder" {
+		t.Fatalf("startup: %v", err)
+	}
+
+	z, _, dl, _ := newTestZen(t, "", "", "")
+	dl.folder = dir
+	if ws, err := z.PickFolder(); ws != nil || err == nil || strings.Contains(err.Error(), dir) {
+		t.Fatalf("pick: %v %v", ws, err)
+	}
+	if _, err := z.openPath(dir); err == nil {
+		t.Fatal("open with: want error")
+	}
+	if z.Startup().Workspace != nil {
+		t.Fatal("a refused folder must not become the workspace")
 	}
 }

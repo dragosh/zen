@@ -19,6 +19,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 - Global `config.yml`, workspace `.zen.yml` and page frontmatter settings (core).
 - Plugin API v1 with fenced, container and inline directive syntax (core).
 - `Zen.app` bundle with the `zen` command inside, yin-yang icon, ad-hoc signed, not sandboxed; `task package`, `task install:cli`.
+- Folders with more than 2,000 markdown files or 50,000 files and folders are refused with a clear message (e.g. a home folder).
 - Open a folder or markdown file with Zen from Finder (Open With, `open -a Zen <path>`).
 - Folder workspaces in the app: folder picker, saving, live reload, confirm before opening external links, confirm before closing with unsaved edits.
 - Syntax highlighting plugin (grayscale).

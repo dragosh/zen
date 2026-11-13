@@ -187,9 +187,12 @@ func Run(opts Options) error {
 	a.Event.OnApplicationEvent(events.Common.ApplicationOpenedWithFile, func(e *application.ApplicationEvent) {
 		path := e.Context().Filename()
 		go func() {
-			if st, err := z.openPath(path); err == nil {
-				sink.Emit(EventWorkspaceOpened, st)
+			st, err := z.openPath(path)
+			if err != nil {
+				a.Dialog.Warning().SetTitle("Could not open").SetMessage(err.Error()).Show()
+				return
 			}
+			sink.Emit(EventWorkspaceOpened, st)
 		}()
 	})
 

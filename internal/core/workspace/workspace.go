@@ -25,7 +25,34 @@ var (
 	ErrNotMarkdown = errors.New("workspace: not a markdown file")
 	// ErrNotAsset is returned by Asset for extensions that are not servable images.
 	ErrNotAsset = errors.New("workspace: not an asset file")
+	// ErrTooManyFiles is returned by Open and Files when a folder is too big
+	// to index (see MaxFiles and MaxEntries), e.g. a home folder.
+	ErrTooManyFiles = errors.New("workspace: folder is too large")
 )
+
+// Limits on the folder scan. Variables so tests can lower them.
+var (
+	// MaxFiles is the most markdown files a workspace may contain.
+	MaxFiles = 2000
+	// MaxEntries is the most files and folders the scan visits (skipped
+	// folders are not entered). It bounds the time spent on huge trees.
+	MaxEntries = 50000
+)
+
+// TooManyFilesError says which limit a folder hit; it matches ErrTooManyFiles.
+type TooManyFilesError struct {
+	Markdown bool // true: MaxFiles hit; false: MaxEntries hit
+	Limit    int
+}
+
+func (e *TooManyFilesError) Error() string {
+	if e.Markdown {
+		return fmt.Sprintf("this folder has more than %d markdown files; open a smaller folder", e.Limit)
+	}
+	return fmt.Sprintf("this folder is too large to open (more than %d files and folders); open a smaller folder", e.Limit)
+}
+
+func (e *TooManyFilesError) Is(target error) bool { return target == ErrTooManyFiles }
 
 // maxFileSize is the largest file Read returns.
 const maxFileSize = 10 << 20
@@ -69,7 +96,12 @@ func Open(dir string) (*Workspace, error) {
 	if !fi.IsDir() {
 		return nil, fmt.Errorf("workspace: %s is not a directory", dir)
 	}
-	return &Workspace{root: root}, nil
+	w := &Workspace{root: root}
+	// Refuse folders that are too big before anything indexes or watches them.
+	if _, err := w.Files(); err != nil {
+		return nil, err
+	}
+	return w, nil
 }
 
 // Root is the absolute, symlink-resolved path of the folder.
@@ -81,9 +113,13 @@ func (w *Workspace) Name() string { return filepath.Base(w.root) }
 // Files lists every markdown file as sorted, "/"-separated relative paths.
 func (w *Workspace) Files() ([]string, error) {
 	files := []string{}
+	entries := 0
 	err := filepath.WalkDir(w.root, func(p string, d fs.DirEntry, err error) error {
 		if p == w.root {
 			return err
+		}
+		if entries++; entries > MaxEntries {
+			return &TooManyFilesError{Limit: MaxEntries}
 		}
 		if err != nil {
 			// Unreadable entry below the root: leave it out.
@@ -108,6 +144,9 @@ func (w *Workspace) Files() ([]string, error) {
 		}
 		rel = filepath.ToSlash(rel)
 		if d.Type().IsRegular() || (d.Type()&fs.ModeSymlink != 0 && w.isFile(rel)) {
+			if len(files) == MaxFiles {
+				return &TooManyFilesError{Markdown: true, Limit: MaxFiles}
+			}
 			files = append(files, rel)
 		}
 		return nil

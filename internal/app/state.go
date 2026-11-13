@@ -157,7 +157,11 @@ func (s *state) rebuildLocked() bool {
 
 // reindexLocked rebuilds the index and reports whether the tree changed.
 func (s *state) reindexLocked() bool {
-	files, _ := s.ws.Files()
+	files, err := s.ws.Files()
+	if err != nil && s.idx != nil {
+		// The folder grew past the limits while open: keep the current tree.
+		return false
+	}
 	srcs := make(map[string][]byte, len(files))
 	read := func(p string) []byte {
 		if b, ok := srcs[p]; ok {

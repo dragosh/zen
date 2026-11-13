@@ -19,6 +19,7 @@ every other feature gets safe, workspace-relative file access.
 1. `Open(dir)` accepts an existing directory (absolute or relative, symlinks resolved) and returns a `Workspace`; a file path or missing path is an error.
 2. `Name()` is the folder's base name; `Root()` the absolute, symlink-resolved path.
 3. `Files()` returns every `*.md` / `*.markdown` file (case-insensitive extension) as sorted, `/`-separated relative paths. It skips directories starting with `.`, `node_modules`, `vendor`, and symlinks that leave the root.
+3a. Folder limits: `Open` and `Files` fail with `ErrTooManyFiles` (a `*TooManyFilesError` with a readable message) when the folder holds more than `MaxFiles` (2 000) markdown files, or the scan visits more than `MaxEntries` (50 000) files and folders. Skipped folders are not entered or counted. This stops a home folder from being opened.
 4. `Home()` returns `README.md` (any case, root only) if present, else `""`.
 5. `Resolve(rel)` returns the absolute path for a relative path, or `ErrOutside` if the cleaned, symlink-resolved result is not under the root. Absolute inputs, `..` escapes and NUL bytes are rejected.
 6. `Read(rel)` returns file bytes; files larger than 10 MB return `ErrTooLarge`.
@@ -65,6 +66,7 @@ func (w *Workspace) ResolveLink(from, href string) Link
 | 6 | read, size limit | `TestRead` |
 | 7 | atomic write, mode kept, non-markdown refused | `TestWrite` |
 | 8 | asset allow-list | `TestAsset` |
+| 3a | file and entry limits, skipped folders, growth after open | `limits_test.go: TestLimits` |
 | 9 | link kinds, anchors, directory and extensionless links, URL-encoded paths | `TestResolveLink` |
 
 Edge cases: unicode and spaces in names, `%20` in links, `./` and `../` inside the root, empty folder.
