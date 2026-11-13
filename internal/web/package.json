@@ -22,6 +22,7 @@
     "remark-extract-frontmatter": "^3.2.0",
     "remark-frontmatter": "^5",
     "remark-gfm": "^4.0.0",
+    "remark-markmap": "^1.1.5",
     "remark-math": "^6.0.0",
     "remark-parse": "^11",
     "remark-rehype": "^11",

@@ -14,6 +14,18 @@ layout: page
 if you chose xxx, you should also use yyy somewhere…
 :::
 
+
+# Markmap
+
+```markmap
+- links
+- **inline** ~~text~~ *styles*
+- multiline
+  text
+- `inline code`
+
+```
+
 # Head
 
 Lift($$L$$) can be determined by Lift Coefficient ($$C_L$$) like the following
@@ -144,7 +156,7 @@ const a = "test";
 
 {{ title }}
 
-![](./assets/logo.png)
+![](./logo.png)
 
 table render
 
