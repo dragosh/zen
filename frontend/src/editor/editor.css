@@ -1,0 +1,130 @@
+/* ui/editor — tokens only (styles/tokens.css). */
+.zen-editor {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.zen-editor-toolbar {
+  height: 36px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 var(--space-3);
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--font-ui);
+}
+
+.zen-editor-toolbar .zen-tool {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  color: var(--fg-muted);
+  filter: grayscale(1);
+}
+
+.zen-editor-toolbar .zen-tool:hover { color: var(--fg); }
+.zen-tool-bold { font-weight: 700; }
+.zen-tool-italic { font-style: italic; }
+.zen-tool-strike { text-decoration: line-through; }
+.zen-tool-code { font-family: var(--font-mono); font-size: 12px; }
+
+.zen-editor-bar {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--rule);
+  font-family: var(--font-ui);
+}
+
+.zen-editor-bar-text { flex: 1; }
+
+.zen-editor-panes {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.zen-editor-source {
+  flex: 1 1 100%;
+  min-width: 0;
+  resize: none;
+  border: 0;
+  margin: 0;
+  padding: var(--space-5) var(--space-6);
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 2;
+  outline: none;
+}
+
+.zen-editor.split .zen-editor-source { flex: 0 0 50%; }
+
+.zen-editor-divider {
+  flex: none;
+  width: 7px;
+  margin: 0 -3px;
+  cursor: col-resize;
+  position: relative;
+  z-index: 1;
+  background: linear-gradient(to right, transparent 3px, var(--rule) 3px, var(--rule) 4px, transparent 4px);
+}
+
+.zen-editor-divider:hover,
+.zen-editor.is-resizing .zen-editor-divider {
+  background: linear-gradient(to right, transparent 3px, var(--fg-muted) 3px, var(--fg-muted) 4px, transparent 4px);
+}
+
+.zen-editor.is-resizing { user-select: none; cursor: col-resize; }
+
+.zen-editor-preview {
+  flex: 1;
+  min-width: 0;
+  overflow: auto;
+  padding: var(--space-5) var(--space-6);
+}
+
+.zen-editor-dot {
+  color: var(--fg-muted);
+  font-size: 10px;
+}
+
+.zen-editor-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: color-mix(in srgb, var(--bg) 60%, transparent);
+}
+
+.zen-editor-dialog {
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  padding: var(--space-5);
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  font-family: var(--font-ui);
+}
+
+.zen-editor-dialog h2 { margin: 0 0 var(--space-2); font-size: 15px; }
+.zen-editor-dialog p { margin: 0 0 var(--space-4); color: var(--fg-muted); }
+
+.zen-editor-dialog-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
