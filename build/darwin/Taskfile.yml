@@ -6,6 +6,15 @@ includes:
 vars:
   # Docker image for cross-compilation (used when building on non-macOS)
   CROSS_IMAGE: wails-cross
+  # The bundle is Zen.app; the executable inside stays `zen` (APP_NAME).
+  BUNDLE_NAME: Zen
+  BUNDLE: '{{.BIN_DIR}}/{{.BUNDLE_NAME}}.app'
+  # Signing identity. "-" = ad-hoc (alpha). For a Developer ID build:
+  #   task package SIGN_IDENTITY="Developer ID Application: Name (TEAMID)"
+  # which also enables the hardened runtime and a secure timestamp.
+  SIGN_IDENTITY: '{{.SIGN_IDENTITY | default "-"}}'
+  ENTITLEMENTS: build/darwin/entitlements.plist
+  HELPER_ENTITLEMENTS: build/darwin/helper.entitlements.plist
 
 tasks:
   build:
@@ -143,7 +152,7 @@ tasks:
     platforms: [darwin]
     cmds:
       - >-
-        wails3 tool package --format dmg --name "{{.APP_NAME}}" --out "{{.BIN_DIR}}"
+        wails3 tool package --format dmg --name "{{.BUNDLE_NAME}}" --out "{{.BIN_DIR}}"
         --background "{{.DMG_BACKGROUND}}"
         --volume-icon "{{.DMG_VOLUME_ICON}}"
         --file-icon "{{.DMG_FILE_ICON}}"
@@ -160,35 +169,81 @@ tasks:
 
 
   create:app:bundle:
-    summary: Creates an `.app` bundle
+    summary: Creates bin/Zen.app (binary, Info.plist from VERSION, icon, helpers from resources.yml) and signs it
+    vars:
+      # docs/VERSIONING.md: short version = MAJOR.MINOR.PATCH, build = commit count.
+      SHORT_VERSION:
+        sh: sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*/\1/' "{{.ROOT_DIR}}/VERSION"
+      BUILD_NUMBER:
+        sh: git -C "{{.ROOT_DIR}}" rev-list --count HEAD 2>/dev/null || echo 1
+      HELPER_ARCH: '{{.ARCH | default ARCH}}'
     cmds:
       # A reused bundle can acquire Finder metadata in synced folders. Build a
       # fresh bundle so codesign never has to replace a contaminated signature.
-      - test -n "{{.BIN_DIR}}" && test -n "{{.APP_NAME}}" && rm -rf -- "{{.BIN_DIR}}/{{.APP_NAME}}.app"
-      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
-      - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
-      - cp build/darwin/icons.icns "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
+      - test -n "{{.BIN_DIR}}" && test -n "{{.BUNDLE_NAME}}" && rm -rf -- "{{.BUNDLE}}"
+      - mkdir -p "{{.BUNDLE}}/Contents/MacOS" "{{.BUNDLE}}/Contents/Resources" "{{.BUNDLE}}/Contents/Helpers"
+      # Verify every helper in resources.yml (file exists, sha256 matches) and copy it.
+      - go run ./build/darwin/resources -manifest resources.yml -arch "{{.HELPER_ARCH}}" -dest "{{.BUNDLE}}/Contents/Helpers"
+      - cp build/darwin/icons.icns "{{.BUNDLE}}/Contents/Resources"
       - |
         if [ -f build/darwin/Assets.car ]; then
-          cp build/darwin/Assets.car "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/Resources"
+          cp build/darwin/Assets.car "{{.BUNDLE}}/Contents/Resources"
         fi
-      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents/MacOS"
-      - cp build/darwin/Info.plist "{{.BIN_DIR}}/{{.APP_NAME}}.app/Contents"
-      - task: '{{if eq OS "darwin"}}codesign:adhoc{{else}}codesign:skip{{end}}'
+      - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BUNDLE}}/Contents/MacOS/{{.APP_NAME}}"
+      - sed -e 's/{{"{{"}}SHORT_VERSION{{"}}"}}/{{.SHORT_VERSION}}/g' -e 's/{{"{{"}}BUILD_NUMBER{{"}}"}}/{{.BUILD_NUMBER}}/g' build/darwin/Info.plist > "{{.BUNDLE}}/Contents/Info.plist"
+      - plutil -lint "{{.BUNDLE}}/Contents/Info.plist"
+      - task: '{{if eq OS "darwin"}}codesign{{else}}codesign:skip{{end}}'
 
-  codesign:adhoc:
-    summary: Ad-hoc signs the app bundle (macOS only)
+  codesign:
+    summary: Signs Zen.app with SIGN_IDENTITY (default ad-hoc) and the sandbox entitlements (macOS only)
     internal: true
+    vars:
+      RUNTIME: '{{if ne .SIGN_IDENTITY "-"}}--options runtime --timestamp{{end}}'
     cmds:
-      - xattr -cr "{{.BIN_DIR}}/{{.APP_NAME}}.app"
-      - codesign --force --deep --sign - "{{.BIN_DIR}}/{{.APP_NAME}}.app"
-      - codesign --verify --deep --strict "{{.BIN_DIR}}/{{.APP_NAME}}.app"
+      - xattr -cr "{{.BUNDLE}}"
+      # Helpers first (inner to outer), inheriting the app's sandbox.
+      - |
+        for h in "{{.BUNDLE}}"/Contents/Helpers/*; do
+          [ -f "$h" ] || continue
+          codesign --force --sign "{{.SIGN_IDENTITY}}" {{.RUNTIME}} --entitlements "{{.HELPER_ENTITLEMENTS}}" "$h"
+        done
+      - codesign --force --sign "{{.SIGN_IDENTITY}}" {{.RUNTIME}} --entitlements "{{.ENTITLEMENTS}}" "{{.BUNDLE}}"
+      - codesign --verify --deep --strict "{{.BUNDLE}}"
 
   codesign:skip:
     summary: Skips codesigning when cross-compiling
     internal: true
     cmds:
       - 'echo "Skipping codesign (not available on {{OS}}). Sign the .app on macOS before distribution."'
+
+  package:test:
+    summary: Packages Zen.app and runs the bundle tests against it
+    deps:
+      - task: package
+    cmds:
+      - ZEN_REQUIRE_BUNDLE=1 go test -count=1 ./build/darwin
+
+  icon:
+    summary: Regenerates build/appicon.png from build/appicon.svg (macOS QuickLook); `task package` then rebuilds icons.icns
+    platforms: [darwin]
+    cmds:
+      - rm -rf .task/appicon && mkdir -p .task/appicon
+      - qlmanage -t -s 1024 -o .task/appicon build/appicon.svg >/dev/null
+      - go run ./build/darwin/iconmask .task/appicon/appicon.svg.png build/appicon.png
+      - rm -rf .task/appicon
+
+  install:cli:
+    summary: Links INSTALL_DIR/zen (default /usr/local/bin) to the zen binary inside the installed Zen.app (APP_PATH, default /Applications/Zen.app)
+    vars:
+      INSTALL_DIR: '{{.INSTALL_DIR | default "/usr/local/bin"}}'
+      APP_PATH: '{{.APP_PATH | default "/Applications/Zen.app"}}'
+    preconditions:
+      - sh: test -x "{{.APP_PATH}}/Contents/MacOS/{{.APP_NAME}}"
+        msg: "{{.APP_PATH}} not found. Copy bin/Zen.app to /Applications first (or set APP_PATH)."
+    cmds:
+      - mkdir -p "{{.INSTALL_DIR}}"
+      - ln -sfn "{{.APP_PATH}}/Contents/MacOS/{{.APP_NAME}}" "{{.INSTALL_DIR}}/{{.APP_NAME}}"
+      - echo "Linked {{.INSTALL_DIR}}/{{.APP_NAME}} -> {{.APP_PATH}}/Contents/MacOS/{{.APP_NAME}}"
 
   run:
     cmds:
@@ -209,25 +264,20 @@ tasks:
       - '"{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS/{{.APP_NAME}}"'
 
   sign:
-    summary: Signs the application bundle with Developer ID
+    summary: Re-signs Zen.app with SIGN_IDENTITY (default "-", ad-hoc)
     desc: |
-      Signs the .app bundle for distribution.
-      Uses signing identity from `wails3 setup` (stored in ~/.config/wails/defaults.yaml).
-      Override with: task darwin:sign -- --identity "Developer ID Application: ..."
-    deps:
-      - task: package
+      The alpha is ad-hoc signed by `task package`. For a Developer ID signature:
+        task darwin:sign SIGN_IDENTITY="Developer ID Application: Name (TEAMID)"
+      (adds the hardened runtime and a secure timestamp; notarisation is out of scope).
     cmds:
-      - wails3 tool sign --input "{{.BIN_DIR}}/{{.APP_NAME}}.app" {{.CLI_ARGS}}
+      - task: codesign
 
   sign:notarize:
-    summary: Signs and notarizes the application bundle
+    summary: Signs and notarizes the application bundle (beta; not used for the alpha)
     desc: |
       Signs the .app bundle and submits it for notarization.
       Uses signing identity and keychain profile from `wails3 setup`.
-
-      First-time setup:
-        wails3 setup
     deps:
       - task: package
     cmds:
-      - wails3 tool sign --input "{{.BIN_DIR}}/{{.APP_NAME}}.app" --notarize {{.CLI_ARGS}}
+      - wails3 tool sign --input "{{.BUNDLE}}" --notarize {{.CLI_ARGS}}

@@ -5,34 +5,45 @@
 		<key>CFBundleDocumentTypes</key>
 		<array>
 			<dict>
+				<key>CFBundleTypeName</key>
+				<string>Markdown document</string>
+				<key>CFBundleTypeRole</key>
+				<string>Editor</string>
+				<key>LSHandlerRank</key>
+				<string>Alternate</string>
+				<key>CFBundleTypeIconFile</key>
+				<string>icons</string>
 				<key>CFBundleTypeExtensions</key>
 				<array>
 					<string>md</string>
-				</array>
-				<key>CFBundleTypeIconFile</key>
-				<string>icons</string>
-				<key>CFBundleTypeMimeType</key>
-				<string>text/markdown</string>
-				<key>CFBundleTypeName</key>
-				<string>Markdown</string>
-				<key>CFBundleTypeRole</key>
-				<string>Editor</string>
-			</dict>
-			<dict>
-				<key>CFBundleTypeExtensions</key>
-				<array>
 					<string>markdown</string>
 				</array>
-				<key>CFBundleTypeIconFile</key>
-				<string>icons</string>
-				<key>CFBundleTypeMimeType</key>
-				<string>text/markdown</string>
+				<key>CFBundleTypeMimeTypes</key>
+				<array>
+					<string>text/markdown</string>
+				</array>
+				<key>LSItemContentTypes</key>
+				<array>
+					<string>net.daringfireball.markdown</string>
+				</array>
+			</dict>
+			<dict>
 				<key>CFBundleTypeName</key>
-				<string>Markdown</string>
+				<string>Folder</string>
 				<key>CFBundleTypeRole</key>
-				<string>Editor</string>
+				<string>Viewer</string>
+				<key>LSHandlerRank</key>
+				<string>Alternate</string>
+				<key>LSItemContentTypes</key>
+				<array>
+					<string>public.folder</string>
+				</array>
 			</dict>
 		</array>
+		<key>CFBundleDevelopmentRegion</key>
+		<string>en</string>
+		<key>CFBundleDisplayName</key>
+		<string>Zen</string>
 		<key>CFBundleExecutable</key>
 		<string>zen</string>
 		<key>CFBundleGetInfoString</key>
@@ -44,17 +55,17 @@
 		<key>CFBundleIdentifier</key>
 		<string>io.github.dragosh.zen</string>
 		<key>CFBundleName</key>
-		<string>zen</string>
+		<string>Zen</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
-		<string>0.1.0</string>
+		<string>{{SHORT_VERSION}}</string>
 		<key>CFBundleVersion</key>
-		<string>0.1.0</string>
+		<string>{{BUILD_NUMBER}}</string>
 		<key>LSMinimumSystemVersion</key>
-		<string>12.0.0</string>
+		<string>12.0</string>
 		<key>NSHighResolutionCapable</key>
-		<string>true</string>
+		<true/>
 		<key>NSHumanReadableCopyright</key>
 		<string>(c) 2026, zen authors</string>
 	</dict>

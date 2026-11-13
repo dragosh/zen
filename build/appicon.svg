@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- Zen app icon: the yin-yang mark from docs/UI.md, black on white.
+       Source for build/appicon.png and build/darwin/icons.icns (task darwin:icon). -->
+  <rect x="100" y="100" width="824" height="824" rx="185" fill="#ffffff" stroke="#d4d4d4" stroke-width="4"/>
+  <g transform="translate(212 212) scale(25)">
+    <circle cx="12" cy="12" r="11" fill="none" stroke="#000000" stroke-width="1.5"/>
+    <path d="M12 1a11 11 0 0 1 0 22a5.5 5.5 0 0 1 0-11a5.5 5.5 0 0 0 0-11z" fill="#000000"/>
+  </g>
+</svg>

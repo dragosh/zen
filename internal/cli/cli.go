@@ -80,6 +80,9 @@ func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher) i
 	}
 
 	l := Launch{Dir: cwd, Mode: mode}
+	if len(paths) == 0 && finderLaunch(cwd) {
+		l.Dir = "" // welcome screen
+	}
 	if len(paths) == 1 {
 		var err error
 		if l.Dir, l.Page, err = resolve(paths[0], cwd, mode == "edit"); err != nil {
@@ -90,6 +93,18 @@ func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher) i
 		return fail(stderr, err)
 	}
 	return 0
+}
+
+// isTerminal reports whether standard input is a terminal. Tests replace it.
+var isTerminal = func() bool {
+	fi, err := os.Stdin.Stat()
+	return err == nil && fi.Mode()&os.ModeCharDevice != 0
+}
+
+// finderLaunch reports whether zen was started by Finder or launchd (double
+// click, Dock): cwd "/" and no terminal. It then opens no workspace.
+func finderLaunch(cwd string) bool {
+	return cwd == string(filepath.Separator) && !isTerminal()
 }
 
 func fail(stderr io.Writer, err error) int {
