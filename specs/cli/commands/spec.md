@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | specified |
+| Status | done |
 | Target version | 0.1.0-alpha.1 |
 | Branch | `feature/cli-commands` |
 | Wave | 2 |

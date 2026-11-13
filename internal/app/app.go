@@ -16,6 +16,12 @@ type Options struct {
 	Assets fs.FS
 	// Files are document paths to open at startup.
 	Files []string
+	// Dir is the absolute workspace directory to open.
+	Dir string
+	// Page is the workspace-relative page to open, "" for the default.
+	Page string
+	// Mode is "read" or "edit".
+	Mode string
 }
 
 // Run starts the GUI and blocks until the application exits.
