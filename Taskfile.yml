@@ -136,3 +136,8 @@ tasks:
         printf '%s\n' "$new" > VERSION
         sed -i.bak -E "s/^  version: \"[^\"]*\"/  version: \"${new%%-*}\"/" build/config.yml && rm -f build/config.yml.bak
         echo "$v -> $new"
+
+  install:cli:
+    summary: Links the zen command from the installed Zen.app (INSTALL_DIR, APP_PATH override)
+    cmds:
+      - task: "{{.GOOS}}:install:cli"

@@ -27,7 +27,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 3 | [plugins/highlight](plugins/highlight/spec.md) | `internal/plugins/highlight` | core/render | done |
 | 3 | [plugins/diagram](plugins/diagram/spec.md) | `internal/plugins/diagram` | core/render | done |
 | 3 | [app/services](app/services/spec.md) | `internal/app`, `frontend/src/api/wails.ts` | all core, cli/commands | done |
-| 4 | [packaging/macos](packaging/macos/spec.md) | `build/darwin` | everything | specified |
+| 4 | [packaging/macos](packaging/macos/spec.md) | `build/darwin` | everything | done |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 

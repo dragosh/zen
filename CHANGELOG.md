@@ -17,6 +17,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 - Open a folder as a workspace with safe file access (core).
 - Global `config.yml`, workspace `.zen.yml` and page frontmatter settings (core).
 - Plugin API v1 with fenced, container and inline directive syntax (core).
+- `Zen.app` bundle with the `zen` command inside, yin-yang icon, ad-hoc signed; `task package`, `task install:cli`.
 - Folder workspaces in the app: folder picker, saving, live reload, confirm before opening external links, confirm before closing with unsaved edits.
 - Syntax highlighting plugin (grayscale).
 - Mermaid diagram plugin (mermaid 11.4.1 bundled).
