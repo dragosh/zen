@@ -190,23 +190,19 @@ func TestSeparators(t *testing.T) {
 
 func TestFinderLaunchShowsWelcome(t *testing.T) {
 	home(t)
-	old := isTerminal
-	t.Cleanup(func() { isTerminal = old })
-
-	isTerminal = func() bool { return false }
+	// Finder / Dock / launchd start the app with cwd "/" (and /dev/null as
+	// stdin, which looks like a terminal): always the welcome screen.
 	r := run(t, "/", nil)
 	expect(t, r, Launch{Dir: "", Mode: "read"})
 	r = run(t, "/", nil, "-psn_0_12345")
 	expect(t, r, Launch{Dir: "", Mode: "read"})
 
-	// A terminal user in / still opens /.
-	isTerminal = func() bool { return true }
-	r = run(t, "/", nil)
-	expect(t, r, Launch{Dir: "/", Mode: "read"})
-
-	// No TTY but another cwd (scripts, IDE tasks) opens the cwd.
-	isTerminal = func() bool { return false }
+	// An explicit path still opens it.
 	d := t.TempDir()
+	r = run(t, "/", nil, d)
+	expect(t, r, Launch{Dir: d, Mode: "read"})
+
+	// Any other cwd opens the cwd.
 	r = run(t, d, nil)
 	expect(t, r, Launch{Dir: d, Mode: "read"})
 }
