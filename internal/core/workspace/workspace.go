@@ -76,11 +76,16 @@ type Link struct {
 
 // Workspace is an opened folder.
 type Workspace struct {
-	root string
+	root                 string
+	maxFiles, maxEntries int
 }
 
-// Open returns the workspace for an existing directory.
-func Open(dir string) (*Workspace, error) {
+// Open returns the workspace for an existing directory, with the default
+// limits MaxFiles and MaxEntries.
+func Open(dir string) (*Workspace, error) { return OpenWithLimits(dir, 0, 0) }
+
+// OpenWithLimits is Open with custom limits; 0 means the default.
+func OpenWithLimits(dir string, maxFiles, maxEntries int) (*Workspace, error) {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, err
@@ -96,7 +101,7 @@ func Open(dir string) (*Workspace, error) {
 	if !fi.IsDir() {
 		return nil, fmt.Errorf("workspace: %s is not a directory", dir)
 	}
-	w := &Workspace{root: root}
+	w := &Workspace{root: root, maxFiles: maxFiles, maxEntries: maxEntries}
 	// Refuse folders that are too big before anything indexes or watches them.
 	if _, err := w.Files(); err != nil {
 		return nil, err
@@ -112,14 +117,21 @@ func (w *Workspace) Name() string { return filepath.Base(w.root) }
 
 // Files lists every markdown file as sorted, "/"-separated relative paths.
 func (w *Workspace) Files() ([]string, error) {
+	maxFiles, maxEntries := MaxFiles, MaxEntries
+	if w.maxFiles > 0 {
+		maxFiles = w.maxFiles
+	}
+	if w.maxEntries > 0 {
+		maxEntries = w.maxEntries
+	}
 	files := []string{}
 	entries := 0
 	err := filepath.WalkDir(w.root, func(p string, d fs.DirEntry, err error) error {
 		if p == w.root {
 			return err
 		}
-		if entries++; entries > MaxEntries {
-			return &TooManyFilesError{Limit: MaxEntries}
+		if entries++; entries > maxEntries {
+			return &TooManyFilesError{Limit: maxEntries}
 		}
 		if err != nil {
 			// Unreadable entry below the root: leave it out.
@@ -144,8 +156,8 @@ func (w *Workspace) Files() ([]string, error) {
 		}
 		rel = filepath.ToSlash(rel)
 		if d.Type().IsRegular() || (d.Type()&fs.ModeSymlink != 0 && w.isFile(rel)) {
-			if len(files) == MaxFiles {
-				return &TooManyFilesError{Markdown: true, Limit: MaxFiles}
+			if len(files) == maxFiles {
+				return &TooManyFilesError{Markdown: true, Limit: maxFiles}
 			}
 			files = append(files, rel)
 		}

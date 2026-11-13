@@ -42,6 +42,29 @@ type Config struct {
 	theme    string
 	plugins  map[string]plugin
 	warnings []string
+	limits   Limits
+}
+
+// Limits caps the folder scan when a workspace opens (see core/workspace).
+// Zero means "use the built-in default". Only the global config sets them,
+// so a folder cannot raise its own limits.
+type Limits struct {
+	Files   int // markdown files
+	Entries int // files and folders visited
+}
+
+// Hard ceilings for configured limits.
+const (
+	MaxLimitFiles   = 100_000
+	MaxLimitEntries = 5_000_000
+)
+
+// Limits returns the configured folder limits (zero fields: defaults).
+func (c *Config) Limits() Limits {
+	if c == nil {
+		return Limits{}
+	}
+	return c.limits
 }
 
 // Settings are the effective settings for one page.
@@ -76,10 +99,10 @@ func Default() *Config {
 func Load(globalPath, workspaceRoot string) *Config {
 	c := Default()
 	if globalPath != "" {
-		c.loadFile(globalPath)
+		c.loadFile(globalPath, true)
 	}
 	if workspaceRoot != "" {
-		c.loadFile(filepath.Join(workspaceRoot, WorkspaceFile))
+		c.loadFile(filepath.Join(workspaceRoot, WorkspaceFile), false)
 	}
 	return c
 }
@@ -231,7 +254,7 @@ func normalize(v any) any {
 	return v
 }
 
-func (c *Config) loadFile(path string) {
+func (c *Config) loadFile(path string, global bool) {
 	warn := func(format string, args ...any) {
 		c.warnings = append(c.warnings, path+": "+fmt.Sprintf(format, args...))
 	}
@@ -278,11 +301,52 @@ func (c *Config) loadFile(path string) {
 			if v != nil {
 				mergePlugins(c.plugins, v, warn)
 			}
+		case "limits":
+			if !global {
+				warn("limits can only be set in the global config")
+				continue
+			}
+			c.limits = parseLimits(v, warn)
 		default:
 			c.Extra[k] = v
 			warn("unknown key %q", k)
 		}
 	}
+}
+
+func parseLimits(v any, warn func(string, ...any)) Limits {
+	var l Limits
+	m, ok := v.(map[string]any)
+	if !ok {
+		if v != nil {
+			warn("limits must be a mapping")
+		}
+		return l
+	}
+	get := func(key string, max int) int {
+		raw, ok := m[key]
+		if !ok {
+			return 0
+		}
+		n, ok := raw.(int)
+		switch {
+		case !ok || n < 1:
+			warn("limits.%s must be a whole number above 0", key)
+			return 0
+		case n > max:
+			warn("limits.%s is capped at %d", key, max)
+			return max
+		}
+		return n
+	}
+	l.Files = get("files", MaxLimitFiles)
+	l.Entries = get("entries", MaxLimitEntries)
+	for k := range m {
+		if k != "files" && k != "entries" {
+			warn("unknown key limits.%s", k)
+		}
+	}
+	return l
 }
 
 func readCapped(path string) ([]byte, error) {

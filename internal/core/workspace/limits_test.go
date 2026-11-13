@@ -79,3 +79,18 @@ func TestLimits(t *testing.T) {
 		}
 	})
 }
+
+func TestOpenWithLimits(t *testing.T) {
+	withLimits(t, 5, 100)
+	dir := t.TempDir()
+	fill(t, dir, 8, ".md")
+	if _, err := Open(dir); !errors.Is(err, ErrTooManyFiles) {
+		t.Fatalf("default limit: %v", err)
+	}
+	if _, err := OpenWithLimits(dir, 10, 0); err != nil {
+		t.Fatalf("raised limit: %v", err)
+	}
+	if _, err := OpenWithLimits(dir, 0, 3); err == nil || !strings.Contains(err.Error(), "more than 3 files") {
+		t.Fatalf("entries limit: %v", err)
+	}
+}

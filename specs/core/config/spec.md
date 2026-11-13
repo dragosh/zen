@@ -22,6 +22,7 @@ the global file, the workspace file and the page's frontmatter.
 4. `SplitFrontmatter(src)` returns the YAML mapping between a leading `---` line and the next `---` or `...` line, and the remaining body. No frontmatter returns an empty map and the unchanged source. Invalid YAML returns an empty map, the body without the block, and a warning. Frontmatter larger than 64 KB is treated as body.
 5. `ForPage(frontmatter)` returns the effective `Settings`: defaults < global < workspace < frontmatter (`plugins` merged per plugin id; a map merges option by option; `false` disables).
 6. `Settings.Plugin(id)` returns `(enabled bool, options map[string]any, mentioned bool)`; `mentioned` is false when no layer names the plugin (the registry then uses the plugin's default).
+6a. `limits: {files, entries}` (positive integers, capped at 100 000 / 5 000 000) is read from the global file only and returned by `Config.Limits()`; in `.zen.yml` it is ignored with a warning.
 7. `version` greater than 1 yields a warning and the layer is ignored.
 
 ## Architecture

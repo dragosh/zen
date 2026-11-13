@@ -109,7 +109,8 @@ func (s *state) open(dir string) error {
 	var ws *workspace.Workspace
 	if dir != "" {
 		var err error
-		if ws, err = workspace.Open(dir); err != nil {
+		l := config.Load(s.globalPath, "").Limits() // global only: a folder cannot raise its own limits
+		if ws, err = workspace.OpenWithLimits(dir, l.Files, l.Entries); err != nil {
 			return err
 		}
 	}

@@ -116,6 +116,17 @@ plugins:
 ---
 ```
 
+The global `config.yml` (only) can also raise or lower the folder limits:
+
+```yaml
+limits:
+  files: 5000       # markdown files (default 2000, max 100000)
+  entries: 200000   # files and folders scanned (default 50000, max 5000000)
+```
+
+A `limits` key in `.zen.yml` is ignored with a warning, so a folder cannot
+lift its own limits.
+
 `true` / `false` switch a plugin; a mapping switches it on and sets options.
 Unknown plugin ids and unknown options produce a warning in the page
 (`Page.warnings`), never an error.

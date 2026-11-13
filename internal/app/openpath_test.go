@@ -1,6 +1,7 @@
 package app
 
 import (
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -49,5 +50,17 @@ func TestOpenTooLargeFolder(t *testing.T) {
 	}
 	if z.Startup().Workspace != nil {
 		t.Fatal("a refused folder must not become the workspace")
+	}
+}
+
+func TestGlobalLimitsApply(t *testing.T) {
+	dir := tree(t, map[string]string{"a.md": "", "b.md": "", "c.md": ""})
+	global := filepath.Join(t.TempDir(), "config.yml")
+	if err := os.WriteFile(global, []byte("limits:\n  files: 2\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := newZen(zenOptions{Registry: plugins.NewRegistry(), GlobalPath: global, Dir: dir, Events: &sink{}, Dialogs: &fakeDialogs{}}); err == nil ||
+		!strings.Contains(err.Error(), "more than 2 markdown files") {
+		t.Fatalf("global limit not applied: %v", err)
 	}
 }
