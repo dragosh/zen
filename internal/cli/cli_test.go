@@ -187,3 +187,26 @@ func TestSeparators(t *testing.T) {
 	}
 	expect(t, run(t, h, nil, "--", "edit"), Launch{Dir: filepath.Join(h, "edit"), Mode: "read"})
 }
+
+func TestFinderLaunchShowsWelcome(t *testing.T) {
+	home(t)
+	old := isTerminal
+	t.Cleanup(func() { isTerminal = old })
+
+	isTerminal = func() bool { return false }
+	r := run(t, "/", nil)
+	expect(t, r, Launch{Dir: "", Mode: "read"})
+	r = run(t, "/", nil, "-psn_0_12345")
+	expect(t, r, Launch{Dir: "", Mode: "read"})
+
+	// A terminal user in / still opens /.
+	isTerminal = func() bool { return true }
+	r = run(t, "/", nil)
+	expect(t, r, Launch{Dir: "/", Mode: "read"})
+
+	// No TTY but another cwd (scripts, IDE tasks) opens the cwd.
+	isTerminal = func() bool { return false }
+	d := t.TempDir()
+	r = run(t, d, nil)
+	expect(t, r, Launch{Dir: d, Mode: "read"})
+}
