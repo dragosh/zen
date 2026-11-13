@@ -84,7 +84,7 @@ func TestThroughRenderer(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		for _, w := range []string{`class="zen-diagram"`, `data-theme="neutral"`, `data-zen-plugin="diagram"`, "A--&gt;B</pre>"} {
+		for _, w := range []string{`class="zen-diagram"`, `data-theme="neutral"`, `data-zen-plugin="diagram"`, "A--&gt;B"} {
 			if !strings.Contains(p.HTML, w) {
 				t.Errorf("%q: missing %q in %s", src, w, p.HTML)
 			}

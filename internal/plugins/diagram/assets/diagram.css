@@ -1,0 +1,3 @@
+.zen-diagram { margin: 1em 0; text-align: center; }
+.zen-diagram-svg svg { max-width: 100%; height: auto; }
+.zen-diagram > pre { text-align: left; }
