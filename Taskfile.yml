@@ -56,3 +56,21 @@ tasks:
     cmds:
       - npx tsc
       - npm test
+
+  install:
+    summary: Builds zen and links it into ~/.local/bin (override with INSTALL_DIR) so `zen` works from any directory
+    vars:
+      INSTALL_DIR: '{{.INSTALL_DIR | default (print .HOME "/.local/bin")}}'
+    deps:
+      - build
+    cmds:
+      - mkdir -p "{{.INSTALL_DIR}}"
+      - ln -sf "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}" "{{.INSTALL_DIR}}/{{.APP_NAME}}"
+      - echo "Linked {{.INSTALL_DIR}}/{{.APP_NAME}} -> {{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}"
+
+  uninstall:
+    summary: Removes the zen link created by `task install`
+    vars:
+      INSTALL_DIR: '{{.INSTALL_DIR | default (print .HOME "/.local/bin")}}'
+    cmds:
+      - rm -f "{{.INSTALL_DIR}}/{{.APP_NAME}}"

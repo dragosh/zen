@@ -26,6 +26,9 @@ func Run(opts Options) error {
 		Assets: application.AssetOptions{
 			Handler: application.AssetFileServerFS(opts.Assets),
 		},
+		Services: []application.Service{
+			application.NewService(&Documents{files: opts.Files}),
+		},
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},

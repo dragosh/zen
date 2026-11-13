@@ -12,3 +12,24 @@ export function renderEmptyState(root: HTMLElement): void {
   section.append(title, hint);
   root.replaceChildren(section);
 }
+
+/** Shows a document. `html` is rendered and sanitised by Go (core/render). */
+export function renderDocument(
+  root: HTMLElement,
+  doc: { name: string; html: string; error?: string },
+): void {
+  const article = document.createElement("article");
+  article.className = "document";
+
+  if (doc.error) {
+    const p = document.createElement("p");
+    p.className = "error";
+    p.textContent = `Could not open ${doc.name}: ${doc.error}`;
+    article.append(p);
+  } else {
+    article.innerHTML = doc.html;
+  }
+
+  document.title = `${doc.name} — zen`;
+  root.replaceChildren(article);
+}
