@@ -94,7 +94,7 @@ func TestScanContainers(t *testing.T) {
 	check("no attrs, at EOF without newline", ":::note\nhi\n:::", []Span{{Start: 0, End: 14, Name: "note", Body: "hi\n"}})
 	check("empty body", ":::note\n:::\n", []Span{{Start: 0, End: 11, Name: "note", Body: ""}})
 	check("crlf", ":::note\r\nhi\r\n:::\r\nx", []Span{{Start: 0, End: 16, Name: "note", Body: "hi\r\n"}})
-	check("closing with trailing spaces", ":::note\nhi\n:::  \t\nafter\n", []Span{{Start: 0, End: 16, Name: "note", Body: "hi\n"}})
+	check("closing with trailing spaces", ":::note\nhi\n:::  \t\nafter\n", []Span{{Start: 0, End: 17, Name: "note", Body: "hi\n"}})
 	check("space before attrs, quoted, trailing spaces", ":::poll {title=\"a = b\" open}  \n- x\n:::\n",
 		[]Span{{Name: "poll", Body: "- x\n", Attrs: map[string]string{"title": "a = b", "open": "true"}}})
 	check("two in a row", ":::a\n1\n:::\n:::b\n2\n:::\n", []Span{{Name: "a", Body: "1\n"}, {Name: "b", Body: "2\n"}})
