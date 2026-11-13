@@ -23,7 +23,7 @@ the real app does what the fake API does.
 5. `OpenExternal(url)` accepts only `http`, `https` and `mailto`, shows a native confirm dialog with the full URL, and opens the default browser on confirmation; returns whether it opened.
 6. Watch batches: a changed/created/removed markdown file re-indexes and emits `workspace:changed` only if the tree changed, and `page:changed {path}` per changed markdown file; a changed asset emits `page:changed` for pages that reference it (alpha: for the currently served page); `.zen.yml` change reloads config and emits `page:changed` for the current page.
 7. HTTP middleware: `/_ws/<path>` serves `workspace.Asset` (correct content type, `X-Content-Type-Options: nosniff`, SVG served with `Content-Security-Policy: sandbox`); `/_plugins/<id>/<file>` serves the plugin's asset FS; everything else falls through to the embedded frontend. A CSP header on the frontend allows scripts and styles from `'self'` only, images from `'self'` and `https:`.
-8. `frontend/src/api/wails.ts` implements `Api` over the generated bindings and Wails events.
+8. `frontend/src/api/wails.ts` implements `Api` and exports it as `export default` (ui/shell's `getApi()` loads it from there) over the generated bindings and Wails events.
 9. Registers built-in plugins in order: `highlight`, `diagram` (those merged).
 10. Removes `documents.go` and the `Files` option.
 

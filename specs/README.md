@@ -12,11 +12,11 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | Wave | Spec | Owns | Depends on | Status |
 |---|---|---|---|---|
 | 0 | [cli/entrypoint](cli/entrypoint/spec.md) | `internal/cli` (superseded by cli/commands) | – | done |
-| 1 | [core/workspace](core/workspace/spec.md) | `internal/core/workspace` | – | specified |
-| 1 | [core/config](core/config/spec.md) | `internal/core/config` | – | specified |
-| 1 | [core/plugins](core/plugins/spec.md) | `internal/core/plugins` | – | specified |
-| 1 | [ui/shell](ui/shell/spec.md) | `frontend/src/{main.ts,api,shell,styles}`, `frontend/index.html` | – | specified |
-| 1 | [packaging/version](packaging/version/spec.md) | `VERSION`, `CHANGELOG.md`, `build/**/Taskfile.yml`, `Taskfile.yml` | – | specified |
+| 1 | [core/workspace](core/workspace/spec.md) | `internal/core/workspace` | – | done |
+| 1 | [core/config](core/config/spec.md) | `internal/core/config` | – | done |
+| 1 | [core/plugins](core/plugins/spec.md) | `internal/core/plugins` | – | done |
+| 1 | [ui/shell](ui/shell/spec.md) | `frontend/src/{main.ts,api,shell,styles}`, `frontend/index.html` | – | done |
+| 1 | [packaging/version](packaging/version/spec.md) | `VERSION`, `CHANGELOG.md`, `build/**/Taskfile.yml`, `Taskfile.yml` | – | done |
 | 2 | [core/render](core/render/spec.md) | `internal/core/render` | core/plugins, core/config, core/workspace | specified |
 | 2 | [core/index](core/index/spec.md) | `internal/core/index` | core/workspace | specified |
 | 2 | [core/watch](core/watch/spec.md) | `internal/core/watch` | core/workspace | specified |
@@ -46,8 +46,10 @@ Features in the same wave own disjoint paths and can be built in parallel.
 4. **Contracts are fixed.** Types and signatures in your spec's *Interfaces*
    and in PLAN.md's *Service API* are what other features code against. If
    one is wrong, stop and report instead of changing it.
-5. **Checks before reporting done:** `go vet ./... && go test ./...` for Go;
-   `cd frontend && npx tsc --noEmit && npx vitest run` for frontend. Frontend
+5. **Checks before reporting done:** `go vet ./internal/... && go test ./internal/...` for Go
+   (the root package embeds `frontend/dist`, which a fresh worktree lacks);
+   `cd frontend && npx tsc --noEmit && npx vitest run` for frontend (copy the
+   git-ignored `frontend/bindings` from the main checkout first, or vitest won't start). Frontend
    tests use `happy-dom` and the fake API; no test needs a window or network.
 6. **Security.** Follow your spec's Security section; every item has a test.
    No `eval`, no network access, no file access outside the workspace root.

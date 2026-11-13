@@ -131,7 +131,7 @@ Paths are always workspace-relative with `/` separators. Workspace files
 | `<a data-zen-link="internal" data-path="docs/a.md" data-anchor="intro">` | link to a workspace page; the frontend navigates in place |
 | `<a data-zen-link="external" href="https://…">` | the frontend calls `openExternal` |
 | `<a data-zen-link="broken">` | target not in the workspace; rendered muted |
-| `<img src="/_ws/img/a.png">` | workspace image (png, jpg, gif, webp, svg) |
+| `<img src="/_ws/img/a.png">` | workspace image (png, jpg, gif, webp, svg, avif) |
 | `<div data-zen-plugin="diagram" …>` | block owned by a plugin |
 
 ## Process

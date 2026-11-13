@@ -22,7 +22,8 @@
 4. `task install:cli` links `/usr/local/bin/zen` (or `INSTALL_DIR`) to the binary inside the installed app; `task install` (dev link) keeps working.
 5. Entitlements file declares app sandbox with `files.user-selected.read-write` and `files.bookmarks.app-scope`; the alpha is ad-hoc signed (`codesign -s -`), with a documented switch for a Developer ID.
 6. `resources.yml` schema: list of `{name, path: {darwin-arm64, darwin-amd64}, sha256}`; a missing file or checksum mismatch fails the build. Empty list is valid.
-7. App icon: yin-yang mark from docs/UI.md, black and white, generated from `build/appicon.svg`.
+7. `Info.plist` versions are generated from `VERSION` at build time (`task version:bump` does not touch the plists).
+8. App icon: yin-yang mark from docs/UI.md, black and white, generated from `build/appicon.svg`.
 
 ## Architecture
 
