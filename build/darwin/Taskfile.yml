@@ -195,13 +195,13 @@ tasks:
       - task: '{{if eq OS "darwin"}}codesign{{else}}codesign:skip{{end}}'
 
   codesign:
-    summary: Signs Zen.app with SIGN_IDENTITY (default ad-hoc) and the sandbox entitlements (macOS only)
+    summary: Signs Zen.app with SIGN_IDENTITY (default ad-hoc) and the entitlements in build/darwin/entitlements.plist (none in the alpha; macOS only)
     internal: true
     vars:
       RUNTIME: '{{if ne .SIGN_IDENTITY "-"}}--options runtime --timestamp{{end}}'
     cmds:
       - xattr -cr "{{.BUNDLE}}"
-      # Helpers first (inner to outer), inheriting the app's sandbox.
+      # Helpers first (inner to outer).
       - |
         for h in "{{.BUNDLE}}"/Contents/Helpers/*; do
           [ -f "$h" ] || continue

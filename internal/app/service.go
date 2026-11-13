@@ -1,9 +1,12 @@
 package app
 
 import (
+	"errors"
+	"io"
 	"net/url"
 	"strings"
 
+	"github.com/dragosh/zen/internal/cli"
 	"github.com/dragosh/zen/internal/core/plugins"
 )
 
@@ -75,6 +78,29 @@ func (z *Zen) PickFolder() (*Workspace, error) {
 	}
 	z.page = ""
 	return z.state.workspace(), nil
+}
+
+// EventWorkspaceOpened tells the frontend to show a different workspace,
+// payload Startup. Sent after Finder "Open With" and File > Open Folder.
+const EventWorkspaceOpened = "workspace:opened"
+
+// openPath opens a folder or markdown file handed over by macOS (Open With,
+// `open -a Zen <path>`), using the same rules as the zen command line, and
+// returns what the frontend should show. Not bound to the frontend.
+func (z *Zen) openPath(path string) (Startup, error) {
+	var l cli.Launch
+	code := cli.Run([]string{path}, "/", io.Discard, io.Discard, func(got cli.Launch) error {
+		l = got
+		return nil
+	})
+	if code != 0 {
+		return Startup{}, errors.New("not a folder or markdown file")
+	}
+	if err := z.state.open(l.Dir); err != nil {
+		return Startup{}, z.state.cleanErr(".", err)
+	}
+	z.page = l.Page
+	return z.Startup(), nil
 }
 
 // Page renders a workspace page.

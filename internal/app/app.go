@@ -182,6 +182,17 @@ func Run(opts Options) error {
 	a.Event.On(eventClose, reply(true))
 	a.Event.On(eventClosePending, reply(false))
 
+	// Finder "Open With" and `open -a Zen <path>`. When it arrives before the
+	// frontend asked for Startup, the frontend simply starts in that workspace.
+	a.Event.OnApplicationEvent(events.Common.ApplicationOpenedWithFile, func(e *application.ApplicationEvent) {
+		path := e.Context().Filename()
+		go func() {
+			if st, err := z.openPath(path); err == nil {
+				sink.Emit(EventWorkspaceOpened, st)
+			}
+		}()
+	})
+
 	// Menu: File > Open Folder (Cmd+O).
 	menu := a.Menu.New()
 	menu.AddRole(application.AppMenu)
@@ -189,7 +200,7 @@ func Run(opts Options) error {
 	file.Add("Open Folder…").SetAccelerator("CmdOrCtrl+O").OnClick(func(*application.Context) {
 		go func() {
 			if ws, err := z.PickFolder(); err == nil && ws != nil {
-				sink.Emit(EventWorkspaceChanged, ws)
+				sink.Emit(EventWorkspaceOpened, z.Startup())
 			}
 		}()
 	})

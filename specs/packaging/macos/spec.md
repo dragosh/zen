@@ -18,9 +18,9 @@
 
 1. `task package` builds `bin/Zen.app` with `Contents/MacOS/zen` (the single binary: GUI and CLI), `Info.plist` (name `Zen`, id `io.github.dragosh.zen`, version per docs/VERSIONING.md, document type markdown and folders, minimum macOS 12), icon, and `Contents/Helpers/` holding every binary listed in `resources.yml` for the target arch.
 2. `Zen.app/Contents/MacOS/zen --version` prints the stamped version; double-clicking the app opens the welcome screen (no cwd workspace when launched by Finder: detected by the absence of a TTY and cwd `/`).
-3. Opening a folder or markdown file with the app (Finder "Open With", `open -a Zen docs/`) opens that workspace.
+3. Opening a folder or markdown file with the app (handled in `internal/app` via `ApplicationOpenedWithFile` and the `workspace:opened` event) (Finder "Open With", `open -a Zen docs/`) opens that workspace.
 4. `task install:cli` links `/usr/local/bin/zen` (or `INSTALL_DIR`) to the binary inside the installed app; `task install` (dev link) keeps working.
-5. Entitlements file declares app sandbox with `files.user-selected.read-write` and `files.bookmarks.app-scope`; the alpha is ad-hoc signed (`codesign -s -`), with a documented switch for a Developer ID.
+5. The alpha is **not sandboxed** (owner decision: the `zen` command must open any folder from a terminal); `entitlements.plist` is empty and the App Store set (sandbox, `files.user-selected.read-write`, `files.bookmarks.app-scope`) is kept in `entitlements.sandbox.plist` for beta. The alpha is ad-hoc signed (`codesign -s -`), with a documented switch for a Developer ID.
 6. `resources.yml` schema: list of `{name, path: {darwin-arm64, darwin-amd64}, sha256}`; a missing file or checksum mismatch fails the build. Empty list is valid.
 7. `Info.plist` versions are generated from `VERSION` at build time (`task version:bump` does not touch the plists).
 8. App icon: yin-yang mark from docs/UI.md, black and white, generated from `build/appicon.svg`.

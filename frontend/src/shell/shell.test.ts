@@ -270,3 +270,14 @@ test("shipped features make the app usable", async () => {
   shell = undefined;
   expect(root.childElementCount).toBe(0);
 });
+
+test("workspace:opened switches to that folder, also from the welcome screen", async () => {
+  const api = createFakeApi();
+  const s = boot(api);
+  await s.start();
+  expect(root.querySelector(".zen-welcome")).not.toBeNull();
+  const ws = { ...sampleWorkspace(), name: "other" };
+  api.emit("workspace:opened", { workspace: ws, page: "guides/install.md", mode: "edit" });
+  expect(root.querySelector(".zen-welcome")).toBeNull();
+  expect(s.store.get()).toMatchObject({ workspace: ws, path: "guides/install.md", mode: "edit" });
+});

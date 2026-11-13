@@ -71,10 +71,14 @@ const api: Api = {
   async openExternal(url) {
     return Boolean(await call(Zen.OpenExternal(url)));
   },
-  on(event: "workspace:changed" | "page:changed", fn: (p: any) => void): () => void {
+  on(event: "workspace:changed" | "page:changed" | "workspace:opened", fn: (p: any) => void): () => void {
     return Events.On(event, (e: { data: unknown }) => {
       const d = payload(e.data);
-      if (event === "workspace:changed") {
+      if (event === "workspace:opened") {
+        const s = d as { workspace?: Raw; page?: string; mode?: string } | null;
+        const w = s?.workspace ? workspace(s.workspace) : null;
+        if (w) fn({ workspace: w, page: s?.page ?? "", mode: s?.mode === "edit" ? "edit" : "read" });
+      } else if (event === "workspace:changed") {
         const w = workspace(d as Raw);
         if (w) fn(w);
       } else {

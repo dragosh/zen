@@ -121,9 +121,13 @@ func TestBundledCLI(t *testing.T) {
 	}
 }
 
-// wantEntitlements is the complete set of entitlements: sandbox plus access
-// to user-selected files and app-scoped bookmarks, nothing broader.
-var wantEntitlements = []string{
+// wantEntitlements is the complete set of entitlements the alpha signs with:
+// none. The app is not sandboxed so the zen command can open any folder.
+var wantEntitlements = []string{}
+
+// wantSandboxEntitlements is the App Store set kept for beta in
+// entitlements.sandbox.plist: sandbox plus user-selected files and bookmarks.
+var wantSandboxEntitlements = []string{
 	"com.apple.security.app-sandbox",
 	"com.apple.security.files.bookmarks.app-scope",
 	"com.apple.security.files.user-selected.read-write",
@@ -164,6 +168,13 @@ func TestEntitlementsFile(t *testing.T) {
 	}
 	if got := entitlementKeys(t, string(b)); !sameSet(got, wantEntitlements) {
 		t.Errorf("entitlements.plist keys = %v, want %v", got, wantEntitlements)
+	}
+	b, err = os.ReadFile("entitlements.sandbox.plist")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := entitlementKeys(t, string(b)); !sameSet(got, wantSandboxEntitlements) {
+		t.Errorf("entitlements.sandbox.plist keys = %v, want %v", got, wantSandboxEntitlements)
 	}
 }
 

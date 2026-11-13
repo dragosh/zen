@@ -37,6 +37,7 @@ Companion documents: [UI.md](UI.md) (views, tokens, mockup), [PLUGINS.md](PLUGIN
 | Configuration | YAML. defaults < global < workspace `.zen.yml` < frontmatter |
 | Editor | Dependency-free source editor with toolbar, live Go-rendered preview, split view. True WYSIWYG is **open question 1** |
 | Versioning | SemVer, single `VERSION` file, see VERSIONING.md |
+| Sandbox | None in the alpha, so `zen` can open any folder from a terminal. The App Store build (beta) needs a sandboxed app plus an unsandboxed CLI helper; entitlements kept in `build/darwin/*.sandbox.plist` |
 | Distribution | One `Zen.app` bundling the `zen` binary and helper binaries. Bundle ID placeholder `io.github.dragosh.zen` |
 
 ## Open questions (need the owner's answer, none block wave 1)
@@ -117,6 +118,7 @@ interface Api {
   openExternal(url: string): Promise<boolean>;      // Go shows the confirm dialog
   on(event: "workspace:changed", fn: (w: Workspace) => void): () => void;
   on(event: "page:changed", fn: (e: { path: string }) => void): () => void;
+  on(event: "workspace:opened", fn: (s: Startup) => void): () => void; // Open With, File > Open Folder
 }
 ```
 

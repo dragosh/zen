@@ -22,6 +22,8 @@ export interface Api {
   openExternal(url: string): Promise<boolean>; // Go shows the confirm dialog
   on(event: "workspace:changed", fn: (w: Workspace) => void): () => void;
   on(event: "page:changed", fn: (e: { path: string }) => void): () => void;
+  /** The app opened another folder (Finder "Open With", File > Open Folder). */
+  on(event: "workspace:opened", fn: (s: Startup) => void): () => void;
 }
 
 /**

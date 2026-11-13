@@ -3,7 +3,7 @@
 import type { Api, Crumb, NavNode, Page, Startup, Workspace } from "./index";
 
 type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" | "openExternal";
-type Events = { "workspace:changed": Workspace; "page:changed": { path: string } };
+type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup };
 
 export type FakeOptions = {
   /** What startup() resolves to. Default: no workspace (welcome screen). */
@@ -103,6 +103,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
   const listeners: { [E in keyof Events]: Set<(p: Events[E]) => void> } = {
     "workspace:changed": new Set(),
     "page:changed": new Set(),
+    "workspace:opened": new Set(),
   };
   const failures = new Map<Method, Error>();
   let tree: NavNode[] = (startup.workspace ?? sampleWorkspace()).tree;

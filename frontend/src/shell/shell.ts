@@ -172,6 +172,9 @@ export function createShell(root: HTMLElement, { api, features }: ShellOptions):
   const offWorkspace = api.on("workspace:changed", (workspace) => {
     if (store.get().workspace) store.set({ workspace });
   });
+  const offOpened = api.on("workspace:opened", (s) => {
+    if (!destroyed && s.workspace) showFrame(s.workspace, s.page, s.mode);
+  });
 
   return {
     start, store, navigate, back, forward,
@@ -181,6 +184,7 @@ export function createShell(root: HTMLElement, { api, features }: ShellOptions):
       destroyed = true;
       doc.removeEventListener("keydown", onKey);
       offWorkspace();
+      offOpened();
       closeFrame();
       root.replaceChildren();
     },
