@@ -1,0 +1,13 @@
+# Helper binaries bundled into Zen.app/Contents/Helpers (see
+# specs/packaging/macos/spec.md). Each entry:
+#
+#   - name: helper-name            # file name inside Contents/Helpers
+#     path:
+#       darwin-arm64: path/to/arm64/binary   # relative to this file
+#       darwin-amd64: path/to/amd64/binary
+#     sha256: <64 hex digits of the binary for the target arch>
+#
+# A missing file or a checksum mismatch fails `task package`.
+# Note: one sha256 per entry, so arm64 and amd64 must be the same file
+# (a universal binary) or listed as separate entries per architecture.
+[]
