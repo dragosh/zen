@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>zen UI mockup</title>
+<style>
+:root{--bg:#fff;--bg-subtle:#f5f5f4;--fg:#111;--fg-muted:#6b6b6b;--rule:#e2e2e0;--btn-bg:#ececeb;--btn-bg-hover:#dededc;--btn-primary-bg:#111;--btn-primary-fg:#fff;
+--font-body:"New York","Iowan Old Style",Palatino,Georgia,serif;--font-ui:-apple-system,"SF Pro Text",system-ui,sans-serif;--font-mono:"SF Mono",ui-monospace,Menlo,monospace}
+:root[data-theme=dark]{--bg:#0b0b0b;--bg-subtle:#161616;--fg:#ededed;--fg-muted:#9a9a9a;--rule:#2a2a2a;--btn-bg:#232323;--btn-bg-hover:#303030;--btn-primary-bg:#ededed;--btn-primary-fg:#0b0b0b}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--fg);font:13px/1.4 var(--font-ui);display:flex;flex-direction:column}
+button{font:inherit;color:var(--fg);background:var(--btn-bg);border:0;border-radius:6px;padding:5px 12px;cursor:pointer}
+button:hover{background:var(--btn-bg-hover)}
+button:focus-visible,a:focus-visible{outline:2px solid var(--fg);outline-offset:2px}
+button.primary{background:var(--btn-primary-bg);color:var(--btn-primary-fg)}
+.meta{display:flex;gap:6px;align-items:center;padding:6px 10px;border-bottom:1px dashed var(--rule);color:var(--fg-muted)}
+.meta span{margin-right:auto}
+.app{flex:1;display:flex;min-height:0}
+.view{display:none;flex:1;min-width:0}
+body[data-view=welcome] .welcome,body[data-view=reader] .reader,body[data-view=editor] .editorview{display:flex}
+body[data-view=welcome] .sidebar{display:none}
+/* welcome */
+.welcome{flex-direction:column;align-items:center;justify-content:center;gap:10px}
+.logo{width:56px;height:56px}
+.welcome h1{font:600 2rem var(--font-body);margin:0 0 18px}
+.welcome .primary{padding:12px 28px;font-size:15px}
+.welcome p{color:var(--fg-muted);margin:6px 0 0}
+/* sidebar */
+.sidebar{width:260px;flex:none;background:var(--bg-subtle);border-right:1px solid var(--rule);display:flex;flex-direction:column}
+.ws{height:44px;display:flex;align-items:center;gap:8px;padding:0 14px;font-weight:600;border-bottom:1px solid var(--rule)}
+.ws svg{width:18px;height:18px}
+.tree{padding:8px;overflow:auto}
+.tree a{display:block;padding:4px 8px;border-radius:6px;color:var(--fg);text-decoration:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tree a:hover{background:var(--btn-bg)}
+.tree a[aria-current]{background:var(--btn-bg);font-weight:600}
+.tree .l2{padding-left:26px}
+.tree .tw{display:inline-block;width:14px;color:var(--fg-muted)}
+.tree h6{margin:16px 8px 4px;font-size:11px;letter-spacing:.06em;color:var(--fg-muted);font-weight:600}
+/* main */
+.main{flex:1;min-width:0;flex-direction:column}
+.top{height:44px;flex:none;display:flex;align-items:center;gap:8px;padding:0 14px;border-bottom:1px solid var(--rule)}
+.crumbs{margin-right:auto;color:var(--fg-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crumbs a{color:var(--fg-muted);text-decoration:none}.crumbs a:hover{color:var(--fg)}
+.crumbs b{color:var(--fg);font-weight:600}
+.page{flex:1;overflow:auto;padding:48px 32px}
+.zen-page{max-width:68ch;margin:0 auto;font:17px/1.65 var(--font-body)}
+.zen-page h1{font-size:2.1rem;line-height:1.2;margin:0 0 .6em;padding-bottom:.3em;border-bottom:1px solid var(--rule)}
+.zen-page h2{font-size:1.4rem;margin:1.8em 0 .5em}
+.zen-page a{color:var(--fg);text-underline-offset:3px}
+.zen-page code{font:.88em var(--font-mono);background:var(--bg-subtle);padding:.1em .35em;border-radius:4px}
+.zen-page pre{background:var(--bg-subtle);padding:14px 16px;border-radius:6px;overflow:auto}
+.zen-page pre code{padding:0;background:none}
+.zen-page blockquote{margin:1.2em 0;padding-left:1em;border-left:2px solid var(--fg);color:var(--fg-muted);font-style:italic}
+/* editor */
+.toolbar{height:36px;flex:none;display:flex;align-items:center;gap:2px;padding:0 10px;border-bottom:1px solid var(--rule)}
+.toolbar button{background:none;padding:4px 8px;min-width:28px}
+.toolbar button:hover{background:var(--btn-bg)}
+.toolbar i{width:1px;height:18px;background:var(--rule);margin:0 6px}
+.panes{flex:1;display:flex;min-height:0}
+.src{flex:1;border:0;border-right:1px solid var(--rule);resize:none;padding:24px;background:var(--bg);color:var(--fg);font:13.5px/1.6 var(--font-mono);outline:0}
+.panes .page{padding:24px}
+body[data-split=off] .panes .page{display:none}
+body[data-split=off] .src{border-right:0}
+.dot{color:var(--fg)}
+</style>
+</head>
+<body data-view="reader" data-split="on">
+<div class="meta"><span>zen UI mockup — reference for the ui/* specs</span>
+<button onclick="v('welcome')">Welcome</button><button onclick="v('reader')">Reader</button><button onclick="v('editor')">Editor</button><button onclick="t()">Light / dark</button></div>
+<div class="app">
+  <nav class="sidebar" aria-label="Pages">
+    <div class="ws"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 1a11 11 0 0 1 0 22a5.5 5.5 0 0 1 0-11a5.5 5.5 0 0 0 0-11z" fill="currentColor"/></svg>my-docs</div>
+    <div class="tree">
+      <a href="#">README</a>
+      <a href="#"><span class="tw">▾</span>Guides</a>
+      <a href="#" class="l2" aria-current="page">Install</a>
+      <a href="#" class="l2">Usage</a>
+      <a href="#"><span class="tw">▸</span>API</a>
+      <h6>OTHER PAGES</h6>
+      <a href="#">notes/ideas</a>
+      <a href="#">CHANGELOG</a>
+    </div>
+  </nav>
+  <section class="view welcome">
+    <svg class="logo" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="11" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M12 1a11 11 0 0 1 0 22a5.5 5.5 0 0 1 0-11a5.5 5.5 0 0 0 0-11z" fill="currentColor"/></svg>
+    <h1>zen</h1>
+    <button class="primary">Open a folder</button>
+    <p>or drop a folder here · ⌘O</p>
+  </section>
+  <section class="view main reader">
+    <header class="top"><div class="crumbs"><a href="#">README</a> › <a href="#">Guides</a> › <b>Install</b></div><button onclick="v('editor')">Edit</button></header>
+    <main class="page"><article class="zen-page">
+      <h1>Install</h1>
+      <p>zen is a single application. Open a folder and it turns the markdown inside into a small site you can read and edit. See <a href="#">Usage</a> for the next step.</p>
+      <h2>From a terminal</h2>
+      <pre><code>cd my-docs
+zen</code></pre>
+      <blockquote>Everything is rendered locally. Nothing leaves your machine.</blockquote>
+      <p>Use <code>zen edit README.md</code> to open the editor directly.</p>
+    </article></main>
+  </section>
+  <section class="view main editorview">
+    <header class="top"><div class="crumbs"><a href="#">README</a> › <a href="#">Guides</a> › <b>Install</b> <span class="dot" title="Unsaved changes">●</span></div><button onclick="s()">Split</button><button class="primary" onclick="v('reader')">Done</button></header>
+    <div class="toolbar" role="toolbar" aria-label="Formatting">
+      <button title="Bold ⌘B"><b>B</b></button><button title="Italic ⌘I"><em>I</em></button><button title="Strikethrough"><s>S</s></button><i></i>
+      <button title="Heading 1">H1</button><button title="Heading 2">H2</button><button title="Quote">“ ”</button><i></i>
+      <button title="Bullet list">•</button><button title="Numbered list">1.</button><button title="Task">☐</button><i></i>
+      <button title="Code">&lt;/&gt;</button><button title="Link ⌘K">Link</button><button title="Table">Table</button>
+    </div>
+    <div class="panes">
+      <textarea class="src" spellcheck="false" aria-label="Markdown source"># Install
+
+zen is a single application. Open a folder and it turns the markdown inside into a small site you can read and edit. See [Usage](usage.md) for the next step.
+
+## From a terminal
+
+```
+cd my-docs
+zen
+```
+</textarea>
+      <div class="page"><article class="zen-page"><h1>Install</h1><p>zen is a single application. Open a folder and it turns the markdown inside into a small site you can read and edit. See <a href="#">Usage</a> for the next step.</p><h2>From a terminal</h2><pre><code>cd my-docs
+zen</code></pre></article></div>
+    </div>
+  </section>
+</div>
+<script>
+const b=document.body,r=document.documentElement;
+function v(x){b.dataset.view=x}
+function s(){b.dataset.split=b.dataset.split==='on'?'off':'on'}
+function t(){r.dataset.theme=r.dataset.theme==='dark'?'':'dark'}
+if(matchMedia('(prefers-color-scheme: dark)').matches)r.dataset.theme='dark';
+</script>
+</body>
+</html>

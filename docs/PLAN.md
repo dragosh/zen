@@ -1,120 +1,155 @@
 # zen — build plan
 
-Desktop application (Wails v3) that reads, edits and live-reloads markdown
-files. App name `zen`, binary and CLI name `zen`. macOS first.
+Source of truth for requirements: [design-draft-v010-alpha.md](design-draft-v010-alpha.md).
+Companion documents: [UI.md](UI.md) (views, tokens, mockup), [PLUGINS.md](PLUGINS.md)
+(plugin API and syntax), [VERSIONING.md](VERSIONING.md), [../specs/README.md](../specs/README.md)
+(feature list, waves, rules for feature agents).
+
+`Zen.app` is a desktop markdown reader and editor for **folders** of markdown.
+`zen` is the same binary used from a terminal. Wails v3, macOS first.
+
+## Product, v0.1.0-alpha
+
+1. Open a folder (big button in the app, or `zen` in a terminal for the cwd).
+2. The app indexes every markdown file, builds a navigation tree from the
+   links between files, and shows it as a sidebar.
+3. A root `README.md` is rendered by default; otherwise the user picks a page.
+4. Internal links open in the same view, with a breadcrumb on top. External
+   links ask before opening the default browser.
+5. Pages render on the Go side through a pluggable pipeline. Images and SVG
+   files display. Files reload live when they change on disk.
+6. An editor (`zen edit [path]` or the Edit button) with a toolbar and a
+   split view.
+7. Plugins (built in for alpha: `highlight`, `diagram`) are switched on and
+   off by a global config file, a workspace config file and page frontmatter.
 
 ## Decisions
 
 | Topic | Decision |
 |---|---|
-| Editing model | Split view: CodeMirror 6 source pane with a formatting toolbar, live preview beside it |
-| Plugins | JS plugins (frontend) and Go/WASM plugins (backend), enabled, disabled and reordered at runtime |
-| Built-in plugins | `gfm`, `highlight`, `mermaid`, written against the public plugin API |
-| Distribution | One build flavour for direct download and the App Store |
-| External plugins | Users author plugins locally against the manifest/API; the app never downloads plugin code |
-| Bundled binaries | The `zen` CLI ships inside the `.app`, plus a resource manifest for helper binaries |
-| Previous PoC | Discarded; this is a clean start |
-| Apple account, bundle ID, signing | Deferred. Placeholder ID `io.github.dragosh.zen` |
+| Rendering | Go only: goldmark (GFM, footnotes, heading ids) then bluemonday. No JS markdown or sanitiser libraries |
+| Frontend | Vite + TypeScript, no UI framework, no runtime npm dependency except `@wailsio/runtime`. The frontend displays HTML it receives and sends user actions back |
+| Workspace | One folder per window. All file access is confined to that folder |
+| Navigation tree | Built from links, breadth-first from `README.md`; unlinked files are grouped by folder under "Other pages" |
+| Breadcrumb | The page's path in the navigation tree, computed in Go |
+| Plugins | Go interface with optional hooks. Built-ins are compiled in. External plugins (WASM, wazero) are designed for but ship in 0.2 |
+| Plugin syntax | Fenced blocks ```` ```name ````, container blocks `:::name`, inline `:name[text]{k=v}` |
+| Configuration | YAML. defaults < global < workspace `.zen.yml` < frontmatter |
+| Editor | Dependency-free source editor with toolbar, live Go-rendered preview, split view. True WYSIWYG is **open question 1** |
+| Versioning | SemVer, single `VERSION` file, see VERSIONING.md |
+| Distribution | One `Zen.app` bundling the `zen` binary and helper binaries. Bundle ID placeholder `io.github.dragosh.zen` |
+
+## Open questions (need the owner's answer, none block wave 1)
+
+1. **WYSIWYG.** The draft asks for a WYSIWYG editor. Editing rendered content
+   in place needs a rich-text engine (ProseMirror class), which means an npm
+   dependency or months of work. Plan: alpha ships source editor + live
+   preview + split view; WYSIWYG is a 0.2 spec. Say so if alpha must have it.
+2. **Slides and polls** plugins are listed in the draft as examples. Planned
+   for 0.2 on the same plugin API.
+3. **Mermaid** needs its JavaScript file inside the app (vendored, pinned,
+   checksummed; no npm). Needs a one-time download approval.
 
 ## Architecture
 
-One `zen` binary. With no arguments or with file paths it starts the GUI;
-flags and subcommands run headless.
+```
+main.go                    entry: cli.Run -> app.Run
+internal/cli               arguments and subcommands        (no Wails import)
+internal/app               Wails wiring + services facade   (only package importing Wails)
+internal/core/workspace    folder root, safe paths, read/write, file listing
+internal/core/index        link graph, navigation tree, breadcrumbs
+internal/core/render       markdown -> sanitised HTML, frontmatter, link rewriting
+internal/core/plugins      plugin API, registry, directive syntax
+internal/core/config       global/workspace/frontmatter configuration
+internal/core/watch        file watching, change events
+internal/plugins/<id>      built-in plugins, written against core/plugins
+frontend/src/api           typed service client + in-memory fake
+frontend/src/shell         window frame, welcome screen, routing between views
+frontend/src/nav           sidebar tree, breadcrumb, link handling
+frontend/src/page          rendered page view
+frontend/src/editor        editor, toolbar, split view
+frontend/src/styles        design tokens and base typography
+build/darwin               bundle, entitlements, signing
+specs/<scope>/<feature>    one spec per feature
+```
+
+Dependencies point inward: `app -> core`, `plugins/<id> -> core/plugins`,
+`ui -> api`. `core` packages never import `app` or Wails and are tested
+without a window.
+
+### Render pipeline (Go)
 
 ```
-main.go                 entry: CLI dispatch -> GUI
-internal/cli            argument parsing, commands
-internal/app            Wails application wiring (windows, menus, services)
-internal/core/document  open, save, recent files, file access
-internal/core/watch     file watching, live-reload events
-internal/core/render    pipeline orchestration
-internal/core/plugins   registry, manifests, JS and WASM hosts
-internal/core/resources bundled-binary manifest, lookup, exec
-frontend/src/editor     CodeMirror, toolbar commands
-frontend/src/preview    rendered view, scroll sync
-frontend/src/plugins    JS plugin host and built-in plugins
-build/darwin            bundle, entitlements, signing, dmg, pkg
-specs/<scope>/<feature> spec, prompt and tests, written before the code
+file bytes
+  1 frontmatter   split YAML header, resolve effective config
+  2 source hooks  plugin: markdown -> markdown
+  3 parse         goldmark + directive syntax -> AST
+  4 block/inline  plugin: named block or inline node -> HTML fragment
+  5 links         internal links, external links, image URLs rewritten
+  6 html hooks    plugin: HTML -> HTML
+  7 sanitise      bluemonday policy + elements declared by enabled plugins
+Page{html, title, frontmatter, assets}
 ```
 
-Scopes depend inward only: `ui -> core`, `plugins -> plugin API`, never the
-reverse. Each `core` package is a Wails service with a narrow interface, so it
-is testable without a window.
+Sanitising is last and unconditional; no plugin output skips it.
 
-### Render pipeline
+### Service API (the contract between Go and the frontend)
 
-Every stage is a plugin hook. A change to the plugin set or its config
-triggers a re-render of open documents.
+Exposed by `internal/app`, consumed only through `frontend/src/api`.
+UI features are built against the fake in `frontend/src/api/fake.ts`.
 
-1. `source` — markdown text to markdown text (Go/WASM)
-2. `parse` — markdown-it rules and renderers (JS)
-3. `html` — HTML string to HTML string (Go/WASM or JS), then sanitised
-4. `dom` — enhance the mounted preview, e.g. render mermaid diagrams (JS)
+```ts
+type NavNode   = { title: string; path: string; kind: "page" | "group"; children: NavNode[] };
+type Workspace = { root: string; name: string; home: string; tree: NavNode[] };   // home: "" or "README.md"
+type Crumb     = { title: string; path: string };
+type Page      = { path: string; title: string; html: string;
+                   frontmatter: Record<string, unknown>; breadcrumb: Crumb[];
+                   assets: { css: string[]; js: string[] }; warnings: string[] };
+type Startup   = { workspace: Workspace | null; page: string; mode: "read" | "edit" };
 
-### Plugin model
+interface Api {
+  startup(): Promise<Startup>;
+  pickFolder(): Promise<Workspace | null>;          // native folder dialog
+  page(path: string): Promise<Page>;
+  source(path: string): Promise<string>;
+  preview(path: string, content: string): Promise<Page>;   // render unsaved text
+  save(path: string, content: string): Promise<void>;
+  openExternal(url: string): Promise<boolean>;      // Go shows the confirm dialog
+  on(event: "workspace:changed", fn: (w: Workspace) => void): () => void;
+  on(event: "page:changed", fn: (e: { path: string }) => void): () => void;
+}
+```
 
-- A plugin is a folder with `plugin.json`: `id`, `version`, `apiVersion`,
-  `hooks`, `permissions`, `config` schema, and entry points (`main.js`
-  and/or `main.wasm`).
-- JS plugins load as ES modules and receive a restricted API object.
-- WASM plugins run in wazero with no ambient filesystem or network; all host
-  access goes through declared permissions.
-- The registry holds order and enabled state, persists them, and emits change
-  events.
+Paths are always workspace-relative with `/` separators. Workspace files
+(images) are served read-only at `/_ws/<path>`; plugin assets at
+`/_plugins/<id>/<file>`.
 
-### Resources
+### Rendered HTML conventions
 
-`resources.yml` lists binaries to place in the bundle per OS and arch. The
-build copies them to `Contents/Helpers`, signs them, and `core/resources`
-resolves and executes them at runtime. The CLI is the first such resource
-(same binary, exposed through an "Install command line tool" action).
+| Markup | Meaning |
+|---|---|
+| `<a data-zen-link="internal" data-path="docs/a.md" data-anchor="intro">` | link to a workspace page; the frontend navigates in place |
+| `<a data-zen-link="external" href="https://…">` | the frontend calls `openExternal` |
+| `<a data-zen-link="broken">` | target not in the workspace; rendered muted |
+| `<img src="/_ws/img/a.png">` | workspace image (png, jpg, gif, webp, svg) |
+| `<div data-zen-plugin="diagram" …>` | block owned by a plugin |
 
-## Process per feature
+## Process
 
-1. `specs/<scope>/<feature>/spec.md` — behaviour and acceptance criteria.
-2. `specs/<scope>/<feature>/prompt.md` — the build prompt for the feature.
-3. Failing tests next to the code (Go `_test.go`, Vitest, Playwright e2e).
-4. Implementation, until the tests pass.
+1. The lead (Fable) owns `docs/`, the spec files and integration.
+2. Every feature is one spec in `specs/<scope>/<feature>/spec.md`, built by one
+   subagent on branch `feature/<scope>-<feature>` in its own `git worktree`.
+3. A feature edits only the paths its spec **owns**. Shared wiring files are
+   edited by the lead at merge time from the spec's *Integration* notes.
+4. Tests first: the tests in the spec's table are committed failing, then the
+   implementation.
+5. Features merge in waves (see `specs/README.md`); a wave starts when the
+   wave before it is merged into the integration branch.
 
-Spec, prompt and tests are committed before the implementation commit.
+## Milestones
 
-## Phases
-
-| # | Phase | Outcome |
-|---|---|---|
-| 1 | Scaffold | Wails v3 skeleton, task runner, CI, spec templates, CLI entry point |
-| 2 | Read | Open, render and live-reload a markdown file |
-| 3 | Plugin framework | Registry, manifest, pipeline hooks, runtime toggling |
-| 4 | Built-in plugins | `gfm`, `highlight`, `mermaid` on the public API |
-| 5 | Editor | Source pane, toolbar, save, dirty state, scroll sync |
-| 6 | External plugins | User-authored JS and WASM plugins, permissions UI, plugin dev docs |
-| 7 | Resources | Binary manifest, bundled CLI, command line tool install |
-| 8 | Packaging | Signed and notarised `.dmg` and `.pkg`, then App Store submission |
-
-## App Store constraints
-
-These shape the design from phase 2 on, even though signing is deferred.
-
-- **Sandbox file access.** Files are reachable only through user selection
-  (open panel, drag and drop, Finder "Open With"). Recent files need
-  security-scoped bookmarks. Images referenced relative to a document need
-  access to its folder, so the app asks for the folder once and bookmarks it.
-- **Executable code (guideline 2.5.2).** The app must not download code. zen
-  loads plugins only from a folder the user picks, has no plugin marketplace
-  or installer, and runs JS in WebKit and WASM in an interpreter. This is the
-  defensible reading, not a guarantee; a `noexternalplugins` build tag is kept
-  as a fallback if review rejects it.
-- **WASM execution.** wazero runs in interpreter mode so no JIT entitlement
-  is needed.
-- **Helper binaries.** Each is signed with `com.apple.security.inherit` and
-  lives inside the bundle. A sandboxed app cannot write to `/usr/local/bin`,
-  so the CLI install action shows the symlink command for the user to run.
-- **CLI to app hand-off.** `zen file.md` from a terminal runs outside the
-  sandbox; it forwards the path to the running app through the system open
-  mechanism rather than reading the file itself.
-
-## Open items
-
-- Apple Developer account, final bundle identifier, signing identities.
-- macOS CI runner for build, signing and dmg verification.
-- App icon and dmg artwork (Wails defaults are in place).
+| Version | Content |
+|---|---|
+| `0.1.0-alpha.1` | Waves 1–4: folder workspace, navigation, Go rendering, plugins `highlight` + `diagram`, editor with split view, CLI, unsigned `Zen.app` |
+| `0.1.0-beta.1` | Signing, notarisation, "Install command line tool", recent folders, search |
+| `0.2.0` | External WASM plugins, `slides`, `polls`, WYSIWYG decision |

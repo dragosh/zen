@@ -1,6 +1,6 @@
 # cli/entrypoint
 
-Status: done
+Status: done (superseded by [cli/commands](../commands/spec.md))
 
 ## Purpose
 
