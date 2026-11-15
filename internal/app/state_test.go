@@ -363,3 +363,51 @@ func TestWatchEvents(t *testing.T) {
 		t.Fatalf("batch: %v", ev.all())
 	}
 }
+
+func TestNavMeta(t *testing.T) {
+	dir := tree(t, map[string]string{
+		"README.md":       "# Home\n\n[Guides](guides/index.md) [Bad](bad.md)\n",
+		"guides/index.md": "---\nslug: guides\n---\n# Guides\n",
+		"setup.md":        "---\nnav:\n  title: Setup\n  parent: guides\n---\n# Installation\n",
+		"bad.md":          "---\nnav:\n  title: 3\n  parent: nowhere.md\n---\n# Bad\n",
+	})
+	z, ev, _, _ := newTestZen(t, dir, "", "read")
+	z.state.stopWatch()
+
+	p, err := z.Page("setup.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []Crumb{{"Home", "README.md"}, {"Guides", "guides/index.md"}, {"Setup", "setup.md"}}
+	if p.Title != "Installation" || !reflect.DeepEqual(p.Breadcrumb, want) || len(p.Warnings) != 0 {
+		t.Fatalf("setup: %+v", p)
+	}
+	b, _ := z.Page("bad.md")
+	if !hasWarn(b.Warnings, "nav.title") || !hasWarn(b.Warnings, "nowhere.md") {
+		t.Fatalf("warnings: %v", b.Warnings)
+	}
+
+	// Frontmatter change: re-indexed, workspace:changed with the new tree.
+	os.WriteFile(filepath.Join(dir, "setup.md"), []byte("---\nnav:\n  title: Install\n  parent: guides\n---\n# Installation\n"), 0o644)
+	z.state.handle([]watch.Event{{Path: "setup.md", Kind: watch.Changed}})
+	var w *Workspace
+	for _, e := range ev.all() {
+		if e.Name == "workspace:changed" {
+			w = e.Data.(*Workspace)
+		}
+	}
+	if w == nil || w.Tree[0].Children[0].Children[0].Title != "Install" {
+		t.Fatalf("reindex: %+v", ev.all())
+	}
+
+	// Hidden: out of the tree, breadcrumb kept.
+	ev.reset()
+	os.WriteFile(filepath.Join(dir, "setup.md"), []byte("---\nnav:\n  hidden: true\n  parent: guides\n---\n# Installation\n"), 0o644)
+	z.state.handle([]watch.Event{{Path: "setup.md", Kind: watch.Changed}})
+	if w := z.Startup().Workspace; len(w.Tree[0].Children[0].Children) != 0 {
+		t.Fatalf("hidden: %+v", w.Tree)
+	}
+	if p, _ := z.Page("setup.md"); len(p.Breadcrumb) != 3 {
+		t.Fatalf("hidden crumb: %+v", p.Breadcrumb)
+	}
+}
