@@ -24,6 +24,7 @@ vi.mock("../../bindings/github.com/dragosh/zen/internal/app/index.js", () => ({
     Save: binding("Save"),
     OpenExternal: binding("OpenExternal"),
     OpenEditor: binding("OpenEditor"),
+    Lint: binding("Lint"),
   },
 }));
 
@@ -154,6 +155,20 @@ describe("wails api", () => {
     expect(emitted.map((e) => e.name)).toEqual(["app:close-pending"]);
     close?.();
     expect(emitted.map((e) => e.name)).toEqual(["app:close-pending", "app:close"]);
+  });
+
+  it("lint maps the result and its alerts", async () => {
+    const api = (await import("./wails")).default;
+    results.Lint = { available: true, alerts: [{ line: 2, col: 1, endCol: 3, severity: "bogus", check: "Vale.Spelling", message: "m", match: "Teh" }] };
+    expect(await api.lint("a.md", "")).toEqual({
+      available: true,
+      alerts: [{ line: 2, col: 1, endCol: 3, severity: "suggestion", check: "Vale.Spelling", message: "m", match: "Teh" }],
+    });
+    expect(calls.at(-1)).toEqual({ name: "Lint", args: ["a.md", ""] });
+    results.Lint = { available: false, alerts: null };
+    expect(await api.lint("a.md", "x")).toEqual({ available: false, alerts: [] });
+    results.Lint = null;
+    expect(await api.lint("a.md", "x")).toEqual({ available: false, alerts: [] });
   });
 
   it("openEditor failures carry the Go message", async () => {

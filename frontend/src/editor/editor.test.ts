@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createFakeApi, type FakeApi } from "../api/fake";
 import { createStore } from "../shell/store";
 import type { Ctx, Slots, Store } from "../shell/types";
@@ -369,5 +369,115 @@ describe("editor: external change", () => {
     window.dispatchEvent(ev);
     expect(ev.defaultPrevented).toBe(false);
     s = { ...s, unmount: () => {} };
+  });
+});
+
+describe("editor: lint", () => {
+  const TEH = { line: 1, col: 1, endCol: 3, severity: "error" as const, check: "Vale.Spelling", message: "m", match: "teh" };
+  async function lintSetup(alerts = [TEH]) {
+    const api = createFakeApi({ sources: { "a.md": "teh cat" }, lint: { available: true, alerts } });
+    const store = createStore({ path: "a.md", mode: "edit" });
+    const slots: Slots = {
+      nav: document.createElement("nav"), breadcrumb: document.createElement("div"),
+      actions: document.createElement("div"), main: document.createElement("main"),
+    };
+    document.body.append(slots.actions, slots.main);
+    const ctx: Ctx = { api, store, navigate: () => {} };
+    const unmount = editorFeature.mount(slots, ctx);
+    for (let i = 0; i < 5; i++) await tick();
+    const ta = slots.main.querySelector("textarea")!;
+    s = { api, store, slots, ta, unmount };
+    return s;
+  }
+  const mirror = () => s.slots.main.querySelector<HTMLElement>(".zen-lint-mirror")!;
+  const count = () => s.slots.main.querySelector<HTMLButtonElement>(".zen-lint-count")!;
+  afterEach(() => vi.useRealTimers());
+
+  it("lints right after load and draws marks behind the textarea", async () => {
+    await lintSetup();
+    expect(s.api.callsTo("lint")).toEqual([["a.md", "teh cat"]]);
+    expect(mirror().querySelector("mark.zen-lint-error")!.textContent).toBe("teh");
+    expect(count().hidden).toBe(false);
+    expect(count().textContent).toBe("1 issue");
+    // The list sits under the toolbar, above the panes.
+    const strip = s.slots.main.querySelector(".zen-editor-lint")!;
+    expect(strip.previousElementSibling?.getAttribute("role")).toBe("toolbar");
+    // The textarea keeps its place in the panes, wrapped with the mirror.
+    expect(s.ta.parentElement!.classList.contains("zen-lint-wrap")).toBe(true);
+    expect(s.ta.parentElement!.parentElement!.classList.contains("zen-editor-panes")).toBe(true);
+  });
+
+  it("lints the unsaved text 600 ms after typing stops", async () => {
+    await lintSetup();
+    vi.useFakeTimers();
+    type(s.ta, "teh cats");
+    await vi.advanceTimersByTimeAsync(300);
+    type(s.ta, "teh catss");
+    await vi.advanceTimersByTimeAsync(599);
+    expect(s.api.callsTo("lint")).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(s.api.callsTo("lint")).toEqual([["a.md", "teh cat"], ["a.md", "teh catss"]]);
+  });
+
+  it("the latest response wins", async () => {
+    await lintSetup();
+    const resolvers: ((r: { available: boolean; alerts: typeof TEH[] }) => void)[] = [];
+    s.api.lint = () => new Promise((r) => resolvers.push(r));
+    vi.useFakeTimers();
+    type(s.ta, "teh cat dog");
+    await vi.advanceTimersByTimeAsync(600);
+    type(s.ta, "teh cat dog emu");
+    await vi.advanceTimersByTimeAsync(600);
+    expect(resolvers).toHaveLength(2);
+    resolvers[1]({ available: true, alerts: [TEH, { ...TEH, col: 13, endCol: 15, match: "emu" }] });
+    await vi.advanceTimersByTimeAsync(0);
+    resolvers[0]({ available: true, alerts: [] });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(count().textContent).toBe("2 issues");
+    expect(mirror().querySelectorAll("mark")).toHaveLength(2);
+  });
+
+  it("lints again right after save", async () => {
+    await lintSetup();
+    type(s.ta, "teh dog");
+    key(document, "s", { metaKey: true });
+    for (let i = 0; i < 5; i++) await tick();
+    expect(s.api.callsTo("lint").at(-1)).toEqual(["a.md", "teh dog"]);
+  });
+
+  it("clicking an issue selects its range in the textarea", async () => {
+    await lintSetup([{ ...TEH, col: 5, endCol: 7, match: "cat" }]);
+    count().click();
+    s.slots.main.querySelector<HTMLButtonElement>(".zen-lint-panel li button")!.click();
+    expect(document.activeElement).toBe(s.ta);
+    expect([s.ta.selectionStart, s.ta.selectionEnd]).toEqual([4, 7]);
+  });
+
+  it("Esc closes the issues panel without leaving the editor", async () => {
+    await lintSetup();
+    const closed = vi.fn();
+    window.addEventListener("zen:close-window", closed);
+    count().click();
+    (document.activeElement as HTMLElement | null)?.blur?.();
+    key(document.body, "Escape");
+    expect(s.slots.main.querySelector<HTMLElement>(".zen-lint-panel")!.hidden).toBe(true);
+    await tick();
+    expect(closed).not.toHaveBeenCalled();
+    window.removeEventListener("zen:close-window", closed);
+  });
+
+  it("shows nothing when Vale is unavailable", async () => {
+    const api = createFakeApi({ sources: { "a.md": "teh cat" } });
+    const store = createStore({ path: "a.md", mode: "edit" });
+    const slots: Slots = {
+      nav: document.createElement("nav"), breadcrumb: document.createElement("div"),
+      actions: document.createElement("div"), main: document.createElement("main"),
+    };
+    document.body.append(slots.actions, slots.main);
+    const unmount = editorFeature.mount(slots, { api, store, navigate: () => {} });
+    for (let i = 0; i < 5; i++) await tick();
+    s = { api, store, slots, ta: slots.main.querySelector("textarea")!, unmount };
+    expect(s.slots.main.querySelector<HTMLElement>(".zen-editor-lint")!.hidden).toBe(true);
+    expect(mirror().querySelector("mark")).toBeNull();
   });
 });
