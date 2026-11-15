@@ -28,9 +28,9 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 3 | [plugins/diagram](plugins/diagram/spec.md) | `internal/plugins/diagram` | core/render | done |
 | 3 | [app/services](app/services/spec.md) | `internal/app`, `frontend/src/api/wails.ts` | all core, cli/commands | done |
 | 4 | [packaging/macos](packaging/macos/spec.md) | `build/darwin` | everything | done |
-| 5 | [ui/editor-window](ui/editor-window/spec.md) | `internal/app/{app,windows,service}.go`, `frontend/src/{api,shell,editor}`, page Edit button | app/services, ui/* | specified |
-| 5 | [core/navmeta](core/navmeta/spec.md) | `internal/core/index`, `internal/app/{state,slugs}.go` | core/index, app/services | specified |
-| 5 | [core/lint](core/lint/spec.md) | `internal/core/lint`, `resources.yml`, `build/darwin` helper fetch | packaging/macos | specified |
+| 5 | [ui/editor-window](ui/editor-window/spec.md) | `internal/app/{app,windows,service}.go`, `frontend/src/{api,shell,editor}`, page Edit button | app/services, ui/* | done |
+| 5 | [core/navmeta](core/navmeta/spec.md) | `internal/core/index`, `internal/app/{state,slugs}.go` | core/index, app/services | done |
+| 5 | [core/lint](core/lint/spec.md) | `internal/core/lint`, `resources.yml`, `build/darwin` helper fetch | packaging/macos | done |
 | 5b | [ui/lint](ui/lint/spec.md) | `internal/app/lint.go`, `frontend/src/lint`, page/editor wiring | ui/editor-window, core/lint | specified |
 
 Features in the same wave own disjoint paths and can be built in parallel.

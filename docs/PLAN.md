@@ -119,6 +119,8 @@ interface Api {
   on(event: "workspace:changed", fn: (w: Workspace) => void): () => void;
   on(event: "page:changed", fn: (e: { path: string }) => void): () => void;
   on(event: "workspace:opened", fn: (s: Startup) => void): () => void; // Open With, File > Open Folder
+  openEditor(path: string): Promise<void>;           // opens/focuses the page's editor window
+  // page:changed also fires when another window saves (editor:saved)
 }
 ```
 

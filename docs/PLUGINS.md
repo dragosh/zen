@@ -127,6 +127,28 @@ limits:
 A `limits` key in `.zen.yml` is ignored with a warning, so a folder cannot
 lift its own limits.
 
+Pages can also tune their place in the navigation:
+
+```markdown
+---
+slug: install                 # extra link target: [x](install), [x](/install#part)
+nav:
+  title: Setup                # label in the sidebar and breadcrumb (page heading unchanged)
+  order: 2                    # position among siblings; ordered pages come first, ascending
+  parent: guides/index.md     # show under this page (workspace path or slug)
+  hidden: true                # leave out of the sidebar (still reachable by links)
+---
+```
+
+- `slug`: lower-case letters, digits and `-`, parts separated by `/`, at most 100
+  characters. A slug link resolves only when no real file matches. If two pages
+  use the same slug, the first by path keeps it.
+- `nav.parent` overrides the link-based placement. A missing parent, the page
+  itself, or a parent that would create a cycle is ignored with a warning.
+  Children of a hidden page are hidden too, unless they set their own `nav.parent`.
+- Pages without these keys are placed by links as before. Invalid values are
+  ignored and shown as page warnings.
+
 `true` / `false` switch a plugin; a mapping switches it on and sets options.
 Unknown plugin ids and unknown options produce a warning in the page
 (`Page.warnings`), never an error.

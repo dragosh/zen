@@ -6,13 +6,21 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ## [Unreleased]
 
+### Fixed
+
+- Page titles keep `<`, `>` and decode entities in the sidebar and breadcrumb.
+- Zen.app no longer hangs when opened from Finder.
+
 ### Changed
 
+- Edit opens the page in its own editor window, connected to the main window.
 - File › Open Folder (⌘O) from the menu switches the window to the new folder, also from the welcome screen.
 - `zen` opens the current folder instead of a single file.
 
 ### Added
 
+- Frontmatter `slug` and `nav` (title, order, parent, hidden) to tune the sidebar.
+- Vale prose linter (3.25.1) bundled in Zen.app, fetched and checksum-verified at build time.
 - `zen <file>` renders a markdown file in the window, rendered and sanitised in Go.
 - `task install` links the `zen` binary into `~/.local/bin`.
 - Open a folder as a workspace with safe file access (core).
