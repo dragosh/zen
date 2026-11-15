@@ -106,6 +106,9 @@ type Crumb     = { title: string; path: string };
 type Page      = { path: string; title: string; html: string;
                    frontmatter: Record<string, unknown>; breadcrumb: Crumb[];
                    assets: { css: string[]; js: string[] }; warnings: string[] };
+type Alert      = { line: number; col: number; endCol: number; severity: "error" | "warning" | "suggestion";
+                   check: string; message: string; match: string };
+type LintResult = { available: boolean; alerts: Alert[] };   // available=false: no Vale or switched off
 type Startup   = { workspace: Workspace | null; page: string; mode: "read" | "edit" };
 
 interface Api {
@@ -120,6 +123,7 @@ interface Api {
   on(event: "page:changed", fn: (e: { path: string }) => void): () => void;
   on(event: "workspace:opened", fn: (s: Startup) => void): () => void; // Open With, File > Open Folder
   openEditor(path: string): Promise<void>;           // opens/focuses the page's editor window
+  lint(path: string, content: string): Promise<LintResult>; // Vale; "" content = file on disk
   // page:changed also fires when another window saves (editor:saved)
 }
 ```

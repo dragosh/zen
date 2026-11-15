@@ -44,6 +44,11 @@ func NewRegistry() *Registry {
 
 // Register validates p's manifest and adds the plugin. Nothing is stored
 // when an error is returned.
+// Reserved ids are switches under `plugins:` handled by the app rather than
+// the render pipeline (e.g. `lint` for the Vale linter). They never produce
+// an "unknown plugin" warning and cannot be registered.
+var Reserved = map[string]bool{"lint": true}
+
 func (r *Registry) Register(p Plugin) error {
 	if p == nil {
 		return errors.New("plugins: cannot register a nil plugin")
@@ -54,6 +59,9 @@ func (r *Registry) Register(p Plugin) error {
 	}
 	if !nameRE.MatchString(m.ID) {
 		return fail("invalid id (want [a-z][a-z0-9-]*)")
+	}
+	if Reserved[m.ID] {
+		return fail("id is reserved")
 	}
 	if m.APIVersion != APIVersion {
 		return fail("API version %d is not supported (want %d)", m.APIVersion, APIVersion)
@@ -140,6 +148,9 @@ func (r *Registry) Enabled(lookup func(id string) (bool, map[string]any, bool), 
 
 	seen := map[string]bool{}
 	for _, id := range mentionedIDs {
+		if Reserved[id] {
+			continue // a built-in switch read elsewhere, not a render plugin
+		}
 		if _, ok := r.byID[id]; !ok && !seen[id] {
 			seen[id] = true
 			warnings = append(warnings, fmt.Sprintf("unknown plugin %q", id))

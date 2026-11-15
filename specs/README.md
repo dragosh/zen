@@ -31,7 +31,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 5 | [ui/editor-window](ui/editor-window/spec.md) | `internal/app/{app,windows,service}.go`, `frontend/src/{api,shell,editor}`, page Edit button | app/services, ui/* | done |
 | 5 | [core/navmeta](core/navmeta/spec.md) | `internal/core/index`, `internal/app/{state,slugs}.go` | core/index, app/services | done |
 | 5 | [core/lint](core/lint/spec.md) | `internal/core/lint`, `resources.yml`, `build/darwin` helper fetch | packaging/macos | done |
-| 5b | [ui/lint](ui/lint/spec.md) | `internal/app/lint.go`, `frontend/src/lint`, page/editor wiring | ui/editor-window, core/lint | specified |
+| 5b | [ui/lint](ui/lint/spec.md) | `internal/app/lint.go`, `frontend/src/lint`, page/editor wiring | ui/editor-window, core/lint | done |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 

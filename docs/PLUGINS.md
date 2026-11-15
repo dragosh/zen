@@ -127,6 +127,17 @@ limits:
 A `limits` key in `.zen.yml` is ignored with a warning, so a folder cannot
 lift its own limits.
 
+Prose linting (Vale) is on by default when Vale is available. Turn it off for a
+page, a folder or everywhere with the reserved switch `lint` (no warning):
+
+```yaml
+plugins:
+  lint: false
+```
+
+A `.vale.ini` in the folder replaces zen's default Vale config (spelling plus
+Vale's built-in rules).
+
 Pages can also tune their place in the navigation:
 
 ```markdown

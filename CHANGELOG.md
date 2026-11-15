@@ -20,6 +20,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 ### Added
 
 - Frontmatter `slug` and `nav` (title, order, parent, hidden) to tune the sidebar.
+- Vale spelling and style marks in the reader and editor (`plugins: {lint: false}` turns them off).
 - Vale prose linter (3.25.1) bundled in Zen.app, fetched and checksum-verified at build time.
 - `zen <file>` renders a markdown file in the window, rendered and sanitised in Go.
 - `task install` links the `zen` binary into `~/.local/bin`.
