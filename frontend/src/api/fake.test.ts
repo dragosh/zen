@@ -117,7 +117,7 @@ test("save broadcasts editor:saved to the other windows", async () => {
 test("lint is configurable and recorded", async () => {
   const api = createFakeApi();
   expect(await api.lint("README.md", "")).toEqual({ available: false, alerts: [] });
-  const alert = { line: 3, col: 1, endCol: 1, severity: "error" as const, check: "C", message: "m", match: "A" };
+  const alert = { line: 3, col: 1, endCol: 1, severity: "error" as const, check: "C", message: "m", match: "A", description: "", link: "" };
   const withAlerts = createFakeApi({ lint: { available: true, alerts: [alert] } });
   const r = await withAlerts.lint("README.md", "");
   expect(r).toEqual({ available: true, alerts: [alert] });

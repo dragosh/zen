@@ -1,16 +1,40 @@
-/* ui/lint — grayscale tokens only (docs/UI.md). Never colour. */
+/* ui/lint. The chrome is grayscale (docs/UI.md); the only colours in the app
+   are the three lint signal tokens below, the conventional squiggle colours
+   every editor uses, so a flag is never mistaken for a link's underline. */
+:root {
+  --lint-error: #d1242f;
+  --lint-warning: #b8860b;
+  --lint-suggestion: #2f6feb;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --lint-error: #ff6b6b;
+    --lint-warning: #e3b341;
+    --lint-suggestion: #6ca8ff;
+  }
+}
+:root[data-theme="dark"] {
+  --lint-error: #ff6b6b;
+  --lint-warning: #e3b341;
+  --lint-suggestion: #6ca8ff;
+}
 
-/* Marks: the reader's article and the editor's mirror. */
+/* Marks: the reader's article and the editor's mirror. Wavy, under the
+   descenders, never on links' straight underline. */
 mark.zen-lint {
   background: none;
   color: inherit;
   text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-thickness: 1.5px;
   text-decoration-skip-ink: none;
-  text-underline-offset: 3px;
+  text-underline-offset: 4px;
 }
-.zen-lint-error { text-decoration: underline solid var(--fg) 2px; }
-.zen-lint-warning { text-decoration: underline dashed var(--fg-muted) 1px; }
-.zen-lint-suggestion { text-decoration: underline dotted var(--fg-muted) 1px; }
+.zen-lint-error { text-decoration-color: var(--lint-error); }
+.zen-lint-warning { text-decoration-color: var(--lint-warning); }
+.zen-lint-suggestion { text-decoration-color: var(--lint-suggestion); }
+/* A flagged word inside a link keeps the link underline and adds the squiggle below it. */
+a mark.zen-lint { text-underline-offset: 6px; }
 
 mark.zen-lint-flash {
   background: var(--bg-subtle);
@@ -59,7 +83,9 @@ mark.zen-lint-flash {
 .zen-lint-item:hover { background: var(--bg-subtle); }
 .zen-lint-line { color: var(--fg-muted); font-variant-numeric: tabular-nums; text-align: right; }
 .zen-lint-severity { color: var(--fg-muted); }
-.zen-lint-item-error .zen-lint-severity { color: var(--fg); font-weight: 600; }
+.zen-lint-item-error .zen-lint-severity { color: var(--lint-error); font-weight: 600; }
+.zen-lint-item-warning .zen-lint-severity { color: var(--lint-warning); }
+.zen-lint-item-suggestion .zen-lint-severity { color: var(--lint-suggestion); }
 .zen-lint-message { min-width: 0; overflow-wrap: anywhere; }
 .zen-lint-match {
   grid-column: 3;
@@ -95,3 +121,65 @@ mark.zen-lint-flash {
   user-select: none;
 }
 .zen-lint-mirror mark.zen-lint { color: transparent; }
+
+/* Problems console (editor): docked under the source. */
+.zen-lint-console {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  max-height: 40%;
+  border-top: 1px solid var(--rule);
+  background: var(--bg-subtle);
+  font-family: var(--font-ui);
+  font-size: 12px;
+}
+.zen-lint-console-head { flex: none; display: flex; align-items: center; padding: 0 var(--space-2); }
+.zen-lint-console-toggle {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  padding: var(--space-1) var(--space-2);
+  background: none;
+}
+.zen-lint-console-toggle::before { content: "▸"; color: var(--fg-muted); }
+.zen-lint-console.is-open .zen-lint-console-toggle::before { content: "▾"; }
+.zen-lint-console-title { font-weight: 600; letter-spacing: 0.02em; }
+.zen-lint-console-summary { color: var(--fg-muted); }
+.zen-lint-console-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  border-top: 1px solid var(--rule);
+}
+.zen-lint-console-body[hidden] { display: none; }
+.zen-lint-console-list { list-style: none; margin: 0; padding: var(--space-1) 0; overflow: auto; }
+.zen-lint-console-row {
+  display: grid;
+  grid-template-columns: 1.2em 4.5em minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: baseline;
+  padding: 3px var(--space-3);
+  cursor: pointer;
+}
+.zen-lint-console-row:hover { background: var(--btn-bg); }
+.zen-lint-console-row[aria-selected="true"] { background: var(--btn-bg-hover); }
+.zen-lint-console-row:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.zen-lint-console-pos { color: var(--fg-muted); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.zen-lint-console-msg { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zen-lint-console-rule { color: var(--fg-muted); font-family: var(--font-mono); white-space: nowrap; }
+.zen-lint-sev-error { color: var(--lint-error); }
+.zen-lint-sev-warning { color: var(--lint-warning); }
+.zen-lint-sev-suggestion { color: var(--lint-suggestion); }
+.zen-lint-console-detail {
+  overflow: auto;
+  padding: var(--space-2) var(--space-3);
+  border-left: 1px solid var(--rule);
+  line-height: 1.5;
+}
+.zen-lint-console-detail p { margin: 0 0 var(--space-2); }
+.zen-lint-console-detail-head { display: flex; gap: var(--space-2); align-items: baseline; font-weight: 600; }
+.zen-lint-console-check { font-family: var(--font-mono); font-weight: 400; color: var(--fg-muted); }
+.zen-lint-console-why { color: var(--fg); }
+.zen-lint-console-where, .zen-lint-console-hint { color: var(--fg-muted); }
+.zen-lint-console-link { padding: 0; background: none; text-decoration: underline; text-underline-offset: 3px; }

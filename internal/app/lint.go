@@ -22,6 +22,9 @@ type LintAlert struct {
 	Check    string `json:"check"`
 	Message  string `json:"message"`
 	Match    string `json:"match"`
+	// Why the check flagged this, and where to read more (https or "").
+	Description string `json:"description"`
+	Link        string `json:"link"`
 }
 
 type LintResult struct {
@@ -127,6 +130,7 @@ func (s *state) lint(l textLinter, path, content string) (LintResult, error) {
 		out.Alerts = append(out.Alerts, LintAlert{
 			Line: a.Line, Col: a.Col, EndCol: a.EndCol, Severity: a.Severity,
 			Check: a.Check, Message: a.Message, Match: a.Match,
+			Description: a.Description, Link: a.Link,
 		})
 	}
 	return out, nil

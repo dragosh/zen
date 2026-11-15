@@ -159,16 +159,35 @@ describe("wails api", () => {
 
   it("lint maps the result and its alerts", async () => {
     const api = (await import("./wails")).default;
-    results.Lint = { available: true, alerts: [{ line: 2, col: 1, endCol: 3, severity: "bogus", check: "Vale.Spelling", message: "m", match: "Teh" }] };
+    results.Lint = { available: true, alerts: [
+      { line: 2, col: 1, endCol: 3, severity: "bogus", check: "Vale.Spelling", message: "m", match: "Teh", description: "Checks spelling.", link: "https://vale.sh/x" },
+      { line: 3, col: 1, endCol: 1, severity: "warning", check: "C", message: "n", match: "A", link: "javascript:alert(1)" },
+    ] };
     expect(await api.lint("a.md", "")).toEqual({
       available: true,
-      alerts: [{ line: 2, col: 1, endCol: 3, severity: "suggestion", check: "Vale.Spelling", message: "m", match: "Teh" }],
+      alerts: [
+        { line: 2, col: 1, endCol: 3, severity: "suggestion", check: "Vale.Spelling", message: "m", match: "Teh", description: "Checks spelling.", link: "https://vale.sh/x" },
+        { line: 3, col: 1, endCol: 1, severity: "warning", check: "C", message: "n", match: "A", description: "", link: "" },
+      ],
     });
     expect(calls.at(-1)).toEqual({ name: "Lint", args: ["a.md", ""] });
     results.Lint = { available: false, alerts: null };
     expect(await api.lint("a.md", "x")).toEqual({ available: false, alerts: [] });
     results.Lint = null;
     expect(await api.lint("a.md", "x")).toEqual({ available: false, alerts: [] });
+  });
+
+  it("draft is broadcast and other windows' drafts are delivered as page:draft", async () => {
+    const api = (await import("./wails")).default;
+    const got: unknown[] = [];
+    const off = api.on("page:draft", (d) => got.push(d));
+    api.draft("a.md", "hello");
+    expect(emitted.at(-1)).toEqual({ name: "editor:draft", data: { path: "a.md", content: "hello" } });
+    fire("editor:draft", { path: "a.md", content: "x" }, "editor:a.md");
+    fire("editor:draft", { path: "a.md", content: null }, "editor:a.md");
+    fire("editor:draft", { path: "", content: "x" }, "editor:a.md");
+    expect(got).toEqual([{ path: "a.md", content: "x" }, { path: "a.md", content: null }]);
+    off();
   });
 
   it("openEditor failures carry the Go message", async () => {

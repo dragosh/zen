@@ -104,42 +104,50 @@ describe("editor: load and keys", () => {
   });
 });
 
-describe("editor: split", () => {
-  it("is on by default and ⌘⇧P toggles and remembers it", async () => {
+describe("editor: editor only, main window follows", () => {
+  it("has no split view or preview", async () => {
     s = await setup();
-    const split = buttonByText(s.slots.actions, "Split");
-    const root = s.slots.main.querySelector<HTMLElement>(".zen-editor")!;
-    expect(split.getAttribute("aria-pressed")).toBe("true");
-    expect(root.classList.contains("split")).toBe(true);
-    key(document, "p", { metaKey: true, shiftKey: true });
-    expect(split.getAttribute("aria-pressed")).toBe("false");
-    expect(root.classList.contains("split")).toBe(false);
-    s.unmount();
-    document.body.replaceChildren();
-    s = await setup();
-    expect(s.slots.main.querySelector(".zen-editor")!.classList.contains("split")).toBe(false);
-    buttonByText(s.slots.actions, "Split").click();
-    expect(s.slots.main.querySelector(".zen-editor")!.classList.contains("split")).toBe(true);
+    expect(Array.from(s.slots.actions.querySelectorAll("button")).map((b) => b.textContent)).toEqual(["Done"]);
+    expect(s.slots.main.querySelector("[role=separator], .zen-editor-preview, .zen-page")).toBeNull();
+    const ev = key(document, "p", { metaKey: true, shiftKey: true });
+    expect(ev.defaultPrevented).toBe(false);
   });
 
-  it("remembers the divider position clamped to 20–80%", async () => {
+  it("shares unsaved text with the main window after typing stops", async () => {
     s = await setup();
-    const divider = s.slots.main.querySelector<HTMLElement>("[role=separator]")!;
-    expect(divider.getAttribute("aria-valuenow")).toBe("50");
-    for (let i = 0; i < 20; i++) key(divider, "ArrowRight");
-    expect(divider.getAttribute("aria-valuenow")).toBe("80");
-    s.unmount();
-    document.body.replaceChildren();
-    s = await setup();
-    expect(s.slots.main.querySelector("[role=separator]")!.getAttribute("aria-valuenow")).toBe("80");
+    type(s.ta, "# Fresh");
+    expect(s.api.broadcasts).toEqual([]);
+    await wait(200);
+    expect(s.api.broadcasts.at(-1)).toEqual({ event: "editor:draft", payload: { path: "README.md", content: "# Fresh" } });
+    expect(s.api.callsTo("preview")).toEqual([]);
   });
 
-  it("previews the text", async () => {
+  it("drops the draft when the text is saved", async () => {
     s = await setup();
     type(s.ta, "# Fresh");
     await wait(200);
-    expect(s.api.callsTo("preview").at(-1)).toEqual(["README.md", "# Fresh"]);
-    expect(s.slots.main.querySelector(".zen-page h1")!.textContent).toBe("Fresh");
+    key(s.ta, "s", { metaKey: true });
+    await tick();
+    expect(s.api.broadcasts.filter((b) => b.event === "editor:draft").at(-1))
+      .toEqual({ event: "editor:draft", payload: { path: "README.md", content: null } });
+  });
+
+  it("drops the draft when typing returns to the saved text", async () => {
+    s = await setup();
+    const original = s.ta.value;
+    type(s.ta, original + "x");
+    await wait(200);
+    type(s.ta, original);
+    await wait(200);
+    expect(s.api.broadcasts.at(-1)).toEqual({ event: "editor:draft", payload: { path: "README.md", content: null } });
+  });
+
+  it("drops the draft when the editor goes away", async () => {
+    s = await setup();
+    type(s.ta, "# Fresh");
+    await wait(200);
+    s.unmount();
+    expect(s.api.broadcasts.at(-1)).toEqual({ event: "editor:draft", payload: { path: "README.md", content: null } });
   });
 });
 
@@ -373,7 +381,7 @@ describe("editor: external change", () => {
 });
 
 describe("editor: lint", () => {
-  const TEH = { line: 1, col: 1, endCol: 3, severity: "error" as const, check: "Vale.Spelling", message: "m", match: "teh" };
+  const TEH = { line: 1, col: 1, endCol: 3, severity: "error" as const, check: "Vale.Spelling", message: "m", match: "teh", description: "", link: "" };
   async function lintSetup(alerts = [TEH]) {
     const api = createFakeApi({ sources: { "a.md": "teh cat" }, lint: { available: true, alerts } });
     const store = createStore({ path: "a.md", mode: "edit" });
@@ -390,18 +398,19 @@ describe("editor: lint", () => {
     return s;
   }
   const mirror = () => s.slots.main.querySelector<HTMLElement>(".zen-lint-mirror")!;
-  const count = () => s.slots.main.querySelector<HTMLButtonElement>(".zen-lint-count")!;
+  const problems = () => s.slots.main.querySelector<HTMLElement>(".zen-lint-console")!;
+  const summary = () => problems().querySelector(".zen-lint-console-summary")!.textContent;
+  const rows = () => Array.from(problems().querySelectorAll<HTMLElement>(".zen-lint-console-row"));
   afterEach(() => vi.useRealTimers());
 
   it("lints right after load and draws marks behind the textarea", async () => {
     await lintSetup();
     expect(s.api.callsTo("lint")).toEqual([["a.md", "teh cat"]]);
     expect(mirror().querySelector("mark.zen-lint-error")!.textContent).toBe("teh");
-    expect(count().hidden).toBe(false);
-    expect(count().textContent).toBe("1 issue");
-    // The list sits under the toolbar, above the panes.
-    const strip = s.slots.main.querySelector(".zen-editor-lint")!;
-    expect(strip.previousElementSibling?.getAttribute("role")).toBe("toolbar");
+    expect(problems().hidden).toBe(false);
+    expect(summary()).toBe("1 error");
+    // The problems console docks under the source.
+    expect(problems().previousElementSibling?.classList.contains("zen-editor-panes")).toBe(true);
     // The textarea keeps its place in the panes, wrapped with the mirror.
     expect(s.ta.parentElement!.classList.contains("zen-lint-wrap")).toBe(true);
     expect(s.ta.parentElement!.parentElement!.classList.contains("zen-editor-panes")).toBe(true);
@@ -433,7 +442,7 @@ describe("editor: lint", () => {
     await vi.advanceTimersByTimeAsync(0);
     resolvers[0]({ available: true, alerts: [] });
     await vi.advanceTimersByTimeAsync(0);
-    expect(count().textContent).toBe("2 issues");
+    expect(summary()).toBe("2 errors");
     expect(mirror().querySelectorAll("mark")).toHaveLength(2);
   });
 
@@ -445,25 +454,20 @@ describe("editor: lint", () => {
     expect(s.api.callsTo("lint").at(-1)).toEqual(["a.md", "teh dog"]);
   });
 
-  it("clicking an issue selects its range in the textarea", async () => {
-    await lintSetup([{ ...TEH, col: 5, endCol: 7, match: "cat" }]);
-    count().click();
-    s.slots.main.querySelector<HTMLButtonElement>(".zen-lint-panel li button")!.click();
+  it("clicking a problem selects its range and explains it", async () => {
+    await lintSetup([{ ...TEH, col: 5, endCol: 7, match: "cat", description: "Checks spelling." }]);
+    rows()[0].click();
     expect(document.activeElement).toBe(s.ta);
     expect([s.ta.selectionStart, s.ta.selectionEnd]).toEqual([4, 7]);
+    expect(problems().querySelector(".zen-lint-console-detail")!.textContent).toContain("Checks spelling.");
   });
 
-  it("Esc closes the issues panel without leaving the editor", async () => {
-    await lintSetup();
-    const closed = vi.fn();
-    window.addEventListener("zen:close-window", closed);
-    count().click();
-    (document.activeElement as HTMLElement | null)?.blur?.();
-    key(document.body, "Escape");
-    expect(s.slots.main.querySelector<HTMLElement>(".zen-lint-panel")!.hidden).toBe(true);
+  it("'Learn more' opens the rule's link through openExternal", async () => {
+    await lintSetup([{ ...TEH, link: "https://vale.sh/docs/spelling" }]);
+    rows()[0].click();
+    problems().querySelector<HTMLButtonElement>(".zen-lint-console-link")!.click();
     await tick();
-    expect(closed).not.toHaveBeenCalled();
-    window.removeEventListener("zen:close-window", closed);
+    expect(s.api.callsTo("openExternal")).toEqual([["https://vale.sh/docs/spelling"]]);
   });
 
   it("shows nothing when Vale is unavailable", async () => {
@@ -477,7 +481,7 @@ describe("editor: lint", () => {
     const unmount = editorFeature.mount(slots, { api, store, navigate: () => {} });
     for (let i = 0; i < 5; i++) await tick();
     s = { api, store, slots, ta: slots.main.querySelector("textarea")!, unmount };
-    expect(s.slots.main.querySelector<HTMLElement>(".zen-editor-lint")!.hidden).toBe(true);
+    expect(s.slots.main.querySelector<HTMLElement>(".zen-lint-console")!.hidden).toBe(true);
     expect(mirror().querySelector("mark")).toBeNull();
   });
 });

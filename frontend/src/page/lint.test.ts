@@ -112,3 +112,37 @@ test("unmount removes the count button", async () => {
   unmount = undefined;
   expect(env.slots.actions.querySelector(".zen-lint")).toBeNull();
 });
+
+test("follows an editor's unsaved draft live, keeping scroll, then returns to disk", async () => {
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await settle();
+  env.slots.main.scrollTop = 40;
+  api.emit("page:draft", { path: "README.md", content: "# Draft\n\nNew teh words.\n" });
+  await settle();
+  expect(api.callsTo("preview").at(-1)).toEqual(["README.md", "# Draft\n\nNew teh words.\n"]);
+  expect(article().querySelector("h1")!.textContent).toBe("Draft");
+  expect(api.callsTo("lint").at(-1)).toEqual(["README.md", "# Draft\n\nNew teh words.\n"]);
+  expect(env.slots.main.scrollTop).toBe(40);
+
+  // While a draft is shown, a disk change does not overwrite it.
+  const pages = api.callsTo("page").length;
+  api.emit("page:changed", { path: "README.md" });
+  await settle();
+  expect(api.callsTo("page").length).toBe(pages);
+
+  api.emit("page:draft", { path: "README.md", content: null });
+  await settle();
+  expect(api.callsTo("page").length).toBe(pages + 1);
+  expect(article().querySelector("h1")!.textContent).toBe("Home");
+});
+
+test("ignores drafts for other pages", async () => {
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await settle();
+  api.emit("page:draft", { path: "b.md", content: "# Other" });
+  await settle();
+  expect(api.callsTo("preview")).toEqual([]);
+  expect(article().querySelector("h1")!.textContent).toBe("Home");
+});

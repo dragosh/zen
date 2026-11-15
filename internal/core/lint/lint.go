@@ -55,6 +55,8 @@ type Alert struct {
 	Severity          string // "error" | "warning" | "suggestion"
 	Check, Message    string
 	Match             string
+	Description       string // why the check exists (may be empty)
+	Link              string // https link to the rule's documentation (may be empty)
 }
 
 // Linter runs one vale binary. It is safe for concurrent use.
@@ -248,12 +250,14 @@ func defaultConfigPath() (string, error) {
 
 // valeAlert is one alert in vale's JSON output.
 type valeAlert struct {
-	Span     [2]int
-	Check    string
-	Message  string
-	Severity string
-	Match    string
-	Line     int
+	Span        [2]int
+	Check       string
+	Message     string
+	Severity    string
+	Match       string
+	Line        int
+	Description string
+	Link        string
 }
 
 // parse turns vale's JSON output for stdin into alerts positioned in
@@ -295,7 +299,8 @@ func parse(data, content []byte) ([]Alert, error) {
 // found there (byte columns, or drift), the occurrence of Match nearest to
 // the span is used, and otherwise the span is clamped to the line.
 func position(v valeAlert, lines []string) Alert {
-	a := Alert{Severity: severity(v.Severity), Check: v.Check, Message: v.Message, Match: v.Match}
+	a := Alert{Severity: severity(v.Severity), Check: v.Check, Message: v.Message, Match: v.Match,
+		Description: v.Description, Link: httpsLink(v.Link)}
 	a.Line = clamp(v.Line, 1, len(lines))
 	line := strings.TrimSuffix(lines[a.Line-1], "\r")
 	runes := []rune(line)
@@ -347,4 +352,12 @@ func abs(v int) int {
 		return -v
 	}
 	return v
+}
+
+// httpsLink keeps only https documentation links; anything else becomes "".
+func httpsLink(s string) string {
+	if strings.HasPrefix(s, "https://") && !strings.ContainsAny(s, " \t\n<>\"") {
+		return s
+	}
+	return ""
 }

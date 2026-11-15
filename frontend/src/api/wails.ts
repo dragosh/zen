@@ -43,6 +43,8 @@ function lintResult(r: Raw): LintResult {
     check: String(a?.check ?? ""),
     message: String(a?.message ?? ""),
     match: String(a?.match ?? ""),
+    description: String(a?.description ?? ""),
+    link: typeof a?.link === "string" && a.link.startsWith("https://") ? a.link : "",
   }));
   return { available: Boolean(r?.available), alerts };
 }
@@ -102,10 +104,21 @@ const api: Api = {
   async openEditor(path) {
     await call(Zen.OpenEditor(path));
   },
+  draft(path, content) {
+    void Events.Emit("editor:draft", { path, content });
+  },
   async lint(path, content) {
     return lintResult((await call(Zen.Lint(path, content))) as Raw);
   },
-  on(event: "workspace:changed" | "page:changed" | "workspace:opened", fn: (p: any) => void): () => void {
+  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft", fn: (p: any) => void): () => void {
+    if (event === "page:draft") {
+      return Events.On("editor:draft", (e: { data: unknown; sender?: string }) => {
+        if (e.sender === ownName) return;
+        const d = payload(e.data) as { path?: unknown; content?: unknown } | null;
+        if (typeof d?.path !== "string" || !d.path) return;
+        fn({ path: d.path, content: typeof d.content === "string" ? d.content : null });
+      });
+    }
     if (event === "page:changed") {
       const deliver = (e: { data: unknown }) => fn({ path: (payload(e.data) as { path?: string } | null)?.path ?? "" });
       const offChanged = Events.On("page:changed", deliver);

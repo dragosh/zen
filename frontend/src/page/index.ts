@@ -81,10 +81,13 @@ export const pageFeature: Feature = {
     let loadedAnchor = "";
     let timer: ReturnType<typeof setTimeout> | undefined;
 
-    /** Lints the page on disk after it rendered; results for an older load are dropped. */
-    async function lint(path: string, mine: number): Promise<void> {
+    /**
+     * Lints what is shown (the file on disk, or an editor's unsaved draft)
+     * after it rendered; results for an older render are dropped.
+     */
+    async function lint(path: string, mine: number, content = ""): Promise<void> {
       try {
-        const r = await ctx.api.lint(path, "");
+        const r = await ctx.api.lint(path, content);
         if (mine !== seq) return;
         lintMarks = r.available ? markText(article, r.alerts) : [];
         lintPanel.update(r.available ? r.alerts : null);
@@ -146,7 +149,10 @@ export const pageFeature: Feature = {
     const onState = () => {
       const { path, anchor, mode } = ctx.store.get();
       if (mode !== "read" || path === "") return;
-      if (path !== shownPath) void load(false);
+      if (path !== shownPath) {
+        draft = null;
+        void load(false);
+      }
       else if (anchor !== loadedAnchor) {
         loadedAnchor = anchor;
         scrollToAnchor(anchor, true);
@@ -167,8 +173,40 @@ export const pageFeature: Feature = {
     doc.addEventListener("keydown", onKey);
 
     const offStore = ctx.store.subscribe(onState);
+    /** The editor's unsaved text for the shown page, or null (show the file). */
+    let draft: string | null = null;
+
+    /** Renders an editor's unsaved text in place, keeping the scroll position. */
+    async function showDraft(path: string, content: string): Promise<void> {
+      const mine = ++seq;
+      let page: Page;
+      try {
+        page = await ctx.api.preview(path, content);
+      } catch (err) {
+        if (mine === seq) console.warn(`zen: could not preview ${path}`, err);
+        return;
+      }
+      if (mine !== seq || draft === null) return;
+      error.hidden = true;
+      article.hidden = false;
+      const scroll = main.scrollTop;
+      mountPage(article, page);
+      void lint(path, mine, content);
+      warningText.textContent = page.warnings.join("\n");
+      warnings.hidden = page.warnings.length === 0;
+      doc.title = `${page.title} — zen`;
+      ctx.store.set({ page });
+      main.scrollTop = scroll;
+    }
+
     const offChanged = ctx.api.on("page:changed", ({ path }) => {
-      if (path === shownPath && path === ctx.store.get().path) void load(true);
+      if (path === shownPath && path === ctx.store.get().path && draft === null) void load(true);
+    });
+    const offDraft = ctx.api.on("page:draft", ({ path, content }) => {
+      if (path !== shownPath || path !== ctx.store.get().path) return;
+      draft = content;
+      if (content === null) void load(true);
+      else void showDraft(path, content);
     });
     onState();
 
@@ -177,6 +215,7 @@ export const pageFeature: Feature = {
       stopProgress();
       offStore();
       offChanged();
+      offDraft();
       doc.removeEventListener("keydown", onKey);
       progress.remove();
       warnings.remove();

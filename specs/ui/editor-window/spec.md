@@ -17,7 +17,8 @@ the main window keeps reading and updates when the editor saves.
 ## Behaviour
 
 1. Edit (button and ⌘E) in the main window calls `api.openEditor(path)`. Go opens a new window for that page, or focuses the existing one for the same path. One editor window per page path.
-2. An editor window loads the app at `/?window=editor&path=<url-encoded path>`. The shell sees `window=editor` and mounts only the editor feature (toolbar, source, split preview) under a header with the page title, an unsaved `●`, Split and Done. No sidebar, no breadcrumb links, no history.
+2. An editor window loads the app at `/?window=editor&path=<url-encoded path>`. The shell sees `window=editor` and mounts only the editor feature (toolbar, source, problems console; **no preview**, owner decision) under a header with the page title, an unsaved `●` and Done.
+2a. **Live main window.** While you type, the editor shares its unsaved text 150 ms after typing stops (`api.draft` → `page:draft` in other windows). The main window renders and lints that text in place, keeping its scroll position, and ignores disk changes for that page meanwhile. Saving, discarding, returning to the saved text or closing the editor sends a null draft and the main window shows the file again. No sidebar, no breadcrumb links, no history.
 3. Window title: `<page title> — Edit — zen`. Default size 1000×720, cascaded 24px from the main window.
 4. The main window no longer has an in-window edit mode. `mode: "edit"` from startup (`zen edit <path>`) opens the main window in read mode **and** an editor window for that page.
 5. Saving in the editor writes the file; the main window updates through the existing `page:changed` event. Also, the editor window emits `editor:saved {path}` so the main window re-renders even if file watching is unavailable.

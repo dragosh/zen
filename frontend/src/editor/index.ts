@@ -1,30 +1,21 @@
-// ui/editor: markdown source with a formatting toolbar and a live preview.
+// ui/editor: markdown source with a formatting toolbar and a problems console.
 // Mounted only in an editor window (ui/editor-window): one page per window,
-// Done closes the window.
+// Done closes the window. There is no preview here: the main window follows
+// the unsaved text live (api.draft -> page:draft).
 import type { Alert } from "../api";
-import { backdrop, renderPanel } from "../lint";
+import { backdrop, renderConsole } from "../lint";
 import { button, el } from "../shell/dom";
 import type { Feature } from "../shell/types";
 import { commands, continueList, indent, outdent, type CommandName, type Edit } from "./commands";
-import { createPreview } from "./preview";
 import { createToolbar, TOOLS } from "./toolbar";
 
 export { commands, continueList } from "./commands";
 export type { Edit } from "./commands";
 
-const SPLIT_KEY = "zen.editor.split";
-const RATIO_KEY = "zen.editor.ratio";
-
-function readStore(key: string): string | null {
-  try { return localStorage.getItem(key); } catch { return null; }
-}
-function writeStore(key: string, value: string): void {
-  try { localStorage.setItem(key, value); } catch { /* storage unavailable */ }
-}
 /** Lint the unsaved text this long after typing stops (ui/lint). */
 export const LINT_DELAY = 600;
-
-const clampRatio = (n: number) => Math.min(80, Math.max(20, Math.round(n)));
+/** Share the unsaved text with the main window this long after typing stops. */
+export const DRAFT_DELAY = 150;
 
 /**
  * Applies `next` to the textarea as one edit through execCommand("insertText"),
@@ -113,19 +104,15 @@ export const editorFeature: Feature = {
     let loadSeq = 0;
     let dialog: ReturnType<typeof askUnsaved> | null = null;
     let leaving: Promise<boolean> | null = null;
-    let split = readStore(SPLIT_KEY) !== "0";
-    let ratio = clampRatio(Number(readStore(RATIO_KEY) ?? 50) || 50);
-
-    // Actions: unsaved dot, Split, Done.
+    // Actions: unsaved dot, Done.
     const dot = el("span", "zen-editor-dot", "●");
     dot.setAttribute("aria-label", "Unsaved changes");
     dot.title = "Unsaved changes";
     dot.hidden = true;
-    const splitBtn = button("Split", () => toggleSplit(), { className: "ghost", title: "Split (⌘⇧P)" });
     const doneBtn = button("Done", () => void done(), { className: "primary", title: "Done (Esc)" });
-    slots.actions.append(dot, splitBtn, doneBtn);
+    slots.actions.append(dot, doneBtn);
 
-    // Main: toolbar, bar, panes.
+    // Main: toolbar, bar, source, problems console.
     const root = el("div", "zen-editor");
     const toolbar = createToolbar((id) => run(id));
     const bar = el("div", "zen-editor-bar");
@@ -136,22 +123,14 @@ export const editorFeature: Feature = {
     ta.spellcheck = true;
     ta.setAttribute("aria-label", "Markdown source");
     ta.wrap = "soft";
-    const divider = el("div", "zen-editor-divider");
-    divider.setAttribute("role", "separator");
-    divider.setAttribute("aria-orientation", "vertical");
-    divider.setAttribute("aria-label", "Resize preview");
-    divider.setAttribute("aria-valuemin", "20");
-    divider.setAttribute("aria-valuemax", "80");
-    divider.tabIndex = 0;
-    const preview = createPreview(api);
-    // ui/lint: marks drawn on a mirror behind the textarea, count and panel under the toolbar.
+    // ui/lint: squiggles on a mirror behind the textarea, problems console below.
     const lintView = backdrop(ta);
-    const lintStrip = el("div", "zen-editor-lint");
-    lintStrip.hidden = true;
-    const lintPanel = renderPanel((_a: Alert, i: number) => lintView.select(i));
-    lintStrip.append(lintPanel.el);
-    panes.append(lintView.el, divider, preview.el);
-    root.append(toolbar, lintStrip, bar, panes);
+    const problems = renderConsole({
+      onSelect: (_a: Alert, i: number) => lintView.select(i),
+      onLink: (url) => void api.openExternal(url).catch(() => undefined),
+    });
+    panes.append(lintView.el);
+    root.append(toolbar, bar, panes, problems.el);
     slots.main.append(root);
 
     function setDirty(v: boolean): void {
@@ -167,32 +146,32 @@ export const editorFeature: Feature = {
       bar.hidden = true;
       bar.replaceChildren();
     }
-    function renderSplit(): void {
-      root.classList.toggle("split", split);
-      splitBtn.setAttribute("aria-pressed", String(split));
-      preview.el.hidden = !split;
-      divider.hidden = !split;
-      lintView.el.style.flexBasis = split ? `${ratio}%` : "";
-      divider.setAttribute("aria-valuenow", String(ratio));
-      if (split) preview.update(current, ta.value);
+    // The main window follows the unsaved text (ui/editor-window).
+    let draftTimer: ReturnType<typeof setTimeout> | undefined;
+    let draftShared = false;
+    function shareDraft(): void {
+      clearTimeout(draftTimer);
+      draftTimer = setTimeout(() => {
+        if (ta.value === saved) dropDraft();
+        else {
+          draftShared = true;
+          api.draft(current, ta.value);
+        }
+      }, DRAFT_DELAY);
     }
-    function toggleSplit(): void {
-      split = !split;
-      writeStore(SPLIT_KEY, split ? "1" : "0");
-      renderSplit();
-    }
-    function setRatio(n: number): void {
-      ratio = clampRatio(n);
-      writeStore(RATIO_KEY, String(ratio));
-      renderSplit();
+    /** The main window goes back to the file on disk. */
+    function dropDraft(): void {
+      clearTimeout(draftTimer);
+      if (!draftShared) return;
+      draftShared = false;
+      api.draft(current, null);
     }
 
     let lintSeq = 0;
     let lintTimer: ReturnType<typeof setTimeout> | undefined;
     function showLint(alerts: Alert[] | null, forText: string): void {
       lintView.update(alerts ?? [], forText);
-      lintPanel.update(alerts);
-      lintStrip.hidden = !alerts?.length;
+      problems.update(alerts);
     }
     /** Lints the current text now; only the latest request's answer is drawn. */
     async function lintNow(): Promise<void> {
@@ -239,7 +218,7 @@ export const editorFeature: Feature = {
         saved = text;
         setDirty(false);
         hideBar();
-        if (split) preview.update(path, text);
+        dropDraft();
         lintView.refresh();
         void lintNow();
       } catch (err) {
@@ -256,6 +235,7 @@ export const editorFeature: Feature = {
           saved = text;
           setDirty(ta.value !== saved);
           hideBar();
+          if (ta.value === saved) dropDraft();
           void lintNow();
         }
         return true;
@@ -278,6 +258,7 @@ export const editorFeature: Feature = {
         if (answer === "cancel") return false;
         if (answer === "save") return save();
         setDirty(false);
+        dropDraft();
         return true;
       }).finally(() => { leaving = null; });
       return leaving;
@@ -294,12 +275,8 @@ export const editorFeature: Feature = {
     // Typing.
     ta.addEventListener("input", () => {
       setDirty(ta.value !== saved);
-      if (split) preview.update(current, ta.value);
+      shareDraft();
       scheduleLint();
-    });
-    ta.addEventListener("scroll", () => {
-      const max = ta.scrollHeight - ta.clientHeight;
-      if (split) preview.follow(max > 0 ? ta.scrollTop / max : 0);
     });
     ta.addEventListener("keydown", (e) => {
       const mod = e.metaKey || e.ctrlKey;
@@ -323,32 +300,6 @@ export const editorFeature: Feature = {
       }
     });
 
-    // Divider: drag or arrow keys.
-    divider.addEventListener("keydown", (e) => {
-      const step = { ArrowLeft: -5, ArrowRight: 5 }[e.key];
-      if (step !== undefined) {
-        e.preventDefault();
-        setRatio(ratio + step);
-      } else if (e.key === "Home" || e.key === "End") {
-        e.preventDefault();
-        setRatio(e.key === "Home" ? 20 : 80);
-      }
-    });
-    divider.addEventListener("pointerdown", (e) => {
-      e.preventDefault();
-      const rect = panes.getBoundingClientRect();
-      if (rect.width <= 0) return;
-      const move = (m: PointerEvent) => setRatio(((m.clientX - rect.left) / rect.width) * 100);
-      const up = () => {
-        window.removeEventListener("pointermove", move);
-        window.removeEventListener("pointerup", up);
-        root.classList.remove("is-resizing");
-      };
-      root.classList.add("is-resizing");
-      window.addEventListener("pointermove", move);
-      window.addEventListener("pointerup", up);
-    });
-
     // Global shortcuts while the editor is mounted.
     const onKey = (e: KeyboardEvent) => {
       if (dialog || e.defaultPrevented) return;
@@ -357,9 +308,6 @@ export const editorFeature: Feature = {
       if (mod && !e.shiftKey && k === "s") {
         e.preventDefault();
         void save();
-      } else if (mod && e.shiftKey && k === "p") {
-        e.preventDefault();
-        toggleSplit();
       } else if (e.key === "Escape" && !mod) {
         const active = document.activeElement;
         if (!active || active === document.body || toolbar.contains(active)) {
@@ -400,7 +348,6 @@ export const editorFeature: Feature = {
       ]);
     });
 
-    renderSplit();
     void load(current).then(() => ta.focus());
 
     return () => {
@@ -409,15 +356,14 @@ export const editorFeature: Feature = {
       window.removeEventListener("zen:before-close", onBeforeClose);
       offChanged();
       dialog?.close();
-      preview.destroy();
+      dropDraft();
       loadSeq++;
       lintSeq++;
       clearTimeout(lintTimer);
-      lintPanel.destroy();
+      problems.destroy();
       lintView.destroy();
       root.remove();
       dot.remove();
-      splitBtn.remove();
       doneBtn.remove();
       if (dirty) store.set({ dirty: false });
     };

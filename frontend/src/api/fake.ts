@@ -1,9 +1,9 @@
 // In-memory Api for development in a browser and for tests: a three-page
 // sample workspace, emit() to simulate Go events, and a record of every call.
-import type { Api, Crumb, LintResult, NavNode, Page, Startup, Workspace } from "./index";
+import type { Api, Crumb, Draft, LintResult, NavNode, Page, Startup, Workspace } from "./index";
 
 type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint";
-type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup };
+type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft };
 
 export type FakeOptions = {
   /** What startup() resolves to. Default: no workspace (welcome screen). */
@@ -35,7 +35,7 @@ export type FakeApi = Api & {
    * Events the real client sends to the other windows: a successful save()
    * broadcasts "editor:saved" (the main window receives it as page:changed).
    */
-  broadcasts: { event: "editor:saved"; payload: { path: string } }[];
+  broadcasts: ({ event: "editor:saved"; payload: { path: string } } | { event: "editor:draft"; payload: Draft })[];
   /** What lint() resolves to (a copy); assignable between calls. */
   lintResult: LintAnswer;
 };
@@ -115,6 +115,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     "workspace:changed": new Set(),
     "page:changed": new Set(),
     "workspace:opened": new Set(),
+    "page:draft": new Set(),
   };
   const failures = new Map<Method, Error>();
   let tree: NavNode[] = (startup.workspace ?? sampleWorkspace()).tree;
@@ -171,6 +172,9 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     }),
     openExternal: (url) => call("openExternal", [url], () => api.confirmExternal),
     openEditor: (path) => call("openEditor", [path], () => undefined),
+    draft(path, content) {
+      api.broadcasts.push({ event: "editor:draft", payload: { path, content } });
+    },
     lint: (path, content) => call("lint", [path, content], () => {
       const r = typeof api.lintResult === "function" ? api.lintResult(path, content) : api.lintResult;
       return { available: r.available, alerts: r.alerts.map((a) => ({ ...a })) };

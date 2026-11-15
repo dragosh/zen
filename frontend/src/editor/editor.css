@@ -68,46 +68,10 @@
   outline: none;
 }
 
-.zen-editor.split .zen-editor-source { flex: 0 0 50%; }
-
 /* ui/lint: the textarea sits in a wrapper with the lint mirror behind it;
-   the wrapper takes the textarea's place in the panes. */
+   the wrapper fills the panes. The problems console docks below. */
 .zen-editor-panes > .zen-lint-wrap { flex: 1 1 100%; }
-.zen-editor.split .zen-editor-panes > .zen-lint-wrap { flex: 0 0 50%; }
 .zen-lint-wrap > .zen-editor-source { flex: 1 1 auto; height: auto; }
-
-.zen-editor-lint {
-  flex: none;
-  display: flex;
-  justify-content: flex-end;
-  padding: var(--space-1) var(--space-3);
-  border-bottom: 1px solid var(--rule);
-  font-family: var(--font-ui);
-}
-
-.zen-editor-divider {
-  flex: none;
-  width: 7px;
-  margin: 0 -3px;
-  cursor: col-resize;
-  position: relative;
-  z-index: 1;
-  background: linear-gradient(to right, transparent 3px, var(--rule) 3px, var(--rule) 4px, transparent 4px);
-}
-
-.zen-editor-divider:hover,
-.zen-editor.is-resizing .zen-editor-divider {
-  background: linear-gradient(to right, transparent 3px, var(--fg-muted) 3px, var(--fg-muted) 4px, transparent 4px);
-}
-
-.zen-editor.is-resizing { user-select: none; cursor: col-resize; }
-
-.zen-editor-preview {
-  flex: 1;
-  min-width: 0;
-  overflow: auto;
-  padding: var(--space-5) var(--space-6);
-}
 
 .zen-editor-dot {
   color: var(--fg-muted);

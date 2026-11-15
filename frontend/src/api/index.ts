@@ -16,7 +16,11 @@ export type Alert = {
   line: number; col: number; endCol: number;
   severity: "error" | "warning" | "suggestion";
   check: string; message: string; match: string;
+  /** Why the check flagged it ("" when Vale gives none) and an https link to read more (or ""). */
+  description: string; link: string;
 };
+/** An editor's unsaved text shared with other windows; content null = draft gone. */
+export type Draft = { path: string; content: string | null };
 /** available is false when Vale is missing or linting is switched off: show nothing. */
 export type LintResult = { available: boolean; alerts: Alert[] };
 
@@ -32,11 +36,18 @@ export interface Api {
   openEditor(path: string): Promise<void>;
   /** Vale alerts for path: the unsaved content, or the file on disk when content is "" (ui/lint). */
   lint(path: string, content: string): Promise<LintResult>;
+  /**
+   * Shares an editor's unsaved text with the other windows so the reader
+   * follows it live; null when the draft is gone (saved, discarded, closed).
+   */
+  draft(path: string, content: string | null): void;
   on(event: "workspace:changed", fn: (w: Workspace) => void): () => void;
   /** Also delivered when another window saved the page ("editor:saved"). */
   on(event: "page:changed", fn: (e: { path: string }) => void): () => void;
   /** The app opened another folder (Finder "Open With", File > Open Folder). */
   on(event: "workspace:opened", fn: (s: Startup) => void): () => void;
+  /** Another window's unsaved text for a page (see draft); content null = draft gone. */
+  on(event: "page:draft", fn: (d: Draft) => void): () => void;
 }
 
 /**
