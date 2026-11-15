@@ -23,7 +23,7 @@ function recorder(id: Feature["id"]): Feature {
 const features = () => [recorder("nav"), recorder("page"), recorder("editor")];
 
 function boot(api: FakeApi, feats: Feature[] = features()): Shell {
-  shell = createShell(root, { api, features: feats });
+  shell = createShell(root, { api, features: feats, search: "" });
   return shell;
 }
 const key = (k: string) =>
@@ -125,7 +125,7 @@ test("open folder from the frame: cancel keeps the page, a new folder replaces i
   expect(root.querySelectorAll("nav")).toHaveLength(1);
 });
 
-test("mounts features by mode", async () => {
+test("the main window always shows the page; mode never mounts the editor", async () => {
   const s = boot(withWorkspace("README.md"));
   await s.start();
   expect(log).toEqual(["mount nav README.md", "mount page README.md"]);
@@ -133,21 +133,18 @@ test("mounts features by mode", async () => {
   expect(root.querySelector('main [data-feature="page"]')).not.toBeNull();
 
   s.store.set({ mode: "edit" });
-  expect(log.slice(2)).toEqual(["unmount page", "mount editor README.md"]);
-  expect(root.querySelector('main [data-feature="page"]')).toBeNull();
-  expect(root.querySelector('main [data-feature="editor"]')).not.toBeNull();
+  expect(log).toHaveLength(2);
+  expect(root.querySelector('main [data-feature="editor"]')).toBeNull();
 
-  s.store.set({ mode: "read" });
-  expect(log.slice(4)).toEqual(["unmount editor", "mount page README.md"]);
-
-  s.navigate("guides/usage.md"); // same mode: nothing is remounted
-  expect(log).toHaveLength(6);
+  s.navigate("guides/usage.md"); // nothing is remounted
+  expect(log).toHaveLength(2);
 });
 
-test("startup in edit mode mounts the editor", async () => {
+test("startup in edit mode shows the page in read mode (Go opens the editor window)", async () => {
   const s = boot(withWorkspace("README.md", "edit"));
   await s.start();
-  expect(log).toEqual(["mount nav README.md", "mount editor README.md"]);
+  expect(log).toEqual(["mount nav README.md", "mount page README.md"]);
+  expect(s.store.get().mode).toBe("read");
 });
 
 test("a feature gets api, store and navigate", async () => {
@@ -262,10 +259,7 @@ test("shipped features make the app usable", async () => {
   const settle = () => new Promise((r) => setTimeout(r, 0));
   await settle();
   expect(root.querySelector("main .zen-page")).not.toBeNull();
-  s.store.set({ mode: "edit" });
-  await settle();
-  expect(root.querySelector("main textarea")).not.toBeNull();
-  s.store.set({ mode: "read" });
+  expect(root.querySelector("main textarea")).toBeNull();
   s.destroy();
   shell = undefined;
   expect(root.childElementCount).toBe(0);
@@ -279,5 +273,5 @@ test("workspace:opened switches to that folder, also from the welcome screen", a
   const ws = { ...sampleWorkspace(), name: "other" };
   api.emit("workspace:opened", { workspace: ws, page: "guides/install.md", mode: "edit" });
   expect(root.querySelector(".zen-welcome")).toBeNull();
-  expect(s.store.get()).toMatchObject({ workspace: ws, path: "guides/install.md", mode: "edit" });
+  expect(s.store.get()).toMatchObject({ workspace: ws, path: "guides/install.md", mode: "read" });
 });

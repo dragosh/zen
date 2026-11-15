@@ -36,6 +36,7 @@ type Zen struct {
 	mode    string
 	dialogs Dialogs
 	open    func(string) error
+	windows *windowManager // nil until the GUI runs (ui/editor-window)
 }
 
 func newZen(o zenOptions) (*Zen, error) {

@@ -167,20 +167,47 @@ test("warnings bar is shown, escaped and dismissible", async () => {
   expect(bar.hidden).toBe(true);
 });
 
-test("Edit button and ⌘E switch to edit mode; unmount cleans up", async () => {
+test("Edit button and ⌘E open the editor window; no in-window edit mode; unmount cleans up", async () => {
   env.ctx.store.set({ path: "README.md" });
   mount();
+  await tick();
   btn(env.slots.actions, "Edit").click();
-  expect(env.ctx.store.get().mode).toBe("edit");
-  env.ctx.store.set({ mode: "read" });
+  expect(env.api.callsTo("openEditor")).toEqual([["README.md"]]);
+  expect(env.ctx.store.get().mode).toBe("read");
+  expect(article().hidden).toBe(false);
+
+  env.ctx.navigate("b.md");
   const e = new KeyboardEvent("keydown", { key: "e", metaKey: true, cancelable: true, bubbles: true });
   document.dispatchEvent(e);
-  expect(env.ctx.store.get().mode).toBe("edit");
   expect(e.defaultPrevented).toBe(true);
+  expect(env.api.callsTo("openEditor")).toEqual([["README.md"], ["b.md"]]);
+  expect(env.ctx.store.get().mode).toBe("read");
+
   unmount!(); unmount = undefined;
   expect(env.slots.actions.childNodes).toHaveLength(0);
   expect(env.slots.main.childNodes).toHaveLength(0);
-  env.ctx.store.set({ mode: "read" });
   document.dispatchEvent(new KeyboardEvent("keydown", { key: "e", metaKey: true }));
-  expect(env.ctx.store.get().mode).toBe("read");
+  expect(env.api.callsTo("openEditor")).toHaveLength(2);
+});
+
+test("a failed openEditor is reported, not thrown", async () => {
+  const errors: unknown[] = [];
+  const orig = console.error;
+  console.error = (...a: unknown[]) => void errors.push(a);
+  try {
+    env.ctx.store.set({ path: "README.md" });
+    mount();
+    env.api.failNext("openEditor", new Error("not a markdown file"));
+    btn(env.slots.actions, "Edit").click();
+    await tick();
+    expect(errors).toHaveLength(1);
+  } finally {
+    console.error = orig;
+  }
+});
+
+test("Edit with no page does nothing", () => {
+  mount();
+  btn(env.slots.actions, "Edit").click();
+  expect(env.api.callsTo("openEditor")).toHaveLength(0);
 });

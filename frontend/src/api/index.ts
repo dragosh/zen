@@ -20,7 +20,10 @@ export interface Api {
   preview(path: string, content: string): Promise<Page>; // render unsaved text
   save(path: string, content: string): Promise<void>;
   openExternal(url: string): Promise<boolean>; // Go shows the confirm dialog
+  /** Opens the page in its own editor window, or focuses the one already open (ui/editor-window). */
+  openEditor(path: string): Promise<void>;
   on(event: "workspace:changed", fn: (w: Workspace) => void): () => void;
+  /** Also delivered when another window saved the page ("editor:saved"). */
   on(event: "page:changed", fn: (e: { path: string }) => void): () => void;
   /** The app opened another folder (Finder "Open With", File > Open Folder). */
   on(event: "workspace:opened", fn: (s: Startup) => void): () => void;

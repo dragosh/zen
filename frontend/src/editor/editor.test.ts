@@ -161,6 +161,8 @@ describe("editor: dirty and save", () => {
     await tick();
     expect(s.api.callsTo("save")).toEqual([["README.md", "# New"]]);
     expect(s.store.get().dirty).toBe(false);
+    // The main window re-renders on editor:saved even without file watching.
+    expect(s.api.broadcasts).toEqual([{ event: "editor:saved", payload: { path: "README.md" } }]);
   });
 
   it("a failed save shows the message and keeps dirty", async () => {
@@ -174,12 +176,20 @@ describe("editor: dirty and save", () => {
   });
 });
 
-describe("editor: leaving with unsaved changes", () => {
-  it("Done when clean returns to read mode", async () => {
+describe("editor: Done closes the editor window", () => {
+  let closes: number;
+  const onClose = () => void closes++;
+  beforeEach(() => {
+    closes = 0;
+    window.addEventListener("zen:close-window", onClose);
+  });
+  afterEach(() => window.removeEventListener("zen:close-window", onClose));
+
+  it("Done when clean closes the window", async () => {
     s = await setup();
     buttonByText(s.slots.actions, "Done").click();
     await tick();
-    expect(s.store.get().mode).toBe("read");
+    expect(closes).toBe(1);
     expect(dialog()).toBeNull();
   });
 
@@ -188,7 +198,7 @@ describe("editor: leaving with unsaved changes", () => {
     (document.activeElement as HTMLElement | null)?.blur();
     key(document, "Escape");
     await tick();
-    expect(s.store.get().mode).toBe("read");
+    expect(closes).toBe(1);
   });
 
   it("Done when dirty asks; Cancel stays", async () => {
@@ -201,11 +211,11 @@ describe("editor: leaving with unsaved changes", () => {
     answer("Cancel");
     await tick();
     expect(dialog()).toBeNull();
-    expect(s.store.get().mode).toBe("edit");
+    expect(closes).toBe(0);
     expect(s.store.get().dirty).toBe(true);
   });
 
-  it("Done → Save saves then leaves", async () => {
+  it("Done → Save saves then closes", async () => {
     s = await setup();
     type(s.ta, "changed");
     buttonByText(s.slots.actions, "Done").click();
@@ -213,51 +223,56 @@ describe("editor: leaving with unsaved changes", () => {
     await tick();
     await tick();
     expect(s.api.callsTo("save")).toEqual([["README.md", "changed"]]);
-    expect(s.store.get().mode).toBe("read");
+    expect(s.api.broadcasts).toHaveLength(1);
+    expect(closes).toBe(1);
   });
 
-  it("Done → Discard leaves without saving", async () => {
+  it("Done → Save that fails stays open", async () => {
+    s = await setup();
+    type(s.ta, "changed");
+    s.api.failNext("save", new Error("disk full"));
+    buttonByText(s.slots.actions, "Done").click();
+    answer("Save");
+    await tick();
+    await tick();
+    expect(closes).toBe(0);
+    expect(s.slots.main.textContent).toContain("disk full");
+  });
+
+  it("Done → Discard closes without saving", async () => {
     s = await setup();
     type(s.ta, "changed");
     buttonByText(s.slots.actions, "Done").click();
     answer("Discard");
     await tick();
     expect(s.api.callsTo("save")).toHaveLength(0);
-    expect(s.store.get().mode).toBe("read");
+    expect(closes).toBe(1);
     expect(s.store.get().dirty).toBe(false);
   });
 
-  it("navigating while dirty asks; Cancel restores the path", async () => {
+  it("the page is fixed: store navigation does not load another page", async () => {
     s = await setup();
     type(s.ta, "changed");
-    s.store.set({ path: "guides/usage.md" });
-    expect(dialog()).not.toBeNull();
-    answer("Cancel");
-    await tick();
-    expect(s.store.get().path).toBe("README.md");
-    expect(s.ta.value).toBe("changed");
-  });
-
-  it("navigating while dirty → Discard loads the new page", async () => {
-    s = await setup();
-    type(s.ta, "changed");
-    s.store.set({ path: "guides/usage.md" });
-    answer("Discard");
-    await tick();
-    await tick();
-    expect(s.ta.value).toMatch(/^# Usage/);
-    expect(s.store.get().dirty).toBe(false);
-  });
-
-  it("navigating while clean loads the new page", async () => {
-    s = await setup();
     s.store.set({ path: "guides/usage.md" });
     await tick();
     expect(dialog()).toBeNull();
-    expect(s.ta.value).toMatch(/^# Usage/);
+    expect(s.api.callsTo("source")).toEqual([["README.md"]]);
+    expect(s.ta.value).toBe("changed");
   });
+});
 
-  it("closing the window while dirty is prevented", async () => {
+describe("editor: closing the window", () => {
+  const beforeClose = () => {
+    const calls: string[] = [];
+    const ev = new CustomEvent("zen:before-close", {
+      cancelable: true,
+      detail: { close: () => calls.push("close"), cancel: () => calls.push("cancel") },
+    });
+    window.dispatchEvent(ev);
+    return { prevented: ev.defaultPrevented, calls };
+  };
+
+  it("beforeunload is prevented while dirty", async () => {
     s = await setup();
     const clean = new Event("beforeunload", { cancelable: true });
     window.dispatchEvent(clean);
@@ -266,6 +281,45 @@ describe("editor: leaving with unsaved changes", () => {
     const ev = new Event("beforeunload", { cancelable: true });
     window.dispatchEvent(ev);
     expect(ev.defaultPrevented).toBe(true);
+  });
+
+  it("the close handshake passes when clean", async () => {
+    s = await setup();
+    expect(beforeClose().prevented).toBe(false);
+  });
+
+  it("the close handshake asks while dirty; Cancel reports cancel", async () => {
+    s = await setup();
+    type(s.ta, "changed");
+    const r = beforeClose();
+    expect(r.prevented).toBe(true);
+    answer("Cancel");
+    await tick();
+    expect(r.calls).toEqual(["cancel"]);
+    expect(s.store.get().dirty).toBe(true);
+  });
+
+  it("the close handshake asks while dirty; Save saves then closes", async () => {
+    s = await setup();
+    type(s.ta, "changed");
+    const r = beforeClose();
+    answer("Save");
+    await tick();
+    await tick();
+    expect(s.api.callsTo("save")).toEqual([["README.md", "changed"]]);
+    expect(r.calls).toEqual(["close"]);
+  });
+
+  it("the close handshake while Done is asking shares that dialog", async () => {
+    s = await setup();
+    type(s.ta, "changed");
+    buttonByText(s.slots.actions, "Done").click();
+    const r = beforeClose();
+    expect(r.prevented).toBe(true);
+    expect(document.querySelectorAll("[role=dialog]")).toHaveLength(1);
+    answer("Discard");
+    await tick();
+    expect(r.calls).toEqual(["close"]);
   });
 });
 

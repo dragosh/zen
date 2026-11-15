@@ -98,3 +98,18 @@ test("getApi falls back to the fake outside Wails", async () => {
   expect((await api.startup()).workspace).toBeNull();
   expect(typeof api.on).toBe("function");
 });
+
+test("openEditor records the call", async () => {
+  const api = createFakeApi();
+  await expect(api.openEditor("guides/usage.md")).resolves.toBeUndefined();
+  expect(api.callsTo("openEditor")).toEqual([["guides/usage.md"]]);
+});
+
+test("save broadcasts editor:saved to the other windows", async () => {
+  const api = createFakeApi();
+  await api.save("README.md", "# x");
+  expect(api.broadcasts).toEqual([{ event: "editor:saved", payload: { path: "README.md" } }]);
+  api.failNext("save", new Error("disk full"));
+  await expect(api.save("README.md", "# y")).rejects.toThrow("disk full");
+  expect(api.broadcasts).toHaveLength(1);
+});
