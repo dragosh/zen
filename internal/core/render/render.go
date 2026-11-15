@@ -250,7 +250,15 @@ func nodeText(n ast.Node, src []byte) string {
 		}
 		switch c := c.(type) {
 		case *ast.Text:
-			b.Write(c.Segment.Value(src))
+			// Titles are plain text shown via textContent: resolve backslash
+			// escapes and entities here instead of leaving \< or &lt; behind.
+			v := c.Segment.Value(src)
+			if !c.IsRaw() {
+				v = util.UnescapePunctuations(v)
+				v = util.ResolveNumericReferences(v)
+				v = util.ResolveEntityNames(v)
+			}
+			b.Write(v)
 			if c.SoftLineBreak() || c.HardLineBreak() {
 				b.WriteByte(' ')
 			}
@@ -259,6 +267,11 @@ func nodeText(n ast.Node, src []byte) string {
 		case *ast.AutoLink:
 			b.Write(c.Label(src))
 		case *ast.RawHTML:
+			// Keep "<T>" in "List<T>" as literal text; the UI escapes it.
+			for i := 0; i < c.Segments.Len(); i++ {
+				seg := c.Segments.At(i)
+				b.Write(seg.Value(src))
+			}
 			return ast.WalkSkipChildren, nil
 		}
 		return ast.WalkContinue, nil
