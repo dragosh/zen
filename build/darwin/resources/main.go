@@ -1,32 +1,79 @@
 // Command resources verifies the helper binaries listed in resources.yml and
 // copies those for one architecture into an app bundle's Contents/Helpers.
 //
-//	go run ./build/darwin/resources -manifest resources.yml -arch arm64 -dest bin/Zen.app/Contents/Helpers
+//	go run ./build/darwin/resources -manifest resources.yml -arch arm64 -dest bin/Zen.app/Contents/Helpers [-licenses bin/Zen.app/Contents/Resources/licenses]
+//	go run ./build/darwin/resources -manifest resources.yml -arch arm64 -fetch
+//	go run ./build/darwin/resources -manifest resources.yml -arch arm64 -validate
 //
 // Every entry must name an existing file whose sha256 matches; otherwise the
 // command fails before copying anything. An empty list is valid.
+//
+// With -fetch, entries that have a fetch block for the architecture are
+// downloaded (https:// or file://), the tarball's sha256 is checked, the
+// member is extracted to the entry's path and its sha256 checked too. A
+// helper that is already there and verified is not downloaded again.
+//
+// With -validate, only the manifest itself is checked (no files needed).
 package main
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	"gopkg.in/yaml.v3"
 )
 
+// shaSpec is either one sha256 for every architecture or a per-arch map.
+type shaSpec struct {
+	all    string
+	byArch map[string]string
+}
+
+func (s *shaSpec) UnmarshalYAML(n *yaml.Node) error {
+	switch n.Kind {
+	case yaml.ScalarNode:
+		return n.Decode(&s.all)
+	case yaml.MappingNode:
+		return n.Decode(&s.byArch)
+	}
+	return fmt.Errorf("line %d: sha256 must be a string or a map of architecture to string", n.Line)
+}
+
+func (s shaSpec) forArch(target string) string {
+	if s.byArch != nil {
+		return s.byArch[target]
+	}
+	return s.all
+}
+
+// fetchSpec says where a helper comes from: a tarball and the member in it.
+type fetchSpec struct {
+	URL     string `yaml:"url"`
+	SHA256  string `yaml:"sha256"`
+	Member  string `yaml:"member"`
+	License string `yaml:"license"` // optional member copied to Resources/licenses/<name>.txt
+}
+
 type entry struct {
-	Name   string            `yaml:"name"`
-	Path   map[string]string `yaml:"path"`
-	SHA256 string            `yaml:"sha256"`
+	Name   string               `yaml:"name"`
+	Path   map[string]string    `yaml:"path"`
+	SHA256 shaSpec              `yaml:"sha256"`
+	Fetch  map[string]fetchSpec `yaml:"fetch"`
 }
 
 var (
@@ -35,23 +82,39 @@ var (
 	archs  = map[string]bool{"darwin-arm64": true, "darwin-amd64": true}
 )
 
+// Download limits.
+const (
+	maxTarball = 256 << 20
+	maxMember  = 256 << 20
+)
+
 func main() {
 	manifest := flag.String("manifest", "resources.yml", "manifest file")
 	arch := flag.String("arch", "arm64", "target architecture (arm64 or amd64)")
 	dest := flag.String("dest", "", "destination directory (Contents/Helpers)")
+	licenses := flag.String("licenses", "", "destination directory for license notices (Contents/Resources/licenses)")
+	fetch := flag.Bool("fetch", false, "download and verify helpers that have a fetch block")
+	validate := flag.Bool("validate", false, "only validate the manifest")
 	flag.Parse()
-	if err := run(*manifest, "darwin-"+*arch, *dest); err != nil {
+	target := "darwin-" + *arch
+	var err error
+	switch {
+	case *validate:
+		_, err = load(*manifest, target)
+	case *fetch:
+		err = fetchAll(*manifest, target)
+	default:
+		err = run(*manifest, target, *dest, *licenses)
+	}
+	if err != nil {
 		fmt.Fprintf(os.Stderr, "resources: %v\n", err)
 		os.Exit(1)
 	}
 }
 
-type file struct{ name, src string }
+type file struct{ name, src, license string }
 
-func run(manifest, target, dest string) error {
-	if !archs[target] {
-		return fmt.Errorf("unsupported target %s", target)
-	}
+func run(manifest, target, dest, licenses string) error {
 	if dest == "" {
 		return errors.New("-dest is required")
 	}
@@ -59,20 +122,48 @@ func run(manifest, target, dest string) error {
 	if err != nil {
 		return err
 	}
+	for _, f := range files {
+		if f.license == "" {
+			continue
+		}
+		if licenses == "" {
+			return fmt.Errorf("%s has a license notice; -licenses is required", f.name)
+		}
+		if fi, err := os.Stat(f.license); err != nil || !fi.Mode().IsRegular() {
+			return fmt.Errorf("%s: license notice %s missing (run `task darwin:fetch:helpers`)", f.name, f.license)
+		}
+	}
 	if err := os.MkdirAll(dest, 0o755); err != nil {
 		return err
 	}
 	for _, f := range files {
-		if err := copyFile(f.src, filepath.Join(dest, f.name)); err != nil {
+		if err := copyFile(f.src, filepath.Join(dest, f.name), 0o755); err != nil {
 			return err
 		}
 		fmt.Printf("helper %s <- %s\n", f.name, f.src)
+		if f.license != "" {
+			if err := os.MkdirAll(licenses, 0o755); err != nil {
+				return err
+			}
+			if err := copyFile(f.license, filepath.Join(licenses, f.name+".txt"), 0o644); err != nil {
+				return err
+			}
+		}
 	}
 	return nil
 }
 
-// verify parses the manifest and checks every entry for target.
-func verify(manifest, target string) ([]file, error) {
+// item is one manifest entry resolved for the target architecture.
+type item struct {
+	where, name, src, sha string
+	fetch                 *fetchSpec
+}
+
+// load parses and validates the manifest for target without touching helper files.
+func load(manifest, target string) ([]item, error) {
+	if !archs[target] {
+		return nil, fmt.Errorf("unsupported target %s", target)
+	}
 	b, err := os.ReadFile(manifest)
 	if err != nil {
 		return nil, err
@@ -85,7 +176,7 @@ func verify(manifest, target string) ([]file, error) {
 	}
 	base := filepath.Dir(manifest)
 	seen := map[string]bool{}
-	var files []file
+	var items []item
 	for i, e := range entries {
 		where := fmt.Sprintf("%s entry %d (%s)", manifest, i+1, e.Name)
 		if !nameRE.MatchString(e.Name) {
@@ -100,8 +191,22 @@ func verify(manifest, target string) ([]file, error) {
 				return nil, fmt.Errorf("%s: unknown path key %s", where, k)
 			}
 		}
-		if !shaRE.MatchString(strings.ToLower(e.SHA256)) {
-			return nil, fmt.Errorf("%s: sha256 must be 64 hex digits", where)
+		for k := range e.SHA256.byArch {
+			if !archs[k] {
+				return nil, fmt.Errorf("%s: unknown sha256 key %s", where, k)
+			}
+		}
+		for k, f := range e.Fetch {
+			if !archs[k] {
+				return nil, fmt.Errorf("%s: unknown fetch key %s", where, k)
+			}
+			if err := checkFetch(f); err != nil {
+				return nil, fmt.Errorf("%s: fetch %s: %w", where, k, err)
+			}
+		}
+		sha := strings.ToLower(e.SHA256.forArch(target))
+		if !shaRE.MatchString(sha) {
+			return nil, fmt.Errorf("%s: sha256 for %s must be 64 hex digits", where, target)
 		}
 		src := e.Path[target]
 		if src == "" {
@@ -110,16 +215,236 @@ func verify(manifest, target string) ([]file, error) {
 		if !filepath.IsAbs(src) {
 			src = filepath.Join(base, src)
 		}
-		got, err := sum(src)
+		it := item{where: where, name: e.Name, src: src, sha: sha}
+		if f, ok := e.Fetch[target]; ok {
+			it.fetch = &f
+		}
+		items = append(items, it)
+	}
+	return items, nil
+}
+
+func checkFetch(f fetchSpec) error {
+	u, err := url.Parse(f.URL)
+	if err != nil {
+		return err
+	}
+	if u.Scheme != "https" && u.Scheme != "file" {
+		return fmt.Errorf("url %q must be https:// or file://", f.URL)
+	}
+	if !shaRE.MatchString(strings.ToLower(f.SHA256)) {
+		return errors.New("sha256 must be 64 hex digits")
+	}
+	if err := checkMember(f.Member); err != nil {
+		return err
+	}
+	if f.License != "" {
+		return checkMember(f.License)
+	}
+	return nil
+}
+
+// checkMember accepts a clean relative path inside the tarball.
+func checkMember(m string) error {
+	if m == "" || path.IsAbs(m) || path.Clean(m) != m || m == ".." || strings.HasPrefix(m, "../") {
+		return fmt.Errorf("invalid member %q", m)
+	}
+	return nil
+}
+
+// licensePath is where fetch stores the license notice of a helper.
+func licensePath(src string) string { return src + ".LICENSE" }
+
+// verify parses the manifest and checks every entry for target.
+func verify(manifest, target string) ([]file, error) {
+	items, err := load(manifest, target)
+	if err != nil {
+		return nil, err
+	}
+	var files []file
+	for _, it := range items {
+		got, err := sum(it.src)
 		if err != nil {
-			return nil, fmt.Errorf("%s: %w", where, err)
+			hint := ""
+			if it.fetch != nil {
+				hint = " (run `task darwin:fetch:helpers`)"
+			}
+			return nil, fmt.Errorf("%s: %w%s", it.where, err, hint)
 		}
-		if got != strings.ToLower(e.SHA256) {
-			return nil, fmt.Errorf("%s: sha256 mismatch for %s: got %s", where, src, got)
+		if got != it.sha {
+			return nil, fmt.Errorf("%s: sha256 mismatch for %s: got %s", it.where, it.src, got)
 		}
-		files = append(files, file{e.Name, src})
+		f := file{name: it.name, src: it.src}
+		if it.fetch != nil && it.fetch.License != "" {
+			f.license = licensePath(it.src)
+		}
+		files = append(files, f)
 	}
 	return files, nil
+}
+
+// fetchAll downloads every helper with a fetch block for target.
+func fetchAll(manifest, target string) error {
+	items, err := load(manifest, target)
+	if err != nil {
+		return err
+	}
+	for _, it := range items {
+		if it.fetch == nil {
+			if got, err := sum(it.src); err != nil || got != it.sha {
+				return fmt.Errorf("%s: no fetch block for %s and no verified file at %s", it.where, target, it.src)
+			}
+			continue
+		}
+		if err := fetchOne(it); err != nil {
+			return fmt.Errorf("%s: %w", it.where, err)
+		}
+	}
+	return nil
+}
+
+func fetchOne(it item) error {
+	f := it.fetch
+	if got, err := sum(it.src); err == nil && got == it.sha {
+		fi, err := os.Stat(licensePath(it.src))
+		if f.License == "" || (err == nil && fi.Mode().IsRegular()) {
+			fmt.Printf("helper %s verified, skipping download\n", it.name)
+			return nil
+		}
+	}
+	fmt.Printf("helper %s <- %s\n", it.name, f.URL)
+	tgz, err := download(f.URL)
+	if err != nil {
+		return err
+	}
+	if got := hex.EncodeToString(sha256Of(tgz)); got != strings.ToLower(f.SHA256) {
+		return fmt.Errorf("tarball sha256 mismatch for %s: got %s", f.URL, got)
+	}
+	want := []string{f.Member}
+	if f.License != "" {
+		want = append(want, f.License)
+	}
+	members, err := extract(tgz, want)
+	if err != nil {
+		return err
+	}
+	bin := members[f.Member]
+	if got := hex.EncodeToString(sha256Of(bin)); got != it.sha {
+		return fmt.Errorf("binary %s sha256 mismatch: got %s", f.Member, got)
+	}
+	if err := os.MkdirAll(filepath.Dir(it.src), 0o755); err != nil {
+		return err
+	}
+	if f.License != "" {
+		if err := writeAtomic(licensePath(it.src), members[f.License], 0o644); err != nil {
+			return err
+		}
+	}
+	return writeAtomic(it.src, bin, 0o755)
+}
+
+func download(raw string) ([]byte, error) {
+	u, err := url.Parse(raw)
+	if err != nil {
+		return nil, err
+	}
+	var r io.ReadCloser
+	switch u.Scheme {
+	case "file":
+		f, err := os.Open(u.Path)
+		if err != nil {
+			return nil, err
+		}
+		r = f
+	case "https":
+		c := &http.Client{Timeout: 5 * time.Minute}
+		resp, err := c.Get(raw)
+		if err != nil {
+			return nil, err
+		}
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			return nil, fmt.Errorf("GET %s: %s", raw, resp.Status)
+		}
+		r = resp.Body
+	default:
+		return nil, fmt.Errorf("unsupported url %s", raw)
+	}
+	defer r.Close()
+	b, err := io.ReadAll(io.LimitReader(r, maxTarball+1))
+	if err != nil {
+		return nil, err
+	}
+	if len(b) > maxTarball {
+		return nil, fmt.Errorf("%s is larger than %d bytes", raw, maxTarball)
+	}
+	return b, nil
+}
+
+// extract returns the named regular-file members of a .tar.gz.
+func extract(tgz []byte, names []string) (map[string][]byte, error) {
+	gz, err := gzip.NewReader(bytes.NewReader(tgz))
+	if err != nil {
+		return nil, err
+	}
+	want := map[string]bool{}
+	for _, n := range names {
+		want[n] = true
+	}
+	out := map[string][]byte{}
+	tr := tar.NewReader(gz)
+	for {
+		h, err := tr.Next()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		name := strings.TrimPrefix(h.Name, "./")
+		if !want[name] || h.Typeflag != tar.TypeReg {
+			continue
+		}
+		b, err := io.ReadAll(io.LimitReader(tr, maxMember+1))
+		if err != nil {
+			return nil, err
+		}
+		if len(b) > maxMember {
+			return nil, fmt.Errorf("member %s too large", name)
+		}
+		out[name] = b
+	}
+	for _, n := range names {
+		if _, ok := out[n]; !ok {
+			return nil, fmt.Errorf("member %s not found in tarball", n)
+		}
+	}
+	return out, nil
+}
+
+// writeAtomic writes b to dst through a temporary file in the same directory.
+func writeAtomic(dst string, b []byte, mode os.FileMode) error {
+	tmp, err := os.CreateTemp(filepath.Dir(dst), "."+filepath.Base(dst)+".*")
+	if err != nil {
+		return err
+	}
+	defer os.Remove(tmp.Name())
+	if _, err := tmp.Write(b); err != nil {
+		tmp.Close()
+		return err
+	}
+	if err := tmp.Close(); err != nil {
+		return err
+	}
+	if err := os.Chmod(tmp.Name(), mode); err != nil {
+		return err
+	}
+	return os.Rename(tmp.Name(), dst)
+}
+
+func sha256Of(b []byte) []byte {
+	s := sha256.Sum256(b)
+	return s[:]
 }
 
 func sum(path string) (string, error) {
@@ -138,13 +463,13 @@ func sum(path string) (string, error) {
 	return hex.EncodeToString(h.Sum(nil)), nil
 }
 
-func copyFile(src, dst string) error {
+func copyFile(src, dst string, mode os.FileMode) error {
 	in, err := os.Open(src)
 	if err != nil {
 		return err
 	}
 	defer in.Close()
-	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o755)
+	out, err := os.OpenFile(dst, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, mode)
 	if err != nil {
 		return err
 	}

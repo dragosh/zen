@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | specified |
+| Status | done |
 | Target version | 0.1.0-alpha.2 |
 | Branch | `feature/core-lint` |
 | Wave | 5 |

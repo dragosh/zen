@@ -469,9 +469,13 @@ func TestRealVale(t *testing.T) {
 	}
 	l := New(realVale(t))
 	content := "---\ntitle: Notes\n---\n\n# Héllo\n\nÉté: a speling mistake.\n\n```\ncode speling here\n```\n\nAlso `inline speling`.\n"
-	got, err := l.Lint(context.Background(), t.TempDir(), "page.md", []byte(content))
+	root := t.TempDir()
+	got, err := l.Lint(context.Background(), root, "page.md", []byte(content))
 	if err != nil {
 		t.Fatal(err)
+	}
+	if entries, _ := os.ReadDir(root); len(entries) != 0 {
+		t.Errorf("vale wrote into the workspace: %v", entries)
 	}
 	var spell []Alert
 	for _, a := range got {
