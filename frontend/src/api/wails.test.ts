@@ -23,8 +23,11 @@ vi.mock("../../bindings/github.com/dragosh/zen/internal/app/index.js", () => ({
     Preview: binding("Preview"),
     Save: binding("Save"),
     OpenExternal: binding("OpenExternal"),
+    OpenEditor: binding("OpenEditor"),
   },
 }));
+
+const windowCalls: string[] = [];
 
 vi.mock("@wailsio/runtime", () => ({
   Events: {
@@ -39,10 +42,16 @@ vi.mock("@wailsio/runtime", () => ({
       return Promise.resolve(true);
     },
   },
+  Window: {
+    Close() {
+      windowCalls.push("Close");
+      return Promise.resolve();
+    },
+  },
 }));
 
-function fire(name: string, data?: unknown) {
-  for (const fn of listeners.get(name) ?? []) fn({ name, data });
+function fire(name: string, data?: unknown, sender?: string) {
+  for (const fn of listeners.get(name) ?? []) fn({ name, data, ...(sender === undefined ? {} : { sender }) } as { name: string; data: unknown });
 }
 
 const ws = { root: "/r", name: "r", home: "README.md", tree: [{ title: "Home", path: "README.md", kind: "page", children: null }] };
@@ -52,6 +61,7 @@ describe("wails api", () => {
   beforeEach(() => {
     calls.length = 0;
     emitted.length = 0;
+    windowCalls.length = 0;
     for (const k of Object.keys(results)) delete results[k];
   });
 
@@ -81,6 +91,8 @@ describe("wails api", () => {
     await expect(api.save("a.md", "# b")).resolves.toBeUndefined();
     results.OpenExternal = true;
     expect(await api.openExternal("https://x")).toBe(true);
+    results.OpenEditor = null;
+    await expect(api.openEditor("a.md")).resolves.toBeUndefined();
 
     expect(calls).toEqual([
       { name: "Startup", args: [] },
@@ -92,6 +104,7 @@ describe("wails api", () => {
       { name: "Preview", args: ["a.md", "# b"] },
       { name: "Save", args: ["a.md", "# b"] },
       { name: "OpenExternal", args: ["https://x"] },
+      { name: "OpenEditor", args: ["a.md"] },
     ]);
   });
 
@@ -141,5 +154,80 @@ describe("wails api", () => {
     expect(emitted.map((e) => e.name)).toEqual(["app:close-pending"]);
     close?.();
     expect(emitted.map((e) => e.name)).toEqual(["app:close-pending", "app:close"]);
+  });
+
+  it("openEditor failures carry the Go message", async () => {
+    const api = (await import("./wails")).default;
+    results.OpenEditor = new Error("notes.txt: not a markdown file");
+    await expect(api.openEditor("notes.txt")).rejects.toThrow("not a markdown file");
+  });
+
+  it("a successful save tells the other windows with editor:saved", async () => {
+    const api = (await import("./wails")).default;
+    await api.save("docs/a.md", "x");
+    expect(emitted).toEqual([{ name: "editor:saved", data: { path: "docs/a.md" } }]);
+    results.Save = new Error("disk full");
+    await expect(api.save("docs/a.md", "y")).rejects.toThrow("disk full");
+    expect(emitted).toHaveLength(1);
+  });
+
+  it("page:changed listeners also get editor:saved from other windows", async () => {
+    const api = (await import("./wails")).default;
+    const got: string[] = [];
+    const off = api.on("page:changed", (e) => got.push(e.path));
+    fire("editor:saved", { path: "a.md" }, "editor:a.md");
+    fire("editor:saved", [{ path: "b.md" }], "editor:b.md");
+    fire("editor:saved", { path: "c.md" }, "main"); // this window's own save
+    off();
+    fire("editor:saved", { path: "d.md" }, "editor:d.md");
+    expect(got).toEqual(["a.md", "b.md"]);
+  });
+
+  it("app:before-close for another window is ignored", async () => {
+    await import("./wails");
+    fire("app:before-close", { window: "editor:a.md" });
+    expect(emitted).toEqual([]);
+    fire("app:before-close", { window: "main" });
+    expect(emitted.map((e) => e.name)).toEqual(["app:close"]);
+  });
+
+  it("answers app:before-close: a cancelled prompt is reported", async () => {
+    await import("./wails");
+    let cancel: (() => void) | undefined;
+    const onClose = (e: Event) => {
+      e.preventDefault();
+      cancel = (e as CustomEvent<{ cancel: () => void }>).detail.cancel;
+    };
+    window.addEventListener("zen:before-close", onClose);
+    fire("app:before-close", { window: "main" });
+    window.removeEventListener("zen:before-close", onClose);
+    cancel?.();
+    cancel?.(); // answered once
+    expect(emitted.map((e) => e.name)).toEqual(["app:close-pending", "app:close-cancel"]);
+  });
+
+  it("zen:close-window closes this native window", async () => {
+    await import("./wails");
+    window.dispatchEvent(new CustomEvent("zen:close-window"));
+    expect(windowCalls).toEqual(["Close"]);
+  });
+
+  it("in an editor window it answers for that window only (keep last: reloads the module)", async () => {
+    vi.resetModules();
+    listeners.clear();
+    history.replaceState(null, "", "/?window=editor&path=docs%2Fa.md");
+    try {
+      const api = (await import("./wails")).default;
+      fire("app:before-close", { window: "main" });
+      expect(emitted).toEqual([]);
+      fire("app:before-close", { window: "editor:docs/a.md" });
+      expect(emitted.map((e) => e.name)).toEqual(["app:close"]);
+      const got: string[] = [];
+      api.on("page:changed", (e) => got.push(e.path));
+      fire("editor:saved", { path: "docs/a.md" }, "editor:docs/a.md");
+      expect(got).toEqual([]);
+    } finally {
+      history.replaceState(null, "", "/");
+    }
   });
 });
