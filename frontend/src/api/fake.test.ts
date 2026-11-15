@@ -113,3 +113,17 @@ test("save broadcasts editor:saved to the other windows", async () => {
   await expect(api.save("README.md", "# y")).rejects.toThrow("disk full");
   expect(api.broadcasts).toHaveLength(1);
 });
+
+test("lint is configurable and recorded", async () => {
+  const api = createFakeApi();
+  expect(await api.lint("README.md", "")).toEqual({ available: false, alerts: [] });
+  const alert = { line: 3, col: 1, endCol: 1, severity: "error" as const, check: "C", message: "m", match: "A" };
+  const withAlerts = createFakeApi({ lint: { available: true, alerts: [alert] } });
+  const r = await withAlerts.lint("README.md", "");
+  expect(r).toEqual({ available: true, alerts: [alert] });
+  r.alerts.length = 0; // results are copies
+  expect((await withAlerts.lint("README.md", "")).alerts).toHaveLength(1);
+  withAlerts.lintResult = (path, content) => ({ available: true, alerts: content ? [{ ...alert, match: content }] : [] });
+  expect((await withAlerts.lint("README.md", "zz")).alerts[0].match).toBe("zz");
+  expect(withAlerts.callsTo("lint")).toEqual([["README.md", ""], ["README.md", ""], ["README.md", "zz"]]);
+});

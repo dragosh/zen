@@ -1,8 +1,8 @@
 // In-memory Api for development in a browser and for tests: a three-page
 // sample workspace, emit() to simulate Go events, and a record of every call.
-import type { Api, Crumb, NavNode, Page, Startup, Workspace } from "./index";
+import type { Api, Crumb, LintResult, NavNode, Page, Startup, Workspace } from "./index";
 
-type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor";
+type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint";
 type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup };
 
 export type FakeOptions = {
@@ -12,7 +12,11 @@ export type FakeOptions = {
   pick?: Workspace | null;
   /** Markdown sources by path. Default: the sample pages. */
   sources?: Record<string, string>;
+  /** What lint() resolves to. Default: Vale unavailable. */
+  lint?: LintResult;
 };
+
+type LintAnswer = LintResult | ((path: string, content: string) => LintResult);
 
 export type FakeApi = Api & {
   /** Every call in order. */
@@ -32,6 +36,8 @@ export type FakeApi = Api & {
    * broadcasts "editor:saved" (the main window receives it as page:changed).
    */
   broadcasts: { event: "editor:saved"; payload: { path: string } }[];
+  /** What lint() resolves to (a copy); assignable between calls. */
+  lintResult: LintAnswer;
 };
 
 const SOURCES: Record<string, string> = {
@@ -141,6 +147,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     pick: options.pick === undefined ? sampleWorkspace() : options.pick,
     confirmExternal: true,
     broadcasts: [],
+    lintResult: options.lint ?? { available: false, alerts: [] },
     callsTo: (method) => api.calls.filter((c) => c.method === method).map((c) => c.args),
     emit(event, payload) {
       for (const fn of Array.from(listeners[event])) fn(payload);
@@ -164,6 +171,10 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     }),
     openExternal: (url) => call("openExternal", [url], () => api.confirmExternal),
     openEditor: (path) => call("openEditor", [path], () => undefined),
+    lint: (path, content) => call("lint", [path, content], () => {
+      const r = typeof api.lintResult === "function" ? api.lintResult(path, content) : api.lintResult;
+      return { available: r.available, alerts: r.alerts.map((a) => ({ ...a })) };
+    }),
     on(event: keyof Events, fn: (p: never) => void) {
       const set = listeners[event] as Set<(p: never) => void>;
       set.add(fn);

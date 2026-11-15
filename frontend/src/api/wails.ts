@@ -2,7 +2,7 @@
 // getApi() only inside the Wails webview.
 import { Events, Window } from "@wailsio/runtime";
 import { Zen } from "../../bindings/github.com/dragosh/zen/internal/app/index.js";
-import type { Api, Crumb, NavNode, Page, Startup, Workspace } from "./index";
+import type { Alert, Api, Crumb, LintResult, NavNode, Page, Startup, Workspace } from "./index";
 
 type Raw = Record<string, any> | null | undefined;
 
@@ -30,6 +30,21 @@ function page(p: Raw): Page {
     assets: { css: p?.assets?.css ?? [], js: p?.assets?.js ?? [] },
     warnings: p?.warnings ?? [],
   };
+}
+
+const SEVERITIES: Alert["severity"][] = ["error", "warning", "suggestion"];
+
+function lintResult(r: Raw): LintResult {
+  const alerts = ((r?.alerts ?? []) as Raw[]).map((a): Alert => ({
+    line: Number(a?.line) || 0,
+    col: Number(a?.col) || 0,
+    endCol: Number(a?.endCol) || 0,
+    severity: SEVERITIES.includes(a?.severity) ? a?.severity : "suggestion",
+    check: String(a?.check ?? ""),
+    message: String(a?.message ?? ""),
+    match: String(a?.match ?? ""),
+  }));
+  return { available: Boolean(r?.available), alerts };
 }
 
 /** Rejections from the runtime become Errors carrying the Go message. */
@@ -86,6 +101,9 @@ const api: Api = {
   },
   async openEditor(path) {
     await call(Zen.OpenEditor(path));
+  },
+  async lint(path, content) {
+    return lintResult((await call(Zen.Lint(path, content))) as Raw);
   },
   on(event: "workspace:changed" | "page:changed" | "workspace:opened", fn: (p: any) => void): () => void {
     if (event === "page:changed") {

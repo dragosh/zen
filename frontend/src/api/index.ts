@@ -11,6 +11,14 @@ export type Page = {
   assets: { css: string[]; js: string[] }; warnings: string[];
 };
 export type Startup = { workspace: Workspace | null; page: string; mode: "read" | "edit" };
+/** One Vale finding (ui/lint). line is 1-based; col and endCol are 1-based rune columns, endCol inclusive. */
+export type Alert = {
+  line: number; col: number; endCol: number;
+  severity: "error" | "warning" | "suggestion";
+  check: string; message: string; match: string;
+};
+/** available is false when Vale is missing or linting is switched off: show nothing. */
+export type LintResult = { available: boolean; alerts: Alert[] };
 
 export interface Api {
   startup(): Promise<Startup>;
@@ -22,6 +30,8 @@ export interface Api {
   openExternal(url: string): Promise<boolean>; // Go shows the confirm dialog
   /** Opens the page in its own editor window, or focuses the one already open (ui/editor-window). */
   openEditor(path: string): Promise<void>;
+  /** Vale alerts for path: the unsaved content, or the file on disk when content is "" (ui/lint). */
+  lint(path: string, content: string): Promise<LintResult>;
   on(event: "workspace:changed", fn: (w: Workspace) => void): () => void;
   /** Also delivered when another window saved the page ("editor:saved"). */
   on(event: "page:changed", fn: (e: { path: string }) => void): () => void;
