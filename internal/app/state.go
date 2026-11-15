@@ -90,7 +90,9 @@ type state struct {
 	r       *render.Renderer
 	idx     *index.Index
 	tree    []NavNode
-	current string // last page served
+	slugs   map[string]string   // frontmatter slug -> path
+	navWarn map[string][]string // lower-cased path -> duplicate slug warnings
+	current string              // last page served
 
 	watchMu sync.Mutex // serialises watcher start/stop
 	w       *watch.Watcher
@@ -148,11 +150,11 @@ func (s *state) stopWatch() {
 // tree changed.
 func (s *state) rebuildLocked() bool {
 	if s.ws == nil {
-		s.cfg, s.r, s.idx, s.tree = nil, nil, nil, nil
+		s.cfg, s.r, s.idx, s.tree, s.slugs, s.navWarn = nil, nil, nil, nil, nil, nil
 		return true
 	}
 	s.cfg = config.Load(s.globalPath, s.ws.Root())
-	s.r = render.New(s.reg, s.cfg, s.ws)
+	s.r = render.New(s.reg, s.cfg, &slugResolver{ws: s.ws, slugs: s.slugs}) // reindex refreshes the slugs
 	return s.reindexLocked()
 }
 
@@ -172,6 +174,36 @@ func (s *state) reindexLocked() bool {
 		srcs[p] = b
 		return b
 	}
+	// Frontmatter first: slugs decide which links are internal.
+	metas := make(map[string]index.Meta, len(files))
+	slugOf := map[string]string{}
+	known := make(map[string]bool, len(files))
+	for _, p := range files {
+		known[strings.ToLower(p)] = true
+		fm, _, _ := config.SplitFrontmatter(read(p))
+		m, slug, _ := index.ParseMeta(fm) // warnings are added when the page renders
+		metas[p] = m
+		if slug != "" {
+			slugOf[p] = slug
+		}
+	}
+	slugs, dup := buildSlugs(slugOf)
+	s.navWarn = make(map[string][]string, len(dup))
+	for p, w := range dup {
+		s.navWarn[strings.ToLower(p)] = w
+	}
+	s.slugs = slugs
+	s.r = render.New(s.reg, s.cfg, &slugResolver{ws: s.ws, slugs: slugs})
+	meta := func(p string) index.Meta {
+		m := metas[p]
+		if m.Parent != "" && !known[strings.ToLower(m.Parent)] {
+			if sp, ok := slugs[m.Parent]; ok {
+				m.Parent = sp // files win over slugs
+			}
+		}
+		return m
+	}
+
 	links := func(p string) []string {
 		var out []string
 		for _, l := range s.r.Links(p, read(p)) {
@@ -187,7 +219,7 @@ func (s *state) reindexLocked() bool {
 		}
 		return strings.TrimSuffix(filepath.Base(p), filepath.Ext(p))
 	}
-	idx := index.Build(files, s.ws.Home(), links, titles)
+	idx := index.BuildWithMeta(files, s.ws.Home(), links, titles, meta)
 	changed := s.idx == nil || !s.idx.Equal(idx)
 	s.idx = idx
 	s.tree = navNodes(idx.Tree())
@@ -307,6 +339,10 @@ func (s *state) renderLocked(path string, src []byte) (Page, error) {
 	if p.Assets.JS == nil {
 		p.Assets.JS = []string{}
 	}
+	_, _, navWarn := index.ParseMeta(p.Frontmatter)
+	p.Warnings = append(p.Warnings, navWarn...)
+	p.Warnings = append(p.Warnings, s.navWarn[strings.ToLower(path)]...)
+	p.Warnings = append(p.Warnings, s.idx.Warnings(path)...)
 	if p.Warnings == nil {
 		p.Warnings = []string{}
 	}
