@@ -1,4 +1,6 @@
 // ui/editor: markdown source with a formatting toolbar and a live preview.
+// Mounted only in an editor window (ui/editor-window): one page per window,
+// Done closes the window.
 import { button, el } from "../shell/dom";
 import type { Feature } from "../shell/types";
 import { commands, continueList, indent, outdent, type CommandName, type Edit } from "./commands";
@@ -105,6 +107,7 @@ export const editorFeature: Feature = {
     let dirty = false;
     let loadSeq = 0;
     let dialog: ReturnType<typeof askUnsaved> | null = null;
+    let leaving: Promise<boolean> | null = null;
     let split = readStore(SPLIT_KEY) !== "0";
     let ratio = clampRatio(Number(readStore(RATIO_KEY) ?? 50) || 50);
 
@@ -216,23 +219,29 @@ export const editorFeature: Feature = {
       }
     }
 
-    /** Resolves true when it is fine to leave the current text. */
-    async function confirmLeave(): Promise<boolean> {
-      if (!dirty) return true;
-      if (dialog) return false;
+    /**
+     * Resolves true when it is fine to leave the current text. Asking twice
+     * (Done, then the window's close button) shares one dialog.
+     */
+    function confirmLeave(): Promise<boolean> {
+      if (!dirty) return Promise.resolve(true);
+      if (leaving) return leaving;
       dialog = askUnsaved();
-      const answer = await dialog.result;
-      dialog = null;
-      if (answer === "cancel") return false;
-      if (answer === "save") return save();
-      setDirty(false);
-      return true;
+      leaving = dialog.result.then(async (answer) => {
+        dialog = null;
+        if (answer === "cancel") return false;
+        if (answer === "save") return save();
+        setDirty(false);
+        return true;
+      }).finally(() => { leaving = null; });
+      return leaving;
     }
 
+    /** Done (or Esc): close the editor window, asking first when dirty. */
     async function done(): Promise<void> {
       if (await confirmLeave()) {
         setDirty(false);
-        store.set({ mode: "read" });
+        window.dispatchEvent(new CustomEvent("zen:close-window"));
       }
     }
 
@@ -326,25 +335,10 @@ export const editorFeature: Feature = {
     const onBeforeClose = (e: Event) => {
       if (!dirty) return;
       e.preventDefault();
-      const close = (e as CustomEvent<{ close?: () => void }>).detail?.close;
-      void confirmLeave().then((ok) => { if (ok) close?.(); });
+      const detail = (e as CustomEvent<{ close?: () => void; cancel?: () => void }>).detail;
+      void confirmLeave().then((ok) => (ok ? detail?.close?.() : detail?.cancel?.()));
     };
     window.addEventListener("zen:before-close", onBeforeClose);
-
-    // Navigating to another page while in edit mode.
-    const offStore = store.subscribe((s) => {
-      if (s.mode !== "edit" || s.path === current || !s.path) return;
-      const target = s.path;
-      if (!dirty) {
-        void load(target);
-        return;
-      }
-      const from = current;
-      void confirmLeave().then((ok) => {
-        if (ok) void load(store.get().path || target);
-        else if (store.get().path !== from) store.set({ path: from, anchor: "" });
-      });
-    });
 
     // The file changed on disk.
     const offChanged = api.on("page:changed", (ev) => {
@@ -366,7 +360,6 @@ export const editorFeature: Feature = {
       document.removeEventListener("keydown", onKey);
       window.removeEventListener("beforeunload", onBeforeUnload);
       window.removeEventListener("zen:before-close", onBeforeClose);
-      offStore();
       offChanged();
       dialog?.close();
       preview.destroy();

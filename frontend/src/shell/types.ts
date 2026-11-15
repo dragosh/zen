@@ -1,7 +1,9 @@
 import type { Api, Page, Workspace } from "../api";
 
 export type AppState = {
-  workspace: Workspace | null; path: string; anchor: string; mode: "read" | "edit";
+  workspace: Workspace | null; path: string; anchor: string;
+  /** "edit" only in an editor window (ui/editor-window); the main window always reads. */
+  mode: "read" | "edit";
   page?: Page;       // set by ui/page after a load
   dirty?: boolean;   // set by ui/editor
 };

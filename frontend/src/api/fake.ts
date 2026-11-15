@@ -2,7 +2,7 @@
 // sample workspace, emit() to simulate Go events, and a record of every call.
 import type { Api, Crumb, NavNode, Page, Startup, Workspace } from "./index";
 
-type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" | "openExternal";
+type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor";
 type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup };
 
 export type FakeOptions = {
@@ -27,6 +27,11 @@ export type FakeApi = Api & {
   pick: Workspace | null;
   /** What openExternal() resolves to (the user's answer). Default true. */
   confirmExternal: boolean;
+  /**
+   * Events the real client sends to the other windows: a successful save()
+   * broadcasts "editor:saved" (the main window receives it as page:changed).
+   */
+  broadcasts: { event: "editor:saved"; payload: { path: string } }[];
 };
 
 const SOURCES: Record<string, string> = {
@@ -135,6 +140,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     calls: [],
     pick: options.pick === undefined ? sampleWorkspace() : options.pick,
     confirmExternal: true,
+    broadcasts: [],
     callsTo: (method) => api.calls.filter((c) => c.method === method).map((c) => c.args),
     emit(event, payload) {
       for (const fn of Array.from(listeners[event])) fn(payload);
@@ -154,8 +160,10 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     save: (path, content) => call("save", [path, content], () => {
       need(path);
       sources[path] = content;
+      api.broadcasts.push({ event: "editor:saved", payload: { path } });
     }),
     openExternal: (url) => call("openExternal", [url], () => api.confirmExternal),
+    openEditor: (path) => call("openEditor", [path], () => undefined),
     on(event: keyof Events, fn: (p: never) => void) {
       const set = listeners[event] as Set<(p: never) => void>;
       set.add(fn);

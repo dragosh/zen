@@ -57,7 +57,13 @@ export const pageFeature: Feature = {
     const article = el("article", "zen-page");
     main.append(progress, warnings, error, article);
 
-    const edit = button("Edit", () => ctx.store.set({ mode: "edit" }), { title: "Edit (⌘E)" });
+    /** Edit opens the page in its own editor window (ui/editor-window). */
+    const openEditor = () => {
+      const { path } = ctx.store.get();
+      if (!path) return;
+      ctx.api.openEditor(path).catch((err) => console.error(`zen: could not edit ${path}`, err));
+    };
+    const edit = button("Edit", openEditor, { title: "Edit (⌘E)" });
     slots.actions.append(edit);
 
     let seq = 0;
@@ -127,7 +133,7 @@ export const pageFeature: Feature = {
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "e") {
         e.preventDefault();
-        ctx.store.set({ mode: "edit" });
+        openEditor();
       }
     };
     doc.addEventListener("keydown", onKey);

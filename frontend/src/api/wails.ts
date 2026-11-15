@@ -1,6 +1,6 @@
 // The Api over the generated Wails bindings (app/services). Loaded by
 // getApi() only inside the Wails webview.
-import { Events } from "@wailsio/runtime";
+import { Events, Window } from "@wailsio/runtime";
 import { Zen } from "../../bindings/github.com/dragosh/zen/internal/app/index.js";
 import type { Api, Crumb, NavNode, Page, Startup, Workspace } from "./index";
 
@@ -43,6 +43,17 @@ async function call<T>(p: PromiseLike<T>): Promise<T> {
   }
 }
 
+/**
+ * This window's name as Go knows it (internal/app/windows.go): "main", or
+ * "editor:<path>" for an editor window (shell windowKind reads the same URL).
+ */
+function ownWindowName(): string {
+  const q = new URLSearchParams(typeof location === "undefined" ? "" : location.search);
+  const path = q.get("path") ?? "";
+  return q.get("window") === "editor" && path ? `editor:${path}` : "main";
+}
+const ownName = ownWindowName();
+
 /** Single-argument Emit data arrives as is; several arguments as an array. */
 function payload(data: unknown): unknown {
   return Array.isArray(data) && data.length === 1 ? data[0] : data;
@@ -67,43 +78,65 @@ const api: Api = {
   },
   async save(path, content) {
     await call(Zen.Save(path, content));
+    // The main window re-renders even when file watching is unavailable.
+    void Events.Emit("editor:saved", { path });
   },
   async openExternal(url) {
     return Boolean(await call(Zen.OpenExternal(url)));
   },
+  async openEditor(path) {
+    await call(Zen.OpenEditor(path));
+  },
   on(event: "workspace:changed" | "page:changed" | "workspace:opened", fn: (p: any) => void): () => void {
+    if (event === "page:changed") {
+      const deliver = (e: { data: unknown }) => fn({ path: (payload(e.data) as { path?: string } | null)?.path ?? "" });
+      const offChanged = Events.On("page:changed", deliver);
+      const offSaved = Events.On("editor:saved", (e: { data: unknown; sender?: string }) => {
+        if (e.sender !== ownName) deliver(e);
+      });
+      return () => {
+        offChanged();
+        offSaved();
+      };
+    }
     return Events.On(event, (e: { data: unknown }) => {
       const d = payload(e.data);
       if (event === "workspace:opened") {
         const s = d as { workspace?: Raw; page?: string; mode?: string } | null;
         const w = s?.workspace ? workspace(s.workspace) : null;
         if (w) fn({ workspace: w, page: s?.page ?? "", mode: s?.mode === "edit" ? "edit" : "read" });
-      } else if (event === "workspace:changed") {
+      } else {
         const w = workspace(d as Raw);
         if (w) fn(w);
-      } else {
-        fn({ path: (d as { path?: string } | null)?.path ?? "" });
       }
     });
   },
 };
 
 /**
- * Window close handshake (app/services behaviour 11). Go emits
- * app:before-close; a cancelable "zen:before-close" DOM event goes out (ui/editor
- * prevents it while dirty and calls detail.close() after Save/Discard). Nobody
- * objecting closes at once; otherwise Go is told the user is being asked.
+ * Window close handshake (app/services behaviour 11, per window since
+ * ui/editor-window). Go emits app:before-close naming the window; the named
+ * window dispatches a cancelable "zen:before-close" DOM event (ui/editor
+ * prevents it while dirty and calls detail.close() after Save/Discard or
+ * detail.cancel() on Cancel). Nobody objecting closes at once; otherwise Go is
+ * told the user is being asked. Wails sets each reply's sender to this window.
  */
-Events.On("app:before-close", () => {
+Events.On("app:before-close", (e: { data: unknown }) => {
+  const target = (payload(e.data) as { window?: string } | null)?.window;
+  if (target && target !== ownName) return;
   let answered = false;
-  const close = () => {
+  const reply = (name: string) => () => {
     if (answered) return;
     answered = true;
-    void Events.Emit("app:close", null);
+    void Events.Emit(name, null);
   };
-  const ev = new CustomEvent("zen:before-close", { cancelable: true, detail: { close } });
+  const close = reply("app:close");
+  const ev = new CustomEvent("zen:before-close", { cancelable: true, detail: { close, cancel: reply("app:close-cancel") } });
   if (window.dispatchEvent(ev)) close();
   else void Events.Emit("app:close-pending", null);
 });
+
+/** Done in an editor window: close it through the handshake above. */
+window.addEventListener("zen:close-window", () => void Window.Close());
 
 export default api;

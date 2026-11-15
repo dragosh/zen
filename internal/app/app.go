@@ -4,7 +4,6 @@ package app
 
 import (
 	"io/fs"
-	"sync"
 	"sync/atomic"
 	"time"
 
@@ -19,9 +18,11 @@ import (
 // Name is the application and binary name.
 const Name = "zen"
 
-// Close handshake with the frontend (ui/editor answers through api/wails.ts).
+// Close handshake with the frontend (ui/editor answers through api/wails.ts),
+// per window: the payload names the window, replies carry it as the sender.
+// See windows.go.
 const (
-	eventBeforeClose  = "app:before-close"  // Go -> frontend: may the window close?
+	eventBeforeClose  = "app:before-close"  // Go -> frontend: may this window close?
 	eventClose        = "app:close"         // frontend -> Go: yes
 	eventClosePending = "app:close-pending" // frontend -> Go: asking the user
 	closeReplyTimeout = 3 * time.Second     // no reply at all: the frontend is gone
@@ -64,16 +65,26 @@ func (s *appSink) Emit(name string, data any) {
 type wailsDialogs struct {
 	app *application.App
 	win *application.WebviewWindow
+	// beforeOpen runs once a folder was chosen; false cancels opening it
+	// (an editor window kept its unsaved changes).
+	beforeOpen func() bool
 }
 
 func (d *wailsDialogs) PickFolder() (string, error) {
-	return d.app.Dialog.OpenFile().
+	dir, err := d.app.Dialog.OpenFile().
 		SetTitle("Open Folder").
 		CanChooseDirectories(true).
 		CanChooseFiles(false).
 		CanCreateDirectories(true).
 		AttachToWindow(d.win).
 		PromptForSingleSelection()
+	if err != nil || dir == "" {
+		return dir, err
+	}
+	if d.beforeOpen != nil && !d.beforeOpen() {
+		return "", nil
+	}
+	return dir, nil
 }
 
 func (d *wailsDialogs) Confirm(message string) bool {
@@ -95,9 +106,11 @@ func Run(opts Options) error {
 	globalPath, _ := config.GlobalPath()
 	sink := &appSink{}
 	dialogs := &wailsDialogs{}
+	// The main window always reads; `zen edit` opens an editor window once
+	// the application runs.
 	z, err := newZen(zenOptions{
 		Registry: reg, GlobalPath: globalPath,
-		Dir: opts.Dir, Page: opts.Page, Mode: opts.Mode,
+		Dir: opts.Dir, Page: opts.Page, Mode: "read",
 		Events: sink, Dialogs: dialogs,
 	})
 	if err != nil {
@@ -105,10 +118,7 @@ func Run(opts Options) error {
 	}
 	defer z.close()
 
-	var (
-		allowClose atomic.Bool
-		win        *application.WebviewWindow
-	)
+	var windows *windowManager
 	a := application.New(application.Options{
 		Name:        Name,
 		Description: "Markdown reader and editor",
@@ -120,73 +130,50 @@ func Run(opts Options) error {
 		Mac: application.MacOptions{
 			ApplicationShouldTerminateAfterLastWindowClosed: true,
 		},
-		// Quitting goes through the window close handshake.
-		ShouldQuit: func() bool {
-			if allowClose.Load() || win == nil {
-				return true
-			}
-			go win.Close()
-			return false
-		},
+		// Quitting goes through the main window's close: editors first.
+		ShouldQuit: func() bool { return windows == nil || windows.shouldQuit() },
 	})
 	z.open = a.Browser.OpenURL
 	sink.app.Store(a)
 	dialogs.app = a
 
-	win = a.Window.NewWithOptions(application.WebviewWindowOptions{
+	windows = newWindowManager(windowManagerOptions{
+		Emit: func(name string, data any) { a.Event.Emit(name, data) },
+	})
+	windows.o.New = wailsWindowFactory(a, windows)
+	z.windows = windows
+	dialogs.beforeOpen = windows.closeEditorsWait
+
+	win := a.Window.NewWithOptions(application.WebviewWindowOptions{
+		Name:   mainWindowName,
 		Title:  Name,
 		Width:  1100,
 		Height: 720,
 		URL:    "/",
 	})
 	dialogs.win = win
+	windows.setMain(win)
+	wireWindow(win, mainWindowName, windows)
+	a.Event.On(eventClose, replyHandler(windows, replyClose))
+	a.Event.On(eventClosePending, replyHandler(windows, replyPending))
+	a.Event.On(eventCloseCancel, replyHandler(windows, replyCancel))
 
-	// Closing: ask the frontend, close on its answer (or if it never answers).
-	var (
-		mu      sync.Mutex
-		attempt int
-		replied = map[int]bool{}
-	)
-	finish := func() {
-		allowClose.Store(true)
-		go win.Close()
-	}
-	win.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
-		if allowClose.Load() {
-			return
-		}
-		e.Cancel()
-		mu.Lock()
-		attempt++
-		n := attempt
-		mu.Unlock()
-		a.Event.Emit(eventBeforeClose)
-		time.AfterFunc(closeReplyTimeout, func() {
-			mu.Lock()
-			defer mu.Unlock()
-			if !replied[n] && n == attempt {
-				finish()
+	a.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
+		go func() {
+			if err := z.openStartupEditor(opts.Mode); err != nil {
+				a.Dialog.Warning().SetTitle("Could not edit").SetMessage(err.Error()).Show()
 			}
-		})
+		}()
 	})
-	reply := func(close bool) func(*application.CustomEvent) {
-		return func(*application.CustomEvent) {
-			mu.Lock()
-			replied[attempt] = true
-			mu.Unlock()
-			if close {
-				finish()
-			}
-		}
-	}
-	a.Event.On(eventClose, reply(true))
-	a.Event.On(eventClosePending, reply(false))
 
 	// Finder "Open With" and `open -a Zen <path>`. When it arrives before the
 	// frontend asked for Startup, the frontend simply starts in that workspace.
 	a.Event.OnApplicationEvent(events.Common.ApplicationOpenedWithFile, func(e *application.ApplicationEvent) {
 		path := e.Context().Filename()
 		go func() {
+			if !windows.closeEditorsWait() {
+				return // an editor kept its unsaved changes
+			}
 			st, err := z.openPath(path)
 			if err != nil {
 				a.Dialog.Warning().SetTitle("Could not open").SetMessage(err.Error()).Show()

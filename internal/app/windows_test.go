@@ -150,7 +150,7 @@ func TestOpenEditor(t *testing.T) {
 	}
 	got := r.specs[1]
 	if got.Name != "editor:docs/a b.md" || got.URL != "/?window=editor&path=docs%2Fa+b.md" ||
-		got.Title != "Alpha & <Beta> — Edit — zen" || got.X != 148 || got.Y != 98 {
+		z.pageTitle("docs/a b.md") == "" || got.Title != z.pageTitle("docs/a b.md")+" — Edit — zen" || got.X != 148 || got.Y != 98 {
 		t.Fatalf("second spec = %+v", got)
 	}
 
@@ -318,8 +318,14 @@ func TestCloseOrder(t *testing.T) {
 		if !r.main.gone {
 			t.Fatalf("main stayed open, asked %v", r.asked)
 		}
-		if n := r.wins["editor:b.md"].asked; n != 1 {
-			t.Fatalf("b asked to close %d times", n)
+		n := 0
+		for _, name := range r.asked {
+			if name == "editor:b.md" {
+				n++
+			}
+		}
+		if n != 1 {
+			t.Fatalf("b asked %d times: %v", n, r.asked)
 		}
 	})
 

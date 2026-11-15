@@ -1,13 +1,38 @@
 // The window frame: decides between welcome, error and frame views, owns the
 // store and the history, and mounts the registered features into the slots.
-import type { Api, Workspace } from "../api";
+// An editor window (?window=editor&path=…, ui/editor-window) gets only the
+// editor under a small header.
+import type { Api, NavNode, Workspace } from "../api";
 import { button, el, logo } from "./dom";
 import { createHistory } from "./history";
 import { createLayout, type Layout } from "./layout";
 import { createStore } from "./store";
 import type { Ctx, Feature, Store } from "./types";
 
-export type ShellOptions = { api: Api; features: Feature[] };
+export type ShellOptions = {
+  api: Api;
+  features: Feature[];
+  /** The window URL's query string; read once. Default: location.search. */
+  search?: string;
+};
+
+export type WindowKind = { kind: "main" } | { kind: "editor"; path: string };
+
+/** Which window this is: the main window, or the editor window for one page. */
+export function windowKind(search: string): WindowKind {
+  const q = new URLSearchParams(search);
+  const path = q.get("path") ?? "";
+  return q.get("window") === "editor" && path ? { kind: "editor", path } : { kind: "main" };
+}
+
+function findTitle(nodes: NavNode[], path: string): string {
+  for (const n of nodes) {
+    if (n.kind === "page" && n.path === path) return n.title;
+    const t = findTitle(n.children, path);
+    if (t) return t;
+  }
+  return "";
+}
 
 export type Shell = {
   /** Calls api.startup() and shows the matching view. Also the Retry action. */
@@ -26,8 +51,9 @@ const EMPTY_HINT = "Select a page from the sidebar";
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-export function createShell(root: HTMLElement, { api, features }: ShellOptions): Shell {
+export function createShell(root: HTMLElement, { api, features, search }: ShellOptions): Shell {
   const doc = root.ownerDocument;
+  const kind = windowKind(search ?? doc.defaultView?.location.search ?? "");
   const store = createStore();
   const history = createHistory();
   const feature = (id: Feature["id"]) => features.find((f) => f.id === id);
@@ -35,7 +61,8 @@ export function createShell(root: HTMLElement, { api, features }: ShellOptions):
   let layout: Layout | null = null;
   let unmountNav: (() => void) | null = null;
   let unmountMain: (() => void) | null = null;
-  let mainId: "page" | "editor" | null = null;
+  let mainId: "page" | null = null;
+  let editorTitle: HTMLElement | null = null;
   let unsubscribeStore: (() => void) | null = null;
   let destroyed = false;
 
@@ -54,11 +81,11 @@ export function createShell(root: HTMLElement, { api, features }: ShellOptions):
     if (entry) store.set(entry);
   }
 
-  /** Mounts in `main` what the state asks for: page (read) or editor (edit). */
+  /** Mounts the page in `main` once there is a path (editing has its own window). */
   function syncMain(): void {
     if (!layout) return;
-    const { path, mode } = store.get();
-    const want = path === "" ? null : mode === "edit" ? "editor" : "page";
+    const { path } = store.get();
+    const want = path === "" ? null : "page";
     layout.setHistoryState(history.canBack(), history.canForward());
     if (want === mainId && (want !== null || layout.slots.main.childNodes.length > 0)) return;
 
@@ -85,12 +112,13 @@ export function createShell(root: HTMLElement, { api, features }: ShellOptions):
     unmountNav = null;
     layout?.destroy();
     layout = null;
+    editorTitle = null;
   }
 
-  function showFrame(workspace: Workspace, page: string, mode: "read" | "edit"): void {
+  function showFrame(workspace: Workspace, page: string): void {
     closeFrame();
     history.reset();
-    store.set({ workspace, path: "", anchor: "", mode, page: undefined, dirty: false });
+    store.set({ workspace, path: "", anchor: "", mode: "read", page: undefined, dirty: false });
     const path = page || workspace.home;
     if (path) navigate(path);
 
@@ -100,6 +128,30 @@ export function createShell(root: HTMLElement, { api, features }: ShellOptions):
     unmountNav = feature("nav")?.mount(layout.slots, ctx) ?? null;
     syncMain();
     unsubscribeStore = store.subscribe(syncMain);
+  }
+
+  function titleEditor(workspace: Workspace, path: string): void {
+    const title = findTitle(workspace.tree, path) || path.split("/").pop() || path;
+    if (editorTitle) editorTitle.textContent = title;
+    doc.title = `${title} — Edit — zen`;
+  }
+
+  /** The editor window: header (title + editor actions) over the editor. */
+  function showEditor(workspace: Workspace, path: string): void {
+    closeFrame();
+    store.set({ workspace, path, anchor: "", mode: "edit", page: undefined, dirty: false });
+    const frame = el("div", "zen-editor-window");
+    const header = el("header", "zen-top");
+    editorTitle = el("h1", "zen-editor-window-title");
+    const actions = el("div", "zen-actions");
+    header.append(editorTitle, actions);
+    const main = el("main", "zen-main");
+    frame.append(header, main);
+    root.replaceChildren(frame);
+    titleEditor(workspace, path);
+    // nav and breadcrumb exist for the Slots type; nothing shows them.
+    const slots = { nav: el("nav"), breadcrumb: el("div"), actions, main };
+    unmountMain = feature("editor")?.mount(slots, ctx) ?? null;
   }
 
   function showWelcome(): void {
@@ -140,7 +192,10 @@ export function createShell(root: HTMLElement, { api, features }: ShellOptions):
       return;
     }
     if (destroyed) return;
-    if (startup.workspace) showFrame(startup.workspace, startup.page, startup.mode);
+    if (kind.kind === "editor") {
+      if (startup.workspace) showEditor(startup.workspace, kind.path);
+      else showError(new Error("No folder is open"));
+    } else if (startup.workspace) showFrame(startup.workspace, startup.page);
     else showWelcome();
   }
 
@@ -154,10 +209,11 @@ export function createShell(root: HTMLElement, { api, features }: ShellOptions):
       return;
     }
     if (destroyed || !workspace) return; // cancelled
-    showFrame(workspace, "", "read");
+    showFrame(workspace, "");
   }
 
   const onKey = (e: KeyboardEvent) => {
+    if (kind.kind !== "main") return; // an editor window has no folder or history
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
     const inFrame = layout !== null;
     if (e.key === "o" || e.key === "O") void openFolder();
@@ -170,10 +226,13 @@ export function createShell(root: HTMLElement, { api, features }: ShellOptions):
   doc.addEventListener("keydown", onKey);
 
   const offWorkspace = api.on("workspace:changed", (workspace) => {
-    if (store.get().workspace) store.set({ workspace });
+    if (!store.get().workspace) return;
+    store.set({ workspace });
+    if (editorTitle) titleEditor(workspace, store.get().path);
   });
+  // Go closes the editor windows before it opens another folder.
   const offOpened = api.on("workspace:opened", (s) => {
-    if (!destroyed && s.workspace) showFrame(s.workspace, s.page, s.mode);
+    if (!destroyed && s.workspace && kind.kind === "main") showFrame(s.workspace, s.page);
   });
 
   return {

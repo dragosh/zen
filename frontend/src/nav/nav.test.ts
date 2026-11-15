@@ -61,7 +61,9 @@ test("workspace:changed keeps expansion and focus", async () => {
 });
 
 test("breadcrumb follows store page and dirty flag in edit mode", async () => {
-  await boot("guides/install.md", "edit");
+  // The shell no longer enters edit mode from startup (ui/editor-window); set it directly.
+  await boot("guides/install.md");
+  shell.store.set({ mode: "edit" });
   shell.store.set({ page: { path: "guides/install.md", title: "Install", html: "", frontmatter: {}, warnings: [], assets: { css: [], js: [] },
     breadcrumb: [{ title: "Guides", path: "guides" }, { title: "Install", path: "guides/install.md" }] } });
   const bc = root.querySelector<HTMLElement>(".zen-breadcrumb")!;
