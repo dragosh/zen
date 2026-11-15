@@ -80,6 +80,8 @@ function activate(st: State, item: HTMLElement): void {
 function build(st: State, nodes: NavNode[], level: number, role: "tree" | "group"): HTMLUListElement {
   const ul = el("ul", role === "tree" ? "zen-nav-list" : "zen-nav-group");
   ul.setAttribute("role", role);
+  // Nested lists draw a guide line under their parent's chevron (nav.css).
+  if (role === "group") ul.style.setProperty("--zen-nav-parent-indent", `${(level - 2) * 14}px`);
   for (const n of nodes) {
     const li = el("li", "zen-nav-item");
     li.setAttribute("role", "treeitem");
@@ -93,7 +95,7 @@ function build(st: State, nodes: NavNode[], level: number, role: "tree" | "group
     if (n.children.length) {
       const open = st.opts.expanded.has(n.path);
       li.setAttribute("aria-expanded", String(open));
-      const twisty = el("span", "zen-nav-twisty", "▸");
+      const twisty = el("span", "zen-nav-twisty"); // chevron drawn in nav.css
       twisty.setAttribute("aria-hidden", "true");
       twisty.addEventListener("click", (e) => {
         e.stopPropagation();

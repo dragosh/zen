@@ -1,6 +1,6 @@
 // The typed client for the Go services. Types and the Api interface mirror
 // docs/PLAN.md "Service API" exactly; UI features import only from here.
-import { createFakeApi } from "./fake";
+import { createFakeApi, sampleWorkspace, type FakeOptions } from "./fake";
 
 export type NavNode = { title: string; path: string; kind: "page" | "group"; children: NavNode[] };
 export type Workspace = { root: string; name: string; home: string; tree: NavNode[] }; // home: "" or "README.md"
@@ -68,5 +68,40 @@ export async function getApi(): Promise<Api> {
     const api = m.default ?? m.wailsApi ?? m.api ?? m.createWailsApi?.();
     if (api) return api;
   }
-  return createFakeApi();
+  return createFakeApi(devOptions());
+}
+
+/**
+ * Browser development (vite, no Go): an editor window starts in the sample
+ * workspace, and a tiny stand-in for Vale flags a few misspellings so the
+ * lint marks and console can be seen. Tests build their own fakes.
+ */
+function devOptions(): FakeOptions {
+  const q = new URLSearchParams(typeof location === "undefined" ? "" : location.search);
+  const typos: Record<string, string> = { teh: "the", sentnce: "sentence", speling: "spelling", applicaton: "application" };
+  const lint = (_path: string, content: string): LintResult => {
+    const alerts: Alert[] = [];
+    content.split("\n").forEach((line, i) => {
+      for (const m of Array.from(line.matchAll(/[A-Za-z]+/g))) {
+        const fix = typos[m[0].toLowerCase()];
+        if (!fix) continue;
+        const col = Array.from(line.slice(0, m.index)).length + 1;
+        alerts.push({
+          line: i + 1, col, endCol: col + m[0].length - 1, severity: "error", check: "Vale.Spelling",
+          message: `Did you really mean '${m[0]}'?`, match: m[0],
+          description: `Probably a typo for "${fix}". (Development stand-in for Vale.)`, link: "https://vale.sh/docs/checks/spelling",
+        });
+      }
+      if (/\bvery\b/i.test(line)) {
+        const at = line.toLowerCase().indexOf("very");
+        alerts.push({ line: i + 1, col: at + 1, endCol: at + 4, severity: "warning", check: "Dev.Weasel", message: "Avoid 'very'.", match: line.slice(at, at + 4), description: "", link: "" });
+      }
+    });
+    return { available: true, alerts };
+  };
+  return {
+    lint: { available: true, alerts: [] },
+    devLint: lint,
+    ...(q.get("window") === "editor" ? { startup: { workspace: sampleWorkspace(), page: q.get("path") ?? "", mode: "edit" as const } } : {}),
+  };
 }

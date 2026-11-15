@@ -76,7 +76,42 @@ describe("backdrop", () => {
   it("ends with a placeholder so a trailing newline keeps its line", () => {
     const { bd } = setup("a\n");
     bd.update([alert({ match: "a" })], "a\n");
-    expect(bd.mirror.lastChild!.textContent).toBe("\n\u200b");
+    expect(bd.mirror.textContent!.endsWith("\n\u200b")).toBe(true);
+  });
+
+  it("draws highlight classes and lint marks together", () => {
+    document.body.replaceChildren();
+    const ta = document.createElement("textarea");
+    ta.value = "let teh = 1";
+    document.body.append(ta);
+    const bd = backdrop(ta, { highlight: () => [{ start: 0, end: 3, cls: "tok-k" }, { start: 10, end: 11, cls: "tok-m" }] });
+    expect(bd.mirror.classList.contains("is-highlighted")).toBe(true);
+    expect(bd.mirror.querySelector(".tok-k")!.textContent).toBe("let");
+    bd.update([alert({ col: 5, endCol: 7, match: "teh" })]);
+    expect(bd.mirror.querySelector("mark.zen-lint")!.textContent).toBe("teh");
+    expect(bd.mirror.querySelector(".tok-m")!.textContent).toBe("1");
+    expect(bd.mirror.textContent).toBe("let teh = 1\u200b");
+    // Edits re-highlight.
+    ta.value = "let teh = 12";
+    ta.dispatchEvent(new Event("input"));
+    expect(bd.mirror.textContent).toBe("let teh = 12\u200b");
+    bd.destroy();
+  });
+
+  it("numbers every line, keeps empty and trailing lines, and splits marks per line", () => {
+    document.body.replaceChildren();
+    const ta = document.createElement("textarea");
+    ta.value = "one\n\nthree words\n";
+    document.body.append(ta);
+    const bd = backdrop(ta, { lineNumbers: true });
+    const lines = () => Array.from(bd.mirror.querySelectorAll<HTMLElement>(".zen-ed-line"));
+    expect(lines().map((l) => l.dataset.n)).toEqual(["1", "2", "3", "4"]);
+    expect(lines().map((l) => l.textContent)).toEqual(["one", "\u200b", "three words", "\u200b"]);
+    expect(bd.mirror.textContent!.includes("\n")).toBe(false);
+    bd.update([alert({ line: 3, col: 7, endCol: 11, match: "words" })]);
+    expect(lines()[2].querySelector("mark")!.textContent).toBe("words");
+    expect(bd.mark(0)).toBe(lines()[2].querySelector("mark"));
+    bd.destroy();
   });
 
   it("joins overlapping alerts and keeps Vale text out of the DOM", () => {

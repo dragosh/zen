@@ -125,3 +125,57 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Syntax highlighting and line numbers (editor/highlight.ts, lint/backdrop.ts).
+   The mirror draws the visible text; the textarea above it keeps only its
+   caret and selection. Both share the gutter through padding-left. */
+.zen-editor { --zen-gutter: 3.25em; }
+.zen-lint-wrap > .zen-editor-source {
+  padding-left: calc(var(--zen-gutter) + var(--space-4));
+  color: transparent;
+  caret-color: var(--fg);
+  -webkit-text-fill-color: transparent;
+}
+.zen-lint-wrap > .zen-editor-source::selection {
+  background: color-mix(in srgb, var(--fg) 18%, transparent);
+  -webkit-text-fill-color: transparent;
+}
+.zen-lint-mirror.is-highlighted { color: var(--fg); }
+.zen-lint-mirror.is-highlighted mark.zen-lint { color: inherit; }
+.zen-lint-mirror.has-line-numbers {
+  background: linear-gradient(to right, var(--bg-subtle) var(--zen-gutter), var(--rule) var(--zen-gutter),
+    var(--rule) calc(var(--zen-gutter) + 1px), var(--bg) calc(var(--zen-gutter) + 1px));
+  background-attachment: local;
+}
+.zen-ed-line { position: relative; }
+.zen-ed-line::before {
+  content: attr(data-n);
+  position: absolute;
+  right: 100%;
+  width: var(--zen-gutter);
+  margin-right: var(--space-4);
+  padding-right: var(--space-2);
+  box-sizing: border-box;
+  text-align: right;
+  color: var(--fg-muted);
+  opacity: 0.7;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Markdown structure. */
+.md-heading { font-weight: 700; }
+.md-strong { font-weight: 700; }
+.md-em { font-style: italic; }
+.md-strike { text-decoration: line-through; }
+.md-marker, .md-quote, .md-fence { color: var(--fg-muted); }
+.md-code { color: var(--code-string); }
+.md-link { color: var(--code-number); }
+.md-url { color: var(--fg-muted); text-decoration: underline; text-underline-offset: 2px; }
+.md-html { color: var(--code-type); }
+.md-meta { color: var(--code-meta); }
+/* Code inside fences: same colours as the reader. */
+.tok-k { color: var(--code-keyword); }
+.tok-s { color: var(--code-string); }
+.tok-c { color: var(--code-comment); font-style: italic; }
+.tok-m { color: var(--code-number); }
+.tok-f { color: var(--code-function); }

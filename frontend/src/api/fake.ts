@@ -14,6 +14,8 @@ export type FakeOptions = {
   sources?: Record<string, string>;
   /** What lint() resolves to. Default: Vale unavailable. */
   lint?: LintResult;
+  /** Development only: computes lint() from the content instead (api/index.ts). */
+  devLint?: (path: string, content: string) => LintResult;
 };
 
 type LintAnswer = LintResult | ((path: string, content: string) => LintResult);
@@ -42,7 +44,7 @@ export type FakeApi = Api & {
 
 const SOURCES: Record<string, string> = {
   "README.md": "# Sample docs\n\nA small workspace served by the fake API.\n\nStart with [Install](guides/install.md), then read [Usage](guides/usage.md).\n",
-  "guides/install.md": "# Install\n\nzen is a single application. Open a folder and it turns the markdown inside into a small site.\n\nSee [Usage](usage.md) for the next step.\n",
+  "guides/install.md": "# Install\n\nzen is a single application. Open a folder and it turns the markdown inside into a very small site.\n\n```go\nfunc main() {\n\t// say teh hello\n\tfmt.Println(\"hello\", 42)\n}\n```\n\nSee [Usage](usage.md) for the next step.\n",
   "guides/usage.md": "# Usage\n\nPick a page in the sidebar to read it. Press Edit to change it.\n\nBack to the [README](../README.md) or the [zen site](https://example.com).\n",
 };
 
@@ -148,7 +150,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     pick: options.pick === undefined ? sampleWorkspace() : options.pick,
     confirmExternal: true,
     broadcasts: [],
-    lintResult: options.lint ?? { available: false, alerts: [] },
+    lintResult: options.devLint ?? options.lint ?? { available: false, alerts: [] },
     callsTo: (method) => api.calls.filter((c) => c.method === method).map((c) => c.args),
     emit(event, payload) {
       for (const fn of Array.from(listeners[event])) fn(payload);

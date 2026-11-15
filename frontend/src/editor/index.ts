@@ -7,6 +7,7 @@ import { backdrop, renderConsole } from "../lint";
 import { button, el } from "../shell/dom";
 import type { Feature } from "../shell/types";
 import { commands, continueList, indent, outdent, type CommandName, type Edit } from "./commands";
+import { highlight } from "./highlight";
 import { createToolbar, TOOLS } from "./toolbar";
 
 export { commands, continueList } from "./commands";
@@ -124,7 +125,8 @@ export const editorFeature: Feature = {
     ta.setAttribute("aria-label", "Markdown source");
     ta.wrap = "soft";
     // ui/lint: squiggles on a mirror behind the textarea, problems console below.
-    const lintView = backdrop(ta);
+    // The mirror also draws syntax highlighting and line numbers.
+    const lintView = backdrop(ta, { highlight, lineNumbers: true });
     const problems = renderConsole({
       onSelect: (_a: Alert, i: number) => lintView.select(i),
       onLink: (url) => void api.openExternal(url).catch(() => undefined),

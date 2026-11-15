@@ -13,12 +13,15 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Changed
 
+- Code blocks in the reader use a colour theme (shared with the editor) instead of grayscale.
+- Sidebar: clearer disclosure chevrons and guide lines for nested pages.
 - Edit opens the page in its own editor window (editor only, no split preview); the main window follows the unsaved text live.
 - File › Open Folder (⌘O) from the menu switches the window to the new folder, also from the welcome screen.
 - `zen` opens the current folder instead of a single file.
 
 ### Added
 
+- Editor: line numbers and syntax highlighting for markdown and fenced code (colour, light and dark).
 - Frontmatter `slug` and `nav` (title, order, parent, hidden) to tune the sidebar.
 - Vale spelling and style marks in the reader and editor as coloured wavy squiggles, plus a problems console in the editor explaining each flag (`plugins: {lint: false}` turns them off).
 - Vale prose linter (3.25.1) bundled in Zen.app, fetched and checksum-verified at build time.

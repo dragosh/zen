@@ -60,3 +60,36 @@
 :root[data-theme="light"] {
   color-scheme: light;
 }
+
+/* Code colours: syntax highlighting in the reader (plugins/highlight) and the
+   editor (editor/highlight.ts). With the lint signal colours, the only hues
+   in the app (owner decision); everything else stays black and white. */
+:root {
+  --code-keyword: #cf222e;
+  --code-string: #0a3069;
+  --code-comment: #6e7781;
+  --code-number: #0550ae;
+  --code-function: #8250df;
+  --code-type: #953800;
+  --code-meta: #116329;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --code-keyword: #ff7b72;
+    --code-string: #a5d6ff;
+    --code-comment: #8b949e;
+    --code-number: #79c0ff;
+    --code-function: #d2a8ff;
+    --code-type: #ffa657;
+    --code-meta: #7ee787;
+  }
+}
+:root[data-theme="dark"] {
+  --code-keyword: #ff7b72;
+  --code-string: #a5d6ff;
+  --code-comment: #8b949e;
+  --code-number: #79c0ff;
+  --code-function: #d2a8ff;
+  --code-type: #ffa657;
+  --code-meta: #7ee787;
+}

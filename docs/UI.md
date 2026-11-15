@@ -9,7 +9,9 @@ for behaviour. Implemented by the `ui/*` specs.
 
 - **Black and white.** No hue anywhere in the chrome. Buttons are grayscale.
   Colour only comes from the user's content (images, diagrams) and the three
-  lint signal colours (wavy squiggles: red error, amber warning, blue suggestion).
+  lint signal colours (wavy squiggles: red error, amber warning, blue suggestion)
+  and the code colours (`--code-*`) used for syntax highlighting in the reader
+  and the editor.
 - **Editorial.** Body text in a serif at a comfortable measure (max 68ch);
   chrome in the system sans at small sizes. Generous whitespace, thin rules.
 - **Yin and yang.** Light and dark themes are exact inversions of each

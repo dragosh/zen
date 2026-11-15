@@ -60,7 +60,20 @@ const MIRRORED = [
 
 type Range = { start: number; end: number; alerts: number[] };
 
-export function backdrop(ta: HTMLTextAreaElement): Backdrop {
+/** A highlighted range of the text (editor/highlight.ts). */
+export type Decoration = { start: number; end: number; cls: string };
+
+export type BackdropOptions = {
+  /**
+   * Syntax highlighting: the mirror draws the text visibly with these classes
+   * (the editor makes the textarea's own text transparent).
+   */
+  highlight?: (text: string) => Decoration[];
+  /** One row per line with its number in the left padding (class zen-ed-line, data-n). */
+  lineNumbers?: boolean;
+};
+
+export function backdrop(ta: HTMLTextAreaElement, opts: BackdropOptions = {}): Backdrop {
   const doc = ta.ownerDocument;
   const wrap = doc.createElement("div");
   wrap.className = "zen-lint-wrap";
@@ -94,25 +107,77 @@ export function backdrop(ta: HTMLTextAreaElement): Backdrop {
     return out;
   }
 
+  const decorated = Boolean(opts.highlight || opts.lineNumbers);
+  if (opts.highlight) mirror.classList.add("is-highlighted");
+  if (opts.lineNumbers) mirror.classList.add("has-line-numbers");
+
   function render(): void {
     marks = [];
-    if (!ranges.length) {
+    if (!ranges.length && !decorated) {
       mirror.replaceChildren();
       return;
     }
-    const nodes: Node[] = [];
-    let pos = 0;
-    for (const r of ranges) {
-      if (r.start > pos) nodes.push(doc.createTextNode(text.slice(pos, r.start)));
-      const m = makeMark(doc, r.alerts.map((i) => alerts[i]));
-      m.textContent = text.slice(r.start, r.end);
-      for (const i of r.alerts) marks[i] = m;
-      nodes.push(m);
-      pos = r.end;
+    const toks = opts.highlight ? opts.highlight(text) : [];
+    // Every place where the class, the mark or the line changes.
+    const cuts = new Set<number>([0, text.length]);
+    for (const t of toks) { cuts.add(t.start); cuts.add(t.end); }
+    for (const r of ranges) { cuts.add(r.start); cuts.add(r.end); }
+    if (opts.lineNumbers) {
+      for (let i = text.indexOf("\n"); i >= 0; i = text.indexOf("\n", i + 1)) { cuts.add(i); cuts.add(i + 1); }
     }
+    const points = Array.from(cuts).filter((n) => n >= 0 && n <= text.length).sort((a, b) => a - b);
+
+    const out: Node[] = [];
+    let lineNo = 1;
+    let line: HTMLElement | null = null;
+    const newLine = () => {
+      line = doc.createElement("div");
+      line.className = "zen-ed-line";
+      line.dataset.n = String(lineNo++);
+      out.push(line);
+    };
+    const endLine = () => {
+      // An empty row needs content to keep its height.
+      if (line && !line.firstChild) line.append(doc.createTextNode("\u200b"));
+    };
+    if (opts.lineNumbers) newLine();
+    const put = (n: Node) => (line ? line.append(n) : out.push(n));
+
+    let ti = 0;
+    let ri = 0;
+    for (let k = 0; k + 1 < points.length; k++) {
+      const a = points[k];
+      const b = points[k + 1];
+      if (b <= a) continue;
+      const piece = text.slice(a, b);
+      if (opts.lineNumbers && piece === "\n") {
+        endLine();
+        newLine();
+        continue;
+      }
+      while (ti < toks.length && toks[ti].end <= a) ti++;
+      while (ri < ranges.length && ranges[ri].end <= a) ri++;
+      const tok = ti < toks.length && toks[ti].start <= a ? toks[ti] : null;
+      const r = ri < ranges.length && ranges[ri].start <= a ? ranges[ri] : null;
+      let node: Node = doc.createTextNode(piece);
+      if (tok) {
+        const span = doc.createElement("span");
+        span.className = tok.cls;
+        span.append(node);
+        node = span;
+      }
+      if (r) {
+        const m = makeMark(doc, r.alerts.map((i) => alerts[i]));
+        m.append(node);
+        for (const i of r.alerts) if (!marks[i]) marks[i] = m;
+        node = m;
+      }
+      put(node);
+    }
+    if (opts.lineNumbers) endLine();
     // The placeholder keeps a trailing empty line as tall as in the textarea.
-    nodes.push(doc.createTextNode(text.slice(pos) + "\u200b"));
-    mirror.replaceChildren(...nodes);
+    else out.push(doc.createTextNode("\u200b"));
+    mirror.replaceChildren(...out);
     syncScroll();
   }
 
@@ -149,6 +214,7 @@ export function backdrop(ta: HTMLTextAreaElement): Backdrop {
   const ro = typeof ResizeObserver === "function" ? new ResizeObserver(() => sync()) : null;
   ro?.observe(ta);
   sync();
+  if (decorated) render();
 
   return {
     el: wrap,

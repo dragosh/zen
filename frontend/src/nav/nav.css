@@ -33,16 +33,50 @@
 .zen-nav-item[data-kind="group"] > .zen-nav-row { color: var(--fg-muted); }
 .zen-nav-item[aria-current="page"] > .zen-nav-row { background: var(--btn-bg); color: var(--fg); font-weight: 600; }
 
+/* Disclosure chevron: drawn with borders so it is crisp at any size, in the
+   text colour (not muted), with a hover target bigger than the glyph. */
 .zen-nav-twisty, .zen-nav-spacer {
   flex: none;
-  width: 14px;
+  width: 18px;
+  height: 18px;
+  margin-left: -2px;
   display: inline-flex;
+  align-items: center;
   justify-content: center;
-  color: var(--fg-muted);
-  font-size: 10px;
-  transition: transform 0.1s;
+  border-radius: 4px;
 }
-.zen-nav-item[aria-expanded="true"] > .zen-nav-row > .zen-nav-twisty { transform: rotate(90deg); }
+.zen-nav-twisty { cursor: pointer; color: var(--fg); }
+.zen-nav-twisty::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  margin-left: -3px;
+  border-right: 2px solid currentColor;
+  border-bottom: 2px solid currentColor;
+  transform: rotate(-45deg);
+  transition: transform 0.12s ease;
+}
+.zen-nav-item[aria-expanded="true"] > .zen-nav-row > .zen-nav-twisty::before {
+  margin-left: 0;
+  margin-top: -4px;
+  transform: rotate(45deg);
+}
+.zen-nav-twisty:hover { background: var(--btn-bg-hover); }
+@media (prefers-reduced-motion: reduce) {
+  .zen-nav-twisty::before { transition: none; }
+}
+
+/* Guide line down each open branch, under the parent's chevron. */
+.zen-nav-group { position: relative; }
+.zen-nav-group::before {
+  content: "";
+  position: absolute;
+  top: 2px;
+  bottom: 2px;
+  left: calc(var(--space-2) + var(--zen-nav-parent-indent, 0px) + 7px);
+  border-left: 1px solid var(--rule);
+}
+.zen-nav-item:hover > .zen-nav-group::before { border-left-color: var(--fg-muted); }
 .zen-nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-left: var(--space-1); }
 .zen-nav-empty { padding: var(--space-3); color: var(--fg-muted); }
 

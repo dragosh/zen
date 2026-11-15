@@ -1,28 +1,42 @@
-/* highlight plugin, "zen" style: monochrome, built from the UI tokens
-   (docs/UI.md). Three gray levels plus weight and italics; light and dark. */
+/* highlight plugin, "zen" style: colour syntax highlighting from the app's
+   code tokens (frontend/src/styles/tokens.css, --code-*), shared with the
+   editor. The fallbacks keep it readable if the tokens are missing. */
 .chroma {
-  --zen-hl-strong: var(--fg, #111111);
-  --zen-hl-mid: #3d3d3d;
+  --zen-hl-text: var(--fg, #111111);
   --zen-hl-muted: var(--fg-muted, #6b6b6b);
-  color: var(--zen-hl-strong);
+  --zen-hl-keyword: var(--code-keyword, #cf222e);
+  --zen-hl-string: var(--code-string, #0a3069);
+  --zen-hl-comment: var(--code-comment, #6e7781);
+  --zen-hl-number: var(--code-number, #0550ae);
+  --zen-hl-function: var(--code-function, #8250df);
+  --zen-hl-type: var(--code-type, #953800);
+  --zen-hl-meta: var(--code-meta, #116329);
+  color: var(--zen-hl-text);
   background: var(--bg-subtle, #f5f5f4);
 }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .chroma {
-    --zen-hl-strong: var(--fg, #ededed);
-    --zen-hl-mid: #c4c4c4;
+    --zen-hl-text: var(--fg, #ededed);
     --zen-hl-muted: var(--fg-muted, #9a9a9a);
+    --zen-hl-keyword: var(--code-keyword, #ff7b72);
+    --zen-hl-string: var(--code-string, #a5d6ff);
+    --zen-hl-comment: var(--code-comment, #8b949e);
+    --zen-hl-number: var(--code-number, #79c0ff);
+    --zen-hl-function: var(--code-function, #d2a8ff);
+    --zen-hl-type: var(--code-type, #ffa657);
+    --zen-hl-meta: var(--code-meta, #7ee787);
   }
 }
 :root[data-theme="dark"] .chroma {
-  --zen-hl-strong: var(--fg, #ededed);
-  --zen-hl-mid: #c4c4c4;
+  --zen-hl-text: var(--fg, #ededed);
   --zen-hl-muted: var(--fg-muted, #9a9a9a);
-}
-:root[data-theme="light"] .chroma {
-  --zen-hl-strong: var(--fg, #111111);
-  --zen-hl-mid: #3d3d3d;
-  --zen-hl-muted: var(--fg-muted, #6b6b6b);
+  --zen-hl-keyword: var(--code-keyword, #ff7b72);
+  --zen-hl-string: var(--code-string, #a5d6ff);
+  --zen-hl-comment: var(--code-comment, #8b949e);
+  --zen-hl-number: var(--code-number, #79c0ff);
+  --zen-hl-function: var(--code-function, #d2a8ff);
+  --zen-hl-type: var(--code-type, #ffa657);
+  --zen-hl-meta: var(--code-meta, #7ee787);
 }
 
 .chroma .line, .chroma .cl { display: inline; }
@@ -36,45 +50,50 @@
 }
 .chroma .ln { display: inline-block; min-width: 2.5em; padding-right: 1em; text-align: right; }
 
-/* plain text, names, operators and punctuation: strongest gray, regular */
+/* plain text, names, operators and punctuation */
 .chroma .x, .chroma .w, .chroma .n, .chroma .nx, .chroma .nv, .chroma .vc,
 .chroma .vg, .chroma .vi, .chroma .vm, .chroma .py, .chroma .nl, .chroma .na,
 .chroma .ni, .chroma .bp, .chroma .no, .chroma .o, .chroma .p, .chroma .g,
 .chroma .go, .chroma .gp, .chroma .bg, .chroma .err {
-  color: var(--zen-hl-strong);
+  color: var(--zen-hl-text);
 }
+.chroma .na { color: var(--zen-hl-function); }
 
-/* keywords: strongest gray, bold */
+/* keywords */
 .chroma .k, .chroma .kc, .chroma .kd, .chroma .kn, .chroma .kp, .chroma .kr,
-.chroma .kt, .chroma .ow, .chroma .or, .chroma .nt, .chroma .gh, .chroma .gu,
-.chroma .gs {
-  color: var(--zen-hl-strong);
-  font-weight: 600;
+.chroma .ow, .chroma .or, .chroma .gh, .chroma .gu, .chroma .gs {
+  color: var(--zen-hl-keyword);
 }
+.chroma .gh, .chroma .gu, .chroma .gs { font-weight: 600; }
+.chroma .kt, .chroma .nt { color: var(--zen-hl-type); }
 
-/* definitions and builtins: strongest gray, medium weight */
+/* definitions and builtins */
 .chroma .nf, .chroma .fm, .chroma .nc, .chroma .nn, .chroma .ne, .chroma .nd,
 .chroma .nb {
-  color: var(--zen-hl-strong);
-  font-weight: 500;
+  color: var(--zen-hl-function);
 }
+.chroma .nc, .chroma .ne { color: var(--zen-hl-type); }
 
-/* literals: middle gray */
+/* literals */
 .chroma .l, .chroma .ld, .chroma .s, .chroma .sa, .chroma .sb, .chroma .sc,
 .chroma .dl, .chroma .s2, .chroma .se, .chroma .sh, .chroma .si, .chroma .sx,
-.chroma .sr, .chroma .s1, .chroma .ss, .chroma .m, .chroma .mb, .chroma .mf,
-.chroma .mh, .chroma .mi, .chroma .il, .chroma .mo, .chroma .gi, .chroma .gd,
-.chroma .gr, .chroma .gt, .chroma .gl {
-  color: var(--zen-hl-mid);
+.chroma .sr, .chroma .s1, .chroma .ss, .chroma .gi, .chroma .gt, .chroma .gl {
+  color: var(--zen-hl-string);
 }
+.chroma .m, .chroma .mb, .chroma .mf, .chroma .mh, .chroma .mi, .chroma .il,
+.chroma .mo {
+  color: var(--zen-hl-number);
+}
+.chroma .gd, .chroma .gr { color: var(--zen-hl-keyword); }
+.chroma .gi { color: var(--zen-hl-meta); }
 .chroma .gd { text-decoration: line-through; }
 .chroma .gl { text-decoration: underline; }
 .chroma .ge { font-style: italic; }
 
-/* comments and docs: muted gray, italic */
+/* comments and docs */
 .chroma .c, .chroma .ch, .chroma .cm, .chroma .c1, .chroma .cs, .chroma .cp,
 .chroma .cpf, .chroma .sd {
-  color: var(--zen-hl-muted);
+  color: var(--zen-hl-comment);
   font-style: italic;
 }
-.chroma .cp, .chroma .cpf { font-style: normal; }
+.chroma .cp, .chroma .cpf { color: var(--zen-hl-meta); font-style: normal; }
