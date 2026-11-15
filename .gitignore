@@ -10,3 +10,4 @@ frontend/bindings
 *.test
 *.out
 build/linux/zen.desktop
+build/darwin/helpers/

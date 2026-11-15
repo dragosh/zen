@@ -1,13 +1,40 @@
 # Helper binaries bundled into Zen.app/Contents/Helpers (see
-# specs/packaging/macos/spec.md). Each entry:
+# specs/packaging/macos/spec.md and specs/core/lint/spec.md). Each entry:
 #
 #   - name: helper-name            # file name inside Contents/Helpers
-#     path:
-#       darwin-arm64: path/to/arm64/binary   # relative to this file
+#     path:                        # relative to this file
+#       darwin-arm64: path/to/arm64/binary
 #       darwin-amd64: path/to/amd64/binary
-#     sha256: <64 hex digits of the binary for the target arch>
+#     sha256: <64 hex digits>      # one value for both archs (a universal binary)
+#     # or per architecture:
+#     # sha256:
+#     #   darwin-arm64: <64 hex digits of the arm64 binary>
+#     #   darwin-amd64: <64 hex digits of the amd64 binary>
+#     fetch:                       # optional, per architecture
+#       darwin-arm64:
+#         url: https://...tar.gz   # https:// or file://
+#         sha256: <64 hex digits of the tarball>
+#         member: binary           # file inside the tarball, extracted to path
+#         license: LICENSE         # optional; bundled as Resources/licenses/<name>.txt
 #
-# A missing file or a checksum mismatch fails `task package`.
-# Note: one sha256 per entry, so arm64 and amd64 must be the same file
-# (a universal binary) or listed as separate entries per architecture.
-[]
+# `task darwin:fetch:helpers` downloads entries with a fetch block into the
+# git-ignored build/darwin/helpers/ and verifies tarball and binary. A missing
+# file or a checksum mismatch fails `task package`.
+- name: vale # Vale 3.25.1 prose linter (MIT), used by internal/core/lint
+  path:
+    darwin-arm64: build/darwin/helpers/arm64/vale
+    darwin-amd64: build/darwin/helpers/amd64/vale
+  sha256:
+    darwin-arm64: ac853f996e8cce7390d4df35f7c9890a0b7a1728e41336bf98a9ca2e24b5fef5
+    darwin-amd64: 6f44a266dae578e37bc0c46df54b6f137f4fedc3385219c67b889db846843bc4
+  fetch:
+    darwin-arm64:
+      url: https://github.com/vale-cli/vale/releases/download/v3.25.1/vale_3.25.1_macOS_arm64.tar.gz
+      sha256: fbcaa68d9b9e229b9c8dc918f209e93572ce943039700b7e04a423ff12f684cd
+      member: vale
+      license: LICENSE
+    darwin-amd64:
+      url: https://github.com/vale-cli/vale/releases/download/v3.25.1/vale_3.25.1_macOS_64-bit.tar.gz
+      sha256: e27097e84a812d45546de8d6a4ffa75538cab39c96f79b153b601240f8cefaf9
+      member: vale
+      license: LICENSE

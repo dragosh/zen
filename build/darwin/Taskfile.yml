@@ -182,8 +182,13 @@ tasks:
       # fresh bundle so codesign never has to replace a contaminated signature.
       - test -n "{{.BIN_DIR}}" && test -n "{{.BUNDLE_NAME}}" && rm -rf -- "{{.BUNDLE}}"
       - mkdir -p "{{.BUNDLE}}/Contents/MacOS" "{{.BUNDLE}}/Contents/Resources" "{{.BUNDLE}}/Contents/Helpers"
-      # Verify every helper in resources.yml (file exists, sha256 matches) and copy it.
-      - go run ./build/darwin/resources -manifest resources.yml -arch "{{.HELPER_ARCH}}" -dest "{{.BUNDLE}}/Contents/Helpers"
+      # Download the pinned helpers (skipped when already verified), then verify
+      # every helper in resources.yml (file exists, sha256 matches) and copy it
+      # with its license notice.
+      - task: fetch:helpers
+        vars:
+          ARCH: '{{.HELPER_ARCH}}'
+      - go run ./build/darwin/resources -manifest resources.yml -arch "{{.HELPER_ARCH}}" -dest "{{.BUNDLE}}/Contents/Helpers" -licenses "{{.BUNDLE}}/Contents/Resources/licenses"
       - cp build/darwin/icons.icns "{{.BUNDLE}}/Contents/Resources"
       - |
         if [ -f build/darwin/Assets.car ]; then
@@ -193,6 +198,13 @@ tasks:
       - sed -e 's/{{"{{"}}SHORT_VERSION{{"}}"}}/{{.SHORT_VERSION}}/g' -e 's/{{"{{"}}BUILD_NUMBER{{"}}"}}/{{.BUILD_NUMBER}}/g' build/darwin/Info.plist > "{{.BUNDLE}}/Contents/Info.plist"
       - plutil -lint "{{.BUNDLE}}/Contents/Info.plist"
       - task: '{{if eq OS "darwin"}}codesign{{else}}codesign:skip{{end}}'
+
+  fetch:helpers:
+    summary: Downloads the helpers in resources.yml for ARCH (default host) into build/darwin/helpers/<arch>/, checking tarball and binary sha256; skipped when the verified binary is already there
+    vars:
+      HELPER_ARCH: '{{.ARCH | default ARCH}}'
+    cmds:
+      - go run ./build/darwin/resources -manifest resources.yml -arch "{{.HELPER_ARCH}}" -fetch
 
   codesign:
     summary: Signs Zen.app with SIGN_IDENTITY (default ad-hoc) and the entitlements in build/darwin/entitlements.plist (none in the alpha; macOS only)
