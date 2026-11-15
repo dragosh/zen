@@ -1,6 +1,7 @@
 // The reader: loads Page for store.path, mounts its HTML and wires links,
 // anchors, plugin assets, live reload, warnings, errors and the Edit action.
-import type { Page } from "../api";
+import type { Alert, Page } from "../api";
+import { flash, markText, renderPanel } from "../lint";
 import { button, el } from "../shell/dom";
 import type { Ctx, Feature } from "../shell/types";
 import { loadAssets } from "./assets";
@@ -64,12 +65,36 @@ export const pageFeature: Feature = {
       ctx.api.openEditor(path).catch((err) => console.error(`zen: could not edit ${path}`, err));
     };
     const edit = button("Edit", openEditor, { title: "Edit (⌘E)" });
-    slots.actions.append(edit);
+
+    // Vale alerts (ui/lint): marks in the article, a count and panel in the actions.
+    let lintMarks: (HTMLElement | null)[] = [];
+    const lintPanel = renderPanel((_alert: Alert, i: number) => {
+      const m = lintMarks[i];
+      if (!m?.isConnected) return;
+      m.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "center" });
+      flash(m);
+    });
+    slots.actions.append(lintPanel.el, edit);
 
     let seq = 0;
     let shownPath: string | null = null;
     let loadedAnchor = "";
     let timer: ReturnType<typeof setTimeout> | undefined;
+
+    /** Lints the page on disk after it rendered; results for an older load are dropped. */
+    async function lint(path: string, mine: number): Promise<void> {
+      try {
+        const r = await ctx.api.lint(path, "");
+        if (mine !== seq) return;
+        lintMarks = r.available ? markText(article, r.alerts) : [];
+        lintPanel.update(r.available ? r.alerts : null);
+      } catch (err) {
+        if (mine !== seq) return;
+        lintMarks = [];
+        lintPanel.update(null);
+        console.warn(`zen: could not lint ${path}`, err);
+      }
+    }
 
     const stopProgress = () => {
       clearTimeout(timer);
@@ -96,6 +121,7 @@ export const pageFeature: Feature = {
       } catch (err) {
         if (mine !== seq) return;
         stopProgress();
+        lintPanel.update(null);
         errorText.textContent = `Could not load ${path}: ${message(err)}`;
         error.hidden = false;
         article.hidden = true;
@@ -107,6 +133,8 @@ export const pageFeature: Feature = {
       article.hidden = false;
       const scroll = main.scrollTop;
       mountPage(article, page);
+      if (!keepScroll) lintPanel.update(null);
+      void lint(path, mine);
       warningText.textContent = page.warnings.join("\n");
       warnings.hidden = page.warnings.length === 0;
       doc.title = `${page.title} — zen`;
@@ -155,6 +183,7 @@ export const pageFeature: Feature = {
       error.remove();
       article.remove();
       edit.remove();
+      lintPanel.destroy();
     };
   },
 };

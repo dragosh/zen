@@ -58,7 +58,7 @@ describe("markText", () => {
     expect(a.querySelectorAll("p")[0].innerHTML).toBe(
       '<mark class="zen-lint zen-lint-error" title="Vale.Spelling: first">teh</mark> one <mark class="zen-lint zen-lint-error" title="Vale.Spelling: second">teh</mark> two',
     );
-    expect(a.querySelectorAll("p")[1].firstElementChild?.title).toBe("Vale.Spelling: fourth");
+    expect((a.querySelectorAll("p")[1].firstElementChild as HTMLElement | null)?.title).toBe("Vale.Spelling: fourth");
   });
 
   it("respects word boundaries", () => {

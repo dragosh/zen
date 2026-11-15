@@ -1,6 +1,8 @@
 // ui/editor: markdown source with a formatting toolbar and a live preview.
 // Mounted only in an editor window (ui/editor-window): one page per window,
 // Done closes the window.
+import type { Alert } from "../api";
+import { backdrop, renderPanel } from "../lint";
 import { button, el } from "../shell/dom";
 import type { Feature } from "../shell/types";
 import { commands, continueList, indent, outdent, type CommandName, type Edit } from "./commands";
@@ -19,6 +21,9 @@ function readStore(key: string): string | null {
 function writeStore(key: string, value: string): void {
   try { localStorage.setItem(key, value); } catch { /* storage unavailable */ }
 }
+/** Lint the unsaved text this long after typing stops (ui/lint). */
+export const LINT_DELAY = 600;
+
 const clampRatio = (n: number) => Math.min(80, Math.max(20, Math.round(n)));
 
 /**
@@ -139,8 +144,14 @@ export const editorFeature: Feature = {
     divider.setAttribute("aria-valuemax", "80");
     divider.tabIndex = 0;
     const preview = createPreview(api);
-    panes.append(ta, divider, preview.el);
-    root.append(toolbar, bar, panes);
+    // ui/lint: marks drawn on a mirror behind the textarea, count and panel under the toolbar.
+    const lintView = backdrop(ta);
+    const lintStrip = el("div", "zen-editor-lint");
+    lintStrip.hidden = true;
+    const lintPanel = renderPanel((_a: Alert, i: number) => lintView.select(i));
+    lintStrip.append(lintPanel.el);
+    panes.append(lintView.el, divider, preview.el);
+    root.append(toolbar, lintStrip, bar, panes);
     slots.main.append(root);
 
     function setDirty(v: boolean): void {
@@ -161,7 +172,7 @@ export const editorFeature: Feature = {
       splitBtn.setAttribute("aria-pressed", String(split));
       preview.el.hidden = !split;
       divider.hidden = !split;
-      ta.style.flexBasis = split ? `${ratio}%` : "";
+      lintView.el.style.flexBasis = split ? `${ratio}%` : "";
       divider.setAttribute("aria-valuenow", String(ratio));
       if (split) preview.update(current, ta.value);
     }
@@ -174,6 +185,38 @@ export const editorFeature: Feature = {
       ratio = clampRatio(n);
       writeStore(RATIO_KEY, String(ratio));
       renderSplit();
+    }
+
+    let lintSeq = 0;
+    let lintTimer: ReturnType<typeof setTimeout> | undefined;
+    function showLint(alerts: Alert[] | null, forText: string): void {
+      lintView.update(alerts ?? [], forText);
+      lintPanel.update(alerts);
+      lintStrip.hidden = !alerts?.length;
+    }
+    /** Lints the current text now; only the latest request's answer is drawn. */
+    async function lintNow(): Promise<void> {
+      clearTimeout(lintTimer);
+      const mine = ++lintSeq;
+      const path = current;
+      const text = ta.value;
+      if (!text) {
+        showLint(null, text);
+        return;
+      }
+      try {
+        const r = await api.lint(path, text);
+        if (mine !== lintSeq || path !== current) return;
+        showLint(r.available ? r.alerts : null, text);
+      } catch (err) {
+        if (mine !== lintSeq) return;
+        showLint(null, ta.value);
+        console.warn(`zen: could not lint ${path}`, err);
+      }
+    }
+    function scheduleLint(): void {
+      clearTimeout(lintTimer);
+      lintTimer = setTimeout(() => void lintNow(), LINT_DELAY);
     }
 
     const selection = (): Edit => ({ text: ta.value, selStart: ta.selectionStart, selEnd: ta.selectionEnd });
@@ -197,6 +240,8 @@ export const editorFeature: Feature = {
         setDirty(false);
         hideBar();
         if (split) preview.update(path, text);
+        lintView.refresh();
+        void lintNow();
       } catch (err) {
         if (mine === loadSeq) showBar(`Could not open ${path}: ${(err as Error).message ?? err}`);
       }
@@ -211,6 +256,7 @@ export const editorFeature: Feature = {
           saved = text;
           setDirty(ta.value !== saved);
           hideBar();
+          void lintNow();
         }
         return true;
       } catch (err) {
@@ -249,6 +295,7 @@ export const editorFeature: Feature = {
     ta.addEventListener("input", () => {
       setDirty(ta.value !== saved);
       if (split) preview.update(current, ta.value);
+      scheduleLint();
     });
     ta.addEventListener("scroll", () => {
       const max = ta.scrollHeight - ta.clientHeight;
@@ -364,6 +411,10 @@ export const editorFeature: Feature = {
       dialog?.close();
       preview.destroy();
       loadSeq++;
+      lintSeq++;
+      clearTimeout(lintTimer);
+      lintPanel.destroy();
+      lintView.destroy();
       root.remove();
       dot.remove();
       splitBtn.remove();

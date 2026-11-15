@@ -23,13 +23,13 @@ const type = (ta: HTMLTextAreaElement, value: string) => {
 /** The mirror's text and marks as "plain [marked] plain". */
 function shape(mirror: HTMLElement): string {
   return Array.from(mirror.childNodes).map((n) =>
-    n.nodeType === Node.TEXT_NODE ? n.textContent : `[${n.textContent}]`).join("").replace(/​$/, "");
+    n.nodeType === Node.TEXT_NODE ? n.textContent : `[${n.textContent}]`).join("").replace(/\u200b$/, "");
 }
 
 describe("alertRange", () => {
   it("turns line and rune columns into textarea offsets", () => {
     const text = "# Title\n\nSome teh text.\n";
-    expect(alertRange(text, alert({ line: 3, col: 6, endCol: 8, match: "teh" }))).toEqual([15, 18]);
+    expect(alertRange(text, alert({ line: 3, col: 6, endCol: 8, match: "teh" }))).toEqual([14, 17]);
     expect(alertRange(text, alert({ line: 1, col: 3, endCol: 7, match: "Title" }))).toEqual([2, 7]);
   });
   it("counts astral characters as one column", () => {
@@ -65,18 +65,18 @@ describe("backdrop", () => {
       alert({ line: 3, col: 19, endCol: 21, match: "teh", severity: "suggestion" }),
     ], text);
     expect(shape(bd.mirror)).toBe("# Title\n\nSome [teh] text and [teh] end.\n");
-    expect(bd.mirror.textContent!.replace(/​$/, "")).toBe(ta.value);
+    expect(bd.mirror.textContent!.replace(/\u200b$/, "")).toBe(ta.value);
     const marks = bd.mirror.querySelectorAll("mark");
     expect(marks[0].className).toBe("zen-lint zen-lint-error");
     expect(marks[1].className).toBe("zen-lint zen-lint-suggestion");
     expect(bd.mark(1)).toBe(marks[1]);
-    expect(bd.range(0)).toEqual([15, 18]);
+    expect(bd.range(0)).toEqual([14, 17]);
   });
 
   it("ends with a placeholder so a trailing newline keeps its line", () => {
     const { bd } = setup("a\n");
     bd.update([alert({ match: "a" })], "a\n");
-    expect(bd.mirror.lastChild!.textContent).toBe("​");
+    expect(bd.mirror.lastChild!.textContent).toBe("\n\u200b");
   });
 
   it("joins overlapping alerts and keeps Vale text out of the DOM", () => {
@@ -114,7 +114,8 @@ describe("backdrop", () => {
     bd.update([alert({ match: "teh" })], "teh");
     ta.value = "something else";
     bd.refresh();
-    expect(shape(bd.mirror)).toBe("something else");
+    expect(bd.mirror.querySelector("mark")).toBeNull();
+    expect(bd.range(0)).toBeNull();
   });
 
   it("syncs scrolling", () => {

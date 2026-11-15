@@ -1,0 +1,97 @@
+/* ui/lint — grayscale tokens only (docs/UI.md). Never colour. */
+
+/* Marks: the reader's article and the editor's mirror. */
+mark.zen-lint {
+  background: none;
+  color: inherit;
+  text-decoration-line: underline;
+  text-decoration-skip-ink: none;
+  text-underline-offset: 3px;
+}
+.zen-lint-error { text-decoration: underline solid var(--fg) 2px; }
+.zen-lint-warning { text-decoration: underline dashed var(--fg-muted) 1px; }
+.zen-lint-suggestion { text-decoration: underline dotted var(--fg-muted) 1px; }
+
+mark.zen-lint-flash {
+  background: var(--bg-subtle);
+  outline: 1px solid var(--fg-muted);
+  outline-offset: 1px;
+  border-radius: 2px;
+}
+
+/* Count button and panel. */
+.zen-lint {
+  position: relative;
+  display: inline-flex;
+  font-family: var(--font-ui);
+}
+.zen-lint-count { color: var(--fg-muted); white-space: nowrap; }
+.zen-lint-count[aria-expanded="true"] { color: var(--fg); }
+
+.zen-lint-panel {
+  position: absolute;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  z-index: 5;
+  width: 360px;
+  max-width: calc(100vw - 32px);
+  max-height: 60vh;
+  overflow: auto;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+.zen-lint-list { list-style: none; margin: 0; padding: var(--space-1) 0; }
+.zen-lint-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 3em 6.5em 1fr;
+  gap: 0 var(--space-2);
+  align-items: baseline;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 0;
+  background: none;
+  text-align: left;
+  font: inherit;
+  font-size: 12px;
+}
+.zen-lint-item:hover { background: var(--bg-subtle); }
+.zen-lint-line { color: var(--fg-muted); font-variant-numeric: tabular-nums; text-align: right; }
+.zen-lint-severity { color: var(--fg-muted); }
+.zen-lint-item-error .zen-lint-severity { color: var(--fg); font-weight: 600; }
+.zen-lint-message { min-width: 0; overflow-wrap: anywhere; }
+.zen-lint-match {
+  grid-column: 3;
+  color: var(--fg-muted);
+  font-family: var(--font-mono);
+  overflow-wrap: anywhere;
+}
+
+/* Editor: the mirror sits behind the transparent textarea, same box. */
+.zen-lint-wrap {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  background: var(--bg);
+}
+.zen-lint-wrap > textarea {
+  position: relative;
+  flex: 1 1 auto;
+  width: 100%;
+  background: transparent;
+}
+.zen-lint-mirror {
+  position: absolute;
+  inset: 0;
+  margin: 0;
+  overflow: hidden;
+  border-color: transparent;
+  border-style: solid;
+  color: transparent;
+  pointer-events: none;
+  white-space: pre-wrap;
+  user-select: none;
+}
+.zen-lint-mirror mark.zen-lint { color: transparent; }

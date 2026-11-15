@@ -136,3 +136,9 @@ func (z *Zen) OpenExternal(rawURL string) bool {
 	}
 	return z.open(rawURL) == nil
 }
+
+// Lint returns Vale's alerts for a page: content, or the file on disk when
+// content is "". Unavailable without vale or with `lint: false` (ui/lint).
+func (z *Zen) Lint(path, content string) (LintResult, error) {
+	return z.state.lint(currentLinter(), path, content)
+}

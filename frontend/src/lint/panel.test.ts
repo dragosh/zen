@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { renderPanel } from "./panel";
+import { renderPanel as render, type LintPanel } from "./panel";
 import { alert } from "./test-util";
 
 const key = (target: EventTarget, k: string) => {
@@ -9,7 +9,16 @@ const key = (target: EventTarget, k: string) => {
   return ev;
 };
 
-afterEach(() => document.body.replaceChildren());
+const made: LintPanel[] = [];
+const renderPanel = (onSelect: Parameters<typeof render>[0]) => {
+  const p = render(onSelect);
+  made.push(p);
+  return p;
+};
+afterEach(() => {
+  for (const p of made.splice(0)) p.destroy();
+  document.body.replaceChildren();
+});
 
 describe("renderPanel", () => {
   const alerts = [
