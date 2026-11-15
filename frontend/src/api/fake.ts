@@ -2,7 +2,7 @@
 // sample workspace, emit() to simulate Go events, and a record of every call.
 import type { Api, Crumb, Draft, LintResult, NavNode, Page, Startup, Workspace } from "./index";
 
-type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint";
+type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig";
 type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft };
 
 export type FakeOptions = {
@@ -174,6 +174,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     }),
     openExternal: (url) => call("openExternal", [url], () => api.confirmExternal),
     openEditor: (path) => call("openEditor", [path], () => undefined),
+    openConfig: (which) => call("openConfig", [which], () => undefined),
     draft(path, content) {
       api.broadcasts.push({ event: "editor:draft", payload: { path, content } });
     },

@@ -9,7 +9,36 @@ export const SIDEBAR_MAX = 400;
 export const WIDTH_KEY = "zen.sidebar.width";
 const KEY_STEP = 16;
 
-export type LayoutHandlers = { onBack?(): void; onForward?(): void; onOpenFolder?(): void };
+export type LayoutHandlers = {
+  onBack?(): void; onForward?(): void; onOpenFolder?(): void;
+  /** The settings cog at the bottom of the sidebar; `anchor` is the cog button. */
+  onSettings?(anchor: HTMLButtonElement): void;
+};
+
+const SVG = "http://www.w3.org/2000/svg";
+/** A gear outline, built with DOM APIs. */
+function cogIcon(doc: Document): SVGSVGElement {
+  const svg = doc.createElementNS(SVG, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", "16");
+  svg.setAttribute("height", "16");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("class", "zen-icon");
+  const gear = doc.createElementNS(SVG, "path");
+  gear.setAttribute("d", "M10.3 2.6h3.4l.5 2.6 1.6.9 2.5-.9 1.7 2.9-2 1.7v1.9l2 1.7-1.7 2.9-2.5-.9-1.6.9-.5 2.6h-3.4l-.5-2.6-1.6-.9-2.5.9-1.7-2.9 2-1.7v-1.9l-2-1.7 1.7-2.9 2.5.9 1.6-.9z");
+  const hub = doc.createElementNS(SVG, "circle");
+  hub.setAttribute("cx", "12");
+  hub.setAttribute("cy", "12");
+  hub.setAttribute("r", "3");
+  for (const n of [gear, hub]) {
+    n.setAttribute("fill", "none");
+    n.setAttribute("stroke", "currentColor");
+    n.setAttribute("stroke-width", "1.6");
+    n.setAttribute("stroke-linejoin", "round");
+  }
+  svg.append(gear, hub);
+  return svg;
+}
 
 export type Layout = {
   el: HTMLElement;
@@ -39,6 +68,14 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
   const nav = el("nav", "zen-sidebar");
   nav.id = "zen-sidebar";
   nav.setAttribute("aria-label", "Pages");
+  // The nav slot is the body; the sidebar adds Open (top right) and the
+  // settings cog (bottom) around it.
+  const navBody = el("div", "zen-sidebar-body");
+  const foot = el("div", "zen-sidebar-foot");
+  const settings = button("Settings", () => handlers.onSettings?.(settings), { className: "ghost zen-settings-button", text: "", title: "Settings ⌘," });
+  settings.append(cogIcon(nav.ownerDocument));
+  settings.setAttribute("aria-haspopup", "dialog");
+  foot.append(settings);
 
   const edge = el("div", "zen-resizer");
   edge.setAttribute("role", "separator");
@@ -57,13 +94,14 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
   toggle.setAttribute("aria-controls", nav.id);
   const back = button("Back", () => handlers.onBack?.(), { className: "ghost", text: "‹", title: "Back ⌘[" });
   const forward = button("Forward", () => handlers.onForward?.(), { className: "ghost", text: "›", title: "Forward ⌘]" });
-  const open = button("Open a folder", () => handlers.onOpenFolder?.(), { className: "ghost", text: "Open…", title: "Open a folder ⌘O" });
+  const open = button("Open a folder", () => handlers.onOpenFolder?.(), { className: "ghost zen-sidebar-open", text: "Open…", title: "Open a folder ⌘O" });
+  nav.append(navBody, open, foot);
   back.disabled = forward.disabled = true;
   controls.append(toggle, back, forward);
 
   const breadcrumb = el("div", "zen-breadcrumb");
   const actions = el("div", "zen-actions");
-  header.append(controls, breadcrumb, actions, open);
+  header.append(controls, breadcrumb, actions);
   const main = el("main", "zen-main");
   content.append(header, main);
   frame.append(nav, edge, content);
@@ -109,7 +147,7 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
 
   const layout: Layout = {
     el: frame,
-    slots: { nav, breadcrumb, actions, main },
+    slots: { nav: navBody, breadcrumb, actions, main },
     toggleSidebar() {
       visible = !visible;
       apply();

@@ -6,6 +6,7 @@ import type { Api, NavNode, Workspace } from "../api";
 import { button, el, logo } from "./dom";
 import { createHistory } from "./history";
 import { createLayout, type Layout } from "./layout";
+import { createSettings, type SettingsPanel } from "./settings";
 import { createStore } from "./store";
 import type { Ctx, Feature, Store } from "./types";
 
@@ -110,9 +111,25 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     mainId = null;
     unmountNav?.();
     unmountNav = null;
+    settings?.destroy();
+    settings = null;
     layout?.destroy();
     layout = null;
     editorTitle = null;
+  }
+
+  let settings: SettingsPanel | null = null;
+  /** The cog at the bottom of the sidebar (and ⌘,) toggles the settings panel. */
+  function toggleSettings(anchor?: HTMLButtonElement): void {
+    if (!layout) return;
+    if (!settings) {
+      const cog = anchor ?? layout.el.querySelector<HTMLButtonElement>(".zen-settings-button");
+      if (!cog) return;
+      settings = createSettings({ api, anchor: cog, hasWorkspace: () => store.get().workspace !== null });
+      // In the frame, not the sidebar: the sidebar clips anything wider than itself.
+      layout.el.append(settings.el);
+    }
+    settings.toggle();
   }
 
   function showFrame(workspace: Workspace, page: string): void {
@@ -122,7 +139,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     const path = page || workspace.home;
     if (path) navigate(path);
 
-    layout = createLayout({ onBack: back, onForward: forward, onOpenFolder: () => void openFolder() });
+    layout = createLayout({ onBack: back, onForward: forward, onOpenFolder: () => void openFolder(), onSettings: (a) => toggleSettings(a) });
     root.replaceChildren(layout.el);
     doc.title = `${workspace.name} — zen`;
     unmountNav = feature("nav")?.mount(layout.slots, ctx) ?? null;
@@ -217,6 +234,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
     const inFrame = layout !== null;
     if (e.key === "o" || e.key === "O") void openFolder();
+    else if (e.key === "," && inFrame) toggleSettings();
     else if (e.key === "\\" && inFrame) layout!.toggleSidebar();
     else if (e.key === "[" && inFrame) back();
     else if (e.key === "]" && inFrame) forward();

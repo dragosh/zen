@@ -13,6 +13,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Changed
 
+- The Open… button moved to the top-right corner of the sidebar.
 - Code blocks in the reader use a colour theme (shared with the editor) instead of grayscale.
 - Sidebar: clearer disclosure chevrons and guide lines for nested pages.
 - Edit opens the page in its own editor window (editor only, no split preview); the main window follows the unsaved text live.
@@ -21,6 +22,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Added
 
+- Settings cog at the bottom of the sidebar (⌘,): theme (System / Light / Dark, all windows) and buttons that open `config.yml` and the folder's `.zen.yml` in your text editor, created from a commented template if missing.
 - Editor: line numbers and syntax highlighting for markdown and fenced code (colour, light and dark).
 - Frontmatter `slug` and `nav` (title, order, parent, hidden) to tune the sidebar.
 - Vale spelling and style marks in the reader and editor as coloured wavy squiggles, plus a problems console in the editor explaining each flag (`plugins: {lint: false}` turns them off).

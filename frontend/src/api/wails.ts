@@ -101,6 +101,9 @@ const api: Api = {
   async openExternal(url) {
     return Boolean(await call(Zen.OpenExternal(url)));
   },
+  async openConfig(which) {
+    await call(Zen.OpenConfig(which));
+  },
   async openEditor(path) {
     await call(Zen.OpenEditor(path));
   },

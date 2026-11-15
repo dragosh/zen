@@ -6,7 +6,8 @@ beforeEach(() => localStorage.clear());
 
 test("has nav, header and main landmarks and the four slots", () => {
   const l = createLayout();
-  expect(l.el.querySelector("nav")).toBe(l.slots.nav);
+  // The nav slot is the sidebar's body; the sidebar adds Open… and the cog around it.
+  expect(l.el.querySelector("nav")!.contains(l.slots.nav)).toBe(true);
   expect(l.el.querySelector("main")).toBe(l.slots.main);
   const header = l.el.querySelector("header")!;
   expect(header.contains(l.slots.breadcrumb)).toBe(true);
@@ -20,9 +21,28 @@ test("sidebar starts at 260px and toggles", () => {
   expect(l.sidebarVisible()).toBe(true);
   l.toggleSidebar();
   expect(l.sidebarVisible()).toBe(false);
-  expect(l.slots.nav.hidden).toBe(true);
+  expect(l.el.querySelector("nav")!.hidden).toBe(true);
   l.toggleSidebar();
-  expect(l.slots.nav.hidden).toBe(false);
+  expect(l.el.querySelector("nav")!.hidden).toBe(false);
+});
+
+test("Open… sits in the sidebar, not the header; the cog at the bottom reports itself", () => {
+  let opened = 0;
+  let anchor: HTMLButtonElement | null = null;
+  const l = createLayout({ onOpenFolder: () => opened++, onSettings: (a) => { anchor = a; } });
+  const nav = l.el.querySelector("nav")!;
+  const open = nav.querySelector<HTMLButtonElement>(".zen-sidebar-open")!;
+  expect(open.getAttribute("aria-label")).toBe("Open a folder");
+  expect(l.el.querySelector("header")!.querySelector(".zen-sidebar-open")).toBeNull();
+  open.click();
+  expect(opened).toBe(1);
+  const cog = nav.querySelector<HTMLButtonElement>(".zen-sidebar-foot .zen-settings-button")!;
+  expect(cog.getAttribute("aria-label")).toBe("Settings");
+  expect(cog.querySelector("svg")).not.toBeNull();
+  // Order: body (slot), then the footer last.
+  expect(nav.lastElementChild!.classList.contains("zen-sidebar-foot")).toBe(true);
+  cog.click();
+  expect(anchor).toBe(cog);
 });
 
 test("the toggle button toggles the sidebar and reports its state", () => {

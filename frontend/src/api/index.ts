@@ -41,6 +41,11 @@ export interface Api {
    * follows it live; null when the draft is gone (saved, discarded, closed).
    */
   draft(path: string, content: string | null): void;
+  /**
+   * Opens the global config.yml or the folder's .zen.yml in the system text
+   * editor, creating it from a commented template if missing.
+   */
+  openConfig(which: "global" | "workspace"): Promise<void>;
   on(event: "workspace:changed", fn: (w: Workspace) => void): () => void;
   /** Also delivered when another window saved the page ("editor:saved"). */
   on(event: "page:changed", fn: (e: { path: string }) => void): () => void;

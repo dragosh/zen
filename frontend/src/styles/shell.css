@@ -74,7 +74,37 @@
   background: var(--bg-subtle);
   border-right: 1px solid var(--rule);
   overflow: hidden;
+  position: relative;
 }
+.zen-sidebar-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+/* Open… sits in the sidebar header's top-right corner (the header is 44px). */
+.zen-sidebar-open {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+.zen-sidebar-foot {
+  flex: none;
+  display: flex;
+  align-items: center;
+  height: 40px;
+  padding: 0 8px;
+  border-top: 1px solid var(--rule);
+}
+.zen-settings-button {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fg-muted);
+}
+.zen-settings-button:hover, .zen-settings-button[aria-expanded="true"] { color: var(--fg); }
+.zen-icon { display: block; }
 
 /* A 7px grab area centred on the sidebar's 1px border. */
 .zen-resizer {
@@ -153,3 +183,52 @@
   padding: var(--space-7) var(--space-6);
   color: var(--fg-muted);
 }
+
+/* Settings panel: opens upward from the cog at the bottom of the sidebar,
+   floating over the content when it is wider than the sidebar. */
+.zen-settings {
+  position: fixed;
+  left: 8px;
+  bottom: 48px;
+  z-index: 20;
+  width: min(300px, calc(100vw - 32px));
+  padding: var(--space-4);
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--fg) 14%, transparent);
+  font-family: var(--font-ui);
+}
+.zen-settings-title { margin: 0 0 var(--space-3); font: 600 15px var(--font-ui); }
+.zen-settings-label {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.zen-settings-title + .zen-settings-label { margin-top: 0; }
+.zen-settings-segment {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 2px;
+  gap: 2px;
+  background: var(--btn-bg);
+  border-radius: var(--radius);
+}
+.zen-settings-option { background: none; padding: 5px 0; }
+.zen-settings-option[aria-checked="true"] { background: var(--bg); font-weight: 600; box-shadow: 0 0 0 1px var(--rule); }
+.zen-settings-file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+.zen-settings-file + .zen-settings-file { border-top: 1px solid var(--rule); }
+.zen-settings-file-text { display: flex; flex-direction: column; min-width: 0; }
+.zen-settings-file-name { font-family: var(--font-mono); font-size: 12px; }
+.zen-settings-file-hint { color: var(--fg-muted); font-size: 12px; }
+.zen-settings-status { margin: var(--space-2) 0 0; min-height: 1em; color: var(--fg-muted); font-size: 12px; }
+.zen-settings-status:empty { display: none; }

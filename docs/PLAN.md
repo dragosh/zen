@@ -123,6 +123,7 @@ interface Api {
   on(event: "page:changed", fn: (e: { path: string }) => void): () => void;
   on(event: "workspace:opened", fn: (s: Startup) => void): () => void; // Open With, File > Open Folder
   openEditor(path: string): Promise<void>;           // opens/focuses the page's editor window
+  openConfig(which: "global" | "workspace"): Promise<void>; // config.yml / .zen.yml in the text editor
   lint(path: string, content: string): Promise<LintResult>; // Vale; "" content = file on disk
   // page:changed also fires when another window saves (editor:saved)
 }
