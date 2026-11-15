@@ -185,3 +185,45 @@ export function highlight(text: string): Token[] {
   }
   return out.sort((a, b) => a.start - b.start);
 }
+
+/**
+ * YAML for the settings files (config.yml, .zen.yml): keys, comments,
+ * strings, numbers and true/false/null.
+ */
+export function highlightYaml(text: string): Token[] {
+  const out: Token[] = [];
+  let pos = 0;
+  while (pos <= text.length) {
+    let nl = text.indexOf("\n", pos);
+    if (nl < 0) nl = text.length;
+    const raw = text.slice(pos, nl);
+    const line = raw.endsWith("\r") ? raw.slice(0, -1) : raw;
+    const key = /^(\s*(?:-\s+)?)([\w.-]+|"[^"]*"|'[^']*')(\s*:)(?=\s|$)/.exec(line);
+    let at = 0;
+    if (key) {
+      out.push({ start: pos + key[1].length, end: pos + key[1].length + key[2].length, cls: "tok-f" });
+      at = key[0].length;
+    } else if (/^\s*-\s/.test(line)) {
+      at = line.indexOf("-") + 1;
+    }
+    const rest: Token[] = [];
+    codeLine(line.slice(at), pos + at, "yaml", false, rest);
+    for (const t of rest) {
+      // codeLine colours keywords for code; in YAML only true/false/null/~ are literals.
+      if (t.cls === "tok-k" || t.cls === "tok-f") {
+        const word = text.slice(t.start, t.end);
+        if (/^(true|false|null|yes|no|on|off)$/i.test(word)) out.push({ ...t, cls: "tok-k" });
+        continue;
+      }
+      out.push(t);
+    }
+    const bare = /^(\s*)(true|false|null|~)\s*(#.*)?$/i.exec(line.slice(at));
+    if (bare && !rest.some((t) => t.cls === "tok-k")) {
+      const s0 = pos + at + bare[1].length;
+      out.push({ start: s0, end: s0 + bare[2].length, cls: "tok-k" });
+    }
+    if (nl >= text.length) break;
+    pos = nl + 1;
+  }
+  return out.sort((a, b) => a.start - b.start);
+}

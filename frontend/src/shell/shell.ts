@@ -26,6 +26,12 @@ export function windowKind(search: string): WindowKind {
   return q.get("window") === "editor" && path ? { kind: "editor", path } : { kind: "main" };
 }
 
+/** Editor-window titles for the settings files (see editor CONFIG_PREFIX). */
+const CONFIG_TITLES: Record<string, string> = {
+  "zen:config/global": "config.yml — settings for all folders",
+  "zen:config/workspace": ".zen.yml — settings for this folder",
+};
+
 function findTitle(nodes: NavNode[], path: string): string {
   for (const n of nodes) {
     if (n.kind === "page" && n.path === path) return n.title;
@@ -148,7 +154,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   }
 
   function titleEditor(workspace: Workspace, path: string): void {
-    const title = findTitle(workspace.tree, path) || path.split("/").pop() || path;
+    const title = CONFIG_TITLES[path] || findTitle(workspace.tree, path) || path.split("/").pop() || path;
     if (editorTitle) editorTitle.textContent = title;
     doc.title = `${title} — Edit — zen`;
   }

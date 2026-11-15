@@ -108,13 +108,23 @@ func (z *Zen) openPath(path string) (Startup, error) {
 func (z *Zen) Page(path string) (Page, error) { return z.state.page(path) }
 
 // Source returns the markdown of a page.
-func (z *Zen) Source(path string) (string, error) { return z.state.source(path) }
+func (z *Zen) Source(path string) (string, error) {
+	if which, ok := configWhich(path); ok {
+		return z.configSource(which)
+	}
+	return z.state.source(path)
+}
 
 // Preview renders unsaved text as if it were path.
 func (z *Zen) Preview(path, content string) (Page, error) { return z.state.preview(path, content) }
 
 // Save writes a page.
-func (z *Zen) Save(path, content string) error { return z.state.save(path, content) }
+func (z *Zen) Save(path, content string) error {
+	if which, ok := configWhich(path); ok {
+		return z.saveConfig(which, content)
+	}
+	return z.state.save(path, content)
+}
 
 // OpenExternal asks, then opens an http, https or mailto URL in the browser.
 func (z *Zen) OpenExternal(rawURL string) bool {
@@ -140,5 +150,8 @@ func (z *Zen) OpenExternal(rawURL string) bool {
 // Lint returns Vale's alerts for a page: content, or the file on disk when
 // content is "". Unavailable without vale or with `lint: false` (ui/lint).
 func (z *Zen) Lint(path, content string) (LintResult, error) {
+	if _, ok := configWhich(path); ok {
+		return lintOff(), nil // settings files are not prose
+	}
 	return z.state.lint(currentLinter(), path, content)
 }

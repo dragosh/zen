@@ -1,6 +1,6 @@
 // The settings panel, opened from the cog at the bottom of the sidebar:
-// theme (this machine, all windows) and the two config files, opened in the
-// system text editor through Go. All text through textContent.
+// theme (this machine, all windows) and the two config files, opened in
+// zen's own editor window. All text through textContent.
 import type { Api } from "../api";
 import { button, el } from "./dom";
 import { setTheme, storedTheme, type Theme } from "./theme";
@@ -86,7 +86,8 @@ export function createSettings(opts: { api: Api; anchor: HTMLButtonElement; hasW
     status.textContent = "";
     try {
       await api.openConfig(which);
-      status.textContent = `${name} opened in your text editor.`;
+      status.textContent = `${name} opened in the editor.`;
+      close();
     } catch (err) {
       status.textContent = `Could not open ${name}: ${err instanceof Error ? err.message : String(err)}`;
     }

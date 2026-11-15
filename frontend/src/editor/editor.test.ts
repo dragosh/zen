@@ -485,3 +485,36 @@ describe("editor: lint", () => {
     expect(mirror().querySelector("mark")).toBeNull();
   });
 });
+
+describe("editor: settings files", () => {
+  it("edits YAML: no toolbar, no Vale, no draft, YAML colours; saves through the API", async () => {
+    const api = createFakeApi({
+      sources: { "zen:config/global": "version: 1\nplugins:\n  lint: false\n" },
+      lint: { available: true, alerts: [{ line: 1, col: 1, endCol: 7, severity: "error", check: "X", message: "m", match: "version", description: "", link: "" }] },
+    });
+    const store = createStore({ path: "zen:config/global", mode: "edit" });
+    const slots: Slots = {
+      nav: document.createElement("nav"), breadcrumb: document.createElement("div"),
+      actions: document.createElement("div"), main: document.createElement("main"),
+    };
+    document.body.append(slots.actions, slots.main);
+    const unmount = editorFeature.mount(slots, { api, store, navigate: () => {} });
+    for (let i = 0; i < 5; i++) await tick();
+    const ta = slots.main.querySelector("textarea")!;
+    s = { api, store, slots, ta, unmount };
+
+    expect(ta.value).toBe("version: 1\nplugins:\n  lint: false\n");
+    expect(slots.main.querySelector<HTMLElement>("[role=toolbar]")!.hidden).toBe(true);
+    expect(api.callsTo("lint")).toEqual([]);
+    const mirror = slots.main.querySelector(".zen-lint-mirror")!;
+    expect(Array.from(mirror.querySelectorAll(".tok-f")).map((n) => n.textContent)).toEqual(["version", "plugins", "lint"]);
+    expect(mirror.querySelector(".md-heading, mark")).toBeNull();
+
+    type(ta, "version: 1\n");
+    await wait(200);
+    expect(api.broadcasts.filter((b) => b.event === "editor:draft")).toEqual([]);
+    key(ta, "s", { metaKey: true });
+    await tick();
+    expect(api.callsTo("save")).toEqual([["zen:config/global", "version: 1\n"]]);
+  });
+});

@@ -1,0 +1,115 @@
+package app
+
+import (
+	"path/filepath"
+	"runtime"
+	"strings"
+	"testing"
+
+	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zen/internal/plugins/diagram"
+	"github.com/dragosh/zen/internal/plugins/highlight"
+)
+
+// TestDemoFolder opens examples/demo the way the app does and checks that it
+// documents what it claims: every page renders without warnings, the sidebar
+// has the shape the guide describes, and the only broken link is the
+// deliberate one in reading/navigation.md.
+func TestDemoFolder(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	demo := filepath.Join(filepath.Dir(file), "..", "..", "examples", "demo")
+	reg := plugins.NewRegistry()
+	for _, p := range []plugins.Plugin{highlight.New(), diagram.New()} {
+		if err := reg.Register(p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	z, err := newZen(zenOptions{Registry: reg, Dir: demo, Events: &sink{}, Dialogs: &fakeDialogs{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(z.close)
+
+	st := z.Startup()
+	if st.Page != "README.md" {
+		t.Fatalf("home = %q", st.Page)
+	}
+	tree := st.Workspace.Tree
+	var top []string
+	for _, n := range tree {
+		top = append(top, n.Title)
+	}
+	if len(tree) < 2 || tree[0].Path != "README.md" || tree[len(tree)-1].Title != "Other pages" {
+		t.Fatalf("top level = %v", top)
+	}
+	var all []string
+	var walk func([]NavNode)
+	walk = func(ns []NavNode) {
+		for _, n := range ns {
+			if n.Kind == "page" {
+				all = append(all, n.Path)
+			}
+			walk(n.Children)
+		}
+	}
+	walk(tree)
+	joined := strings.Join(all, " ")
+	if strings.Contains(joined, "notes/hidden.md") {
+		t.Error("hidden page shown in the sidebar")
+	}
+	if !strings.Contains(joined, "notes/scratch.md") {
+		t.Error("unlinked page missing from Other pages")
+	}
+	// README links the start of each section, in reading order; sections nest.
+	paths := func(ns []NavNode) []string {
+		var out []string
+		for _, n := range ns {
+			out = append(out, n.Path)
+		}
+		return out
+	}
+	want := []string{
+		"getting-started/install.md", "getting-started/opening-folders.md", "reading/navigation.md",
+		"reading/frontmatter.md", "editing/editor.md", "editing/linting.md",
+		"plugins/index.md", "configuration/settings.md", "reference/shortcuts.md", "reference/markdown.md",
+	}
+	if got := paths(tree[0].Children); strings.Join(got, ",") != strings.Join(want, ",") {
+		t.Errorf("README children = %v", got)
+	}
+	for _, n := range tree[0].Children {
+		if n.Path == "plugins/index.md" && strings.Join(paths(n.Children), ",") != "plugins/highlight.md,plugins/diagram.md,plugins/directives.md" {
+			t.Errorf("Plugins children = %v", paths(n.Children))
+		}
+		if n.Path == "configuration/settings.md" && strings.Join(paths(n.Children), ",") != "configuration/reference.md" {
+			t.Errorf("Settings children = %v", paths(n.Children))
+		}
+	}
+
+	files, _ := z.state.ws.Files()
+	for _, p := range files {
+		pg, err := z.Page(p)
+		if err != nil {
+			t.Errorf("%s: %v", p, err)
+			continue
+		}
+		if len(pg.Warnings) > 0 {
+			t.Errorf("%s: warnings %v", p, pg.Warnings)
+		}
+		broken := strings.Count(pg.HTML, `data-zen-link="broken"`)
+		if want := map[bool]int{true: 1, false: 0}[p == "reading/navigation.md"]; broken != want {
+			t.Errorf("%s: %d broken links, want %d", p, broken, want)
+		}
+	}
+	// The slug link on the navigation page resolves to the install page.
+	nav, _ := z.Page("reading/navigation.md")
+	if !strings.Contains(nav.HTML, `data-path="getting-started/install.md"`) {
+		t.Error("slug link [A slug](install) not resolved")
+	}
+	// Plugins actually ran on their pages.
+	if hl, _ := z.Page("plugins/highlight.md"); !strings.Contains(hl.HTML, `class="chroma"`) {
+		t.Error("highlight did not colour plugins/highlight.md")
+	}
+	if dg, _ := z.Page("plugins/diagram.md"); strings.Count(dg.HTML, `class="zen-diagram"`) != 3 {
+		t.Error("diagram page should have three diagrams")
+	}
+}

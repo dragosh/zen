@@ -434,6 +434,29 @@ func (s *state) handle(evs []watch.Event) {
 	}
 }
 
+// reloadConfig re-reads the config files after one was saved in the editor
+// and re-renders: the tree may change (plugins) and the page always may.
+func (s *state) reloadConfig() {
+	s.mu.Lock()
+	if s.ws == nil {
+		s.mu.Unlock()
+		return
+	}
+	changed := s.rebuildLocked()
+	var ws *Workspace
+	if changed {
+		ws = s.workspaceLocked()
+	}
+	current := s.current
+	s.mu.Unlock()
+	if ws != nil {
+		s.events.Emit(EventWorkspaceChanged, ws)
+	}
+	if current != "" {
+		s.events.Emit(EventPageChanged, PageChanged{Path: current})
+	}
+}
+
 func isMarkdownPath(p string) bool {
 	switch strings.ToLower(filepath.Ext(p)) {
 	case ".md", ".markdown":

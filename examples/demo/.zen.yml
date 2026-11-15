@@ -1,0 +1,8 @@
+# Settings for this folder; they override the global config.yml and are
+# overridden by a page's frontmatter. Open from the cog > .zen.yml.
+version: 1
+
+plugins:
+  highlight: true
+  diagram: { theme: neutral }
+  lint: true

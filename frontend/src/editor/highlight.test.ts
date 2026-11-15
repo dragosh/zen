@@ -68,3 +68,16 @@ test("handles CRLF and a large document quickly", () => {
   highlight(big);
   expect(performance.now() - start).toBeLessThan(1000);
 });
+
+test("YAML: keys, comments, strings, numbers, booleans", async () => {
+  const { highlightYaml } = await import("./highlight");
+  const t = "version: 1\n# a comment\nplugins:\n  lint: false\n  diagram: { theme: \"neutral\" }\nlimits:\n  files: 5000 # max\n";
+  const toks = highlightYaml(t);
+  const got = (cls: string) => toks.filter((x) => x.cls === cls).map((x) => t.slice(x.start, x.end));
+  expect(got("tok-f")).toEqual(["version", "plugins", "lint", "diagram", "limits", "files"]);
+  expect(got("tok-c")).toEqual(["# a comment", "# max"]);
+  expect(got("tok-s")).toEqual(['"neutral"']);
+  expect(got("tok-m")).toEqual(["1", "5000"]);
+  expect(got("tok-k")).toEqual(["false"]);
+  for (let i = 1; i < toks.length; i++) expect(toks[i].start).toBeGreaterThanOrEqual(toks[i - 1].end);
+});

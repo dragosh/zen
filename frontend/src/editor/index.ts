@@ -7,7 +7,7 @@ import { backdrop, renderConsole } from "../lint";
 import { button, el } from "../shell/dom";
 import type { Feature } from "../shell/types";
 import { commands, continueList, indent, outdent, type CommandName, type Edit } from "./commands";
-import { highlight } from "./highlight";
+import { highlight, highlightYaml } from "./highlight";
 import { createToolbar, TOOLS } from "./toolbar";
 
 export { commands, continueList } from "./commands";
@@ -17,6 +17,10 @@ export type { Edit } from "./commands";
 export const LINT_DELAY = 600;
 /** Share the unsaved text with the main window this long after typing stops. */
 export const DRAFT_DELAY = 150;
+
+/** The settings files open in the editor as "pages" zen:config/global and zen:config/workspace. */
+export const CONFIG_PREFIX = "zen:config/";
+export const isConfigPath = (p: string) => p.startsWith(CONFIG_PREFIX);
 
 /**
  * Applies `next` to the textarea as one edit through execCommand("insertText"),
@@ -125,8 +129,16 @@ export const editorFeature: Feature = {
     ta.setAttribute("aria-label", "Markdown source");
     ta.wrap = "soft";
     // ui/lint: squiggles on a mirror behind the textarea, problems console below.
+    // Settings files are YAML: no markdown toolbar, no Vale, no live preview.
+    const config = isConfigPath(current);
+    if (config) {
+      toolbar.hidden = true;
+      ta.spellcheck = false;
+      ta.setAttribute("aria-label", "Settings (YAML)");
+      root.classList.add("is-config");
+    }
     // The mirror also draws syntax highlighting and line numbers.
-    const lintView = backdrop(ta, { highlight, lineNumbers: true });
+    const lintView = backdrop(ta, { highlight: config ? highlightYaml : highlight, lineNumbers: true });
     const problems = renderConsole({
       onSelect: (_a: Alert, i: number) => lintView.select(i),
       onLink: (url) => void api.openExternal(url).catch(() => undefined),
@@ -152,6 +164,7 @@ export const editorFeature: Feature = {
     let draftTimer: ReturnType<typeof setTimeout> | undefined;
     let draftShared = false;
     function shareDraft(): void {
+      if (config) return;
       clearTimeout(draftTimer);
       draftTimer = setTimeout(() => {
         if (ta.value === saved) dropDraft();
@@ -178,6 +191,7 @@ export const editorFeature: Feature = {
     /** Lints the current text now; only the latest request's answer is drawn. */
     async function lintNow(): Promise<void> {
       clearTimeout(lintTimer);
+      if (config) return;
       const mine = ++lintSeq;
       const path = current;
       const text = ta.value;

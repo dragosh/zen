@@ -1,0 +1,12 @@
+(?i)zen
+Wails
+(?i)frontmatter
+Vale
+(?i)mermaid
+(?i)slugs?
+(?i)breadcrumbs?
+README
+Fibonacci
+(?i)linter
+(?i)outdent
+(?i)autolinks?

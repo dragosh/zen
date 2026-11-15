@@ -29,3 +29,12 @@ zen [file ...]     # open files in the app
 zen --version
 zen --help
 ```
+
+## Try it
+
+`examples/demo` is a user guide written as a zen folder: it documents and
+shows every feature. Build the app, then:
+
+```bash
+cd examples/demo && zen
+```
