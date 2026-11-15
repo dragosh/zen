@@ -4,6 +4,8 @@ package app
 
 import (
 	"io/fs"
+	"os"
+	"path/filepath"
 	"sync/atomic"
 	"time"
 
@@ -97,6 +99,24 @@ func (d *wailsDialogs) Confirm(message string) bool {
 	return <-answer
 }
 
+// launchArg reports whether an "open file" event only repeats one of the
+// process's own arguments, or is not an absolute path (Finder and `open -a`
+// always send absolute paths).
+func launchArg(path string, args []string) bool {
+	if !filepath.IsAbs(path) {
+		return true
+	}
+	for _, a := range args {
+		if a == path {
+			return true
+		}
+		if abs, err := filepath.Abs(a); err == nil && abs == path {
+			return true
+		}
+	}
+	return false
+}
+
 // Run starts the GUI and blocks until the application exits.
 func Run(opts Options) error {
 	reg := plugins.NewRegistry()
@@ -170,6 +190,12 @@ func Run(opts Options) error {
 	// frontend asked for Startup, the frontend simply starts in that workspace.
 	a.Event.OnApplicationEvent(events.Common.ApplicationOpenedWithFile, func(e *application.ApplicationEvent) {
 		path := e.Context().Filename()
+		// macOS also reports the process's own command-line arguments as
+		// "open file" events (`zen edit a.md` -> "edit", "a.md"). Those are
+		// already handled by the CLI; reopening them closed the workspace.
+		if launchArg(path, os.Args[1:]) {
+			return
+		}
 		go func() {
 			if !windows.closeEditorsWait() {
 				return // an editor kept its unsaved changes
