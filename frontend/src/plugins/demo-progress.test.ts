@@ -2,11 +2,14 @@
 // The demo folder's frontend-only plugin (examples/demo/.zen/plugins/progress),
 // loaded as the app loads it: a plain script that calls zen.register.
 import { existsSync, readFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, expect, test } from "vitest";
 import { createFakeApi, type FakeApi } from "../api/fake";
 import { installRuntime } from "./runtime";
 
-const DIR = new URL("../../../examples/demo/.zen/plugins/progress/", import.meta.url);
+const DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../examples/demo/.zen/plugins/progress");
+const file = (name: string) => join(DIR, name);
 
 let api: FakeApi;
 let rt: ReturnType<typeof installRuntime>;
@@ -48,15 +51,15 @@ const settle = async () => { for (let i = 0; i < 5; i++) await new Promise((r) =
 const tick = (box: HTMLInputElement) => { box.click(); };
 
 test("the plugin folder is a frontend-only plugin", () => {
-  const yml = readFileSync(new URL("plugin.yml", DIR), "utf8");
+  const yml = readFileSync(file("plugin.yml"), "utf8");
   expect(yml).toMatch(/^id: progress$/m);
   expect(yml).toMatch(/^apiVersion: 1$/m);
   expect(yml).toMatch(/^blocks: \[progress\]$/m);
   expect(yml).toMatch(/js: \[progress\.js\]/);
   expect(yml).toMatch(/css: \[progress\.css\]/);
   expect(yml).not.toMatch(/^backend:/m);
-  expect(existsSync(new URL("progress.css", DIR))).toBe(true);
-  const css = readFileSync(new URL("progress.css", DIR), "utf8");
+  expect(existsSync(file("progress.css"))).toBe(true);
+  const css = readFileSync(file("progress.css"), "utf8");
   expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgb\(|hsl\(/i); // the app's tokens only
 });
 

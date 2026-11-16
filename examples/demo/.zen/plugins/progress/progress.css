@@ -1,0 +1,15 @@
+/* .zen/plugins/progress/progress.css — uses zen's own colour and spacing tokens. */
+[data-zen-plugin="progress"] {
+  margin: 0 0 1em;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+}
+[data-zen-plugin="progress"] ul { margin-bottom: var(--space-2); }
+[data-zen-plugin="progress"] li:has(> input:checked) { color: var(--fg-muted); }
+[data-zen-plugin="progress"] input[type="checkbox"]:not(:disabled) { cursor: pointer; }
+.progress-count {
+  margin: 0;
+  color: var(--fg-muted);
+  font: 13px/1.5 var(--font-ui);
+}

@@ -85,7 +85,7 @@ test("anchor on another page scrolls after mount", async () => {
 
 test("latest request wins", async () => {
   const resolvers: Record<string, (p: Page) => void> = {};
-  const base = (path: string): Page => ({ path, title: path, html: `<h1>${path}</h1>`, frontmatter: {}, breadcrumb: [], assets: { css: [], js: [] }, warnings: [] });
+  const base = (path: string): Page => ({ path, title: path, html: `<h1>${path}</h1>`, frontmatter: {}, breadcrumb: [], assets: { css: [], js: [] }, warnings: [], layout: "" });
   env.api.page = (path) => new Promise((r) => { resolvers[path] = r; });
   env.ctx.store.set({ path: "README.md" });
   mount();

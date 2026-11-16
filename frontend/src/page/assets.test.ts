@@ -7,7 +7,7 @@ import type { Page } from "../api";
 beforeEach(() => document.head.replaceChildren());
 
 const page = (assets: Page["assets"]): Page => ({
-  path: "a.md", title: "A", html: "<h1>A</h1>", frontmatter: {}, breadcrumb: [], assets, warnings: [],
+  path: "a.md", title: "A", html: "<h1>A</h1>", frontmatter: {}, breadcrumb: [], assets, warnings: [], layout: "",
 });
 
 test("assets are loaded once per URL, only from /_plugins/", () => {

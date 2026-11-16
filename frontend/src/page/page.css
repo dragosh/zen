@@ -58,6 +58,8 @@
   overflow-wrap: break-word;
 }
 .zen-page[hidden] { display: none; }
+/* A layout page (frontmatter `layout:`): the plugin controls the whole pane. */
+.zen-page[data-layout] { max-width: none; padding: 0; box-sizing: border-box; }
 .zen-page > :first-child { margin-top: 0; }
 
 .zen-page h1, .zen-page h2, .zen-page h3, .zen-page h4, .zen-page h5, .zen-page h6 {

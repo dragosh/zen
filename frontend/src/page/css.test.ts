@@ -18,3 +18,9 @@ test("every element the renderer emits has a rule", () => {
 test("only tokens, no new colours", () => {
   expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgb\(|hsl\(/i);
 });
+
+test("a layout page drops the reading column (ui/plugins)", () => {
+  const rule = css.match(/\.zen-page\[data-layout\]\s*\{([^}]*)\}/);
+  expect(rule?.[1]).toMatch(/max-width:\s*none/);
+  expect(rule?.[1]).toMatch(/padding:\s*0/);
+});

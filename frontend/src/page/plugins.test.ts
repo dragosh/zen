@@ -1,5 +1,4 @@
 // @vitest-environment happy-dom
-import { readFileSync } from "node:fs";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createFakeApi, type FakeApi } from "../api/fake";
 import type { PluginCtx } from "../plugins/runtime";
@@ -132,13 +131,6 @@ test("mountPage ignores a layout name that is not a plain name", () => {
   expect(el.className).toBe("zen-page zen-layout-course");
   mountPage(el, { ...page, layout: "slides" });
   expect(el.className).toBe("zen-page zen-layout-slides");
-});
-
-test("page.css drops the reading column for layout pages", () => {
-  const css = readFileSync(new URL("./page.css", import.meta.url), "utf8");
-  const rule = css.match(/\.zen-page\[data-layout\]\s*\{([^}]*)\}/);
-  expect(rule?.[1]).toMatch(/max-width:\s*none/);
-  expect(rule?.[1]).toMatch(/padding:\s*0/);
 });
 
 test("a page without plugin blocks logs no errors", async () => {
