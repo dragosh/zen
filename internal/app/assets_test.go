@@ -3,6 +3,8 @@ package app
 import (
 	"io/fs"
 	"net/http"
+	"os"
+	"path/filepath"
 	"net/http/httptest"
 	"strings"
 	"testing"
@@ -82,5 +84,71 @@ func TestAssetMiddleware(t *testing.T) {
 	z2.state.middleware(http.FileServerFS(frontend)).ServeHTTP(rec, httptest.NewRequest("GET", "/_ws/img/a.png", nil))
 	if rec.Code != 404 {
 		t.Fatalf("no workspace: %d", rec.Code)
+	}
+}
+
+// External plugins serve only the files their manifest lists, and only once
+// the plugin is allowed.
+func TestExternalPluginAssets(t *testing.T) {
+	dir := pluginTree(t, pluginDocs())
+	cfg := t.TempDir()
+	frontend := fstest.MapFS{"index.html": {Data: []byte("<html>app</html>")}}
+	get := func(z *Zen, path string) *httptest.ResponseRecorder {
+		rec := httptest.NewRecorder()
+		z.state.middleware(http.FileServerFS(frontend)).ServeHTTP(rec, httptest.NewRequest("GET", path, nil))
+		return rec
+	}
+
+	blocked, _, _ := openWith(t, dir, cfg, false)
+	if r := get(blocked, "/_plugins/hello/hello.js"); r.Code == 200 {
+		t.Fatal("asset of a plugin that is not allowed was served")
+	}
+	if err := blocked.PluginTrust("hello", true); err != nil {
+		t.Fatal(err)
+	}
+
+	z, _, _ := openWith(t, dir, cfg, false)
+	r := get(z, "/_plugins/hello/hello.js")
+	if r.Code != 200 || !strings.Contains(r.Body.String(), "zen.register") || !strings.HasPrefix(r.Header().Get("Content-Type"), "text/javascript") || r.Header().Get("X-Content-Type-Options") != "nosniff" {
+		t.Fatalf("js: %d %v %q", r.Code, r.Header(), r.Body.String())
+	}
+	r = get(z, "/_plugins/hello/hello.css")
+	if r.Code != 200 || !strings.HasPrefix(r.Header().Get("Content-Type"), "text/css") {
+		t.Fatalf("css: %d %v", r.Code, r.Header())
+	}
+	for _, bad := range []string{
+		"/_plugins/hello/secret.txt", "/_plugins/hello/plugin.yml", "/_plugins/hello/hello.sh", "/_plugins/hello/lib/more.js",
+		"/_plugins/hello/", "/_plugins/hello", "/_plugins/hello/../hello/hello.js", "/_plugins/hello/..%2f..%2f..%2fREADME.md",
+		"/_plugins/hello/%2e%2e/%2e%2e/%2e%2e/README.md", "/_plugins/hello//etc/hosts", "/_plugins/hello/./hello.js",
+		"/_plugins/hello/HELLO.JS/", "/_plugins/nope/hello.js", "/_plugins/../README.md",
+	} {
+		if r := get(z, bad); r.Code == 200 {
+			t.Errorf("%s served: %q", bad, r.Body.String())
+		}
+	}
+	// A listed file replaced by a link out of the plugin folder is not served
+	// (and the plugin needs approval again when the folder is reopened).
+	js := filepath.Join(dir, ".zen", "plugins", "hello", "hello.js")
+	if err := os.Remove(js); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(dir, "README.md"), js); err != nil {
+		t.Fatal(err)
+	}
+	if r := get(z, "/_plugins/hello/hello.js"); r.Code == 200 {
+		t.Errorf("symlink out of the plugin folder served: %q", r.Body.String())
+	}
+	// Built-in assets still work next to external ones.
+	reg := plugins.NewRegistry()
+	if err := reg.Register(assetPlugin{}); err != nil {
+		t.Fatal(err)
+	}
+	zb, err := newZen(zenOptions{Registry: reg, ConfigDir: cfg, Dir: tree(t, docs), Events: &sink{}, Dialogs: &fakeDialogs{}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer zb.close()
+	if r := get(zb, "/_plugins/demo/demo.js"); r.Code != 200 {
+		t.Errorf("built-in asset: %d", r.Code)
 	}
 }

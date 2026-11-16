@@ -24,11 +24,23 @@ func TestDemoFolder(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	z, err := newZen(zenOptions{Registry: reg, Dir: demo, Events: &sink{}, Dialogs: &fakeDialogs{}})
+	// The demo ships external plugins (.zen/plugins): allow them through the
+	// trust prompt, with a private settings folder.
+	dialogs := &fakeDialogs{confirm: true}
+	z, err := newZen(zenOptions{Registry: reg, ConfigDir: t.TempDir(), Dir: demo, Events: &sink{}, Dialogs: dialogs})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(z.close)
+	if len(dialogs.asked) != 1 || !strings.Contains(dialogs.asked[0], "note") || !strings.Contains(dialogs.asked[0], "./note.sh") ||
+		!strings.Contains(dialogs.asked[0], "calc") || !strings.Contains(dialogs.asked[0], "bc -l") {
+		t.Fatalf("trust prompt: %q", dialogs.asked)
+	}
+	for _, id := range []string{"note", "calc"} {
+		if got := infoOf(t, z, id); got.Status != "on" || got.Source != "folder" {
+			t.Errorf("demo plugin %s: %+v", id, got)
+		}
+	}
 
 	st := z.Startup()
 	if st.Page != "README.md" {
@@ -111,5 +123,25 @@ func TestDemoFolder(t *testing.T) {
 	}
 	if dg, _ := z.Page("plugins/diagram.md"); strings.Count(dg.HTML, `class="zen-diagram"`) != 3 {
 		t.Error("diagram page should have three diagrams")
+	}
+	// The external demo plugins: :::note on the directives page goes through
+	// note.sh; calc pipes a fence through bc.
+	dir, _ := z.Page("plugins/directives.md")
+	if !strings.Contains(dir.HTML, `data-zen-plugin="note" data-zen-name="note"`) || !strings.Contains(dir.HTML, `<div class="note"><strong>Remember</strong>`) {
+		t.Errorf("note plugin did not render the container: %s", dir.HTML)
+	}
+	if strings.Join(dir.Assets.CSS, ",") != "/_plugins/note/note.css" {
+		t.Errorf("note assets: %+v", dir.Assets)
+	}
+	warn, err := z.Preview("plugins/directives.md", ":::warning
+Mind the <gap> & co.
+:::
+")
+	if err != nil || !strings.Contains(warn.HTML, `<div class="warning"><strong>Warning</strong>`) || !strings.Contains(warn.HTML, "Mind the &lt;gap&gt; &amp; co.") {
+		t.Errorf("warning block: %v %s", err, warn.HTML)
+	}
+	calc, err := z.Preview("plugins/directives.md", "```calc\n2 + 3 * 4\n```\n")
+	if err != nil || !strings.Contains(calc.HTML, `<pre class="zen-plugin-output">14`) || len(calc.Warnings) != 0 {
+		t.Errorf("calc block: %v %v %s", err, calc.Warnings, calc.HTML)
 	}
 }
