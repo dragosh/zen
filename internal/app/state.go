@@ -10,6 +10,7 @@ import (
 	"sync"
 
 	"github.com/dragosh/zen/internal/core/config"
+	"github.com/dragosh/zen/internal/core/extplugins"
 	"github.com/dragosh/zen/internal/core/index"
 	"github.com/dragosh/zen/internal/core/plugins"
 	"github.com/dragosh/zen/internal/core/render"
@@ -55,6 +56,7 @@ type PageAssets struct {
 }
 
 type Page struct {
+	Layout      string         `json:"layout"` // layout plugin of the page, "" when none
 	Path        string         `json:"path"`
 	Title       string         `json:"title"`
 	HTML        string         `json:"html"`
@@ -80,9 +82,14 @@ var errNoWorkspace = errors.New("no folder is open")
 // state holds the open workspace and everything derived from it. All fields
 // below mu are swapped together.
 type state struct {
-	reg        *plugins.Registry
+	base       *plugins.Registry // built-in plugins
+	reg        *plugins.Registry // base plus the allowed plugins of the open folder (guarded by mu)
 	globalPath string
+	configDir  string // settings folder: user plugins, trust, plugin data; "" for none
 	events     EventSink
+	dialogs    Dialogs
+	trust      *extplugins.Trust
+	ext        *extState // guarded by mu
 
 	mu      sync.Mutex
 	ws      *workspace.Workspace
@@ -102,7 +109,7 @@ func newState(reg *plugins.Registry, globalPath string, events EventSink) *state
 	if reg == nil {
 		reg = plugins.NewRegistry()
 	}
-	return &state{reg: reg, globalPath: globalPath, events: events}
+	return &state{base: reg, reg: reg, globalPath: globalPath, events: events, trust: extplugins.LoadTrust("")}
 }
 
 // open replaces the workspace with dir ("" closes it) and starts watching.
@@ -116,6 +123,11 @@ func (s *state) open(dir string) error {
 			return err
 		}
 	}
+	root := ""
+	if ws != nil {
+		root = ws.Root()
+	}
+	ext := s.loadExternal(root, true) // may ask the user; no lock is held
 	s.watchMu.Lock()
 	defer s.watchMu.Unlock()
 	if s.w != nil {
@@ -124,6 +136,7 @@ func (s *state) open(dir string) error {
 	}
 	s.mu.Lock()
 	s.ws, s.current, s.idx = ws, "", nil
+	s.ext, s.reg = ext, ext.reg
 	s.rebuildLocked()
 	s.mu.Unlock()
 	if ws == nil {
@@ -213,12 +226,7 @@ func (s *state) reindexLocked() bool {
 		}
 		return out
 	}
-	titles := func(p string) string {
-		if pg, err := s.r.Render(p, read(p)); err == nil && pg.Title != "" {
-			return pg.Title
-		}
-		return strings.TrimSuffix(filepath.Base(p), filepath.Ext(p))
-	}
+	titles := func(p string) string { return s.r.Title(p, read(p)) }
 	idx := index.BuildWithMeta(files, s.ws.Home(), links, titles, meta)
 	changed := s.idx == nil || !s.idx.Equal(idx)
 	s.idx = idx
@@ -322,7 +330,7 @@ func (s *state) renderLocked(path string, src []byte) (Page, error) {
 		return Page{}, s.cleanErr(path, err)
 	}
 	p := Page{
-		Path: path, Title: rp.Title, HTML: rp.HTML,
+		Path: path, Title: rp.Title, HTML: rp.HTML, Layout: rp.Layout,
 		Frontmatter: rp.Frontmatter, Breadcrumb: []Crumb{},
 		Assets:   PageAssets{CSS: rp.Assets.CSS, JS: rp.Assets.JS},
 		Warnings: rp.Warnings,
@@ -338,6 +346,9 @@ func (s *state) renderLocked(path string, src []byte) (Page, error) {
 	}
 	if p.Assets.JS == nil {
 		p.Assets.JS = []string{}
+	}
+	if s.ext != nil {
+		p.Warnings = append(p.Warnings, s.ext.warns...)
 	}
 	_, _, navWarn := index.ParseMeta(p.Frontmatter)
 	p.Warnings = append(p.Warnings, navWarn...)

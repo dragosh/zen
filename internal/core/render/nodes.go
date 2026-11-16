@@ -37,6 +37,9 @@ func (n *nodeRenderer) fenced(w util.BufWriter, src []byte, node ast.Node, enter
 		body.Write(seg.Value(src))
 	}
 	lang := string(fb.Language(src))
+	if id := n.st.set.Denied("block", lang); lang != "" && id != "" && n.st.set.Block(lang) == nil {
+		n.st.deny(id)
+	}
 	if p := n.st.set.Block(lang); lang != "" && p != nil {
 		attrs := map[string]string{}
 		info := strings.TrimSpace(string(fb.Info.Segment.Value(src)))

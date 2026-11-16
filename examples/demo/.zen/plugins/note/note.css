@@ -1,0 +1,15 @@
+/* .zen/plugins/note/note.css — uses zen's own colour and spacing tokens. */
+[data-zen-plugin="note"] {
+  margin: 0 0 1em;
+}
+[data-zen-plugin="note"] .note,
+[data-zen-plugin="note"] .warning {
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-subtle);
+  border: 1px solid var(--rule);
+  border-left: 4px solid var(--fg-muted);
+  border-radius: var(--radius);
+  white-space: pre-wrap;
+}
+[data-zen-plugin="note"] .warning { border-left-color: var(--fg); }
+[data-zen-plugin="note"] strong { display: block; margin-bottom: var(--space-1); }

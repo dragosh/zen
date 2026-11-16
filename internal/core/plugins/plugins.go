@@ -20,6 +20,7 @@ type Manifest struct {
 	Default     bool              // enabled when no config mentions it
 	Blocks      []string          // block names it owns: "mermaid", "diagram"
 	Inlines     []string          // inline names it owns
+	Layouts     []string          // page layouts it owns (frontmatter `layout:`)
 	Allow       []AllowRule       // extra sanitiser rules: element + attributes
 	Config      map[string]Option // option name -> type, default, description
 }
@@ -40,6 +41,48 @@ type AllowRule struct {
 // Assets lists CSS and JS files. In AssetProvider.Entry the entries are paths
 // inside the plugin's fs.FS; in Set.Assets they are URLs.
 type Assets struct{ CSS, JS []string }
+
+// hasHook is implemented by plugins that declare which hooks they really
+// provide (external plugins). A plugin without it provides every hook whose
+// method it has.
+type hasHook interface{ HasHook(name string) bool }
+
+func declares(p Plugin, hook string) bool {
+	if h, ok := p.(hasHook); ok {
+		return h.HasHook(hook)
+	}
+	return true
+}
+
+// BlockHookOf returns p's block hook when it has one and declares it.
+func BlockHookOf(p Plugin) (BlockHook, bool) {
+	h, ok := p.(BlockHook)
+	return h, ok && declares(p, "block")
+}
+
+// InlineHookOf returns p's inline hook when it has one and declares it.
+func InlineHookOf(p Plugin) (InlineHook, bool) {
+	h, ok := p.(InlineHook)
+	return h, ok && declares(p, "inline")
+}
+
+// SourceHookOf returns p's source hook when it has one and declares it.
+func SourceHookOf(p Plugin) (SourceHook, bool) {
+	h, ok := p.(SourceHook)
+	return h, ok && declares(p, "source")
+}
+
+// HTMLHookOf returns p's html hook when it has one and declares it.
+func HTMLHookOf(p Plugin) (HTMLHook, bool) {
+	h, ok := p.(HTMLHook)
+	return h, ok && declares(p, "html")
+}
+
+// ValidName reports whether s is a valid plugin, block, inline or layout name.
+func ValidName(s string) bool { return nameRE.MatchString(s) }
+
+// ValidSemVer reports whether s is a valid SemVer version.
+func ValidSemVer(s string) bool { return semverRE.MatchString(s) }
 
 // Plugin is the only interface every plugin implements; hooks are optional.
 type Plugin interface{ Manifest() Manifest }

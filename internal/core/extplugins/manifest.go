@@ -1,0 +1,459 @@
+// Package extplugins loads external plugins: folders with a plugin.yml whose
+// backend is a program zen runs (stdin, stdout, environment) and whose
+// frontend is scripts and styles served to the page. See docs/PLUGINS.md,
+// "Writing your own plugin". Nothing here runs a plugin before the app has
+// asked the user (see Trust).
+package extplugins
+
+import (
+	"bytes"
+	"errors"
+	"fmt"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"regexp"
+	"sort"
+	"strings"
+	"sync/atomic"
+	"time"
+
+	"gopkg.in/yaml.v3"
+
+	"github.com/dragosh/zen/internal/core/plugins"
+)
+
+// Limits of a plugin folder.
+const (
+	maxFiles       = 500
+	maxBytes       = 20 << 20
+	maxManifest    = 256 << 10
+	defaultTimeout = 5 * time.Second
+	maxTimeout     = 60 * time.Second
+)
+
+var validHooks = map[string]bool{"source": true, "block": true, "inline": true, "html": true, "action": true}
+
+type rawOption struct {
+	Type        string `yaml:"type"`
+	Default     any    `yaml:"default"`
+	Description string `yaml:"description"`
+}
+
+type rawAllow struct {
+	Element string   `yaml:"element"`
+	Attrs   []string `yaml:"attrs"`
+}
+
+type rawBackend struct {
+	Command []string `yaml:"command"`
+	Hooks   []string `yaml:"hooks"`
+	Output  string   `yaml:"output"`
+	Timeout string   `yaml:"timeout"`
+}
+
+type rawFrontend struct {
+	JS  []string `yaml:"js"`
+	CSS []string `yaml:"css"`
+}
+
+type rawManifest struct {
+	ID          string               `yaml:"id"`
+	Version     string               `yaml:"version"`
+	APIVersion  *int                 `yaml:"apiVersion"`
+	Description string               `yaml:"description"`
+	Default     *bool                `yaml:"default"` // on unless "default: false"
+	Blocks      []string             `yaml:"blocks"`
+	Inlines     []string             `yaml:"inlines"`
+	Layouts     []string             `yaml:"layouts"`
+	Options     map[string]rawOption `yaml:"options"`
+	Allow       []rawAllow           `yaml:"allow"`
+	Backend     *rawBackend          `yaml:"backend"`
+	Frontend    *rawFrontend         `yaml:"frontend"`
+}
+
+type backend struct {
+	command []string
+	hooks   map[string]bool
+	text    bool // output: text
+	timeout time.Duration
+}
+
+// Runtime is what a plugin learns about the folder it runs for. Bind it
+// before any hook runs.
+type Runtime struct {
+	Workspace string // folder root (ZEN_WORKSPACE)
+	DataDir   string // writable data folder of this plugin (ZEN_DATA_DIR), created on demand
+}
+
+// Plugin is a loaded external plugin. It implements plugins.Plugin, the
+// hook interfaces (HasHook says which are declared) and plugins.AssetProvider.
+type Plugin struct {
+	dir      string // real path of the plugin folder
+	man      plugins.Manifest
+	back     *backend
+	frontend plugins.Assets
+	rt       atomic.Pointer[Runtime]
+}
+
+// Invalid describes a plugin folder that was rejected.
+type Invalid struct {
+	ID      string // folder name
+	Dir     string
+	Problem string
+}
+
+// Manifest implements plugins.Plugin.
+func (p *Plugin) Manifest() plugins.Manifest { return p.man }
+
+// External marks plugins that run programs.
+func (p *Plugin) External() bool { return true }
+
+// Dir is the real path of the plugin folder.
+func (p *Plugin) Dir() string { return p.dir }
+
+// Bind sets the folder the plugin runs for.
+func (p *Plugin) Bind(rt Runtime) { p.rt.Store(&rt) }
+
+// HasHook reports whether the manifest declares the hook (source, block,
+// inline, html or action).
+func (p *Plugin) HasHook(name string) bool { return p.back != nil && p.back.hooks[name] }
+
+// Entry lists the frontend files (plugins.AssetProvider).
+func (p *Plugin) Entry() plugins.Assets { return p.frontend }
+
+// Runs describes what the plugin runs, one line each, for the trust prompt.
+func (p *Plugin) Runs() []string {
+	var out []string
+	if p.back != nil {
+		parts := make([]string, len(p.back.command))
+		for i, a := range p.back.command {
+			parts[i] = a
+			if strings.ContainsAny(a, " \t\"'") {
+				parts[i] = fmt.Sprintf("%q", a)
+			}
+		}
+		out = append(out, strings.Join(parts, " "))
+	}
+	if len(p.frontend.JS) > 0 {
+		out = append(out, "scripts in the page")
+	}
+	return out
+}
+
+var yamlFieldRE = regexp.MustCompile(`line (\d+): field (\S+) not found in type \S+`)
+
+// cleanYAMLError turns a yaml.v3 error into a short message naming the
+// offending key.
+func cleanYAMLError(err error) string {
+	msg := strings.TrimPrefix(err.Error(), "yaml: ")
+	if m := yamlFieldRE.FindStringSubmatch(msg); m != nil {
+		return fmt.Sprintf("unknown key %q (line %s)", m[2], m[1])
+	}
+	msg = strings.TrimPrefix(msg, "unmarshal errors:\n")
+	msg = strings.TrimSpace(strings.Split(msg, "\n")[0])
+	msg = regexp.MustCompile(` into \S+`).ReplaceAllString(msg, "")
+	return msg
+}
+
+// Load reads and validates the plugin in dir. The error never contains an
+// absolute path.
+func Load(dir string) (*Plugin, error) {
+	real, err := filepath.EvalSymlinks(dir)
+	if err != nil {
+		return nil, errors.New("plugin folder not readable")
+	}
+	if err := checkSize(real); err != nil {
+		return nil, err
+	}
+	data, err := readManifest(filepath.Join(real, "plugin.yml"))
+	if err != nil {
+		return nil, err
+	}
+	var raw rawManifest
+	dec := yaml.NewDecoder(bytes.NewReader(data))
+	dec.KnownFields(true)
+	if err := dec.Decode(&raw); err != nil {
+		return nil, fmt.Errorf("plugin.yml is not valid YAML: %s", cleanYAMLError(err))
+	}
+	folder := filepath.Base(dir)
+	if !plugins.ValidName(raw.ID) {
+		return nil, fmt.Errorf("invalid id %q (want [a-z][a-z0-9-]*)", raw.ID)
+	}
+	if raw.ID != folder {
+		return nil, fmt.Errorf("id %q must equal the folder name %q", raw.ID, folder)
+	}
+	if raw.APIVersion == nil || *raw.APIVersion != plugins.APIVersion {
+		return nil, fmt.Errorf("apiVersion must be %d", plugins.APIVersion)
+	}
+	if !plugins.ValidSemVer(raw.Version) {
+		return nil, fmt.Errorf("version %q is not valid SemVer (such as 1.0.0)", raw.Version)
+	}
+	p := &Plugin{dir: real}
+	m := plugins.Manifest{
+		ID: raw.ID, Version: raw.Version, APIVersion: plugins.APIVersion,
+		Description: raw.Description, Default: raw.Default == nil || *raw.Default,
+	}
+	for _, list := range []struct {
+		label string
+		names []string
+		dst   *[]string
+	}{{"block", raw.Blocks, &m.Blocks}, {"inline", raw.Inlines, &m.Inlines}, {"layout", raw.Layouts, &m.Layouts}} {
+		seen := map[string]bool{}
+		for _, n := range list.names {
+			if !plugins.ValidName(n) {
+				return nil, fmt.Errorf("invalid %s name %q (want [a-z][a-z0-9-]*)", list.label, n)
+			}
+			if seen[n] {
+				return nil, fmt.Errorf("%s %q is listed twice", list.label, n)
+			}
+			seen[n] = true
+		}
+		*list.dst = append([]string(nil), list.names...)
+	}
+	if len(raw.Options) > 0 {
+		m.Config = map[string]plugins.Option{}
+	}
+	for name, o := range raw.Options {
+		def, err := optionDefault(o)
+		if err != nil {
+			return nil, fmt.Errorf("option %q: %v", name, err)
+		}
+		m.Config[name] = plugins.Option{Type: o.Type, Default: def, Description: o.Description}
+	}
+	for _, a := range raw.Allow {
+		if strings.TrimSpace(a.Element) == "" {
+			return nil, errors.New("allow: element is empty")
+		}
+		m.Allow = append(m.Allow, plugins.AllowRule{Element: a.Element, Attrs: a.Attrs})
+	}
+	if raw.Backend != nil {
+		if p.back, err = loadBackend(real, raw.Backend); err != nil {
+			return nil, err
+		}
+	}
+	if raw.Frontend != nil {
+		for _, f := range []struct {
+			kind  string
+			files []string
+			dst   *[]string
+		}{{"js", raw.Frontend.JS, &p.frontend.JS}, {"css", raw.Frontend.CSS, &p.frontend.CSS}} {
+			for _, name := range f.files {
+				if err := checkInside(real, name, "frontend file"); err != nil {
+					return nil, err
+				}
+				*f.dst = append(*f.dst, filepath.ToSlash(filepath.Clean(name)))
+			}
+		}
+	}
+	p.man = m
+	return p, nil
+}
+
+func optionDefault(o rawOption) (any, error) {
+	switch o.Type {
+	case "bool":
+		if o.Default == nil {
+			return false, nil
+		}
+		if b, ok := o.Default.(bool); ok {
+			return b, nil
+		}
+	case "int":
+		if o.Default == nil {
+			return 0, nil
+		}
+		if n, ok := o.Default.(int); ok {
+			return n, nil
+		}
+	case "string":
+		if o.Default == nil {
+			return "", nil
+		}
+		if s, ok := o.Default.(string); ok {
+			return s, nil
+		}
+	default:
+		return nil, fmt.Errorf("type %q is not string, bool or int", o.Type)
+	}
+	return nil, fmt.Errorf("default %v is not of type %s", o.Default, o.Type)
+}
+
+func loadBackend(real string, rb *rawBackend) (*backend, error) {
+	b := &backend{hooks: map[string]bool{}, timeout: defaultTimeout}
+	if len(rb.Command) == 0 || strings.TrimSpace(rb.Command[0]) == "" {
+		return nil, errors.New("backend.command is empty")
+	}
+	b.command = append([]string(nil), rb.Command...)
+	prog := b.command[0]
+	switch {
+	case filepath.IsAbs(prog):
+		return nil, errors.New("backend.command must be relative to the plugin folder (./run.sh) or a program name on PATH")
+	case strings.Contains(prog, "/"):
+		path, err := resolveInside(real, prog, "backend.command file")
+		if err != nil {
+			return nil, err
+		}
+		if fi, err := os.Stat(path); err != nil || !fi.Mode().IsRegular() || fi.Mode().Perm()&0o111 == 0 {
+			return nil, fmt.Errorf("backend.command file %s is not executable", prog)
+		}
+	}
+	if len(rb.Hooks) == 0 {
+		return nil, errors.New("backend.hooks is empty (any of: source, block, inline, html, action)")
+	}
+	for _, h := range rb.Hooks {
+		if !validHooks[h] {
+			return nil, fmt.Errorf("unknown hook %q in backend.hooks", h)
+		}
+		b.hooks[h] = true
+	}
+	switch rb.Output {
+	case "", "html":
+	case "text":
+		b.text = true
+	default:
+		return nil, fmt.Errorf("backend.output %q is not html or text", rb.Output)
+	}
+	if rb.Timeout != "" {
+		d, err := time.ParseDuration(rb.Timeout)
+		if err != nil || d <= 0 {
+			return nil, fmt.Errorf("backend.timeout %q is not a duration such as 5s", rb.Timeout)
+		}
+		if d > maxTimeout {
+			return nil, fmt.Errorf("backend.timeout %s is over the limit of %s", rb.Timeout, maxTimeout)
+		}
+		b.timeout = d
+	}
+	return b, nil
+}
+
+func readManifest(path string) ([]byte, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, errors.New("plugin.yml not found")
+	}
+	if len(data) > maxManifest {
+		return nil, errors.New("plugin.yml is too large")
+	}
+	return data, nil
+}
+
+// checkSize enforces the folder limits (500 files, 20 MB).
+func checkSize(real string) error {
+	files, size := 0, int64(0)
+	err := filepath.WalkDir(real, func(_ string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		files++
+		if files > maxFiles {
+			return fmt.Errorf("the plugin folder has more than %d files", maxFiles)
+		}
+		if d.Type().IsRegular() {
+			fi, err := d.Info()
+			if err != nil {
+				return err
+			}
+			size += fi.Size()
+			if size > maxBytes {
+				return errors.New("the plugin folder is larger than 20 MB")
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		if strings.HasPrefix(err.Error(), "the plugin folder") {
+			return err
+		}
+		return errors.New("plugin folder not readable")
+	}
+	return nil
+}
+
+// resolveInside resolves a path relative to the plugin folder (symlinks
+// included) and requires the result to be inside it. rel is only used in
+// messages.
+func resolveInside(real, rel, what string) (string, error) {
+	clean := filepath.Clean(filepath.FromSlash(rel))
+	if filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("%s %s is outside the plugin folder", what, rel)
+	}
+	full, err := filepath.EvalSymlinks(filepath.Join(real, clean))
+	if err != nil {
+		return "", fmt.Errorf("%s %s not found", what, rel)
+	}
+	back, err := filepath.Rel(real, full)
+	if err != nil || back == ".." || strings.HasPrefix(back, ".."+string(filepath.Separator)) {
+		return "", fmt.Errorf("%s %s is outside the plugin folder", what, rel)
+	}
+	return full, nil
+}
+
+// checkInside requires name to be a plain relative file path that exists
+// inside the plugin folder.
+func checkInside(real, name, what string) error {
+	if name == "" || strings.ContainsAny(name, "\\:?#") {
+		return fmt.Errorf("%s %q is not a valid path", what, name)
+	}
+	full, err := resolveInside(real, name, what)
+	if err != nil {
+		return err
+	}
+	if fi, err := os.Stat(full); err != nil || !fi.Mode().IsRegular() {
+		return fmt.Errorf("%s %s is not a file", what, name)
+	}
+	if !fs.ValidPath(filepath.ToSlash(filepath.Clean(name))) {
+		return fmt.Errorf("%s %s is outside the plugin folder", what, name)
+	}
+	return nil
+}
+
+// Scan loads every <dir>/<id>/plugin.yml in the given plugin folders, in
+// order; the first folder wins for an id. Valid plugins and rejected folders
+// are each sorted by id. Folders without a plugin.yml are ignored.
+func Scan(dirs ...string) ([]*Plugin, []Invalid) {
+	var found []*Plugin
+	var invalid []Invalid
+	seen := map[string]bool{}
+	for _, base := range dirs {
+		entries, err := os.ReadDir(base)
+		if err != nil {
+			continue
+		}
+		for _, e := range entries {
+			name := e.Name()
+			dir := filepath.Join(base, name)
+			if fi, err := os.Stat(dir); err != nil || !fi.IsDir() {
+				continue
+			}
+			if _, err := os.Lstat(filepath.Join(dir, "plugin.yml")); err != nil {
+				continue
+			}
+			if seen[name] {
+				continue
+			}
+			seen[name] = true
+			p, err := Load(dir)
+			if err != nil {
+				invalid = append(invalid, Invalid{ID: name, Dir: dir, Problem: err.Error()})
+				continue
+			}
+			found = append(found, p)
+		}
+	}
+	sort.Slice(found, func(i, j int) bool { return found[i].man.ID < found[j].man.ID })
+	sort.Slice(invalid, func(i, j int) bool { return invalid[i].ID < invalid[j].ID })
+	return found, invalid
+}
+
+// Discover is Scan with the rejected folders turned into warnings.
+func Discover(dirs ...string) (found []*Plugin, warnings []string) {
+	found, invalid := Scan(dirs...)
+	for _, in := range invalid {
+		warnings = append(warnings, fmt.Sprintf("plugin %q: %s", in.ID, in.Problem))
+	}
+	return found, warnings
+}

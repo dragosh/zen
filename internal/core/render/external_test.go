@@ -122,15 +122,15 @@ func TestDefaultContent(t *testing.T) {
 	o := owner{xm("own", []string{"card", "raw"}, []string{"kbd"}, nil)}
 	h := hooked{xm("quiz", []string{"quiz"}, []string{"badge"}, nil), &n}
 	src := ":::card{title=T}\nSome **bold** text and :kbd[<Ctrl>] and :badge[x].\n\n" +
-		":::quiz\ninner\n:::\n\n:::card\nnested *card*\n:::\n\n```raw\nfence <in> card\n```\n:::\n"
+		":::quiz\ninner\n:::\n\n:::card\n*nested card*\n:::\n\n```raw\nfence <in> card\n```\n:::\n"
 	pg := xrender(t, src, o, h)
 	for _, want := range []string{
-		"<strong>bold</strong>",                // container body is markdown
-		"<em>block quiz</em>",                  // nested plugin block ran
-		"<em>nested card</em>",                 // nested default content, emphasis rendered
-		"<em>inline badge</em>",                // inline plugin inside the body
+		"<strong>bold</strong>", // container body is markdown
+		"<em>block quiz</em>",   // nested plugin block ran
+		"<em>nested card</em>",  // nested default content, emphasis rendered
+		"<em>inline badge</em>", // inline plugin inside the body
 		`<pre class="zen-plugin-source">fence &lt;in&gt; card` + "\n</pre>", // fence body as text
-		"&lt;Ctrl&gt;",                         // inline text escaped
+		"&lt;Ctrl&gt;", // inline text escaped
 	} {
 		if !strings.Contains(pg.HTML, want) {
 			t.Errorf("missing %q in\n%s", want, pg.HTML)

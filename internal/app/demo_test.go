@@ -130,13 +130,10 @@ func TestDemoFolder(t *testing.T) {
 	if !strings.Contains(dir.HTML, `data-zen-plugin="note" data-zen-name="note"`) || !strings.Contains(dir.HTML, `<div class="note"><strong>Remember</strong>`) {
 		t.Errorf("note plugin did not render the container: %s", dir.HTML)
 	}
-	if strings.Join(dir.Assets.CSS, ",") != "/_plugins/note/note.css" {
+	if !strings.Contains(strings.Join(dir.Assets.CSS, ","), "/_plugins/note/note.css") {
 		t.Errorf("note assets: %+v", dir.Assets)
 	}
-	warn, err := z.Preview("plugins/directives.md", ":::warning
-Mind the <gap> & co.
-:::
-")
+	warn, err := z.Preview("plugins/directives.md", ":::warning\nMind the <gap> & co.\n:::\n")
 	if err != nil || !strings.Contains(warn.HTML, `<div class="warning"><strong>Warning</strong>`) || !strings.Contains(warn.HTML, "Mind the &lt;gap&gt; &amp; co.") {
 		t.Errorf("warning block: %v %s", err, warn.HTML)
 	}

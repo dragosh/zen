@@ -4,9 +4,11 @@ import (
 	"errors"
 	"io"
 	"net/url"
+	"path/filepath"
 	"strings"
 
 	"github.com/dragosh/zen/internal/cli"
+	"github.com/dragosh/zen/internal/core/extplugins"
 	"github.com/dragosh/zen/internal/core/plugins"
 )
 
@@ -21,6 +23,7 @@ type Dialogs interface {
 type zenOptions struct {
 	Registry   *plugins.Registry
 	GlobalPath string // global config file, "" to skip
+	ConfigDir  string // settings folder (user plugins, trust, plugin data); default: the folder of GlobalPath
 	Dir        string
 	Page       string
 	Mode       string
@@ -40,8 +43,17 @@ type Zen struct {
 }
 
 func newZen(o zenOptions) (*Zen, error) {
+	configDir := o.ConfigDir
+	if configDir == "" && o.GlobalPath != "" {
+		configDir = filepath.Dir(o.GlobalPath)
+	}
+	st := newState(o.Registry, o.GlobalPath, o.Events)
+	st.configDir, st.dialogs = configDir, o.Dialogs
+	if configDir != "" {
+		st.trust = extplugins.LoadTrust(filepath.Join(configDir, "trusted-plugins.yml"))
+	}
 	z := &Zen{
-		state:   newState(o.Registry, o.GlobalPath, o.Events),
+		state:   st,
 		page:    o.Page,
 		mode:    o.Mode,
 		dialogs: o.Dialogs,

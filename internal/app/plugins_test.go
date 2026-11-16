@@ -570,8 +570,8 @@ func TestPluginInvoke(t *testing.T) {
 
 func TestLayoutInPageJSON(t *testing.T) {
 	files := map[string]string{
-		"README.md": "---\nlayout: deck\n---\n# Deck\n",
-		"plain.md":  "# Plain\n",
+		"README.md":                    "---\nlayout: deck\n---\n# Deck\n",
+		"plain.md":                     "# Plain\n",
 		".zen/plugins/deck/plugin.yml": "id: deck\nversion: 1.0.0\napiVersion: 1\ndefault: true\nlayouts: [deck]\nfrontend: { js: [deck.js] }\n",
 		".zen/plugins/deck/deck.js":    "zen.register('deck', {});\n",
 	}
