@@ -6,19 +6,183 @@ nav:
 ---
 # Writing your own plugin
 
-A plugin is a **folder with a `plugin.yml`**. There is nothing to build and
-nothing to install: put the folder in place, reopen the folder of documents,
-and allow the plugin when zen asks.
+A plugin is **one Tengo file**, or **a folder with a `plugin.yml`**. There is
+nothing to build and nothing to install: put it in place, reopen the folder of
+documents, and allow the plugin when zen asks.
 
 zen looks in two places:
 
 | Where | For |
 |---|---|
-| `<folder>/.zen/plugins/<id>/` | plugins that travel with a folder of documents |
-| `~/Library/Application Support/zen/plugins/<id>/` | your own plugins, for every folder |
+| `<folder>/.zen/plugins/` | plugins that travel with a folder of documents |
+| `~/Library/Application Support/zen/plugins/` | your own plugins, for every folder |
 
-This folder ships three small plugins in `.zen/plugins/`. Each one shows a
-different part, and all three are used on this page.
+In each place a plugin is `<id>.tengo`, or a folder `<id>/` holding a
+`plugin.tengo` (a script) or a `plugin.yml` (a program, a tool or a page
+script).
+
+This folder ships five small plugins in `.zen/plugins/`. Each one shows a
+different part, and all five are used on this page.
+
+## The simplest plugin: one Tengo file
+
+When a block only has to turn text into HTML, write one file in
+[Tengo](https://github.com/d5/tengo), a small scripting language. zen runs the
+script itself, inside the app: there is no program to start and no environment
+variable to read. The script reaches nothing zen does not hand it. It cannot
+read files, run programs or use the network, unless it asks for the `read`
+permission, and then it only reads the markdown and text files of the open
+folder.
+
+The `callout` plugin is the file `.zen/plugins/callout.tengo`. This markdown:
+
+```markdown
+:::tip{title="One file"}
+A **Tengo** script gets the text of the block and returns HTML.
+:::
+```
+
+renders as:
+
+:::tip{title="One file"}
+A **Tengo** script gets the text of the block and returns HTML.
+:::
+
+And the whole plugin is this file:
+
+```go
+// .zen/plugins/callout.tengo: :::tip and :::caution callouts, in one file.
+plugin := {
+    version: "0.1.0",
+    description: "Tip and caution callouts",
+    blocks: ["tip", "caution"],
+    css: "div.callout { margin: 0 0 1em; padding: 0.6em 1em; border: 1px solid var(--rule); " +
+         "border-left-width: 4px; border-radius: var(--radius) } " +
+         "div.callout.caution { border-left-color: var(--fg) } " +
+         "div.callout strong { display: block; margin-bottom: 0.25em }"
+}
+
+if hook == "block" {
+    title := attrs.title || (name == "caution" ? "Caution" : "Tip")
+    out = zen.html("div", {class: "callout " + name},
+        zen.html("strong", {}, title),
+        zen.markdown(body))
+}
+```
+
+The `plugin` map at the top describes the plugin. zen reads it first, by running
+the script once with no hook, so the name of the plugin is the name of the file
+and the map holds the rest: the version, the blocks it owns, and optional
+`css` that zen serves to the pages that use the plugin. After that the script
+runs for each block. `hook` says why it runs, and whatever the script assigns
+to `out` becomes the block.
+
+`zen.markdown(body)` renders the body through zen's own pipeline, so a callout
+can hold lists, code and the blocks of other plugins. `zen.html` escapes the
+text it is given. A plain string is text and is escaped; the result of
+`zen.html` or `zen.markdown` is HTML and is kept as it is.
+
+The second sample, `wordcount`, uses the folder form: a folder `wordcount/`
+holding `plugin.tengo`, with room for other files beside it. It owns an inline
+directive, `:words[]`, and a block, `:::pages`. It asks for the `read`
+permission, because it reads the files of the folder:
+
+```go
+// .zen/plugins/wordcount/plugin.tengo: word counts, from the files of the folder.
+text := import("text")
+
+plugin := {
+    version: "0.1.0",
+    description: "Word counts for this page and for every page",
+    inlines: ["words"],
+    blocks: ["pages"],
+    permissions: ["read"]
+}
+
+count := func(path) {
+    return len(text.fields(zen.read(path) || ""))
+}
+
+if hook == "inline" {
+    out = zen.html("span", {class: "words"}, string(count(page.path)))
+}
+
+if hook == "block" {
+    limit := int(attrs.limit || 0)
+    items := []
+    for p in zen.pages() {
+        if limit > 0 && len(items) >= limit {
+            break
+        }
+        items = append(items, zen.html("li", {}, p.title, " (", p.path, "): ", string(count(p.path)), " words"))
+    }
+    out = zen.html("ul", {class: "pages"}, items)
+}
+```
+
+This page has :words[] words. The first five pages of this folder, with their
+counts:
+
+:::pages{limit=5}
+:::
+
+Leave out `{limit=5}` to list every page.
+
+### What the script receives
+
+| Global | Value |
+|---|---|
+| `hook` | why the script runs: `"block"`, `"inline"`, `"source"`, `"html"`, `"action"`, or `""` while zen reads the `plugin` map |
+| `name` | the block or inline name (`"tip"`) |
+| `body` | the text of the block or the inline, the page's markdown for `source`, the page's HTML for `html` |
+| `attrs` | the `{key=value}` attributes, a map of strings |
+| `config` | this plugin's options for the page, a map |
+| `page` | `{path, title}` of the page being rendered |
+| `payload` | for `action`: the JSON the plugin's frontend sent with `ctx.invoke`, decoded |
+| `out` | what the script assigns: a string or a `zen.html` result; for `action` any value, sent back as JSON. Without `out`, a block is empty and `source` and `html` leave the text alone |
+
+The `plugin` map takes these keys: `version` (required, SemVer), `description`,
+`blocks`, `inlines`, `layouts`, `hooks` (extra hooks: `source`, `html`,
+`action`), `permissions` (only `"read"`), `timeout` (a duration such as
+`"500ms"`, at most `"2s"`), `css`, `options` (as in `plugin.yml`), `default`
+and, in the folder form, `js` and `stylesheets` for the page. An unknown key is
+an error.
+
+### The `zen` module
+
+The `zen` map is the only thing a script can call. Nothing else can be
+imported except the pure modules `text`, `math`, `times`, `fmt`, `json`,
+`enum`, `base64`, `hex` and `rand`.
+
+| Function | Does |
+|---|---|
+| `zen.escape(s)` | returns `s` with `& < > " '` escaped |
+| `zen.html(tag, attrs, children...)` | returns an element. Text children are escaped; lists are flattened; `true` makes a bare attribute |
+| `zen.markdown(s)` | renders markdown through zen's pipeline, nested plugins included, at most 8 levels deep |
+| `zen.storage.get(key)` | the value stored for `key`, or `undefined` |
+| `zen.storage.set(key, value)` | stores any JSON value, in the store that `ctx.storage` reaches (1 MB for a plugin) |
+| `zen.storage.keys(prefix)` | the keys that start with `prefix`, sorted |
+| `zen.read(path)` | the text of a file of the folder, or `undefined`; needs `read` |
+| `zen.pages()` | the folder's pages as a list of `{path, title}`; needs `read` |
+
+`zen.read` opens markdown and text files (`.md`, `.txt`, `.csv`, `.json`,
+`.yml`) of at most 1 MB, as UTF-8, and only inside the open folder: a path with
+`..` or a link that leads out of it is refused.
+
+### Limits
+
+Every call has a budget. A script that goes over it stops, and the page shows an
+error box in place of the block; the rest of the page still renders.
+
+| Limit | Value |
+|---|---|
+| time | 200 ms, or `timeout` in the `plugin` map, at most 2 s |
+| allocations | 500 000 objects, and a ceiling on memory growth |
+| output | 2 MB |
+| script file | 256 KB |
+
+Whatever the script returns is cleaned like all other HTML, so a script can
+never put a `<script>` or an `onclick` into a page.
 
 ## The three parts
 
@@ -356,7 +520,9 @@ each `<hr>`.
 ## Trust
 
 Plugins run programs and scripts, so zen asks before it uses a plugin for the
-first time and names what the plugin runs. The answer is remembered for that
+first time and names what the plugin runs. For a Tengo plugin it says what the
+plugin can do: render blocks, and read files of the folder if it asked for the
+`read` permission. The answer is remembered for that
 exact set of files. Change one byte of a plugin and zen asks again.
 
 Allowing a plugin also lets its page script use zen's functions: it can read

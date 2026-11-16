@@ -12,3 +12,4 @@ Fibonacci
 (?i)autolinks?
 (?i)codeblock
 Esc
+Tengo

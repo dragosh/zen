@@ -8,12 +8,18 @@ import (
 
 	"github.com/dragosh/zen/internal/app"
 	"github.com/dragosh/zen/internal/cli"
+	"github.com/dragosh/zen/internal/core/scriptplugins"
 )
 
 //go:embed all:frontend/dist
 var dist embed.FS
 
 func main() {
+	// The hidden script-helper mode: before the command line is parsed and
+	// before anything of the GUI runs.
+	if len(os.Args) > 1 && os.Args[1] == scriptplugins.HostArg {
+		os.Exit(scriptplugins.HostMain(os.Stdin, os.Stdout, os.Stderr))
+	}
 	cwd, err := os.Getwd()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "zen: %v\n", err)

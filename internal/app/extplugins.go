@@ -19,6 +19,7 @@ import (
 	"github.com/dragosh/zen/internal/core/atomicfile"
 	"github.com/dragosh/zen/internal/core/extplugins"
 	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zen/internal/core/scriptplugins"
 )
 
 // PluginInfo is one row of Settings › Plugins.
@@ -30,6 +31,10 @@ type PluginInfo struct {
 	Status      string   `json:"status"` // on | off | blocked | undecided | invalid
 	Runs        []string `json:"runs"`
 	Problem     string   `json:"problem"`
+	// Kind says what the plugin is made of: builtin (Go, in zen), program (a
+	// backend zen runs), page (scripts and styles only) or script (one Tengo
+	// file zen runs itself). For a rejected plugin it is a best guess.
+	Kind string `json:"kind"`
 }
 
 const (
@@ -44,9 +49,19 @@ type trustAsker interface{ ConfirmTrust(message string) bool }
 // start-up (before the application window exists).
 type readyDialogs interface{ Ready() bool }
 
+// extPlugin is what the app needs of an external plugin of any kind: a
+// folder plugin (extplugins) or a script plugin (scriptplugins).
+type extPlugin interface {
+	plugins.Plugin
+	extplugins.Subject // Dir, Hash, Changed: what trust decides on
+	OnChange(func())
+	Runs() []string
+	Kind() string // program | page | script
+}
+
 // candidate is an external plugin that loaded and can be registered.
 type candidate struct {
-	p      *extplugins.Plugin
+	p      extPlugin
 	source string // folder | user
 	status string // allowed | blocked | undecided
 }
@@ -60,7 +75,7 @@ type extState struct {
 	cands   []candidate
 	invalid []PluginInfo
 	warns   []string
-	active  map[string]*extplugins.Plugin // allowed and registered
+	active  map[string]extPlugin // allowed and registered
 }
 
 func (e *extState) candidate(id string) *candidate {
@@ -128,15 +143,36 @@ func tilde(p string) string {
 	return p
 }
 
+// pageScripts is the line of Runs that says a plugin ships scripts for the page.
+const pageScripts = "scripts in the page"
+
 func trustPrompt(root string, cands []candidate) string {
+	// Script plugins that ship no page script cannot run programs: say so,
+	// instead of the warning that fits programs.
+	scriptsOnly := true
+	for _, c := range cands {
+		if c.p.Kind() != "script" {
+			scriptsOnly = false
+		}
+		for _, r := range c.p.Runs() {
+			if r == pageScripts {
+				scriptsOnly = false
+			}
+		}
+	}
 	var b strings.Builder
 	if len(cands) == 1 {
 		b.WriteString("Allow this plugin? ")
 	} else {
 		b.WriteString("This folder uses plugins. ")
 	}
-	b.WriteString("A plugin runs programs and scripts on your Mac with your own access to files and the network, " +
-		"and its script in the page can use zen's functions. zen asks before using one for the first time and again when its files change.\n")
+	if scriptsOnly {
+		b.WriteString("Script plugins run inside zen, with a time and memory limit, and reach nothing zen does not give them. " +
+			"zen asks before using one for the first time and again when its files change.\n")
+	} else {
+		b.WriteString("A plugin runs programs and scripts on your Mac with your own access to files and the network, " +
+			"and its script in the page can use zen's functions. zen asks before using one for the first time and again when its files change.\n")
+	}
 	for _, c := range cands {
 		m := c.p.Manifest()
 		where := tilde(c.p.Dir())
@@ -148,7 +184,11 @@ func trustPrompt(root string, cands []candidate) string {
 			fmt.Fprintf(&b, "  %s\n", m.Description)
 		}
 		for _, r := range c.p.Runs() {
-			fmt.Fprintf(&b, "  runs: %s\n", r)
+			if c.p.Kind() == "script" && r != pageScripts {
+				fmt.Fprintf(&b, "  %s\n", r) // what a script plugin can do, as a sentence
+			} else {
+				fmt.Fprintf(&b, "  runs: %s\n", r)
+			}
 		}
 	}
 	if len(cands) == 1 {
@@ -172,8 +212,12 @@ func scopeOf(root string, c candidate) string {
 // the user about new ones (when prompt is set and the dialogs can show it),
 // and builds the registry. Nothing external runs here.
 func (s *state) loadExternal(root string, prompt bool) *extState {
-	e := &extState{root: root, active: map[string]*extplugins.Plugin{}}
-	e.ctx, e.cancel = context.WithCancel(s.life)
+	e := &extState{root: root, active: map[string]extPlugin{}}
+	var cancel context.CancelFunc
+	e.ctx, cancel = context.WithCancel(s.life)
+	// The previous folder's calls end and its idle script helpers go (busy
+	// ones go when their call ends).
+	e.cancel = func() { cancel(); scriptplugins.Reset() }
 	if n := s.trust.Notice(); n != "" {
 		e.warns = append(e.warns, n)
 	}
@@ -187,13 +231,13 @@ func (s *state) loadExternal(root string, prompt bool) *extState {
 		userDir = filepath.Join(s.configDir, "plugins")
 	}
 	type found struct {
-		p      *extplugins.Plugin
+		p      extPlugin
 		source string
 	}
 	var all []found
 	seen := map[string]bool{}
-	addInvalid := func(id, source, problem string) {
-		e.invalid = append(e.invalid, PluginInfo{ID: id, Source: source, Status: "invalid", Runs: []string{}, Problem: problem})
+	addInvalid := func(id, source, kind, problem string) {
+		e.invalid = append(e.invalid, PluginInfo{ID: id, Source: source, Status: "invalid", Runs: []string{}, Problem: problem, Kind: kind})
 		e.warns = append(e.warns, fmt.Sprintf("plugin %q: %s", id, problem))
 	}
 	for _, d := range []struct{ dir, source string }{{folderDir, "folder"}, {userDir, "user"}} {
@@ -201,13 +245,60 @@ func (s *state) loadExternal(root string, prompt bool) *extState {
 			continue
 		}
 		ps, inv := extplugins.Scan(d.dir)
+		sps, sinv := scriptplugins.Scan(d.dir)
+		// An id defined by a plugin.yml folder and by a .tengo plugin of the same
+		// folder is rejected, not guessed.
+		inExt, inScript := map[string]bool{}, map[string]bool{}
+		for _, p := range ps {
+			inExt[p.Manifest().ID] = true
+		}
 		for _, in := range inv {
-			if !seen[in.ID] { // the folder's plugin shadows the user's of the same id
-				seen[in.ID] = true
-				addInvalid(in.ID, d.source, in.Problem)
+			inExt[in.ID] = true
+		}
+		for _, p := range sps {
+			inScript[p.Manifest().ID] = true
+		}
+		for _, in := range sinv {
+			inScript[in.ID] = true
+		}
+		clash := func(id string) bool { return inExt[id] && inScript[id] }
+		type invalidItem struct{ ID, Problem, Kind string }
+		var bad []invalidItem
+		for _, in := range inv {
+			if !clash(in.ID) {
+				bad = append(bad, invalidItem{in.ID, in.Problem, "program"})
 			}
 		}
+		for _, in := range sinv {
+			if !clash(in.ID) {
+				bad = append(bad, invalidItem{in.ID, in.Problem, "script"})
+			}
+		}
+		for id := range inExt {
+			if clash(id) {
+				bad = append(bad, invalidItem{id, "both a plugin.yml folder and a .tengo plugin define this id; keep one", "script"})
+			}
+		}
+		sort.Slice(bad, func(i, j int) bool { return bad[i].ID < bad[j].ID })
+		for _, in := range bad {
+			if !seen[in.ID] { // the folder's plugin shadows the user's of the same id
+				seen[in.ID] = true
+				addInvalid(in.ID, d.source, in.Kind, in.Problem)
+			}
+		}
+		var good []extPlugin
 		for _, p := range ps {
+			if !clash(p.Manifest().ID) {
+				good = append(good, p)
+			}
+		}
+		for _, p := range sps {
+			if !clash(p.Manifest().ID) {
+				good = append(good, p)
+			}
+		}
+		sort.Slice(good, func(i, j int) bool { return good[i].Manifest().ID < good[j].Manifest().ID })
+		for _, p := range good {
 			id := p.Manifest().ID
 			if seen[id] {
 				continue
@@ -226,11 +317,11 @@ func (s *state) loadExternal(root string, prompt bool) *extState {
 	for _, f := range all {
 		id := f.p.Manifest().ID
 		if builtin[id] {
-			addInvalid(id, f.source, "a built-in plugin already uses this id")
+			addInvalid(id, f.source, f.p.Kind(), "a built-in plugin already uses this id")
 			continue
 		}
 		if err := scratch.Register(f.p); err != nil {
-			addInvalid(id, f.source, strings.TrimPrefix(err.Error(), fmt.Sprintf("plugin %q: ", id)))
+			addInvalid(id, f.source, f.p.Kind(), strings.TrimPrefix(err.Error(), fmt.Sprintf("plugin %q: ", id)))
 			continue
 		}
 		e.cands = append(e.cands, candidate{p: f.p, source: f.source})
@@ -278,7 +369,12 @@ func (s *state) loadExternal(root string, prompt bool) *extState {
 		if data != "" {
 			data = filepath.Join(data, "files")
 		}
-		c.p.Bind(extplugins.Runtime{Workspace: root, DataDir: data, Ctx: e.ctx})
+		switch pl := c.p.(type) {
+		case *extplugins.Plugin:
+			pl.Bind(extplugins.Runtime{Workspace: root, DataDir: data, Ctx: e.ctx})
+		case *scriptplugins.Plugin:
+			pl.Bind(scriptplugins.Runtime{Workspace: root, Ctx: e.ctx, Storage: pluginStore{s: s, id: m.ID}})
+		}
 		c.p.OnChange(func() { go s.pluginFilesChanged(e) })
 		if err := e.reg.Register(c.p); err == nil {
 			e.active[m.ID] = c.p
@@ -311,7 +407,7 @@ func (s *state) pluginList() []PluginInfo {
 	out := []PluginInfo{}
 	for _, m := range s.base.All() {
 		out = append(out, PluginInfo{ID: m.ID, Version: m.Version, Description: m.Description, Source: "builtin",
-			Status: onOff(enabled(m.ID, m.Default)), Runs: []string{}})
+			Status: onOff(enabled(m.ID, m.Default)), Runs: []string{}, Kind: "builtin"})
 	}
 	if s.ext == nil {
 		return out
@@ -324,7 +420,7 @@ func (s *state) pluginList() []PluginInfo {
 			st = onOff(enabled(m.ID, m.Default))
 		}
 		out = append(out, PluginInfo{ID: m.ID, Version: m.Version, Description: m.Description, Source: c.source,
-			Status: st, Runs: append([]string{}, c.p.Runs()...)})
+			Status: st, Runs: append([]string{}, c.p.Runs()...), Kind: c.p.Kind()})
 	}
 	return append(out, s.ext.invalid...)
 }
@@ -500,6 +596,12 @@ func (s *state) target(id, page string, needOn bool) (target, error) {
 			return target{}, fmt.Errorf("plugin %q is switched off", id)
 		}
 		ctx = set.Context(id, page)
+		r, path := s.r, page
+		// An action renders markdown through the page's own pipeline too.
+		ctx.Markdown = func(src string) (string, error) {
+			pg, err := r.Render(path, []byte(src))
+			return pg.HTML, err
+		}
 	}
 	ctx.Workspace = s.ext.root
 	if d := s.dataDir(s.ext.root, id); d != "" {
@@ -559,11 +661,13 @@ func readStore(path string) (map[string]json.RawMessage, error) {
 
 // PluginStorageGet returns the JSON text stored under key by an external
 // plugin, "null" when there is none.
-func (z *Zen) PluginStorageGet(id, key string) (string, error) {
+func (z *Zen) PluginStorageGet(id, key string) (string, error) { return z.state.storageGet(id, key) }
+
+func (s *state) storageGet(id, key string) (string, error) {
 	if err := validKey(key); err != nil {
 		return "", err
 	}
-	path, err := z.state.storagePath(id)
+	path, err := s.storagePath(id)
 	if err != nil {
 		return "", err
 	}
@@ -583,6 +687,10 @@ func (z *Zen) PluginStorageGet(id, key string) (string, error) {
 // PluginStorageSet stores a JSON value for an external plugin (1 MB per
 // plugin and folder, written atomically).
 func (z *Zen) PluginStorageSet(id, key, value string) error {
+	return z.state.storageSet(id, key, value)
+}
+
+func (s *state) storageSet(id, key, value string) error {
 	if err := validKey(key); err != nil {
 		return err
 	}
@@ -593,7 +701,7 @@ func (z *Zen) PluginStorageSet(id, key, value string) error {
 	if err := json.Compact(&compact, []byte(value)); err != nil {
 		return errors.New("the value is not valid JSON")
 	}
-	path, err := z.state.storagePath(id)
+	path, err := s.storagePath(id)
 	if err != nil {
 		return err
 	}
@@ -621,6 +729,17 @@ func (z *Zen) PluginStorageSet(id, key, value string) error {
 	}
 	return nil
 }
+
+// pluginStore is the storage a script plugin reaches as zen.storage: the same
+// store, file and limits as ctx.storage.
+type pluginStore struct {
+	s  *state
+	id string
+}
+
+func (p pluginStore) Get(key string) (string, error)       { return p.s.storageGet(p.id, key) }
+func (p pluginStore) Set(key, value string) error          { return p.s.storageSet(p.id, key, value) }
+func (p pluginStore) Keys(prefix string) ([]string, error) { return p.s.storageKeys(p.id, prefix) }
 
 // PluginInvoke runs a plugin's action hook (a built-in ActionHook, or an
 // external backend with ZEN_HOOK=action) with a JSON payload and returns the
@@ -657,12 +776,16 @@ func (z *Zen) PluginInvoke(id, page, payload string) (string, error) {
 // PluginStorageKeys lists the plugin's storage keys that start with prefix
 // ("" for all), sorted.
 func (z *Zen) PluginStorageKeys(id, prefix string) ([]string, error) {
+	return z.state.storageKeys(id, prefix)
+}
+
+func (s *state) storageKeys(id, prefix string) ([]string, error) {
 	if prefix != "" {
 		if err := validKey(prefix); err != nil {
 			return nil, err
 		}
 	}
-	path, err := z.state.storagePath(id)
+	path, err := s.storagePath(id)
 	if err != nil {
 		return nil, err
 	}

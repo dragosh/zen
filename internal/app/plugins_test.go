@@ -345,12 +345,12 @@ func TestPluginsList(t *testing.T) {
 	var shape []map[string]any
 	json.Unmarshal(raw, &shape)
 	for _, it := range shape {
-		for _, k := range []string{"id", "version", "description", "source", "status", "runs", "problem"} {
+		for _, k := range []string{"id", "version", "description", "source", "status", "runs", "problem", "kind"} {
 			if _, ok := it[k]; !ok {
 				t.Fatalf("JSON lacks %q: %s", k, raw)
 			}
 		}
-		if len(it) != 7 {
+		if len(it) != 8 {
 			t.Fatalf("JSON shape: %s", raw)
 		}
 		if _, isList := it["runs"].([]any); !isList {

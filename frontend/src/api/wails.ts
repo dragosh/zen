@@ -35,6 +35,7 @@ function page(p: Raw): Page {
 
 const SOURCES: PluginInfo["source"][] = ["builtin", "folder", "user"];
 const STATUSES: PluginInfo["status"][] = ["on", "off", "blocked", "undecided", "invalid"];
+const KINDS: PluginInfo["kind"][] = ["program", "page", "script", "builtin"];
 
 /** Unknown values fall to the careful side: an external plugin that is not in use. */
 function pluginInfo(p: Record<string, any>): PluginInfo {
@@ -46,6 +47,7 @@ function pluginInfo(p: Record<string, any>): PluginInfo {
     status: STATUSES.includes(p.status) ? p.status : "invalid",
     runs: Array.isArray(p.runs) ? p.runs.map(String) : [],
     problem: String(p.problem ?? ""),
+    kind: KINDS.includes(p.kind) ? p.kind : p.source === "builtin" ? "builtin" : "program",
   };
 }
 

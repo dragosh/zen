@@ -35,6 +35,29 @@ type state struct {
 	titleOnly bool     // only the title is wanted: run no hooks
 }
 
+// ctx is the hook context of plugin id: the page's settings and a way to
+// render markdown through this same render (Context.Markdown).
+func (st *state) ctx(id string) plugins.Context {
+	c := st.set.Context(id, st.path)
+	c.Markdown = st.markdown
+	return c
+}
+
+// markdown renders src as a fragment of the page being rendered, with its
+// plugins, nested at most maxNesting levels deep. The HTML is sanitised with
+// the page.
+func (st *state) markdown(src string) (string, error) {
+	if st.titleOnly {
+		return "", nil
+	}
+	if st.depth >= maxNesting {
+		return "", fmt.Errorf("markdown nested more than %d levels deep", maxNesting)
+	}
+	st.depth++
+	defer func() { st.depth-- }()
+	return st.fragment(src), nil
+}
+
 func newNonce() string {
 	b := make([]byte, 8)
 	_, _ = rand.Read(b)
@@ -94,7 +117,7 @@ func (st *state) block(p plugins.Plugin, b plugins.Block) string {
 	var out string
 	var err error
 	if h, ok := plugins.BlockHookOf(p); ok {
-		err = guard(func() (e error) { out, e = h.RenderBlock(st.set.Context(id, st.path), b); return })
+		err = guard(func() (e error) { out, e = h.RenderBlock(st.ctx(id), b); return })
 	} else if b.Fenced {
 		out = `<pre class="zen-plugin-source">` + html.EscapeString(b.Body) + "</pre>"
 	} else if st.depth >= maxNesting {
@@ -122,7 +145,7 @@ func (st *state) inline(p plugins.Plugin, in plugins.Inline) string {
 	var out string
 	var err error
 	if h, ok := plugins.InlineHookOf(p); ok {
-		err = guard(func() (e error) { out, e = h.RenderInline(st.set.Context(id, st.path), in); return })
+		err = guard(func() (e error) { out, e = h.RenderInline(st.ctx(id), in); return })
 	} else {
 		out = html.EscapeString(in.Text)
 	}

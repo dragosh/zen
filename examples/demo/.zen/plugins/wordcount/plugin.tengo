@@ -1,0 +1,30 @@
+// .zen/plugins/wordcount/plugin.tengo: word counts, from the files of the folder.
+text := import("text")
+
+plugin := {
+    version: "0.1.0",
+    description: "Word counts for this page and for every page",
+    inlines: ["words"],
+    blocks: ["pages"],
+    permissions: ["read"]
+}
+
+count := func(path) {
+    return len(text.fields(zen.read(path) || ""))
+}
+
+if hook == "inline" {
+    out = zen.html("span", {class: "words"}, string(count(page.path)))
+}
+
+if hook == "block" {
+    limit := int(attrs.limit || 0)
+    items := []
+    for p in zen.pages() {
+        if limit > 0 && len(items) >= limit {
+            break
+        }
+        items = append(items, zen.html("li", {}, p.title, " (", p.path, "): ", string(count(p.path)), " words"))
+    }
+    out = zen.html("ul", {class: "pages"}, items)
+}

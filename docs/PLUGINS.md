@@ -44,6 +44,7 @@ type Context struct {
     Config    map[string]any // this plugin's effective options for this page
     DataDir   string         // the plugin's writable folder (actions and streams; same place as ZEN_DATA_DIR)
     Workspace string         // root of the open folder (actions and streams)
+    Markdown  func(src string) (string, error) // renders markdown through the page's own pipeline (nested plugins, at most 8 levels deep); nil without a page pipeline
 }
 
 type Block  struct{ Name, Body string; Attrs map[string]string; Fenced bool }
@@ -197,12 +198,157 @@ Unknown plugin ids and unknown options produce a warning in the page
 
 ## Writing your own plugin (external plugins)
 
-A plugin is a **folder with a `plugin.yml`**. zen looks in two places:
+There are two ways, and the first is the simplest:
+
+| | Made of | Use it for |
+|---|---|---|
+| **script plugin** | one Tengo file, run by zen inside the app | turning a block, an inline or a page into HTML; no process, no environment variables |
+| **folder plugin** | a folder with a `plugin.yml`: a program zen runs, scripts and styles for the page, or both | wrapping tools that already exist (`bc`, `dot`, `container`), interactive blocks |
+
+zen looks in two places:
 
 | Where | For |
 |---|---|
-| `<folder>/.zen/plugins/<id>/` | plugins that travel with a folder of documents |
-| `<user config dir>/zen/plugins/<id>/` (macOS: `~/Library/Application Support/zen/plugins/`) | your own plugins, for every folder |
+| `<folder>/.zen/plugins/` (`<id>.tengo`, `<id>/plugin.tengo` or `<id>/plugin.yml`) | plugins that travel with a folder of documents |
+| `<user config dir>/zen/plugins/` (macOS: `~/Library/Application Support/zen/plugins/`) | your own plugins, for every folder |
+
+### Script plugins (Tengo)
+
+A script plugin is one file, written in [Tengo](https://github.com/d5/tengo)
+(`github.com/d5/tengo/v2`, a small Go-like language): `.zen/plugins/note.tengo`,
+or `.zen/plugins/note/plugin.tengo` with other files beside it. zen compiles it
+once per content, runs a fresh copy for every call, and gives it a hard time
+and allocation budget and nothing else: **no files, no programs, no network**,
+unless the plugin asks for the `read` permission, and then only the markdown
+and text files of the open folder.
+
+```go
+// .zen/plugins/note.tengo
+plugin := {
+    version: "0.1.0",
+    description: "Callout boxes",
+    blocks: ["note", "warning"],
+    css: "div.note { border-left: 3px solid; padding: .5em 1em }"   // optional inline CSS
+}
+
+if hook == "block" {
+    title := attrs.title || (name == "warning" ? "Warning" : "Note")
+    out = zen.html("div", {class: name}, zen.html("strong", {}, title), zen.markdown(body))
+}
+```
+
+The id is the file name (or the folder name of the folder form): `[a-z][a-z0-9-]*`.
+zen first runs the script once with `hook == ""` to read the top-level `plugin`
+map, which must be there. After that each hook call runs the whole script again
+on a fresh copy, so nothing is kept between calls except through `zen.storage`.
+Everything a script returns is sanitised like all plugin output; a script plugin
+has no `allow` rules, so it works with the base HTML policy.
+
+**The `plugin` map.** An unknown key is an error.
+
+| Key | |
+|---|---|
+| `version` | required, SemVer |
+| `description` | text for Settings and the trust prompt |
+| `blocks`, `inlines`, `layouts` | the names it owns (`[a-z][a-z0-9-]*`); `blocks` gives the `block` hook, `inlines` the `inline` hook |
+| `hooks` | more hooks, any of `source`, `html`, `action` (and `block`/`inline` when the names are listed) |
+| `permissions` | `[]` or `["read"]`, nothing else exists |
+| `timeout` | a duration string such as `"500ms"`; default `"200ms"`, at most `"2s"` |
+| `css` | inline CSS (at most 64 KB; no `@import`, no web addresses, `url()` only for `data:` images), served as `/_plugins/<id>/inline.css` and loaded on pages that use the plugin |
+| `options` | `{name: {type, default, description, scope}}` as in `plugin.yml`; they arrive in `config` |
+| `default` | `false` to start switched off |
+| `js`, `stylesheets` | folder form only: page scripts (ES modules with a default export, as in "Frontend") and style sheets beside the script |
+
+**Globals.** Every call sees these; the script assigns `out`.
+
+| Global | Value |
+|---|---|
+| `hook` | `"block"`, `"inline"`, `"source"`, `"html"`, `"action"`, or `""` while zen reads the `plugin` map |
+| `name` | the block or inline name; `""` for the others |
+| `body` | the block's body (raw text), the inline's text, the page's markdown (`source`) or HTML (`html`) |
+| `attrs` | the `{key=value}` attributes (a map of strings) |
+| `config` | the plugin's options for the page |
+| `page` | `{path, title}` of the page (the title is the frontmatter's, else the first heading, else the file name) |
+| `payload` | `action` only: the JSON sent by `ctx.invoke`, decoded (`undefined` otherwise) |
+| `out` | the result: a string or a `zen.html` result; for `action` any value (maps, lists, numbers, strings), sent back as JSON. Left unset, a block or inline is empty, `source` and `html` leave the text alone and an `action` answers `null` |
+
+**The `zen` module** is a Go-built map of functions, the only API a script has.
+
+| Function | Does |
+|---|---|
+| `zen.escape(s)` | `s` with `& < > " '` escaped (a string) |
+| `zen.html(tag, attrs, children...)` | the element as an html value. The tag and attribute names are checked; attribute values and string children are escaped; children that are `zen.html` / `zen.markdown` results are kept as HTML; lists are flattened; `true` is a bare attribute, `false` and `undefined` leave it out; void tags (`br`, `img`, …) take no children |
+| `zen.markdown(s)` | renders markdown through the page's own pipeline (nested plugins included, their assets with it, at most 8 levels deep) and returns an html value |
+| `zen.storage.get(key)` | the value kept under `key`, `undefined` for none |
+| `zen.storage.set(key, value)` | keeps any JSON value; the same store, limits (1 MB per plugin and folder) and file as `ctx.storage` |
+| `zen.storage.keys(prefix)` | the stored keys that start with `prefix`, sorted |
+| `zen.read(path)` | **`read` permission.** The text of a file of the open folder, `undefined` when it is not there |
+| `zen.pages()` | **`read` permission.** The folder's pages as a list of `{path, title}`, sorted by path |
+
+`zen.read` opens `.md`, `.markdown`, `.txt`, `.text`, `.csv`, `.tsv`, `.json`,
+`.yml` and `.yaml` files only, regular files of at most 1 MB that are valid UTF-8
+and that stay inside the open folder: an absolute path, a `..` that leaves it,
+or a symlink that resolves outside is refused. Other modules cannot be
+imported except the pure standard ones, `text`, `math`, `times`, `fmt`,
+`json`, `enum`, `base64`, `hex` and `rand`; `times.sleep` and `fmt.print*` are
+removed (one cannot be interrupted, the others write to zen's own output).
+Any other `import` (`os`, a file) fails when the plugin loads, and a plugin
+that fails to compile, run once or validate is listed as invalid with the line
+and the problem.
+
+**Limits, per call.** A script that goes over one stops and the page shows
+the plugin's error box in place of the block.
+
+| Limit | Value | Error |
+|---|---|---|
+| wall time | 200 ms, or `timeout` up to 2 s | `timed out after 200ms` |
+| allocations | 500 000 objects (every number or string a script makes counts) | `allocation limit exceeded` |
+| memory | the heap may grow by 256 MB during a call (a list doubled 30 times costs few objects and gigabytes) | `memory limit exceeded` |
+| strings and bytes | 4 MB each | `a string or bytes value is larger than 4 MB` |
+| output | 2 MB | `the output is larger than 2 MB` |
+| script file | 256 KB | the plugin is invalid |
+
+Calls are cancelled when the folder changes or zen quits, like a program's. The wall time counts everything the call waits for, `zen.markdown` included.
+
+**Trust** is the one of folder plugins, below: the same discovery, hash (of the
+`.tengo` file, or of the whole folder in the folder form), fingerprint check
+before every call and asset, per-workspace answer and `plugins:changed`. A
+script plugin is always asked about, but the prompt says what it can do:
+"renders blocks inside zen; cannot read files, run programs or use the network",
+and with `read`, "renders blocks inside zen and reads files in this folder;
+cannot run programs or use the network". A single `.tengo` file must be a plain
+file, not a symlink. `Plugins()` (Settings › Plugins) reports `kind: "script"`
+for them, `"program"` or `"page"` for folder plugins and `"builtin"` for the
+built-in ones.
+
+**Isolation.** Scripts do not run inside the zen process. Tengo values are
+references, so a script can build a map or list that contains itself
+(`m := {}; m.self = m`), and Tengo's own `string(m)`, `m == m2`, `copy(m)` and
+`"text" + m` then recurse until the Go stack overflows, a fatal error nothing
+can catch. Run in the app, that would stop zen and lose unsaved text. So zen
+runs every script in a **helper process**: the same zen binary started as the
+hidden `zen __script-host` (it refuses to run on a terminal), a small pool of
+long-lived helpers (2, up to 4 computing at once) started on first use. A
+helper gets only `PATH`, `HOME`, `TMPDIR` and `LANG`, a private temporary
+working folder, and no files of its own: whatever a script reaches
+(`zen.markdown`, `zen.storage`, `zen.read`, `zen.pages`) is a request to zen,
+which checks the permission and the path rules and answers. Your scripts do not
+change; a call costs about 0.1 ms once the helper is warm.
+
+- A script that overflows the stack, or a helper that dies for any other
+  reason, ends that call with the error box "the script plugin crashed"; the
+  helper is replaced and the next call, of the same or another plugin, runs
+  normally.
+- A script stopped by the time limit or the memory limit is stopped by killing
+  its helper too (Tengo cannot interrupt a builtin such as `string(m)`), and a
+  helper over 512 MB is killed by zen.
+- Three crashes of the same plugin within a minute switch it off until zen is
+  restarted or the script is edited; its blocks show "the script plugin was
+  switched off after 3 crashes in a minute". There is no restart loop.
+- Helpers end when the folder changes (a call in progress finishes first) and
+  when zen quits.
+
+### Folder plugins
 
 A plugin can have any mix of three parts:
 
@@ -212,7 +358,7 @@ A plugin can have any mix of three parts:
 | **frontend** | JavaScript and CSS loaded on pages that use the plugin | interactive blocks, layouts, anything that reacts to clicks |
 | **tool** | a backend whose command is an existing program on the Mac | no code at all: the block's text is its input, its output is shown |
 
-### plugin.yml
+#### plugin.yml
 
 ```yaml
 id: note                      # [a-z][a-z0-9-]*, must equal the folder name

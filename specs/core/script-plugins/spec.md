@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | specified |
+| Status | done |
 | Target version | 0.2.0 |
 | Depends on | core/extplugins, core/plugin-extras |
 | Branch | `feature/core-script-plugins` |
@@ -92,3 +92,99 @@ silent allow — but the prompt describes them truthfully:
 2. Discovery: `*.tengo` and `*/plugin.tengo` next to `plugin.yml` folders; same id rules, same registry.
 3. Demo: add `examples/demo/.zen/plugins/callout.tengo` (single file: `:::tip` / `:::caution` callouts with inline CSS and `zen.markdown` for the body) and `examples/demo/.zen/plugins/wordcount/plugin.tengo` (folder form, `permissions: ["read"]`, an inline `:words[]` showing the page's word count and a `:::pages` block listing every page with its word count via `zen.pages()` + `zen.read()`). Keep `note` (shell) as the program example. In `writing-plugins.md` add "The simplest plugin: one Tengo file" first, before the program section, with both samples' full source, the inputs/`zen` module table, limits, and permissions; use `:::tip` on that page so it renders. `TestDemoFolder` trusts the new samples and asserts they render.
 4. Tests: inputs/outputs per hook (block, inline, source, html, action via `PluginInvoke`), every limit (timeout, allocations, output, file size), permission gating (`zen.read` without `read` fails; paths outside the folder, `..`, symlinks out, non-markdown binary files refused), unknown imports (`os`) refused at load, malformed scripts as page warnings, concurrent calls with `-race`, `zen.html` escaping (attributes and text), `zen.markdown` nesting depth, trust/hash/fingerprint re-prompt after editing the `.tengo` file.
+
+## Notes (from the build)
+
+- **zen.markdown needs the renderer.** A hook only gets a `plugins.Context`, so
+  `Context.Markdown func(src string) (string, error)` was added (core/plugins)
+  and set by core/render for every hook of a page (`state.ctx`), implemented as
+  a fragment of the same render: nested plugins run, their assets count for the
+  page, the HTML is sanitised once with the page, and the existing
+  `maxNesting` (8) bounds the depth through `state.depth`. `Zen.PluginInvoke`
+  sets it for actions from the renderer of the open folder. This touches
+  `internal/core/{plugins,render}`, outside the Owns row.
+- **Shared trust code.** `extplugins` exports `Subject` (what `Trust` decides
+  on: `Dir`, `Hash`, `Changed`), `Guard` (the fingerprint re-check, now used by
+  `Plugin` too), `ScanFolder`/`FolderFingerprint`/`HashFile`/`FileFingerprint`,
+  `ReadRegular`/`ResolveInside`/`CheckInside`/`InsideRel` and `ParseOption`, so
+  script plugins reuse the hardening and do not copy it. A single `.tengo` file
+  must be a regular file (a symlink could be repointed without changing the
+  fingerprint); in the folder form the rules are the folder's.
+- **The Tengo allocation budget does not bound memory.** `SetMaxAllocs` counts
+  objects, so `x = x + x` (arrays) or `s = s + s` (strings, 2 GB by default)
+  reached gigabytes in tens of milliseconds. zen sets `tengo.MaxStringLen` and
+  `MaxBytesLen` to 4 MB and watches the heap during a call (stop at +256 MB).
+  The heap figure is process-wide, so a very busy app could in theory stop an
+  innocent call; the limit is far above what a page render allocates.
+- **Withheld from the allowed modules:** `times.sleep` (blocks without
+  honouring the timeout) and `fmt.print`, `println`, `printf` (write to zen's
+  stdout).
+- **Self-containing values crash Tengo, so scripts run in a helper process**
+  (see Isolation below, built 2026-11-16). `m := {}; m.self = m` is legal
+  Tengo; `string(m)`, `m == m2`, `copy(m)` and `"s" + m` recurse until the Go
+  stack overflows. With the helper, such a script costs one call
+  ("the script plugin crashed", or the memory/time limit when that fires
+  first), never the app.
+- **A cancelled Tengo run keeps running.** `RunContext` returns on the
+  deadline or the memory stop but cannot interrupt a builtin, so the VM
+  goroutine goes on in the background. After a timeout or memory stop the
+  helper therefore reports `kill` and exits, and zen discards it; a helper
+  never serves a call after one.
+- **As built:** `internal/core/scriptplugins/{proto,host,pool,callbacks}.go`.
+  The pool counts helpers parked in a callback (`zen.markdown` rendering
+  nested script blocks needs another helper) as free, so nesting never
+  starves a small pool; total is capped at 16. Crash counts are keyed by plugin
+  path and script hash, so an edited script starts clean. The call deadline
+  starts when the call is written (spawn and compile do not count); zen
+  kills the helper 300 ms after the plugin's timeout if it still has not
+  answered. RSS is polled with `ps` every 250 ms during a call.
+  `main.go` serves `__script-host` before the command line is parsed; the
+  GUI packages are linked into the binary but nothing of them runs.
+- **Allocation figures.** 500 000 objects is about 150 000 loop iterations of
+  `n += i % 7` (every number made counts), so loops over a few thousand items
+  are fine and the demo plugins use a small fraction.
+- `plugin` map keys beyond the spec: `hooks` (source, html, action), `timeout`,
+  `options`, `default`, and for the folder form `js` and `stylesheets`.
+  `import("zen")` is not available; `zen` is a global.
+
+## Isolation: scripts run in a helper process (decided 2026-11-16)
+
+Verified: Tengo values are references, so `m := {}; m.a = m; x := string(m)`
+(also `==`, `copy`, `"s" + v`) recurses inside Tengo until Go's stack limit:
+`fatal error: stack overflow`, which no `recover` catches. In-process, one
+approved script could kill the app and lose unsaved editor text. Scripts
+therefore run in a **helper process**; the authoring surface does not change.
+
+1. **Helper.** The same `zen` binary started with a hidden mode
+   (`zen __script-host`, not listed in `--help`, refused when stdin is a
+   terminal). zen keeps a small pool (default 2, max 4) of long-lived helpers,
+   started on first use, each serving one call at a time.
+2. **Protocol.** Newline-delimited JSON over the helper's stdin/stdout.
+   zen → helper: `load {id, source, hash}` (compiled once per hash and
+   cached in the helper), `call {seq, id, hash, hook, globals, limits}`.
+   helper → zen: `result {seq, out | error}`, and **callbacks** for the
+   `zen` module: `callback {seq, cb, fn, args}` → zen answers
+   `reply {cb, value | error}`. Callbacks: `markdown`, `storage.get/set/keys`,
+   `read`, `pages` — permission checks, path rules and the renderer stay in
+   zen, never in the helper. `escape` and `html` run in the helper (pure).
+3. **Limits.** Per call: zen's wall-clock deadline (200 ms default, ≤ 2 s,
+   callback time included) — on expiry zen kills the helper and starts a
+   fresh one. Allocation budget, 4 MB string/bytes caps and the heap watcher
+   run inside the helper, so the watcher measures only that helper. Helper
+   memory limit: `debug.SetMemoryLimit(256 MB)` plus a hard kill from zen
+   when its RSS passes 512 MB.
+4. **Crashes.** Helper exit, broken pipe or garbage on stdout → the call
+   fails with "the script plugin crashed" (error box / page warning naming
+   the plugin), the helper is replaced, other calls continue. Three crashes
+   of the same plugin within a minute → that plugin is switched off for the
+   session with a page warning (no restart loop).
+5. **Lifecycle.** Helpers are killed on folder change and quit; a helper
+   gets only `PATH`, `HOME`, `TMPDIR`, `LANG`; its cwd is a private temp dir;
+   it never reads files itself.
+6. **Tests.** The four crash one-liners each produce a clean error and the
+   next call to the same and to another plugin succeeds; timeout kills and
+   replaces the helper; callbacks (markdown nesting, storage, read with and
+   without permission) round-trip; concurrent calls across the pool with
+   `-race`; crash-loop switch-off; helpers gone after folder change and close;
+   protocol fuzz (garbage lines) does not panic zen. Existing script-plugin
+   tests keep passing unchanged (they now exercise the helper).

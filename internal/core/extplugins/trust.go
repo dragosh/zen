@@ -30,25 +30,12 @@ func (p *Plugin) AssetVersion() string {
 
 // OnChange sets f to be called (in the calling goroutine, once) when the
 // plugin's folder is found changed.
-func (p *Plugin) OnChange(f func()) { p.onChange.Store(&f) }
+func (p *Plugin) OnChange(f func()) { p.guard.OnChange(f) }
 
 // Changed reports whether anything in the plugin folder differs from what was
 // loaded (a path, mode, size or modification time: no file is read). Once
 // true it stays true; the first time it also calls the OnChange function.
-func (p *Plugin) Changed() bool {
-	if p.changed.Load() {
-		return true
-	}
-	if _, fp, err := scanFolder(p.dir, false); err == nil && fp == p.fingerprint {
-		return false
-	}
-	if p.changed.CompareAndSwap(false, true) {
-		if f := p.onChange.Load(); f != nil {
-			(*f)()
-		}
-	}
-	return true
-}
+func (p *Plugin) Changed() bool { return p.guard.Changed() }
 
 type trustEntry struct {
 	Path     string `yaml:"path"`
@@ -117,11 +104,12 @@ func (t *Trust) Notice() string {
 }
 
 // Decision reports the user's decision for the plugin's loaded files in scope.
-func (t *Trust) Decision(p *Plugin, scope string) (allowed, decided bool) {
+func (t *Trust) Decision(p Subject, scope string) (allowed, decided bool) {
+	hash, _ := p.Hash()
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	for _, e := range t.entries {
-		if e.Path == p.dir && e.Scope == scope && e.SHA256 == p.hash {
+		if e.Path == p.Dir() && e.Scope == scope && e.SHA256 == hash {
 			return e.Decision == "allow", true
 		}
 	}
@@ -131,7 +119,7 @@ func (t *Trust) Decision(p *Plugin, scope string) (allowed, decided bool) {
 // Set records a decision for the files the plugin had when it was loaded (what
 // the user was shown) and saves it. Allowing a plugin whose folder has changed
 // since is refused with ErrChanged.
-func (t *Trust) Set(p *Plugin, scope string, allow bool) error {
+func (t *Trust) Set(p Subject, scope string, allow bool) error {
 	if allow && p.Changed() {
 		return ErrChanged
 	}
@@ -139,16 +127,20 @@ func (t *Trust) Set(p *Plugin, scope string, allow bool) error {
 	if allow {
 		d = "allow"
 	}
+	hash, err := p.Hash()
+	if err != nil {
+		return errors.New("could not hash the plugin")
+	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
 	kept := t.entries[:0:0]
 	for _, e := range t.entries {
-		if e.Path != p.dir || e.Scope != scope {
+		if e.Path != p.Dir() || e.Scope != scope {
 			kept = append(kept, e)
 		}
 	}
 	old := t.entries
-	t.entries = append(kept, trustEntry{Path: p.dir, Scope: scope, SHA256: p.hash, Decision: d})
+	t.entries = append(kept, trustEntry{Path: p.Dir(), Scope: scope, SHA256: hash, Decision: d})
 	if err := t.saveLocked(); err != nil {
 		t.entries = old
 		return err

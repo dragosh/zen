@@ -131,8 +131,8 @@ test("lint is configurable and recorded", async () => {
 test("plugins: the list is settable and pluginTrust updates the status", async () => {
   const api = createFakeApi({
     plugins: [
-      { id: "highlight", version: "0.1.0", description: "", source: "builtin", status: "on", runs: [], problem: "" },
-      { id: "note", version: "0.1.0", description: "Callouts", source: "folder", status: "undecided", runs: ["./note.sh"], problem: "" },
+      { id: "highlight", version: "0.1.0", description: "", source: "builtin", status: "on", runs: [], problem: "", kind: "builtin" },
+      { id: "note", version: "0.1.0", description: "Callouts", source: "folder", status: "undecided", runs: ["./note.sh"], problem: "", kind: "program" },
     ],
   });
   const list = await api.plugins();

@@ -261,13 +261,15 @@ describe("wails api", () => {
   it("plugins: maps the list defensively and passes the other calls through", async () => {
     const api = (await import("./wails")).default;
     results.Plugins = [
-      { id: "note", version: "0.1.0", description: "Callouts", source: "folder", status: "undecided", runs: ["./note.sh"], problem: "" },
-      { id: "x", source: "elsewhere", status: "weird", runs: null },
+      { id: "note", version: "0.1.0", description: "Callouts", source: "folder", status: "undecided", runs: ["./note.sh"], problem: "", kind: "script" },
+      { id: "x", source: "elsewhere", status: "weird", runs: null, kind: "teapot" },
+      { id: "core", source: "builtin", status: "on", runs: [] },
       null,
     ];
     expect(await api.plugins()).toEqual([
-      { id: "note", version: "0.1.0", description: "Callouts", source: "folder", status: "undecided", runs: ["./note.sh"], problem: "" },
-      { id: "x", version: "", description: "", source: "folder", status: "invalid", runs: [], problem: "" },
+      { id: "note", version: "0.1.0", description: "Callouts", source: "folder", status: "undecided", runs: ["./note.sh"], problem: "", kind: "script" },
+      { id: "x", version: "", description: "", source: "folder", status: "invalid", runs: [], problem: "", kind: "program" },
+      { id: "core", version: "", description: "", source: "builtin", status: "on", runs: [], problem: "", kind: "builtin" },
     ]);
     results.Plugins = null;
     expect(await api.plugins()).toEqual([]);

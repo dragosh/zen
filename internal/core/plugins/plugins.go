@@ -125,6 +125,11 @@ type Context struct {
 	// set for actions and streams; "" when there is no folder or settings dir.
 	DataDir   string
 	Workspace string
+	// Markdown renders markdown through the page's own pipeline (nested
+	// plugins included, with a depth limit) and returns HTML that is
+	// sanitised with the rest of the page. It is nil where there is no page
+	// pipeline to call.
+	Markdown func(src string) (string, error)
 }
 
 // Block is a named fenced or container block handed to a BlockHook.
