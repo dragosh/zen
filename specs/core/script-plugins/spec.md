@@ -134,3 +134,45 @@ silent allow — but the prompt describes them truthfully:
 - `plugin` map keys beyond the spec: `hooks` (source, html, action), `timeout`,
   `options`, `default`, and for the folder form `js` and `stylesheets`.
   `import("zen")` is not available; `zen` is a global.
+
+## Isolation: scripts run in a helper process (decided 2026-11-16)
+
+Verified: Tengo values are references, so `m := {}; m.a = m; x := string(m)`
+(also `==`, `copy`, `"s" + v`) recurses inside Tengo until Go's stack limit:
+`fatal error: stack overflow`, which no `recover` catches. In-process, one
+approved script could kill the app and lose unsaved editor text. Scripts
+therefore run in a **helper process**; the authoring surface does not change.
+
+1. **Helper.** The same `zen` binary started with a hidden mode
+   (`zen __script-host`, not listed in `--help`, refused when stdin is a
+   terminal). zen keeps a small pool (default 2, max 4) of long-lived helpers,
+   started on first use, each serving one call at a time.
+2. **Protocol.** Newline-delimited JSON over the helper's stdin/stdout.
+   zen → helper: `load {id, source, hash}` (compiled once per hash and
+   cached in the helper), `call {seq, id, hash, hook, globals, limits}`.
+   helper → zen: `result {seq, out | error}`, and **callbacks** for the
+   `zen` module: `callback {seq, cb, fn, args}` → zen answers
+   `reply {cb, value | error}`. Callbacks: `markdown`, `storage.get/set/keys`,
+   `read`, `pages` — permission checks, path rules and the renderer stay in
+   zen, never in the helper. `escape` and `html` run in the helper (pure).
+3. **Limits.** Per call: zen's wall-clock deadline (200 ms default, ≤ 2 s,
+   callback time included) — on expiry zen kills the helper and starts a
+   fresh one. Allocation budget, 4 MB string/bytes caps and the heap watcher
+   run inside the helper, so the watcher measures only that helper. Helper
+   memory limit: `debug.SetMemoryLimit(256 MB)` plus a hard kill from zen
+   when its RSS passes 512 MB.
+4. **Crashes.** Helper exit, broken pipe or garbage on stdout → the call
+   fails with "the script plugin crashed" (error box / page warning naming
+   the plugin), the helper is replaced, other calls continue. Three crashes
+   of the same plugin within a minute → that plugin is switched off for the
+   session with a page warning (no restart loop).
+5. **Lifecycle.** Helpers are killed on folder change and quit; a helper
+   gets only `PATH`, `HOME`, `TMPDIR`, `LANG`; its cwd is a private temp dir;
+   it never reads files itself.
+6. **Tests.** The four crash one-liners each produce a clean error and the
+   next call to the same and to another plugin succeeds; timeout kills and
+   replaces the helper; callbacks (markdown nesting, storage, read with and
+   without permission) round-trip; concurrent calls across the pool with
+   `-race`; crash-loop switch-off; helpers gone after folder change and close;
+   protocol fuzz (garbage lines) does not panic zen. Existing script-plugin
+   tests keep passing unchanged (they now exercise the helper).
