@@ -173,13 +173,155 @@ Unknown plugin ids and unknown options produce a warning in the page
 | `slides` | 0.2 | `slides` | splits a container on `---` into a slide deck |
 | `polls` | 0.2 | `poll` | renders a list as a poll |
 
-## External plugins (0.2, designed now)
+## Writing your own plugin (external plugins)
 
-A folder `<user config dir>/zen/plugins/<id>/` with `plugin.yml` (the
-manifest above plus `entry: main.wasm`) and a WASM module run in wazero with
-no filesystem and no network. Hooks are exported functions exchanging JSON.
-External plugins cannot ship JavaScript unless the user grants the `script`
-permission per plugin. The app never downloads plugin code.
+A plugin is a **folder with a `plugin.yml`**. zen looks in two places:
+
+| Where | For |
+|---|---|
+| `<folder>/.zen/plugins/<id>/` | plugins that travel with a folder of documents |
+| `<user config dir>/zen/plugins/<id>/` (macOS: `~/Library/Application Support/zen/plugins/`) | your own plugins, for every folder |
+
+A plugin can have any mix of three parts:
+
+| Part | What it is | Use it for |
+|---|---|---|
+| **backend** | any program (script or binary) zen runs when a page renders | turning a block into HTML, calling a tool (`dot`, `bc`, `container`) |
+| **frontend** | JavaScript and CSS loaded on pages that use the plugin | interactive blocks, layouts, anything that reacts to clicks |
+| **tool** | a backend whose command is an existing program on the Mac | no code at all: the block's text is its input, its output is shown |
+
+### plugin.yml
+
+```yaml
+id: note                      # [a-z][a-z0-9-]*, must equal the folder name
+version: 0.1.0                # SemVer
+apiVersion: 1
+description: Callout boxes
+default: true                 # on unless config switches it off
+
+blocks: [note, warning]       # ```note fences and :::note containers
+inlines: [badge]              # :badge[text]{attrs}
+layouts: [slides]             # pages with frontmatter `layout: slides`
+
+options:                      # read from config / frontmatter `plugins.note.*`
+  icon: { type: bool, default: true, description: Show an icon }
+
+allow:                        # extra HTML the sanitiser keeps for this plugin
+  - { element: div, attrs: [class] }
+
+backend:
+  command: ["./note.sh"]      # relative to the plugin folder, or a program on PATH
+  hooks: [block, inline]      # any of: source, block, inline, html, action
+  output: html                # html (default) or text (escaped and shown in <pre>)
+  timeout: 5s                 # default 5s, at most 60s
+
+frontend:
+  js: [note.js]               # ES modules, loaded only on pages that use the plugin
+  css: [note.css]
+```
+
+### Backend: one program, plain input and output
+
+zen starts `command` once per call, in the plugin folder, with **input on
+stdin**, the **result on stdout**, and everything else in environment
+variables. Exit code 0 means success; anything else shows stderr in an error
+box in place of the block (the page still renders).
+
+| `ZEN_HOOK` | stdin | stdout |
+|---|---|---|
+| `block` | the block's body (raw text) | HTML for the block |
+| `inline` | the text in `[...]` | HTML for the span |
+| `source` | the page's markdown | markdown |
+| `html` | the page's HTML | HTML |
+| `action` | JSON sent by the plugin's frontend (`ctx.invoke`) | JSON returned to it |
+
+| Variable | Value |
+|---|---|
+| `ZEN_HOOK`, `ZEN_PLUGIN`, `ZEN_API` | hook name, plugin id, `1` |
+| `ZEN_NAME` | block or inline name (`note`) |
+| `ZEN_FENCED` | `1` for a ``` fence, `0` for a `:::` container |
+| `ZEN_PAGE` | page path inside the folder (`guides/install.md`) |
+| `ZEN_ATTR_<KEY>` | each `{key=value}` attribute, key upper-cased, `-` → `_` |
+| `ZEN_ATTRS_JSON`, `ZEN_CONFIG_JSON` | all attributes / this plugin's options as JSON |
+| `ZEN_CONFIG_<KEY>` | each option |
+| `ZEN_WORKSPACE`, `ZEN_PLUGIN_DIR`, `ZEN_DATA_DIR` | folder root, plugin folder, a writable data folder for this plugin |
+
+The environment is otherwise minimal (`PATH`, `HOME`, `TMPDIR`, `LANG`). Output
+is capped at 2 MB. Whatever the program prints is sanitised like all HTML.
+
+A whole plugin in a shell script:
+
+```sh
+#!/bin/sh
+# .zen/plugins/note/note.sh — renders :::note{title="..."} containers
+title="${ZEN_ATTR_TITLE:-Note}"
+printf '<div class="note"><strong>%s</strong>' "$title"
+sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g'      # body from stdin, escaped
+printf '</div>'
+```
+
+A **tool** plugin needs no code. This one evaluates ```` ```calc ```` blocks with `bc`:
+
+```yaml
+id: calc
+version: 0.1.0
+apiVersion: 1
+blocks: [calc]
+backend: { command: ["bc", "-l"], hooks: [block], output: text }
+```
+
+### Frontend: mount on your blocks
+
+Every block, inline or layout a plugin owns is wrapped by zen:
+
+```html
+<div data-zen-plugin="quiz" data-zen-name="quiz" data-zen-attrs='{"id":"q1"}'> … </div>
+```
+
+Inside is the backend's HTML or, for a plugin without a `block` hook, the
+content itself: a `:::` container's markdown rendered to HTML, or a fence's
+text in `<pre class="zen-plugin-source">`. The plugin's script registers
+itself and zen calls `mount` for each wrapper, again after every re-render:
+
+```js
+// .zen/plugins/counter/counter.js
+zen.register("counter", {
+  async mount(el, ctx) {
+    let n = (await ctx.storage.get("count")) ?? 0;
+    const b = document.createElement("button");
+    const draw = () => (b.textContent = `Clicked ${n} times`);
+    b.onclick = async () => { n++; draw(); await ctx.storage.set("count", n); };
+    draw();
+    el.replaceChildren(b);
+    return () => b.remove();          // optional clean-up
+  },
+});
+```
+
+| `ctx` | |
+|---|---|
+| `ctx.id`, `ctx.kind`, `ctx.name` | plugin id; `"block"`, `"inline"` or `"layout"`; the block name |
+| `ctx.attrs` | the `{key=value}` attributes |
+| `ctx.page` | `{ path, title }` |
+| `ctx.storage.get(key)` / `.set(key, value)` | JSON values kept per plugin and per folder, on this Mac (1 MB per plugin) |
+| `ctx.invoke(payload)` | runs the backend with `ZEN_HOOK=action`; resolves to the JSON it prints |
+| `ctx.navigate(path, anchor?)` | open another page |
+
+### Layouts
+
+A plugin that lists `layouts: [slides]` takes over pages whose frontmatter
+says `layout: slides`. zen renders the page as usual and wraps it in
+`<div data-zen-plugin="…" data-zen-layout="slides">`; the plugin's frontend
+(`ctx.kind === "layout"`) rearranges it, e.g. one slide per `<hr>`.
+
+### Trust
+
+Plugins run programs and scripts, so **zen asks before using a plugin for
+the first time**, naming what it will run. The answer is remembered for that
+exact version of the plugin's files (a change asks again) in
+`<user config dir>/zen/trusted-plugins.yml`. Blocked plugins render as plain
+markdown with a note on the page. Settings (the cog) lists every plugin with
+Allow / Block.
 
 ## Security rules
 
@@ -188,5 +330,9 @@ permission per plugin. The app never downloads plugin code.
   `script`, `style`, `iframe`, `object`, `embed`, `form`, `on*`, `style` or
   `srcdoc`. Scoping rules to the plugin's own subtree is a 0.2 item.
 - No plugin receives file or network access through `Context`.
-- Plugin JS (built-in only in alpha) is a static embedded file; no `eval`,
-  no remote loading. Mermaid runs with `securityLevel: "strict"`.
+- Built-in plugin JS is a static embedded file; no `eval`, no remote loading.
+  Mermaid runs with `securityLevel: "strict"`.
+- External plugins run only after the user allowed that exact set of files
+  (see Trust). Their backend gets a minimal environment, a timeout and an
+  output cap; their HTML is sanitised like any other; their scripts are served
+  from the app's own origin, so the page's `script-src 'self'` still holds.

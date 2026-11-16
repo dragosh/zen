@@ -1,0 +1,69 @@
+# plugins/layouts — slides and course (plan)
+
+| | |
+|---|---|
+| Status | planned |
+| Target version | 0.2.0 |
+| Depends on | core/extplugins (layouts), ui/plugins |
+| Kind | two external plugins, frontend only (shipped as built-in folders) |
+
+## slides
+
+```markdown
+---
+layout: slides
+layoutOptions: { ratio: "16:9", transition: fade }
+---
+# Title slide
+---
+## Second slide
+- point
+Note: speaker notes after "Note:" are hidden on the slide.
+```
+
+- **Split:** each `<hr>` in the rendered page starts a new slide; without any, each `h1`/`h2` does.
+- **View:** one slide scaled to fit the pane at the chosen ratio; ← → Space PageUp/Down, Home/End, a progress bar, `n / total`; `F` for full screen (window), `O` for an overview grid, `P` for print (one slide per page, `@media print`).
+- **State:** current slide in the URL anchor (`#slide-3`) through `ctx.navigate`, so Back/Forward and live reload keep the place.
+- **Editing:** the editor window is unchanged; the main window follows live, staying on the current slide.
+
+## course
+
+```markdown
+---
+layout: course
+layoutOptions: { id: intro-to-zen }
+---
+# Getting started
+## Step 1: Install
+…
+:::check
+- [ ] I ran `zen --version`
+:::
+## Step 2: Open a folder
+```
+
+- **Split:** each `h2` is a step; the layout shows a step list on the left (done / current / locked), the current step, and Previous / Next.
+- **Progress:** per step done state and the last open step in `ctx.storage` under the course `id`; "3 of 7 steps" in the header and a Reset button. Optional `:::check` blocks gate Next until every box is ticked.
+- **Across pages:** a course can span files: `layoutOptions.pages: [a.md, b.md]`; the sidebar marks finished pages (needs the nav badge hook below).
+
+## Needs from the core
+
+| Need | Why | Change |
+|---|---|---|
+| Layouts (wrap + `Page.layout` + full-pane CSS) | both | in core/extplugins and ui/plugins (wave 6) |
+| Anchor changes delivered to plugins | slide/step in the URL | `ctx.onAnchor(fn)` in the runtime |
+| Nav badges | finished course pages in the sidebar | small API: `ctx.badge(path, text)` → store → ui/navigation renders a muted suffix |
+| Print styles hook | slides to PDF | layout CSS may define `@media print`; add File › Print (⌘P) |
+
+## Steps
+
+1. `ctx.onAnchor`, `ctx.badge`, ⌘P (spec `ui/plugin-extras`).
+2. `slides` plugin: split, fit, keys, overview, print CSS. Tests with happy-dom for split/keys/state.
+3. `course` plugin: steps, storage, gating, reset, multi-page.
+4. Ship both in the app as bundled plugin folders copied to the user plugins dir on first run (pre-trusted because they are part of the signed app).
+5. Demo: `examples/demo/layouts/slides.md`, `course.md`.
+
+## Risks
+
+- Scaling slides with CSS `zoom`/`transform` and code blocks/diagrams inside: test with mermaid.
+- Storage is per Mac and folder path; moving the folder resets progress (document it; later: optional `storage: folder`).
