@@ -119,15 +119,27 @@ silent allow — but the prompt describes them truthfully:
 - **Withheld from the allowed modules:** `times.sleep` (blocks without
   honouring the timeout) and `fmt.print`, `println`, `printf` (write to zen's
   stdout).
-- **Known gap, not fixed: self-containing values crash the app.** `m := {};
-  m.self = m` is legal Tengo; `string(m)`, `m == m2`, `copy(m)` and `"s" + m`
-  then recurse until the Go stack overflows, a fatal error nothing can
-  recover. Verified with a bare `tengo.Script` (no zen code involved). Tengo has
-  several ways to make a cycle (index assignment, `splice`, `append` that
-  shares a backing array), so refusing one syntax is not enough. Options for the
-  lead: patch/vendor Tengo, run scripts in a helper process, or accept it for
-  plugins the user allowed after a prompt that says they cannot run programs
-  (it can stop the app, not read anything).
+- **Self-containing values crash Tengo, so scripts run in a helper process**
+  (see Isolation below, built 2026-11-16). `m := {}; m.self = m` is legal
+  Tengo; `string(m)`, `m == m2`, `copy(m)` and `"s" + m` recurse until the Go
+  stack overflows. With the helper, such a script costs one call
+  ("the script plugin crashed", or the memory/time limit when that fires
+  first), never the app.
+- **A cancelled Tengo run keeps running.** `RunContext` returns on the
+  deadline or the memory stop but cannot interrupt a builtin, so the VM
+  goroutine goes on in the background. After a timeout or memory stop the
+  helper therefore reports `kill` and exits, and zen discards it; a helper
+  never serves a call after one.
+- **As built:** `internal/core/scriptplugins/{proto,host,pool,callbacks}.go`.
+  The pool counts helpers parked in a callback (`zen.markdown` rendering
+  nested script blocks needs another helper) as free, so nesting never
+  starves a small pool; total is capped at 16. Crash counts are keyed by plugin
+  path and script hash, so an edited script starts clean. The call deadline
+  starts when the call is written (spawn and compile do not count); zen
+  kills the helper 300 ms after the plugin's timeout if it still has not
+  answered. RSS is polled with `ps` every 250 ms during a call.
+  `main.go` serves `__script-host` before the command line is parsed; the
+  GUI packages are linked into the binary but nothing of them runs.
 - **Allocation figures.** 500 000 objects is about 150 000 loop iterations of
   `n += i % 7` (every number made counts), so loops over a few thousand items
   are fine and the demo plugins use a small fraction.

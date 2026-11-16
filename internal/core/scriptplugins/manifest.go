@@ -1,6 +1,7 @@
 package scriptplugins
 
 import (
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"os"
@@ -8,8 +9,6 @@ import (
 	"sort"
 	"strings"
 	"time"
-
-	"github.com/d5/tengo/v2"
 
 	"github.com/dragosh/zen/internal/core/extplugins"
 	"github.com/dragosh/zen/internal/core/plugins"
@@ -78,20 +77,21 @@ func checkCSS(css string) error {
 }
 
 // parse validates the plugin map object and fills the manifest and spec.
-func (p *Plugin) parse(id string, obj tengo.Object) error {
-	if obj == nil || obj == tengo.UndefinedValue {
+func (p *Plugin) parse(id string, res *msg) error {
+	if res.Kind == kindNone {
 		return fmt.Errorf(`the script must define the plugin map: plugin := {version: "1.0.0", blocks: ["name"]}`)
 	}
-	switch obj.(type) {
-	case *tengo.Map, *tengo.ImmutableMap:
-	default:
-		return fmt.Errorf("plugin must be a map (plugin := {version: …}), not a %s", obj.TypeName())
+	if res.Kind != kindMap {
+		return fmt.Errorf("plugin must be a map (plugin := {version: …}), not a %s", res.Type)
 	}
-	v, err := toGo(obj)
+	v, err := decodeJSON(res.JSON)
 	if err != nil {
 		return fmt.Errorf("plugin: %v", err)
 	}
-	m := v.(map[string]any)
+	m, _ := normNumbers(v).(map[string]any)
+	if m == nil {
+		return fmt.Errorf("plugin must be a map (plugin := {version: …}), not a %s", res.Type)
+	}
 	for k := range m {
 		if !knownKeys[k] {
 			return fmt.Errorf("unknown key %q in plugin", k)
@@ -330,4 +330,26 @@ func (a assetFS) Open(name string) (fs.File, error) {
 		return nil, notExist
 	}
 	return f, nil
+}
+
+// normNumbers turns the json.Number values of a decoded plugin map into int64
+// (whole numbers) or float64, as Tengo's numbers are.
+func normNumbers(v any) any {
+	switch v := v.(type) {
+	case json.Number:
+		if i, err := v.Int64(); err == nil {
+			return i
+		}
+		f, _ := v.Float64()
+		return f
+	case []any:
+		for i := range v {
+			v[i] = normNumbers(v[i])
+		}
+	case map[string]any:
+		for k := range v {
+			v[k] = normNumbers(v[k])
+		}
+	}
+	return v
 }

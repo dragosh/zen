@@ -11,6 +11,7 @@ import (
 	"github.com/dragosh/zen/internal/cli"
 	"github.com/dragosh/zen/internal/core/extplugins"
 	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zen/internal/core/scriptplugins"
 )
 
 // Dialogs are the native dialogs the service needs.
@@ -71,7 +72,8 @@ func newZen(o zenOptions) (*Zen, error) {
 
 func (z *Zen) close() {
 	z.state.stopWatch()
-	z.state.stop() // ends every plugin call
+	z.state.stop()        // ends every plugin call
+	scriptplugins.Reset() // the script helpers go with them
 	z.state.streams.cancelAll()
 	z.state.streams.wait(3 * time.Second)
 }

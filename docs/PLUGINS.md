@@ -308,7 +308,7 @@ the plugin's error box in place of the block.
 | output | 2 MB | `the output is larger than 2 MB` |
 | script file | 256 KB | the plugin is invalid |
 
-Calls are cancelled when the folder changes or zen quits, like a program's.
+Calls are cancelled when the folder changes or zen quits, like a program's. The wall time counts everything the call waits for, `zen.markdown` included.
 
 **Trust** is the one of folder plugins, below: the same discovery, hash (of the
 `.tengo` file, or of the whole folder in the folder form), fingerprint check
@@ -321,13 +321,32 @@ file, not a symlink. `Plugins()` (Settings › Plugins) reports `kind: "script"`
 for them, `"program"` or `"page"` for folder plugins and `"builtin"` for the
 built-in ones.
 
-**Known gap.** Tengo values are references, so a script can build a map or list
-that contains itself (`m := {}; m.self = m`). zen never walks such a value
-itself (its JSON conversion stops at 32 levels and fails), but Tengo's own
-`string(m)`, `m == m2`, `copy(m)` and `"text" + m` recurse without end and
-overflow the Go stack, which stops the whole app: it is not a limit zen can
-catch. This needs a script that does it on purpose, in a plugin the user
-allowed; it is recorded in specs/core/script-plugins/spec.md (Notes).
+**Isolation.** Scripts do not run inside the zen process. Tengo values are
+references, so a script can build a map or list that contains itself
+(`m := {}; m.self = m`), and Tengo's own `string(m)`, `m == m2`, `copy(m)` and
+`"text" + m` then recurse until the Go stack overflows, a fatal error nothing
+can catch. Run in the app, that would stop zen and lose unsaved text. So zen
+runs every script in a **helper process**: the same zen binary started as the
+hidden `zen __script-host` (it refuses to run on a terminal), a small pool of
+long-lived helpers (2, up to 4 computing at once) started on first use. A
+helper gets only `PATH`, `HOME`, `TMPDIR` and `LANG`, a private temporary
+working folder, and no files of its own: whatever a script reaches
+(`zen.markdown`, `zen.storage`, `zen.read`, `zen.pages`) is a request to zen,
+which checks the permission and the path rules and answers. Your scripts do not
+change; a call costs about 0.1 ms once the helper is warm.
+
+- A script that overflows the stack, or a helper that dies for any other
+  reason, ends that call with the error box "the script plugin crashed"; the
+  helper is replaced and the next call, of the same or another plugin, runs
+  normally.
+- A script stopped by the time limit or the memory limit is stopped by killing
+  its helper too (Tengo cannot interrupt a builtin such as `string(m)`), and a
+  helper over 512 MB is killed by zen.
+- Three crashes of the same plugin within a minute switch it off until zen is
+  restarted or the script is edited; its blocks show "the script plugin was
+  switched off after 3 crashes in a minute". There is no restart loop.
+- Helpers end when the folder changes (a call in progress finishes first) and
+  when zen quits.
 
 ### Folder plugins
 

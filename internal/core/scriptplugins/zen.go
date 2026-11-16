@@ -1,29 +1,21 @@
 package scriptplugins
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"html"
-	"os"
-	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/d5/tengo/v2"
 	"github.com/d5/tengo/v2/token"
-
-	"github.com/dragosh/zen/internal/core/extplugins"
-	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/core/render"
-	"github.com/dragosh/zen/internal/core/workspace"
 )
 
 const (
-	maxReadBytes = 1 << 20 // zen.read: largest file
-	maxChildren  = 1 << 16 // zen.html: children in one call
+	maxChildren = 1 << 16 // zen.html: children in one call
 )
 
 // htmlObj is the value zen.html and zen.markdown return: HTML that zen.html
@@ -66,19 +58,14 @@ var (
 	attrRE = regexp.MustCompile(`^[A-Za-z_:][A-Za-z0-9_:.-]*$`)
 	void   = map[string]bool{"area": true, "base": true, "br": true, "col": true, "embed": true, "hr": true,
 		"img": true, "input": true, "link": true, "meta": true, "param": true, "source": true, "track": true, "wbr": true}
-	// Files zen.read opens: markdown and plain text.
-	readable = map[string]bool{".md": true, ".markdown": true, ".txt": true, ".text": true, ".csv": true,
-		".tsv": true, ".json": true, ".yml": true, ".yaml": true}
 )
 
-// zenCall is the `zen` module of one call: a Go-built map of user functions
-// bound to that call's context.
+// zenCall is the `zen` module of one call, as the helper runs it: escape and
+// html are computed here, everything that needs zen (the renderer, storage,
+// files) is a callback to the parent, which keeps the permission checks.
 type zenCall struct {
-	p    *Plugin
-	ctx  plugins.Context
-	rt   Runtime
-	root string // resolved folder root, "" when there is none
-	read bool   // the "read" permission
+	ctx  context.Context // the call's deadline; set by exec
+	call func(ctx context.Context, fn string, args ...any) (json.RawMessage, error)
 }
 
 func fn(name string, f tengo.CallableFunc) *tengo.UserFunction {
@@ -226,28 +213,29 @@ func (z *zenCall) html(args ...tengo.Object) (tengo.Object, error) {
 	return &htmlObj{s: b.String()}, nil
 }
 
+func (z *zenCall) ask(fn string, args ...any) (json.RawMessage, error) {
+	if z.call == nil {
+		return nil, errors.New("zen." + fn + " is not available here")
+	}
+	return z.call(z.ctx, fn, args...)
+}
+
 func (z *zenCall) markdown(args ...tengo.Object) (tengo.Object, error) {
 	if len(args) != 1 {
 		return nil, tengo.ErrWrongNumArguments
 	}
-	if z.ctx.Markdown == nil {
-		return nil, errors.New("zen.markdown is not available here")
-	}
-	out, err := z.ctx.Markdown(str(args[0]))
+	raw, err := z.ask("markdown", str(args[0]))
 	if err != nil {
 		return nil, err
+	}
+	var out string
+	if err := json.Unmarshal(raw, &out); err != nil {
+		return nil, errors.New("zen.markdown: bad answer")
 	}
 	if len(out) > tengo.MaxStringLen {
 		return nil, tengo.ErrStringLimit
 	}
 	return &htmlObj{s: out}, nil
-}
-
-func (z *zenCall) store() (Storage, error) {
-	if z.rt.Storage == nil {
-		return nil, errors.New("zen.storage is not available here")
-	}
-	return z.rt.Storage, nil
 }
 
 func keyArg(args []tengo.Object, i int) (string, error) {
@@ -266,18 +254,14 @@ func (z *zenCall) storageGet(args ...tengo.Object) (tengo.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	st, err := z.store()
+	raw, err := z.ask("storage.get", key)
 	if err != nil {
 		return nil, err
 	}
-	raw, err := st.Get(key)
-	if err != nil {
-		return nil, err
-	}
-	if raw == "" || raw == "null" {
+	if len(raw) == 0 || string(raw) == "null" {
 		return tengo.UndefinedValue, nil
 	}
-	return fromJSON([]byte(raw))
+	return fromJSON(raw)
 }
 
 func (z *zenCall) storageSet(args ...tengo.Object) (tengo.Object, error) {
@@ -288,19 +272,11 @@ func (z *zenCall) storageSet(args ...tengo.Object) (tengo.Object, error) {
 	if err != nil {
 		return nil, err
 	}
-	st, err := z.store()
-	if err != nil {
-		return nil, err
-	}
 	v, err := toGo(args[1])
 	if err != nil {
 		return nil, fmt.Errorf("zen.storage.set: %v", err)
 	}
-	data, err := json.Marshal(v)
-	if err != nil {
-		return nil, fmt.Errorf("zen.storage.set: %v", err)
-	}
-	if err := st.Set(key, string(data)); err != nil {
+	if _, err := z.ask("storage.set", key, v); err != nil {
 		return nil, err
 	}
 	return tengo.UndefinedValue, nil
@@ -315,158 +291,62 @@ func (z *zenCall) storageKeys(args ...tengo.Object) (tengo.Object, error) {
 	default:
 		return nil, tengo.ErrWrongNumArguments
 	}
-	st, err := z.store()
+	raw, err := z.ask("storage.keys", prefix)
 	if err != nil {
 		return nil, err
 	}
-	keys, err := st.Keys(prefix)
-	if err != nil {
-		return nil, err
-	}
-	return fromGo(keys)
-}
-
-func (z *zenCall) needRead(what string) error {
-	if !z.read {
-		return fmt.Errorf(`%s needs the "read" permission (plugin := {permissions: ["read"], …})`, what)
-	}
-	if z.root == "" {
-		return errors.New(what + ": no folder is open")
-	}
-	return nil
-}
-
-// readText reads the text file rel of the folder root: a markdown or text
-// file (the extension is checked when checkExt is set), a regular file
-// reached without leaving the folder (symlinks are resolved first), at most
-// 1 MB of valid UTF-8. exists is false for a file that is not there.
-func readText(root, rel string, checkExt bool) (text string, exists bool, err error) {
-	if rel == "" {
-		return "", false, errors.New("zen.read needs a file path inside the folder")
-	}
-	if strings.ContainsRune(rel, 0) || strings.ContainsAny(rel, "\\") {
-		return "", false, errors.New("the path is not valid")
-	}
-	clean := filepath.Clean(filepath.FromSlash(rel))
-	if filepath.IsAbs(clean) || clean == ".." || strings.HasPrefix(clean, ".."+string(filepath.Separator)) {
-		return "", false, fmt.Errorf("%q is outside the folder", rel)
-	}
-	if checkExt && !readable[strings.ToLower(filepath.Ext(clean))] {
-		return "", false, errors.New("only markdown and text files can be read (.md, .txt, .csv, .json, .yml)")
-	}
-	full, err := filepath.EvalSymlinks(filepath.Join(root, clean))
-	if err != nil {
-		if errors.Is(err, os.ErrNotExist) {
-			return "", false, nil
-		}
-		return "", false, fmt.Errorf("%q cannot be read", rel)
-	}
-	if !extplugins.InsideRel(root, full) {
-		return "", false, fmt.Errorf("%q is outside the folder", rel)
-	}
-	if checkExt && !readable[strings.ToLower(filepath.Ext(full))] {
-		return "", false, errors.New("only markdown and text files can be read (.md, .txt, .csv, .json, .yml)")
-	}
-	fi, err := os.Stat(full)
-	if err != nil || !fi.Mode().IsRegular() {
-		return "", false, fmt.Errorf("%q is not a file", rel)
-	}
-	data, err := extplugins.ReadRegular(full, maxReadBytes)
-	if err != nil {
-		if err.Error() == "too large" {
-			return "", false, fmt.Errorf("%q is larger than 1 MB", rel)
-		}
-		return "", false, fmt.Errorf("%q cannot be read", rel)
-	}
-	if !utf8.Valid(data) || strings.ContainsRune(string(data), 0) {
-		return "", false, fmt.Errorf("%q is not UTF-8 text", rel)
-	}
-	return string(data), true, nil
+	return fromJSON(raw)
 }
 
 func (z *zenCall) readFile(args ...tengo.Object) (tengo.Object, error) {
-	if err := z.needRead("zen.read"); err != nil {
-		return nil, err
-	}
 	if len(args) != 1 {
+		// the parent checks the permission first, as it always did
+		if _, err := z.ask("read.check"); err != nil {
+			return nil, err
+		}
 		return nil, tengo.ErrWrongNumArguments
 	}
 	rel, ok := args[0].(*tengo.String)
 	if !ok {
+		if _, err := z.ask("read.check"); err != nil {
+			return nil, err
+		}
 		return nil, tengo.ErrInvalidArgumentType{Name: "path", Expected: "string", Found: args[0].TypeName()}
 	}
-	text, exists, err := readText(z.root, rel.Value, true)
+	raw, err := z.ask("read", rel.Value)
 	if err != nil {
 		return nil, err
 	}
-	if !exists {
+	if len(raw) == 0 || string(raw) == "null" {
 		return tengo.UndefinedValue, nil
+	}
+	var text string
+	if err := json.Unmarshal(raw, &text); err != nil {
+		return nil, errors.New("zen.read: bad answer")
 	}
 	return &tengo.String{Value: text}, nil
 }
 
-// titles caches page titles by path, validated by size and modification time.
-type titleEntry struct {
-	size  int64
-	mtime int64
-	title string
-}
-
-var titler = render.New(nil, nil, nil) // no plugins: the title is the frontmatter's, the first heading or the file name
-
-// titleOf is the title of the page rel in the folder (the file name without
-// extension when the page cannot be read).
-func (p *Plugin) titleOf(root, rel string) string {
-	stem := strings.TrimSuffix(filepath.Base(rel), filepath.Ext(rel))
-	if root == "" || rel == "" {
-		return stem
-	}
-	full, err := filepath.EvalSymlinks(filepath.Join(root, filepath.FromSlash(rel)))
-	if err != nil || !extplugins.InsideRel(root, full) {
-		return stem
-	}
-	fi, err := os.Stat(full)
-	if err != nil || !fi.Mode().IsRegular() {
-		return stem
-	}
-	if v, ok := p.titles.Load(rel); ok {
-		if e := v.(titleEntry); e.size == fi.Size() && e.mtime == fi.ModTime().UnixNano() {
-			return e.title
-		}
-	}
-	text, exists, err := readText(root, rel, false)
-	if err != nil || !exists {
-		return stem
-	}
-	title := titler.Title(rel, []byte(text))
-	if p.titleCount.Add(1) > 4096 { // a bounded cache
-		p.titles.Range(func(k, _ any) bool { p.titles.Delete(k); return true })
-		p.titleCount.Store(0)
-	}
-	p.titles.Store(rel, titleEntry{size: fi.Size(), mtime: fi.ModTime().UnixNano(), title: title})
-	return title
-}
-
 func (z *zenCall) pages(args ...tengo.Object) (tengo.Object, error) {
-	if err := z.needRead("zen.pages"); err != nil {
-		return nil, err
-	}
 	if len(args) != 0 {
+		if _, err := z.ask("read.check"); err != nil {
+			return nil, err
+		}
 		return nil, tengo.ErrWrongNumArguments
 	}
-	ws, err := workspace.Open(z.root)
+	raw, err := z.ask("pages")
 	if err != nil {
-		return nil, errors.New("zen.pages: the folder cannot be read")
+		return nil, err
 	}
-	files, err := ws.Files()
-	if err != nil {
-		return nil, errors.New("zen.pages: the folder has too many files")
+	var list []struct{ Path, Title string }
+	if err := json.Unmarshal(raw, &list); err != nil {
+		return nil, errors.New("zen.pages: bad answer")
 	}
-	out := make([]tengo.Object, len(files))
-	for i, f := range files {
+	out := make([]tengo.Object, len(list))
+	for i, f := range list {
 		out[i] = &tengo.ImmutableMap{Value: map[string]tengo.Object{
-			"path":  &tengo.String{Value: f},
-			"title": &tengo.String{Value: z.p.titleOf(z.root, f)},
+			"path":  &tengo.String{Value: f.Path},
+			"title": &tengo.String{Value: f.Title},
 		}}
 	}
 	return &tengo.ImmutableArray{Value: out}, nil

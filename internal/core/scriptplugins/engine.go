@@ -14,8 +14,6 @@ import (
 
 	"github.com/d5/tengo/v2"
 	"github.com/d5/tengo/v2/stdlib"
-
-	"github.com/dragosh/zen/internal/core/plugins"
 )
 
 // Limits of a script plugin.
@@ -235,6 +233,7 @@ func (c *compiled) exec(parent context.Context, timeout time.Duration, in input,
 	defer stop()
 	tctx, tcancel := context.WithTimeout(ctx, timeout)
 	defer tcancel()
+	z.ctx = tctx
 	err = run.RunContext(tctx)
 	switch {
 	case err == nil:
@@ -250,7 +249,7 @@ func (c *compiled) exec(parent context.Context, timeout time.Duration, in input,
 }
 
 // outString reads the value of out for a hook that returns text.
-func outString(o tengo.Object) (string, bool, error) {
+func outString(o tengo.Object, max int) (string, bool, error) {
 	var s string
 	switch o := o.(type) {
 	case *tengo.String:
@@ -265,14 +264,14 @@ func outString(o tengo.Object) (string, bool, error) {
 		}
 		return "", false, fmt.Errorf("out must be a string (or zen.html result), not a %s", o.TypeName())
 	}
-	if len(s) > maxOutput {
+	if len(s) > max {
 		return "", false, errors.New("the output is larger than 2 MB")
 	}
 	return s, true, nil
 }
 
 // outJSON reads the value of out for an action: any value, as JSON.
-func outJSON(o tengo.Object) ([]byte, error) {
+func outJSON(o tengo.Object, max int) ([]byte, error) {
 	v, err := toGo(o)
 	if err != nil {
 		return nil, err
@@ -284,10 +283,8 @@ func outJSON(o tengo.Object) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	if len(data) > maxOutput {
+	if len(data) > max {
 		return nil, errors.New("the output is larger than 2 MB")
 	}
 	return data, nil
 }
-
-var _ = plugins.APIVersion

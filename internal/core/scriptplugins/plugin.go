@@ -16,6 +16,9 @@ package scriptplugins
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -24,8 +27,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
-
-	"github.com/d5/tengo/v2"
+	"time"
 
 	"github.com/dragosh/zen/internal/core/extplugins"
 	"github.com/dragosh/zen/internal/core/plugins"
@@ -56,8 +58,10 @@ type Plugin struct {
 	real   string // real path of the plugin folder, "" for a single file
 	man    plugins.Manifest
 	spec   spec
-	script *compiled
+	src    string // the script, sent to the helpers
+	srcSum string // hex sha256 of src: the helpers' cache key
 	hash   string
+	key    string // identifies this plugin version in the crash counts
 	guard  *extplugins.Guard
 	rt     atomic.Pointer[boundRuntime]
 
@@ -212,23 +216,23 @@ func scriptReadErr(err error) error {
 	return err
 }
 
-// setup compiles the script, runs it once with no hook to read the plugin map
-// and validates it.
+// setup runs the script once (in a helper) with no hook to read the plugin
+// map, and validates it.
 func (p *Plugin) setup(id string, src []byte) error {
-	c, err := compile(src)
+	sum := sha256.Sum256(src)
+	p.src, p.srcSum = string(src), hex.EncodeToString(sum[:])
+	p.key = p.path + "|" + p.srcSum
+	res, err := p.dispatch(nil, "", &wireGlobals{Config: json.RawMessage("{}")}, defaultTimeout, &hostCall{p: p})
 	if err != nil {
 		return err
 	}
-	p.script = c
-	run, err := c.exec(nil, defaultTimeout, input{hook: "", config: map[string]any{}}, &zenCall{p: p})
-	if err != nil {
-		return err
-	}
-	obj := run.Get("plugin").Object()
-	if err := p.parse(id, obj); err != nil {
-		return err
-	}
-	return nil
+	return p.parse(id, res)
+}
+
+// dispatch sends one call to a helper process and waits for the result.
+func (p *Plugin) dispatch(ctx context.Context, hook string, g *wireGlobals, timeout time.Duration, h *hostCall) (*msg, error) {
+	return defaultHelpers.do(request{key: p.key, id: filepath.Base(p.path), hash: p.srcSum, source: p.src, hook: hook,
+		globals: g, timeout: timeout, ctx: ctx, handle: h.handle})
 }
 
 // Scan loads every `<id>.tengo` and `<id>/plugin.tengo` in the given plugin
@@ -301,8 +305,9 @@ func (p *Plugin) declared(hook string) error {
 	return nil
 }
 
-// call runs the script for a hook and returns the value of out.
-func (p *Plugin) call(hook string, ctx plugins.Context, in input) (tengo.Object, error) {
+// call runs the script for a hook, in a helper process, and returns its
+// result.
+func (p *Plugin) call(hook string, ctx plugins.Context, g *wireGlobals) (*msg, error) {
 	if err := p.declared(hook); err != nil {
 		return nil, err
 	}
@@ -310,43 +315,46 @@ func (p *Plugin) call(hook string, ctx plugins.Context, in input) (tengo.Object,
 		return nil, extplugins.ErrChanged
 	}
 	rt := p.runtime()
-	in.hook = hook
-	in.config = ctx.Config
-	in.page.path = ctx.Path
-	in.page.title = p.titleOf(rt.root, ctx.Path)
-	z := &zenCall{p: p, ctx: ctx, rt: rt.Runtime, root: rt.root, read: p.spec.read}
-	run, err := p.script.exec(rt.Ctx, p.spec.timeout, in, z)
-	if err != nil {
-		return nil, err
+	g.Path = ctx.Path
+	g.Title = p.titleOf(rt.root, ctx.Path)
+	cfg := ctx.Config
+	if cfg == nil {
+		cfg = map[string]any{}
 	}
-	return run.Get("out").Object(), nil
+	raw, err := json.Marshal(cfg)
+	if err != nil {
+		return nil, errors.New("the plugin's options cannot be passed to the script")
+	}
+	g.Config = raw
+	h := &hostCall{p: p, ctx: ctx, rt: rt.Runtime, root: rt.root, read: p.spec.read}
+	return p.dispatch(rt.Ctx, hook, g, p.spec.timeout, h)
 }
 
 // text returns the string a text hook answered, and whether it set out.
-func (p *Plugin) text(hook string, ctx plugins.Context, in input) (string, bool, error) {
-	out, err := p.call(hook, ctx, in)
+func (p *Plugin) text(hook string, ctx plugins.Context, g *wireGlobals) (string, bool, error) {
+	res, err := p.call(hook, ctx, g)
 	if err != nil {
 		return "", false, err
 	}
-	return outString(out)
+	return res.Text, res.Kind == kindText, nil
 }
 
 // RenderBlock implements plugins.BlockHook.
 func (p *Plugin) RenderBlock(ctx plugins.Context, b plugins.Block) (string, error) {
-	s, _, err := p.text("block", ctx, input{name: b.Name, body: b.Body, attrs: b.Attrs})
+	s, _, err := p.text("block", ctx, &wireGlobals{Name: b.Name, Body: b.Body, Attrs: b.Attrs})
 	return s, err
 }
 
 // RenderInline implements plugins.InlineHook.
 func (p *Plugin) RenderInline(ctx plugins.Context, i plugins.Inline) (string, error) {
-	s, _, err := p.text("inline", ctx, input{name: i.Name, body: i.Text, attrs: i.Attrs})
+	s, _, err := p.text("inline", ctx, &wireGlobals{Name: i.Name, Body: i.Text, Attrs: i.Attrs})
 	return s, err
 }
 
 // Source implements plugins.SourceHook: out replaces the markdown; a script
 // that sets no out leaves it as it is.
 func (p *Plugin) Source(ctx plugins.Context, src []byte) ([]byte, error) {
-	s, set, err := p.text("source", ctx, input{body: string(src)})
+	s, set, err := p.text("source", ctx, &wireGlobals{Body: string(src)})
 	if err != nil || !set {
 		return src, err
 	}
@@ -356,7 +364,7 @@ func (p *Plugin) Source(ctx plugins.Context, src []byte) ([]byte, error) {
 // HTML implements plugins.HTMLHook: out replaces the HTML; a script that sets
 // no out leaves it as it is.
 func (p *Plugin) HTML(ctx plugins.Context, h string) (string, error) {
-	s, set, err := p.text("html", ctx, input{body: h})
+	s, set, err := p.text("html", ctx, &wireGlobals{Body: h})
 	if err != nil || !set {
 		return h, err
 	}
@@ -369,9 +377,12 @@ func (p *Plugin) Action(ctx plugins.Context, payload []byte) ([]byte, error) {
 	if len(payload) == 0 {
 		payload = []byte("null")
 	}
-	out, err := p.call("action", ctx, input{payload: payload})
+	res, err := p.call("action", ctx, &wireGlobals{Payload: json.RawMessage(payload)})
 	if err != nil {
 		return nil, err
 	}
-	return outJSON(out)
+	if res.Kind != kindJSON {
+		return nil, nil
+	}
+	return []byte(res.JSON), nil
 }

@@ -213,7 +213,11 @@ func scopeOf(root string, c candidate) string {
 // and builds the registry. Nothing external runs here.
 func (s *state) loadExternal(root string, prompt bool) *extState {
 	e := &extState{root: root, active: map[string]extPlugin{}}
-	e.ctx, e.cancel = context.WithCancel(s.life)
+	var cancel context.CancelFunc
+	e.ctx, cancel = context.WithCancel(s.life)
+	// The previous folder's calls end and its idle script helpers go (busy
+	// ones go when their call ends).
+	e.cancel = func() { cancel(); scriptplugins.Reset() }
 	if n := s.trust.Notice(); n != "" {
 		e.warns = append(e.warns, n)
 	}
