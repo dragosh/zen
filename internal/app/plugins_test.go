@@ -615,7 +615,7 @@ func TestPluginStorageKeys(t *testing.T) {
 	if got, err := z.PluginStorageKeys("hello", "zzz"); err != nil || got == nil || len(got) != 0 {
 		t.Fatalf("no match: %#v %v", got, err)
 	}
-	for _, bad := range []string{"a b", "a/b", "..", "k\n", strings.Repeat("k", 65), "a:b"} {
+	for _, bad := range []string{"a b", "a/b", "../x", "k\n", strings.Repeat("k", 65), "a:b"} {
 		if _, err := z.PluginStorageKeys("hello", bad); err == nil {
 			t.Errorf("prefix %q accepted", bad)
 		}

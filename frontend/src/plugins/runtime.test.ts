@@ -346,8 +346,14 @@ test("done rejects with the stream's error text", async () => {
 });
 
 test("a ctx only sees the chunks of its own calls", async () => {
-  const a = ctxOf("a");
-  const b = ctxOf("b");
+  const got: PluginCtx[] = [];
+  for (const name of ["a", "b"]) {
+    const id = fresh();
+    wrapper(id, { name });
+    zen().register(id, { mount(_el, c) { got.push(c); } });
+  }
+  rt.mountAll(root);
+  const [a, b] = got;
   const ga: string[] = [];
   const gb: string[] = [];
   const sa = a.stream(1, (c) => ga.push(c));

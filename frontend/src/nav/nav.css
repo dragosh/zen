@@ -80,6 +80,14 @@
 }
 .zen-nav-item:hover > .zen-nav-group::before { border-left-color: var(--fg-muted); }
 .zen-nav-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; padding-left: var(--space-1); }
+/* A plugin's short label after the title (ctx.badge). */
+.zen-nav-badge {
+  flex: none;
+  margin-left: var(--space-2);
+  color: var(--fg-muted);
+  font-size: 11px;
+  font-weight: 400;
+}
 .zen-nav-empty { padding: var(--space-3); color: var(--fg-muted); }
 
 .zen-crumbs {

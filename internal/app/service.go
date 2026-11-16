@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/dragosh/zen/internal/cli"
 	"github.com/dragosh/zen/internal/core/extplugins"
@@ -68,7 +69,11 @@ func newZen(o zenOptions) (*Zen, error) {
 	return z, nil
 }
 
-func (z *Zen) close() { z.state.stopWatch() }
+func (z *Zen) close() {
+	z.state.stopWatch()
+	z.state.streams.cancelAll()
+	z.state.streams.wait(3 * time.Second)
+}
 
 // Startup returns the workspace, the page to show first and the mode.
 func (z *Zen) Startup() Startup {

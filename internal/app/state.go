@@ -90,6 +90,7 @@ type state struct {
 	dialogs    Dialogs
 	trust      *extplugins.Trust
 	ext        *extState // guarded by mu
+	streams    streams   // running plugin streams (stream.go)
 
 	mu      sync.Mutex
 	ws      *workspace.Workspace
@@ -128,6 +129,7 @@ func (s *state) open(dir string) error {
 		root = ws.Root()
 	}
 	ext := s.loadExternal(root, true) // may ask the user; no lock is held
+	s.streams.cancelAll()             // streams belong to the folder they started in
 	s.watchMu.Lock()
 	defer s.watchMu.Unlock()
 	if s.w != nil {
@@ -167,6 +169,12 @@ func (s *state) rebuildLocked() bool {
 		return true
 	}
 	s.cfg = config.Load(s.globalPath, s.ws.Root())
+	// Options with scope user come from the global config only.
+	global := config.Load(s.globalPath, "").ForPage(nil)
+	s.reg.SetUserOptions(func(id string) map[string]any {
+		_, opts, _ := global.Plugin(id)
+		return opts
+	})
 	s.r = render.New(s.reg, s.cfg, &slugResolver{ws: s.ws, slugs: s.slugs}) // reindex refreshes the slugs
 	return s.reindexLocked()
 }

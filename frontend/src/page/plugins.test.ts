@@ -185,7 +185,8 @@ test("ctx.badge puts a label in the store for the window's lifetime", async () =
 });
 
 test("⌘P prints the page (not in an editor window); other keys do not", async () => {
-  const print = vi.spyOn(window, "print").mockImplementation(() => {});
+  const print = vi.fn();
+  (window as unknown as { print: () => void }).print = print; // happy-dom has none
   env.ctx.store.set({ path: "README.md" });
   mount();
   await settle();

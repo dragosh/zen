@@ -47,6 +47,7 @@ export const navFeature: Feature = {
       renderTree(treeHost, workspace.tree, {
         current: path,
         expanded,
+        badges: ctx.store.get().badges,
         onOpen: (p) => ctx.navigate(p),
         onToggle: (p, open) => {
           if (open) expanded.add(p); else expanded.delete(p);
@@ -62,7 +63,7 @@ export const navFeature: Feature = {
     };
 
     const render = (s: AppState) => {
-      if (s.workspace !== last.workspace || s.path !== last.path) {
+      if (s.workspace !== last.workspace || s.path !== last.path || s.badges !== last.badges) {
         const r = s.workspace?.root ?? null;
         if (r !== root) { root = r; expanded = s.workspace ? loadExpanded(s.workspace) : new Set(); }
         name.textContent = s.workspace?.name ?? "";

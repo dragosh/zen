@@ -14,6 +14,8 @@ A plugin takes part in the Go render pipeline (see PLAN.md). It can:
 | inline | `InlineHook` | render a named inline directive (badge, icon) |
 | html | `HTMLHook` | rewrite the final HTML before sanitising (table of contents) |
 | assets | `AssetProvider` | ship CSS/JS files served at `/_plugins/<id>/…` and loaded only on pages that use the plugin |
+| action | `ActionHook` | answer a request from the plugin's own frontend (`ctx.invoke`): JSON in, JSON out |
+| stream | `StreamHook` | send output over time to the plugin's frontend (`ctx.stream`): a build log, a running program |
 
 Everything a plugin emits goes through the sanitiser. A plugin that needs
 elements or attributes beyond the base policy declares them in its manifest.
@@ -32,14 +34,16 @@ type Manifest struct {
     Blocks      []string          // block names it owns: "mermaid", "diagram"
     Inlines     []string          // inline names it owns
     Allow       []AllowRule       // extra sanitiser rules: element + attributes
-    Config      map[string]Option // option name -> type, default, description
+    Config      map[string]Option // option name -> type, default, description, scope
 }
 
 type Plugin interface{ Manifest() Manifest }
 
 type Context struct {
-    Path   string         // workspace-relative path of the page
-    Config map[string]any // this plugin's effective options for this page
+    Path      string         // workspace-relative path of the page
+    Config    map[string]any // this plugin's effective options for this page
+    DataDir   string         // the plugin's writable folder (actions and streams; same place as ZEN_DATA_DIR)
+    Workspace string         // root of the open folder (actions and streams)
 }
 
 type Block  struct{ Name, Body string; Attrs map[string]string; Fenced bool }
@@ -50,7 +54,25 @@ type BlockHook     interface{ RenderBlock(ctx Context, b Block) (string, error) 
 type InlineHook    interface{ RenderInline(ctx Context, i Inline) (string, error) }
 type HTMLHook      interface{ HTML(ctx Context, html string) (string, error) }
 type AssetProvider interface{ Assets() fs.FS; Entry() Assets } // Assets{CSS, JS []string}
+
+// For the plugin's frontend (see "Frontend" below). Built-in plugins use the same ctx as external ones.
+type ActionHook interface {
+    Action(ctx Context, payload []byte) ([]byte, error)
+}
+type StreamHook interface { // emit is called in order; return when done; stop when c is cancelled
+    Stream(c context.Context, ctx Context, payload []byte, emit func(chunk []byte)) error
+}
 ```
+
+`Option.Type` is `string`, `bool`, `int`, `map` (names to strings, a
+`map[string]string`) or `list` (strings, a `[]string`). An option with
+`Scope: "user"` is read from the user's global `config.yml` only; the same
+option in `.zen.yml` or frontmatter is ignored with a page warning. Use it for
+anything a folder must not be able to widen, such as the container images a
+sandbox plugin may run.
+
+A built-in plugin that implements `ActionHook` or `StreamHook` can be called
+from its frontend like an external one, as long as it is switched on.
 
 A hook error never breaks the page: the block is replaced by an error box
 (`<div class="zen-plugin-error">`) naming the plugin and the message.
@@ -205,15 +227,17 @@ layouts: [slides]             # pages with frontmatter `layout: slides`
 
 options:                      # read from config / frontmatter `plugins.note.*`
   icon: { type: bool, default: true, description: Show an icon }
+  images: { type: map, scope: user }   # map (string to string) and list (strings) are also types;
+                                       # scope: user = only the global config.yml may set it
 
 allow:                        # extra HTML the sanitiser keeps for this plugin
   - { element: div, attrs: [class] }
 
 backend:
   command: ["./note.sh"]      # relative to the plugin folder, or a program on PATH
-  hooks: [block, inline]      # any of: source, block, inline, html, action
+  hooks: [block, inline]      # any of: source, block, inline, html, action, stream
   output: html                # html (default) or text (escaped and shown in <pre>)
-  timeout: 5s                 # default 5s, at most 60s
+  timeout: 5s                 # default 5s, at most 60s; with the stream hook: default 60s, at most 10m
 
 frontend:
   js: [note.js]               # ES modules, loaded only on pages that use the plugin
@@ -234,6 +258,15 @@ box in place of the block (the page still renders).
 | `source` | the page's markdown | markdown |
 | `html` | the page's HTML | HTML |
 | `action` | JSON sent by the plugin's frontend (`ctx.invoke`) | JSON returned to it |
+| `stream` | JSON sent by the plugin's frontend (`ctx.stream`) | forwarded to the frontend line by line, as it is printed |
+
+A `stream` call ends when the program exits: exit code 0 is success, anything
+else is reported to the frontend with the first lines of stderr. It is cut at
+4 MB of output (error `output limit`), when its timeout passes, when the
+frontend cancels it (the whole process group is killed) and when the folder
+changes or zen quits. At most 4 streams run at once. `timeout` for a plugin
+with the `stream` hook is the stream's limit; its other hooks keep the 60 s
+cap.
 
 | Variable | Value |
 |---|---|
@@ -243,7 +276,7 @@ box in place of the block (the page still renders).
 | `ZEN_PAGE` | page path inside the folder (`guides/install.md`) |
 | `ZEN_ATTR_<KEY>` | each `{key=value}` attribute, key upper-cased, `-` → `_` |
 | `ZEN_ATTRS_JSON`, `ZEN_CONFIG_JSON` | all attributes / this plugin's options as JSON |
-| `ZEN_CONFIG_<KEY>` | each option |
+| `ZEN_CONFIG_<KEY>` | each option (a `map` or `list` as JSON) |
 | `ZEN_WORKSPACE`, `ZEN_PLUGIN_DIR`, `ZEN_DATA_DIR` | folder root, plugin folder, a writable data folder for this plugin |
 
 The environment is otherwise minimal (`PATH`, `HOME`, `TMPDIR`, `LANG`). Output
@@ -304,8 +337,25 @@ zen.register("counter", {
 | `ctx.attrs` | the `{key=value}` attributes |
 | `ctx.page` | `{ path, title }` |
 | `ctx.storage.get(key)` / `.set(key, value)` | JSON values kept per plugin and per folder, on this Mac (1 MB per plugin) |
+| `ctx.storage.keys(prefix?)` | the stored keys (starting with `prefix`), sorted |
 | `ctx.invoke(payload)` | runs the backend with `ZEN_HOOK=action`; resolves to the JSON it prints |
+| `ctx.stream(payload, onChunk)` | runs the backend with `ZEN_HOOK=stream` (or a built-in's `StreamHook`); `onChunk(text)` gets each line in order. Returns `{ done, cancel() }`: `done` resolves when it ends and rejects with the error text (`cancelled` after `cancel()`). Streams a block started are cancelled when it unmounts |
 | `ctx.navigate(path, anchor?)` | open another page |
+| `ctx.anchor()` | the current page's anchor (`""` when none) |
+| `ctx.onAnchor(fn)` | `fn(anchor)` when the anchor changes without a reload (a link to another heading of the same page); returns a remover; removed on unmount |
+| `ctx.badge(path, text)` | sets a short label (12 characters at most; `null` clears) shown muted after that page's title in the sidebar, until the window closes |
+
+```js
+// stream a log into a <pre>
+const log = document.createElement("pre");
+el.replaceChildren(log);
+const run = ctx.stream({ target: "build" }, (line) => log.append(line + "\n"));
+run.done.catch((err) => log.append(`stopped: ${err.message}\n`));
+```
+
+Print: File › Print… (⌘P) prints the open page; zen hides the sidebar, header
+and panels and uses the full page width. A plugin can add its own rules in an
+`@media print` block of its CSS (for instance one slide per sheet).
 
 ### Layouts
 
@@ -331,6 +381,10 @@ Allow / Block.
   `script`, `style`, `iframe`, `object`, `embed`, `form`, `on*`, `style` or
   `srcdoc`. Scoping rules to the plugin's own subtree is a 0.2 item.
 - No plugin receives file or network access through `Context`.
+- A stream or action reaches only the plugin that is switched on and, for an
+  external plugin, allowed; stream ids are random and the page delivers a
+  stream's output only to the block that started it. Options with
+  `scope: user` cannot be set by a folder or a page.
 - Built-in plugin JS is a static embedded file; no `eval`, no remote loading.
   Mermaid runs with `securityLevel: "strict"`.
 - External plugins run only after the user allowed that exact set of files

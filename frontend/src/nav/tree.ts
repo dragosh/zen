@@ -7,7 +7,11 @@ export type TreeOptions = {
   onOpen(path: string): void;
   expanded: Set<string>;
   onToggle(path: string, open: boolean): void;
+  /** Short labels shown muted after a page's title (plugins' ctx.badge), by path. */
+  badges?: Record<string, string>;
 };
+
+const BADGE_MAX = 12;
 
 type State = { tree: NavNode[]; opts: TreeOptions; active: string; current: string };
 const states = new WeakMap<HTMLElement, State>();
@@ -107,6 +111,12 @@ function build(st: State, nodes: NavNode[], level: number, role: "tree" | "group
       row.append(el("span", "zen-nav-spacer"));
     }
     row.append(el("span", "zen-nav-label", n.title));
+    const badge = Array.from(st.opts.badges?.[n.path] ?? "").slice(0, BADGE_MAX).join("");
+    if (badge) {
+      const b = el("span", "zen-nav-badge", badge);
+      b.title = badge;
+      row.append(b);
+    }
     if (n.kind === "page" && n.path === st.opts.current) li.setAttribute("aria-current", "page");
     row.addEventListener("click", () => {
       const host = li.closest<HTMLElement>(".zen-nav-host");
