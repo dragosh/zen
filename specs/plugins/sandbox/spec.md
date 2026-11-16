@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | planned |
+| Status | done |
 | Target version | 0.3.0 |
 | Depends on | core/extplugins, ui/plugins, **new: streaming backend calls** (below) |
 | Kind | external plugin: backend (Go binary or shell) + frontend |
