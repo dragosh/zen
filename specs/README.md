@@ -38,6 +38,8 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 8 | [plugins/layouts](plugins/layouts/spec.md) | `internal/plugins/{slides,course}`, demo pages | core/plugin-extras | done |
 | 8 | [plugins/quiz](plugins/quiz/spec.md) | `internal/plugins/quiz`, demo page | core/plugin-extras | done |
 | 8 | [plugins/sandbox](plugins/sandbox/spec.md) | `internal/plugins/sandbox`, demo page | core/plugin-extras | done |
+| 9 | [core/plugin-hardening](core/plugin-hardening/spec.md) | fixes for the Nov 2026 plugin review | waves 6–8 | done |
+| 9 | [core/script-plugins](core/script-plugins/spec.md) | one-file Tengo plugins, run in a helper process | core/plugin-hardening | done |
 | 9 | [ui/new-page](ui/new-page/spec.md) | `internal/app/newpage.go`, `frontend/src/shell/newpage.ts`, File › New Page | app/services, ui/shell | done |
 
 Features in the same wave own disjoint paths and can be built in parallel.

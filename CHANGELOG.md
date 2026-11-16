@@ -8,6 +8,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Fixed
 
+- Plugin hardening (docs/plugin-review-2026-11.md): plugins can no longer hang or exhaust zen, run code that was not approved, or reach other plugins from page scripts.
 - Slides: arrow keys and Space in the sidebar no longer also move the slides.
 - Page titles keep `<`, `>` and decode entities in the sidebar and breadcrumb.
 - Zen.app no longer hangs when opened from Finder.
@@ -25,6 +26,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Added
 
+- Script plugins: a single `.tengo` file is a plugin (blocks, inlines, layouts, actions), with a `zen` module for HTML, nested markdown, storage and, with permission, reading the folder. Scripts run in a helper process with time, allocation and memory limits, so a broken script can never crash zen. Samples: `callout.tengo`, `wordcount/plugin.tengo`.
 - File › New Page… (⌘N) asks for a name and a layout (page, slides or course) and opens the new page in the editor.
 - Editor: the Problems panel has severity tabs and can be resized from its top edge.
 - Slides: full page mode (F or the Full page button) that covers the window and goes full screen; Esc leaves.

@@ -345,7 +345,10 @@ func TestNestedMarkdownDoesNotStarveASmallPool(t *testing.T) {
 	scriptplugins.SetPoolSize(1)
 	defer scriptplugins.SetPoolSize(2)
 	s := newSite(t)
-	loop := s.plugin("loop", `plugin := {version: "1.0.0", blocks: ["loop"]}
+	// Each nesting level may spawn a fresh helper; under -race and a loaded
+	// machine those starts can use up the default 200 ms, so this test (about
+	// starvation, not speed) uses the maximum timeout.
+	loop := s.plugin("loop", `plugin := {version: "1.0.0", blocks: ["loop"], timeout: "2s"}
 if hook == "block" { out = zen.html("div", {class: "loop"}, zen.markdown(":::loop\n" + body + "\n:::")) }`)
 	var pg = renderPage(t, loopOnly(loop), ":::loop\nx\n:::\n")
 	if depth := strings.Count(pg.HTML, `<div class="loop">`); depth < 5 {
