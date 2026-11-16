@@ -34,7 +34,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 5b | [ui/lint](ui/lint/spec.md) | `internal/app/lint.go`, `frontend/src/lint`, page/editor wiring | ui/editor-window, core/lint | done |
 | 6 | [core/extplugins](core/extplugins/spec.md) | `internal/core/{extplugins,plugins,render}`, `internal/app`, demo plugins `note`, `calc` | core/plugins, core/render | done |
 | 6 | [ui/plugins](ui/plugins/spec.md) | `frontend/src/plugins`, api, page wiring, Settings › Plugins, demo how-to and `progress` plugin | ui/page, contract in docs/PLUGINS.md | done |
-| 7 | [core/plugin-extras](core/plugin-extras/spec.md) | actions and streams for built-ins and external plugins, `ctx.stream/onAnchor/badge/storage.keys`, user-scoped options, ⌘P | wave 6 | specified |
+| 7 | [core/plugin-extras](core/plugin-extras/spec.md) | actions and streams for built-ins and external plugins, `ctx.stream/onAnchor/badge/storage.keys`, user-scoped options, ⌘P | wave 6 | done |
 | 8 | [plugins/layouts](plugins/layouts/spec.md) | `internal/plugins/{slides,course}`, demo pages | core/plugin-extras | planned |
 | 8 | [plugins/quiz](plugins/quiz/spec.md) | `internal/plugins/quiz`, demo page | core/plugin-extras | planned |
 | 8 | [plugins/sandbox](plugins/sandbox/spec.md) | `internal/plugins/sandbox`, demo page | core/plugin-extras | planned |

@@ -22,6 +22,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Added
 
+- Plugin streams (live output), user-only plugin options, sidebar badges, Print (⌘P).
 - External plugins: a folder with `plugin.yml` can add a backend program, an existing tool, page scripts with saved data, or a page layout. zen asks before running a plugin for the first time; Settings lists plugins with Allow / Block.
 - Demo plugins `note` (shell), `calc` (`bc`) and `progress` (page script), and a how-to in `examples/demo/plugins/writing-plugins.md`.
 - `examples/demo/`: a user guide that is also a demo of every feature (plugins, frontmatter, slugs, settings, Vale with a custom vocabulary). Open it with `cd examples/demo && zen`.
