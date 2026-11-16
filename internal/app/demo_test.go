@@ -2,7 +2,9 @@ package app
 
 import (
 	"path/filepath"
+	"regexp"
 	"runtime"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -38,11 +40,14 @@ func TestDemoFolder(t *testing.T) {
 	t.Cleanup(z.close)
 	if len(dialogs.asked) != 1 || !strings.Contains(dialogs.asked[0], "note") || !strings.Contains(dialogs.asked[0], "./note.sh") ||
 		!strings.Contains(dialogs.asked[0], "calc") || !strings.Contains(dialogs.asked[0], "bc -l") ||
-		!strings.Contains(dialogs.asked[0], "progress") || !strings.Contains(dialogs.asked[0], "scripts in the page") {
+		!strings.Contains(dialogs.asked[0], "progress") || !strings.Contains(dialogs.asked[0], "scripts in the page") ||
+		!strings.Contains(dialogs.asked[0], "callout") || !strings.Contains(dialogs.asked[0], "wordcount") ||
+		!strings.Contains(dialogs.asked[0], "renders blocks inside zen; cannot read files, run programs or use the network") ||
+		!strings.Contains(dialogs.asked[0], "reads files in this folder") {
 		t.Fatalf("trust prompt: %q", dialogs.asked)
 	}
-	for _, id := range []string{"note", "calc", "progress"} {
-		if got := infoOf(t, z, id); got.Status != "on" || got.Source != "folder" {
+	for id, kind := range map[string]string{"note": "program", "calc": "program", "progress": "page", "callout": "script", "wordcount": "script"} {
+		if got := infoOf(t, z, id); got.Status != "on" || got.Source != "folder" || got.Kind != kind {
 			t.Errorf("demo plugin %s: %+v", id, got)
 		}
 	}
@@ -150,6 +155,31 @@ func TestDemoFolder(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(how.Assets.JS, ","), "/_plugins/progress/progress.js") {
 		t.Errorf("progress script not offered: %+v", how.Assets)
+	}
+	// The Tengo samples: callout (one file, inline CSS, zen.markdown) and
+	// wordcount (folder form, read permission, zen.pages and zen.read).
+	if !strings.Contains(how.HTML, `data-zen-plugin="callout" data-zen-name="tip"`) || !strings.Contains(how.HTML, `<div class="callout tip">`) {
+		t.Errorf("callout tip did not render on the how-to: %s", how.HTML)
+	}
+	if !strings.Contains(strings.Join(how.Assets.CSS, ","), "/_plugins/callout/inline.css") {
+		t.Errorf("callout css not offered: %+v", how.Assets)
+	}
+	src, _ := z.state.ws.Read("plugins/writing-plugins.md")
+	if !strings.Contains(string(src), "The simplest plugin: one Tengo file") ||
+		strings.Index(string(src), "The simplest plugin: one Tengo file") > strings.Index(string(src), "A backend in a shell script") {
+		t.Error("the Tengo section must come first, before the program section")
+	}
+	words := regexp.MustCompile(`data-zen-plugin="wordcount" data-zen-name="words"[^>]*><span class="words">(\d+)`).FindStringSubmatch(how.HTML)
+	if words == nil || words[1] != strconv.Itoa(len(strings.Fields(string(src)))) {
+		t.Errorf("wordcount inline on the how-to: %v (want %d)\n%s", words, len(strings.Fields(string(src))), how.HTML)
+	}
+	if !strings.Contains(how.HTML, `data-zen-plugin="wordcount" data-zen-name="pages"`) || !strings.Contains(how.HTML, "reading/navigation.md") {
+		t.Errorf("wordcount pages block did not list the pages: %s", how.HTML)
+	}
+	caution, err := z.Preview("plugins/directives.md", ":::caution{title=\"Careful\"}\nMind the *gap* <b>x</b>.\n:::\n")
+	if err != nil || !strings.Contains(caution.HTML, `<div class="callout caution">`) || !strings.Contains(caution.HTML, "Careful") ||
+		!strings.Contains(caution.HTML, "<em>gap</em>") || strings.Contains(caution.HTML, "<b>x</b>") {
+		t.Errorf("caution block: %v %s", err, caution.HTML)
 	}
 	warn, err := z.Preview("plugins/directives.md", ":::warning\nMind the <gap> & co.\n:::\n")
 	if err != nil || !strings.Contains(warn.HTML, `<div class="warning"><strong>Warning</strong>`) || !strings.Contains(warn.HTML, "Mind the &lt;gap&gt; &amp; co.") {
