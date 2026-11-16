@@ -22,6 +22,10 @@ func TestHashCoversEveryFile(t *testing.T) {
 	p := tinyPlugin(t)
 	h := func() string {
 		t.Helper()
+		var err error
+		if p, err = Load(p.Dir()); err != nil { // the hash is taken at load
+			t.Fatal(err)
+		}
 		s, err := p.Hash()
 		if err != nil {
 			t.Fatal(err)
@@ -47,7 +51,7 @@ func TestHashCoversEveryFile(t *testing.T) {
 	step("file added", func() { os.WriteFile(filepath.Join(p.Dir(), "new.txt"), nil, 0o644) })
 	step("file renamed", func() { os.Rename(filepath.Join(p.Dir(), "new.txt"), filepath.Join(p.Dir(), "newer.txt")) })
 	step("manifest edited", func() { os.WriteFile(filepath.Join(p.Dir(), "plugin.yml"), []byte(tinyYML+"description: x\n"), 0o644) })
-	step("symlink added", func() { os.Symlink("/etc/hosts", filepath.Join(p.Dir(), "link")) })
+	step("symlink added", func() { os.Symlink("lib/data.txt", filepath.Join(p.Dir(), "link")) })
 	step("file removed", func() { os.Remove(filepath.Join(p.Dir(), "newer.txt")) })
 	// Content moving between files changes the hash too.
 	os.WriteFile(filepath.Join(p.Dir(), "a"), []byte("xy"), 0o644)
@@ -64,13 +68,13 @@ func TestTrustDecisions(t *testing.T) {
 	p := tinyPlugin(t)
 	file := filepath.Join(t.TempDir(), "zen", "trusted-plugins.yml")
 	tr := LoadTrust(file)
-	if allowed, decided := tr.Decision(p); allowed || decided {
+	if allowed, decided := tr.Decision(p, ""); allowed || decided {
 		t.Fatal("a new plugin has no decision")
 	}
-	if err := tr.Set(p, true); err != nil {
+	if err := tr.Set(p, "", true); err != nil {
 		t.Fatal(err)
 	}
-	if allowed, decided := tr.Decision(p); !allowed || !decided {
+	if allowed, decided := tr.Decision(p, ""); !allowed || !decided {
 		t.Fatal("allow not recorded")
 	}
 	fi, err := os.Stat(file)
@@ -81,19 +85,30 @@ func TestTrustDecisions(t *testing.T) {
 		t.Fatalf("mode %v, want 0600", fi.Mode().Perm())
 	}
 	// Persisted.
-	if allowed, decided := LoadTrust(file).Decision(p); !allowed || !decided {
+	if allowed, decided := LoadTrust(file).Decision(p, ""); !allowed || !decided {
 		t.Fatal("decision not persisted")
 	}
 	// Any change to the files makes it undecided again.
 	os.WriteFile(filepath.Join(p.Dir(), "run.sh"), []byte("#!/bin/sh\nrm -rf /\n"), 0o755)
-	if allowed, decided := LoadTrust(file).Decision(p); allowed || decided {
+	old := p
+	var err2 error
+	if p, err2 = Load(p.Dir()); err2 != nil {
+		t.Fatal(err2)
+	}
+	if allowed, decided := LoadTrust(file).Decision(p, ""); allowed || decided {
 		t.Fatal("a changed plugin kept its approval")
 	}
+	if !old.Changed() {
+		t.Fatal("the plugin loaded before the change must report it")
+	}
+	if err := tr.Set(old, "", true); err != ErrChanged {
+		t.Fatalf("allowing a changed plugin: %v", err)
+	}
 	// Block is remembered as well.
-	if err := tr.Set(p, false); err != nil {
+	if err := tr.Set(p, "", false); err != nil {
 		t.Fatal(err)
 	}
-	if allowed, decided := LoadTrust(file).Decision(p); allowed || !decided {
+	if allowed, decided := LoadTrust(file).Decision(p, ""); allowed || !decided {
 		t.Fatal("block not recorded")
 	}
 	// The same files in another place are another plugin.
@@ -105,18 +120,18 @@ func TestTrustDecisions(t *testing.T) {
 	if hp, _ := p.Hash(); func() string { h, _ := q.Hash(); return h }() != hp {
 		t.Fatal("test setup: hashes should match")
 	}
-	if _, decided := LoadTrust(file).Decision(q); decided {
+	if _, decided := LoadTrust(file).Decision(q, ""); decided {
 		t.Fatal("decision leaked to another folder")
 	}
 	// Two plugins keep separate decisions.
-	if err := tr.Set(q, true); err != nil {
+	if err := tr.Set(q, "", true); err != nil {
 		t.Fatal(err)
 	}
 	tr2 := LoadTrust(file)
-	if a, d := tr2.Decision(q); !a || !d {
+	if a, d := tr2.Decision(q, ""); !a || !d {
 		t.Fatal("second plugin lost")
 	}
-	if a, d := tr2.Decision(p); a || !d {
+	if a, d := tr2.Decision(p, ""); a || !d {
 		t.Fatal("first plugin lost")
 	}
 }
@@ -124,16 +139,16 @@ func TestTrustDecisions(t *testing.T) {
 func TestTrustWithoutFile(t *testing.T) {
 	p := tinyPlugin(t)
 	tr := LoadTrust("") // nowhere to store: decisions last for the session
-	if err := tr.Set(p, true); err != nil {
+	if err := tr.Set(p, "", true); err != nil {
 		t.Fatal(err)
 	}
-	if a, d := tr.Decision(p); !a || !d {
+	if a, d := tr.Decision(p, ""); !a || !d {
 		t.Fatal("session decision lost")
 	}
 	// A corrupt file is the same as no decisions.
 	bad := filepath.Join(t.TempDir(), "trusted-plugins.yml")
 	os.WriteFile(bad, []byte("{{{"), 0o600)
-	if _, d := LoadTrust(bad).Decision(p); d {
+	if _, d := LoadTrust(bad).Decision(p, ""); d {
 		t.Fatal("corrupt file produced a decision")
 	}
 }

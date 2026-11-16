@@ -31,7 +31,10 @@ func (s *state) middleware(next http.Handler) http.Handler {
 	})
 }
 
-func setFileHeaders(w http.ResponseWriter, name string) {
+// setFileHeaders sets the headers of a served file. workspace is true for the
+// user's files: scripts and documents there are text/plain, so that nothing
+// of the workspace can be loaded as a script of the app (script-src 'self').
+func setFileHeaders(w http.ResponseWriter, name string, workspace bool) {
 	h := w.Header()
 	h.Set("X-Content-Type-Options", "nosniff")
 	h.Set("Cache-Control", "no-cache")
@@ -47,6 +50,12 @@ func setFileHeaders(w http.ResponseWriter, name string) {
 		ct = "text/javascript; charset=utf-8"
 	case ".css":
 		ct = "text/css; charset=utf-8"
+	}
+	if workspace {
+		switch strings.ToLower(path.Ext(name)) {
+		case ".js", ".mjs", ".cjs", ".html", ".htm", ".xhtml", ".xml", ".wasm":
+			ct = "text/plain; charset=utf-8"
+		}
 	}
 	if ct == "" {
 		ct = "application/octet-stream"
@@ -75,7 +84,7 @@ func (s *state) serveWorkspace(w http.ResponseWriter, r *http.Request, rel strin
 		http.NotFound(w, r)
 		return
 	}
-	setFileHeaders(w, filepath.Base(rel))
+	setFileHeaders(w, filepath.Base(rel), true)
 	http.ServeContent(w, r, "", fi.ModTime(), f)
 }
 
@@ -104,7 +113,7 @@ func (s *state) servePlugin(w http.ResponseWriter, r *http.Request, rest string)
 		http.NotFound(w, r)
 		return
 	}
-	setFileHeaders(w, file)
+	setFileHeaders(w, file, false)
 	if rs, ok := f.(io.ReadSeeker); ok {
 		http.ServeContent(w, r, "", fi.ModTime(), rs)
 		return

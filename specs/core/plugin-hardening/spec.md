@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | specified |
+| Status | Part A (Go) implemented on `feature/plugin-hardening-go`; Part B (page) pending |
 | Target version | 0.2.0-alpha.2 |
 | Branches | `feature/plugin-hardening-go`, `feature/plugin-hardening-ui` |
 | Depends on | waves 6–8 |

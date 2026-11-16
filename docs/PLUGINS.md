@@ -240,7 +240,7 @@ backend:
   timeout: 5s                 # default 5s, at most 60s; with the stream hook: default 60s, at most 10m
 
 frontend:
-  js: [note.js]               # ES modules, loaded only on pages that use the plugin
+  js: [note.js]               # ES modules with a default export, loaded only on pages that use the plugin
   css: [note.css]
 ```
 
@@ -264,7 +264,12 @@ A `stream` call ends when the program exits: exit code 0 is success, anything
 else is reported to the frontend with the first lines of stderr. It is cut at
 4 MB of output (error `output limit`), when its timeout passes, when the
 frontend cancels it (the whole process group is killed) and when the folder
-changes or zen quits. At most 4 streams run at once. `timeout` for a plugin
+changes or zen quits, or when the plugin is blocked or switched off. Output
+reaches the frontend in batches: at most one `plugin:stream` event per call
+every 50 ms, its `chunk` the lines printed since the last event joined with
+`\n` (no trailing newline; an empty line is an empty piece). The 4 MB limit
+counts every line once, its newline and empty lines included. At most 4
+streams run at once. `timeout` for a plugin
 with the `stream` hook is the stream's limit; its other hooks keep the 60 s
 cap.
 
@@ -274,13 +279,32 @@ cap.
 | `ZEN_NAME` | block or inline name (`note`) |
 | `ZEN_FENCED` | `1` for a ``` fence, `0` for a `:::` container |
 | `ZEN_PAGE` | page path inside the folder (`guides/install.md`) |
-| `ZEN_ATTR_<KEY>` | each `{key=value}` attribute, key upper-cased, `-` → `_` |
+| `ZEN_ATTR_<KEY>` | each `{key=value}` attribute, key upper-cased, anything but `A-Z 0-9 _` → `_`. When two names give the same variable (`a-b` and `a_b`) only one entry is set: the name that sorts last wins. The `*_JSON` variables always carry every name |
 | `ZEN_ATTRS_JSON`, `ZEN_CONFIG_JSON` | all attributes / this plugin's options as JSON |
 | `ZEN_CONFIG_<KEY>` | each option (a `map` or `list` as JSON) |
 | `ZEN_WORKSPACE`, `ZEN_PLUGIN_DIR`, `ZEN_DATA_DIR` | folder root, plugin folder, a writable data folder for this plugin |
 
 The environment is otherwise minimal (`PATH`, `HOME`, `TMPDIR`, `LANG`). Output
 is capped at 2 MB. Whatever the program prints is sanitised like all HTML.
+
+**Limits.** One deadline (`timeout`) covers the program *and* its output pipes:
+when it passes, or the folder changes, or zen quits, the process group is
+killed and the call fails with `timed out` or `cancelled`. A child that leaves
+the process group and keeps stdout open until the deadline makes the call time
+out too (output is never reported as complete when it may be cut).
+
+**`PATH`.** An app started from the Finder has a short `PATH`. zen adds
+`/opt/homebrew/bin`, `/usr/local/bin`, `/opt/local/bin`, `~/.local/bin` and
+`~/.cargo/bin` after the usual system folders. A tool anywhere else (nvm,
+pyenv, a custom prefix) is reached by its absolute path in a script of the
+plugin folder, e.g. `exec "$HOME/.nvm/versions/node/v22/bin/node" run.js`.
+
+**Where files may point.** A plugin folder holds regular files, folders and
+symlinks that resolve to a file inside it. A symlink out of the folder, a
+pipe, socket or device, `command` as an absolute path, or an argument that
+names an existing file outside the folder (`["sh", "../x.sh"]`) rejects the
+plugin ("outside the plugin folder"); `plugin.yml` is read only from inside the
+folder, at most 256 KB. At most 500 files and 20 MB.
 
 A whole plugin in a shell script:
 
@@ -303,7 +327,7 @@ blocks: [calc]
 backend: { command: ["bc", "-l"], hooks: [block], output: text }
 ```
 
-### Frontend: mount on your blocks
+### Frontend: an ES module with a default export
 
 Every block, inline or layout a plugin owns is wrapped by zen:
 
@@ -313,12 +337,15 @@ Every block, inline or layout a plugin owns is wrapped by zen:
 
 Inside is the backend's HTML or, for a plugin without a `block` hook, the
 content itself: a `:::` container's markdown rendered to HTML, or a fence's
-text in `<pre class="zen-plugin-source">`. The plugin's script registers
-itself and zen calls `mount` for each wrapper, again after every re-render:
+text in `<pre class="zen-plugin-source">`. The plugin's script is an ES module
+whose default export is the plugin; zen loads it with `import()`, binds it to
+the plugin's id and calls `mount` for each of that plugin's wrappers, again
+after every re-render. (`zen.register` no longer exists; `window.zen` is a
+frozen `{ version: 2 }`.) Built-in plugins use the same form:
 
 ```js
 // .zen/plugins/counter/counter.js
-zen.register("counter", {
+export default {
   async mount(el, ctx) {
     let n = (await ctx.storage.get("count")) ?? 0;
     const b = document.createElement("button");
@@ -328,8 +355,14 @@ zen.register("counter", {
     el.replaceChildren(b);
     return () => b.remove();          // optional clean-up
   },
-});
+};
 ```
+
+A module without a default `mount` shows an error box naming the plugin. The
+URLs of a plugin's files end in `?v=<version>` (the first 12 hex digits of
+the approved hash for an external plugin, the app version for a built-in), so
+a changed plugin loads under a new URL; after a trust change or an edit zen
+unmounts every plugin and mounts again from the current page (`plugins:changed`).
 
 | `ctx` | |
 |---|---|
@@ -338,8 +371,8 @@ zen.register("counter", {
 | `ctx.page` | `{ path, title }` |
 | `ctx.storage.get(key)` / `.set(key, value)` | JSON values kept per plugin and per folder, on this Mac (1 MB per plugin) |
 | `ctx.storage.keys(prefix?)` | the stored keys (starting with `prefix`), sorted |
-| `ctx.invoke(payload)` | runs the backend with `ZEN_HOOK=action`; resolves to the JSON it prints |
-| `ctx.stream(payload, onChunk)` | runs the backend with `ZEN_HOOK=stream` (or a built-in's `StreamHook`); `onChunk(text)` gets each line in order. Returns `{ done, cancel() }`: `done` resolves when it ends and rejects with the error text (`cancelled` after `cancel()`). Streams a block started are cancelled when it unmounts |
+| `ctx.invoke(payload)` | runs the backend with `ZEN_HOOK=action`; resolves to the JSON it prints. zen resolves the plugin's on/off state and options for the page the block is on (`ctx.page.path`), and `ZEN_PAGE` is that page |
+| `ctx.stream(payload, onChunk)` | runs the backend with `ZEN_HOOK=stream` (or a built-in's `StreamHook`); `onChunk(line)` gets each line in order (the page splits zen's batches). Returns `{ done, cancel() }`: `done` resolves when it ends and rejects with the error text (`cancelled` after `cancel()`). Streams a block started are cancelled when it unmounts |
 | `ctx.navigate(path, anchor?)` | open another page |
 | `ctx.anchor()` | the current page's anchor (`""` when none) |
 | `ctx.onAnchor(fn)` | `fn(anchor)` when the anchor changes without a reload (a link to another heading of the same page); returns a remover; removed on unmount |
@@ -368,26 +401,54 @@ says `layout: slides`. zen renders the page as usual and wraps it in
 
 Plugins run programs and scripts, so **zen asks before using a plugin for
 the first time**, naming what it will run. The answer is remembered for that
-exact version of the plugin's files (a change asks again) in
-`<user config dir>/zen/trusted-plugins.yml`. Answering Block is remembered too, so zen does not
-ask again until the plugin changes. Blocked plugins render as plain markdown
+exact version of the plugin's files in
+`<user config dir>/zen/trusted-plugins.yml`: the hash covers every file of the
+folder (nothing is skipped, a symlink by its target's content) and is taken
+once, when the plugin is loaded; the answer is for exactly that. A decision is
+for one plugin folder **in one workspace** (a folder that links to an approved
+plugin is asked about); plugins in your own plugin folder apply to every
+workspace. A change asks again **at once**: before every run and every file
+served, zen compares a cheap fingerprint (paths, sizes, modification times)
+with the one taken at load; if anything differs the plugin is marked
+undecided, `plugins:changed` is sent, the call fails with "plugin changed;
+allow it again" and Settings lists it as undecided (a plugin that writes into
+its own folder therefore never runs; it has a data folder). Allowing a plugin
+whose files changed since they were shown is refused. Allowing always shows
+zen's own Allow / Block dialog, whether it comes from opening a folder or from
+Settings; a page script cannot allow anything. Answering Block is remembered
+too, so zen does not ask again until the plugin changes. Allowing a plugin
+also lets its page script use zen's functions (storage, `invoke`, `stream`,
+navigation), and its backend run **as you, with your files and network
+access**: zen does not sandbox it. Blocked plugins render as plain markdown
 with a note on the page. Settings (the cog) lists every plugin with
 Allow / Block.
 
 ## Security rules
 
-- Sanitiser runs after every hook; `Allow` rules are additive and apply to the
-  whole page while the plugin is enabled (alpha). They can never re-enable
-  `script`, `style`, `iframe`, `object`, `embed`, `form`, `on*`, `style` or
-  `srcdoc`. Scoping rules to the plugin's own subtree is a 0.2 item.
-- No plugin receives file or network access through `Context`.
+- Sanitiser runs after every hook; `Allow` rules are additive and apply only
+  inside that plugin's own wrapper (`data-zen-plugin="<id>"`), never to the rest
+  of the page. They can never re-enable `script`, `style`, `iframe`, `object`,
+  `embed`, `form`, `animate`, `set`, `use`, `foreignObject`, and never allow the
+  attributes `on*`, `style`, `srcdoc`, `formaction`, `values`, `from`, `to`,
+  `by`, `srcset`, `xlink:href`, `attributeName`, `href` on anything but `a`,
+  `data-zen-*`, `class`, `rel` or `id`.
+- Files of the folder under `/_ws/` are served with `Content-Type: text/plain`
+  for scripts and documents (`.js`, `.mjs`, `.html`, `.xml`) and SVG keeps
+  `Content-Security-Policy: sandbox`, so `script-src 'self'` never admits a
+  workspace file.
+- Built-in plugins get no file or network access through `Context`; external
+  backends are programs that run as you and have both (see Trust).
+- Plugin storage is per plugin **and per folder** (1 MB). A storage or trust
+  file that cannot be parsed is set aside as `<file>.corrupt-<time>` and
+  reported once, never overwritten; files are written atomically.
 - A stream or action reaches only the plugin that is switched on and, for an
   external plugin, allowed; stream ids are random and the page delivers a
-  stream's output only to the block that started it. Options with
+  stream's output only to the block that started it (it runs only for the page
+  it was started for, and is cancelled when the plugin is blocked or switched off). Options with
   `scope: user` cannot be set by a folder or a page.
 - Built-in plugin JS is a static embedded file; no `eval`, no remote loading.
   Mermaid runs with `securityLevel: "strict"`.
-- External plugins run only after the user allowed that exact set of files
-  (see Trust). Their backend gets a minimal environment, a timeout and an
+- External plugins run only after the user confirmed in zen's dialog that exact
+  set of files, and stop when a file changes (see Trust). Their backend gets a minimal environment, a timeout and an
   output cap; their HTML is sanitised like any other; their scripts are served
   from the app's own origin, so the page's `script-src 'self'` still holds.

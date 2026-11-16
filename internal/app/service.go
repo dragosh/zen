@@ -71,6 +71,7 @@ func newZen(o zenOptions) (*Zen, error) {
 
 func (z *Zen) close() {
 	z.state.stopWatch()
+	z.state.stop() // ends every plugin call
 	z.state.streams.cancelAll()
 	z.state.streams.wait(3 * time.Second)
 }

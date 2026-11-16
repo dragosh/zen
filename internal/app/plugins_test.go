@@ -99,6 +99,26 @@ func infoOf(t *testing.T, z *Zen, id string) PluginInfo {
 
 const notAllowed = `plugin "hello" is not allowed (Settings › Plugins)`
 
+// urlsOf joins asset URLs without their ?v= query.
+func urlsOf(urls []string) string {
+	var out []string
+	for _, u := range urls {
+		out = append(out, strings.SplitN(u, "?", 2)[0])
+	}
+	return strings.Join(out, ",")
+}
+
+// versioned reports whether every URL ends in ?v=<n characters>.
+func versioned(urls []string, n int) bool {
+	for _, u := range urls {
+		_, v, ok := strings.Cut(u, "?v=")
+		if !ok || len(v) != n {
+			return false
+		}
+	}
+	return len(urls) > 0
+}
+
 func hasWarning(pg Page, w string) bool {
 	for _, got := range pg.Warnings {
 		if got == w {
@@ -195,7 +215,7 @@ func TestTrustPrompt(t *testing.T) {
 	if !strings.Contains(pg.HTML, `data-zen-plugin="hello"`) || !strings.Contains(pg.HTML, `data-zen-name="hello"`) {
 		t.Errorf("wrapper: %s", pg.HTML)
 	}
-	if strings.Join(pg.Assets.JS, ",") != "/_plugins/hello/hello.js" || strings.Join(pg.Assets.CSS, ",") != "/_plugins/hello/hello.css" {
+	if urlsOf(pg.Assets.JS) != "/_plugins/hello/hello.js" || urlsOf(pg.Assets.CSS) != "/_plugins/hello/hello.css" || !versioned(pg.Assets.JS, 12) {
 		t.Errorf("assets: %+v", pg.Assets)
 	}
 	if pg.Layout != "" {
@@ -258,11 +278,12 @@ func TestPickFolderAsksForTrust(t *testing.T) {
 
 func TestPluginTrustService(t *testing.T) {
 	dir := pluginTree(t, pluginDocs())
-	z, ev, _ := openWith(t, dir, t.TempDir(), false)
+	z, ev, dl := openWith(t, dir, t.TempDir(), false)
 	if _, err := z.Page("README.md"); err != nil {
 		t.Fatal(err)
 	}
 	ev.reset()
+	dl.confirm = true
 	if err := z.PluginTrust("hello", true); err != nil {
 		t.Fatal(err)
 	}
@@ -273,7 +294,7 @@ func TestPluginTrustService(t *testing.T) {
 			t.Errorf("page:changed for %q", pc.Path)
 		}
 	}
-	if strings.Join(names, ",") != EventWorkspaceChanged+","+EventPageChanged {
+	if strings.Join(names, ",") != EventPluginsChanged+","+EventWorkspaceChanged+","+EventPageChanged {
 		t.Fatalf("events: %v", names)
 	}
 	if pg, _ := z.Page("README.md"); !strings.Contains(pg.HTML, "hello from the backend") || len(pg.Warnings) != 0 {
@@ -518,7 +539,7 @@ func TestPluginInvoke(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	out, err := z.PluginInvoke("hello", `{"answer": [1, 2]}`)
+	out, err := z.PluginInvoke("hello", "other.md", `{"answer": [1, 2]}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -533,26 +554,26 @@ func TestPluginInvoke(t *testing.T) {
 		t.Error("action ran the block branch")
 	}
 
-	if _, err := z.PluginInvoke("hello", `{not json`); err == nil {
+	if _, err := z.PluginInvoke("hello", "README.md", `{not json`); err == nil {
 		t.Error("payload that is not JSON accepted")
 	}
-	if _, err := z.PluginInvoke("quiet", `1`); err == nil || !strings.Contains(err.Error(), "action") {
+	if _, err := z.PluginInvoke("quiet", "README.md", `1`); err == nil || !strings.Contains(err.Error(), "action") {
 		t.Errorf("plugin without the action hook: %v", err)
 	}
-	if _, err := z.PluginInvoke("off", `1`); err == nil {
+	if _, err := z.PluginInvoke("off", "README.md", `1`); err == nil {
 		t.Error("disabled plugin invoked")
 	}
-	if _, err := z.PluginInvoke("chatty", `"x"`); err == nil || !strings.Contains(err.Error(), "JSON") {
+	if _, err := z.PluginInvoke("chatty", "README.md", `"x"`); err == nil || !strings.Contains(err.Error(), "JSON") {
 		t.Errorf("output that is not JSON: %v", err)
 	}
-	if _, err := z.PluginInvoke("chatty", `"fail"`); err == nil || !strings.Contains(err.Error(), "broken") || strings.Contains(err.Error(), dir) {
+	if _, err := z.PluginInvoke("chatty", "README.md", `"fail"`); err == nil || !strings.Contains(err.Error(), "broken") || strings.Contains(err.Error(), dir) {
 		t.Errorf("failing action: %v", err)
 	}
-	if out, err := z.PluginInvoke("chatty", `"empty"`); err != nil || out != "null" {
+	if out, err := z.PluginInvoke("chatty", "README.md", `"empty"`); err != nil || out != "null" {
 		t.Errorf("empty output: %q %v", out, err)
 	}
 	for _, id := range []string{"codeblock", "diagram", "nope", "", "../hello"} {
-		if _, err := z.PluginInvoke(id, `1`); err == nil {
+		if _, err := z.PluginInvoke(id, "README.md", `1`); err == nil {
 			t.Errorf("invoke of %q accepted", id)
 		}
 	}
@@ -560,13 +581,13 @@ func TestPluginInvoke(t *testing.T) {
 	if err := z.PluginTrust("hello", false); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := z.PluginInvoke("hello", `1`); err == nil {
+	if _, err := z.PluginInvoke("hello", "README.md", `1`); err == nil {
 		t.Error("blocked plugin invoked")
 	}
 	// Never trusted at all: refused, nothing runs.
 	dir2 := pluginTree(t, pluginDocs())
 	z2, _, _ := openWith(t, dir2, t.TempDir(), false)
-	if _, err := z2.PluginInvoke("hello", `1`); err == nil {
+	if _, err := z2.PluginInvoke("hello", "README.md", `1`); err == nil {
 		t.Error("untrusted plugin invoked")
 	}
 }
@@ -583,7 +604,7 @@ func TestLayoutInPageJSON(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if pg.Layout != "deck" || !strings.Contains(pg.HTML, `data-zen-layout="deck"`) || strings.Join(pg.Assets.JS, ",") != "/_plugins/deck/deck.js" {
+	if pg.Layout != "deck" || !strings.Contains(pg.HTML, `data-zen-layout="deck"`) || urlsOf(pg.Assets.JS) != "/_plugins/deck/deck.js" {
 		t.Errorf("layout page: %+v", pg)
 	}
 	raw, _ := json.Marshal(pg)
@@ -647,7 +668,7 @@ func TestBuiltinActionAndStorage(t *testing.T) {
 	}
 	root := z.Startup().Workspace.Root
 
-	out, err := z.PluginInvoke("act", `{"n": 2}`)
+	out, err := z.PluginInvoke("act", "other.md", `{"n": 2}`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -668,12 +689,12 @@ func TestBuiltinActionAndStorage(t *testing.T) {
 	if !strings.HasPrefix(res.Data, filepath.Join(cfg, "data")+string(filepath.Separator)) || filepath.Base(res.Data) != "files" || filepath.Base(filepath.Dir(res.Data)) != "act" {
 		t.Errorf("data dir %q", res.Data)
 	}
-	if _, err := z.PluginInvoke("act", `"fail"`); err == nil || !strings.Contains(err.Error(), "action failed") {
+	if _, err := z.PluginInvoke("act", "README.md", `"fail"`); err == nil || !strings.Contains(err.Error(), "action failed") {
 		t.Errorf("action error: %v", err)
 	}
 	// No ActionHook: refused. Unknown and switched off: refused.
 	for _, id := range []string{"codeblock", "diagram", "nope", "off"} {
-		if _, err := z.PluginInvoke(id, `1`); err == nil {
+		if _, err := z.PluginInvoke(id, "README.md", `1`); err == nil {
 			t.Errorf("invoke of %q accepted", id)
 		}
 	}
@@ -726,7 +747,7 @@ func TestUserScopedOptionsFromTheGlobalConfigOnly(t *testing.T) {
 	if n != 1 {
 		t.Errorf("want one warning about images, got %v", pg.Warnings)
 	}
-	out, err := z.PluginInvoke("act", `1`)
+	out, err := z.PluginInvoke("act", "README.md", `1`)
 	if err != nil {
 		t.Fatal(err)
 	}

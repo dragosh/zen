@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"sync"
 	"time"
 
@@ -19,7 +20,10 @@ import (
 // "output limit", the plugin's message).
 const EventPluginStream = "plugin:stream"
 
-// PluginStreamEvent is the payload of EventPluginStream.
+// PluginStreamEvent is the payload of EventPluginStream. Output is batched:
+// at most one chunk event per streamBatch per call, its Chunk the lines
+// produced since the last event joined with "\n" (no trailing newline; a
+// chunk is split on "\n" to get its lines, an empty line is an empty piece).
 type PluginStreamEvent struct {
 	Call  string `json:"call"`
 	Chunk string `json:"chunk"`
@@ -27,7 +31,10 @@ type PluginStreamEvent struct {
 	Error string `json:"error"`
 }
 
-const maxStreams = 4 // streams running at once, per app
+const (
+	maxStreams  = 4                     // streams running at once, per app
+	streamBatch = 50 * time.Millisecond // at most one chunk event per stream in this time
+)
 
 // builtinStreamTimeout ends a built-in plugin's stream (external plugins have
 // their manifest's timeout, which is never longer).
@@ -36,7 +43,9 @@ var builtinStreamTimeout = 10 * time.Minute
 // streamCall is one running stream.
 type streamCall struct {
 	cancel    context.CancelFunc
-	cancelled bool // guarded by streams.mu
+	cancelled bool   // guarded by streams.mu
+	plugin    string // id of the plugin that runs it
+	page      string // page it was started for
 }
 
 type streams struct {
@@ -55,8 +64,10 @@ func newCallID() (string, error) {
 
 // PluginStream starts the plugin's stream hook with a JSON payload and
 // returns the id of the call. Output arrives as EventPluginStream events.
-func (z *Zen) PluginStream(id, payload string) (string, error) {
-	return z.state.startStream(id, payload)
+//
+// page is the workspace path of the page the block is on (see PluginInvoke).
+func (z *Zen) PluginStream(id, page, payload string) (string, error) {
+	return z.state.startStream(id, page, payload)
 }
 
 // PluginCancel cancels a running stream; it ends with error "cancelled". A
@@ -72,6 +83,36 @@ func (st *streams) cancel(call string) {
 	if c := st.calls[call]; c != nil {
 		c.cancelled = true
 		c.cancel()
+	}
+}
+
+// cancelPlugin cancels the running streams of plugin id.
+func (st *streams) cancelPlugin(id string) {
+	st.mu.Lock()
+	defer st.mu.Unlock()
+	for _, c := range st.calls {
+		if c.plugin == id {
+			c.cancelled = true
+			c.cancel()
+		}
+	}
+}
+
+// reconcileStreams cancels the streams whose plugin is no longer allowed, or
+// no longer switched on for the page it was started for.
+func (s *state) reconcileStreams() {
+	type run struct{ call, plugin, page string }
+	st := &s.streams
+	st.mu.Lock()
+	var runs []run
+	for id, c := range st.calls {
+		runs = append(runs, run{id, c.plugin, c.page})
+	}
+	st.mu.Unlock()
+	for _, r := range runs {
+		if _, err := s.target(r.plugin, r.page, true); err != nil {
+			st.cancel(r.call)
+		}
 	}
 }
 
@@ -95,11 +136,11 @@ func (st *streams) wait(d time.Duration) {
 	}
 }
 
-func (s *state) startStream(id, payload string) (string, error) {
+func (s *state) startStream(id, page, payload string) (string, error) {
 	if !json.Valid([]byte(payload)) {
 		return "", errors.New("the payload is not valid JSON")
 	}
-	t, err := s.target(id, true)
+	t, err := s.target(id, page, true)
 	if err != nil {
 		return "", err
 	}
@@ -112,7 +153,7 @@ func (s *state) startStream(id, payload string) (string, error) {
 		return "", err
 	}
 	c, cancel := context.WithTimeout(context.Background(), builtinStreamTimeout)
-	sc := &streamCall{cancel: cancel}
+	sc := &streamCall{cancel: cancel, plugin: id, page: page}
 	st := &s.streams
 	st.mu.Lock()
 	if len(st.calls) >= maxStreams {
@@ -130,18 +171,11 @@ func (s *state) startStream(id, payload string) (string, error) {
 	go func() {
 		defer st.wg.Done()
 		defer cancel()
-		total, limited := 0, false
-		emit := func(b []byte) {
-			if c.Err() != nil || limited {
-				return
+		b := &batcher{call: call, send: s.emit, c: c}
+		emit := func(line []byte) {
+			if !b.add(line) {
+				cancel() // over the output limit
 			}
-			if total+len(b) > plugins.MaxStreamOutput {
-				limited = true
-				cancel()
-				return
-			}
-			total += len(b)
-			s.events.Emit(EventPluginStream, PluginStreamEvent{Call: call, Chunk: string(b)})
 		}
 		err := func() (err error) {
 			defer func() {
@@ -155,7 +189,8 @@ func (s *state) startStream(id, payload string) (string, error) {
 		wasCancelled := sc.cancelled
 		delete(st.calls, call) // free the slot before the frontend hears about the end
 		st.mu.Unlock()
-		s.events.Emit(EventPluginStream, PluginStreamEvent{Call: call, Done: true, Error: streamError(err, c, wasCancelled, limited)})
+		b.finish(!wasCancelled) // the last lines go out before the end of the stream
+		s.events.Emit(EventPluginStream, PluginStreamEvent{Call: call, Done: true, Error: streamError(err, c, wasCancelled, b.limited())})
 	}()
 	return call, nil
 }
@@ -175,4 +210,71 @@ func streamError(err error, c context.Context, cancelled, limited bool) string {
 		return err.Error()
 	}
 	return ""
+}
+
+// batcher turns a stream's lines into at most one event per streamBatch. The
+// output limit counts every line once, its newline included (empty lines too).
+type batcher struct {
+	call string
+	send func(name string, data any)
+	c    context.Context
+
+	mu      sync.Mutex
+	lines   []string
+	total   int
+	over    bool
+	armed   bool
+	stopped bool
+}
+
+// add queues a line; it reports false once the output limit is passed.
+func (b *batcher) add(line []byte) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if b.stopped || b.over || b.c.Err() != nil {
+		return !b.over
+	}
+	b.total += len(line) + 1
+	if b.total > plugins.MaxStreamOutput {
+		b.over = true
+		return false
+	}
+	b.lines = append(b.lines, string(line))
+	if !b.armed {
+		b.armed = true
+		time.AfterFunc(streamBatch, b.flush)
+	}
+	return true
+}
+
+func (b *batcher) flush() {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	b.armed = false
+	b.flushLocked()
+}
+
+func (b *batcher) flushLocked() {
+	if len(b.lines) == 0 || b.stopped {
+		return
+	}
+	chunk := strings.Join(b.lines, "\n")
+	b.lines = b.lines[:0]
+	b.send(EventPluginStream, PluginStreamEvent{Call: b.call, Chunk: chunk})
+}
+
+// finish sends what is queued (unless the stream was cancelled) and stops the batcher: nothing is sent after.
+func (b *batcher) finish(flush bool) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	if flush {
+		b.flushLocked()
+	}
+	b.stopped = true
+}
+
+func (b *batcher) limited() bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	return b.over
 }

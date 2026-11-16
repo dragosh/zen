@@ -132,11 +132,13 @@ func finish(t *testing.T, ev *sink, call string) []PluginStreamEvent {
 	return nil
 }
 
+// chunksOf is the lines of all chunk events, joined with "|": events are
+// batches of lines joined with "\n".
 func chunksOf(es []PluginStreamEvent) string {
 	var c []string
 	for _, e := range es {
 		if !e.Done {
-			c = append(c, e.Chunk)
+			c = append(c, strings.Split(e.Chunk, "\n")...)
 		}
 	}
 	return strings.Join(c, "|")
@@ -160,7 +162,7 @@ func TestBuiltinStream(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	call, err := z.PluginStream("act", `"three"`)
+	call, err := z.PluginStream("act", "other.md", `"three"`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,7 +174,7 @@ func TestBuiltinStream(t *testing.T) {
 		t.Fatalf("chunks: %+v", es)
 	}
 	last := es[len(es)-1]
-	if !last.Done || last.Error != "" || last.Call != call || len(es) != 4 {
+	if !last.Done || last.Error != "" || last.Call != call || len(es) < 2 {
 		t.Fatalf("end: %+v", es)
 	}
 	// The hook got the page, the folder and a data folder.
@@ -184,14 +186,14 @@ func TestBuiltinStream(t *testing.T) {
 	}
 
 	// Ids are random and distinct.
-	c2, _ := z.PluginStream("act", `"three"`)
+	c2, _ := z.PluginStream("act", "README.md", `"three"`)
 	if c2 == call {
 		t.Error("call ids repeat")
 	}
 	finish(t, ev, c2)
 
 	// A returned error ends the stream with its text.
-	c3, err := z.PluginStream("act", `"fail"`)
+	c3, err := z.PluginStream("act", "README.md", `"fail"`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -209,15 +211,15 @@ func TestStreamRefusals(t *testing.T) {
 	z, ev := openActing(t, dir, t.TempDir(), act, off)
 
 	for _, id := range []string{"codeblock", "diagram", "nope", "", "../act", "lint", "off", "hello"} {
-		if _, err := z.PluginStream(id, `1`); err == nil {
+		if _, err := z.PluginStream(id, "README.md", `1`); err == nil {
 			t.Errorf("stream for %q accepted", id)
 		}
 	}
-	if _, err := z.PluginStream("act", `{bad`); err == nil {
+	if _, err := z.PluginStream("act", "README.md", `{bad`); err == nil {
 		t.Error("payload that is not JSON accepted")
 	}
 	z2, _ := openActing(t, "", t.TempDir(), newActor("act"))
-	if _, err := z2.PluginStream("act", `1`); err == nil {
+	if _, err := z2.PluginStream("act", "README.md", `1`); err == nil {
 		t.Error("stream without a folder")
 	}
 	if n := len(streamEvents(ev, "")); n != 0 {
@@ -229,7 +231,7 @@ func TestStreamCancel(t *testing.T) {
 	dir := pluginTree(t, pluginDocs())
 	act := newActor("act")
 	z, ev := openActing(t, dir, t.TempDir(), act)
-	call, err := z.PluginStream("act", `"wait"`)
+	call, err := z.PluginStream("act", "README.md", `"wait"`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -263,19 +265,19 @@ func TestStreamAtMostFourAtOnce(t *testing.T) {
 	z, ev := openActing(t, dir, t.TempDir(), act)
 	var calls []string
 	for i := 0; i < 4; i++ {
-		c, err := z.PluginStream("act", `"wait"`)
+		c, err := z.PluginStream("act", "README.md", `"wait"`)
 		if err != nil {
 			t.Fatal(err)
 		}
 		calls = append(calls, c)
 	}
-	if _, err := z.PluginStream("act", `"three"`); err == nil || !strings.Contains(err.Error(), "4") {
+	if _, err := z.PluginStream("act", "README.md", `"three"`); err == nil || !strings.Contains(err.Error(), "4") {
 		t.Fatalf("fifth stream: %v", err)
 	}
 	// A slot frees up when one ends.
 	_ = z.PluginCancel(calls[0])
 	finish(t, ev, calls[0])
-	c5, err := z.PluginStream("act", `"three"`)
+	c5, err := z.PluginStream("act", "README.md", `"three"`)
 	if err != nil {
 		t.Fatalf("after one ended: %v", err)
 	}
@@ -289,7 +291,7 @@ func TestStreamAtMostFourAtOnce(t *testing.T) {
 func TestStreamOutputLimit(t *testing.T) {
 	dir := pluginTree(t, pluginDocs())
 	z, ev := openActing(t, dir, t.TempDir(), newActor("act"))
-	call, err := z.PluginStream("act", `"flood"`)
+	call, err := z.PluginStream("act", "README.md", `"flood"`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -314,7 +316,7 @@ func TestStreamTimeoutOfBuiltins(t *testing.T) {
 	dir := pluginTree(t, pluginDocs())
 	act := newActor("act")
 	z, ev := openActing(t, dir, t.TempDir(), act)
-	call, err := z.PluginStream("act", `"wait"`)
+	call, err := z.PluginStream("act", "README.md", `"wait"`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -328,7 +330,7 @@ func TestStreamsEndWhenTheFolderChangesOrTheAppQuits(t *testing.T) {
 	dir := pluginTree(t, pluginDocs())
 	act := newActor("act")
 	z, ev := openActing(t, dir, t.TempDir(), act)
-	call, err := z.PluginStream("act", `"wait"`)
+	call, err := z.PluginStream("act", "README.md", `"wait"`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -343,7 +345,7 @@ func TestStreamsEndWhenTheFolderChangesOrTheAppQuits(t *testing.T) {
 
 	act2 := newActor("act")
 	z2, ev2 := openActing(t, dir, t.TempDir(), act2)
-	call2, err := z2.PluginStream("act", `"wait"`)
+	call2, err := z2.PluginStream("act", "README.md", `"wait"`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -384,7 +386,7 @@ func tickTree(t *testing.T) string {
 func TestExternalStream(t *testing.T) {
 	dir := tickTree(t)
 	z, ev, _ := openWith(t, dir, t.TempDir(), true)
-	call, err := z.PluginStream("tick", `"count"`)
+	call, err := z.PluginStream("tick", "README.md", `"count"`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -392,13 +394,13 @@ func TestExternalStream(t *testing.T) {
 	if chunksOf(es) != "1|2|3" || es[len(es)-1].Error != "" {
 		t.Fatalf("events: %+v", es)
 	}
-	call, _ = z.PluginStream("tick", `"fail"`)
+	call, _ = z.PluginStream("tick", "README.md", `"fail"`)
 	es = finish(t, ev, call)
 	if e := es[len(es)-1].Error; !strings.Contains(e, "exit code 4") || !strings.Contains(e, "oops") || strings.Contains(e, dir) {
 		t.Fatalf("failure: %+v", es[len(es)-1])
 	}
 	// hello declares no stream hook.
-	if _, err := z.PluginStream("hello", `1`); err == nil {
+	if _, err := z.PluginStream("hello", "README.md", `1`); err == nil {
 		t.Error("stream of a plugin without the hook")
 	}
 }
@@ -407,7 +409,7 @@ func TestExternalStreamCancelKillsTheProcess(t *testing.T) {
 	dir := tickTree(t)
 	cfg := t.TempDir()
 	z, ev, _ := openWith(t, dir, cfg, true)
-	call, err := z.PluginStream("tick", `"hang"`)
+	call, err := z.PluginStream("tick", "README.md", `"hang"`)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -446,7 +448,7 @@ func TestExternalStreamBlockedOrOffIsRefused(t *testing.T) {
 	if err := z.PluginTrust("tick", false); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := z.PluginStream("tick", `"count"`); err == nil {
+	if _, err := z.PluginStream("tick", "README.md", `"count"`); err == nil {
 		t.Error("blocked plugin streamed")
 	}
 }
@@ -456,7 +458,7 @@ func TestStreamEventOrderAcrossCalls(t *testing.T) {
 	z, ev := openActing(t, dir, t.TempDir(), newActor("act"))
 	var calls []string
 	for i := 0; i < 3; i++ {
-		c, err := z.PluginStream("act", `"three"`)
+		c, err := z.PluginStream("act", "README.md", `"three"`)
 		if err != nil {
 			t.Fatal(err)
 		}

@@ -1,6 +1,7 @@
 package render
 
 import (
+	"fmt"
 	"regexp"
 	"sort"
 	"strings"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/dragosh/zen/internal/core/plugins"
 	"github.com/microcosm-cc/bluemonday"
+	"golang.org/x/net/html"
 )
 
 var (
@@ -19,11 +21,26 @@ var (
 var forbiddenElements = map[string]bool{
 	"script": true, "style": true, "iframe": true, "object": true, "embed": true,
 	"frame": true, "frameset": true, "base": true, "meta": true, "link": true, "form": true,
+	// SVG elements that start scripts or load documents from attribute values.
+	"animate": true, "animatemotion": true, "animatetransform": true, "set": true, "use": true, "foreignobject": true,
 }
 
-func forbiddenAttr(a string) bool {
+// forbiddenAttr: attributes no Allow rule can enable on element el. They carry
+// URLs or script, or are the ones zen's own markup depends on.
+func forbiddenAttr(el, a string) bool {
 	a = strings.ToLower(a)
-	return strings.HasPrefix(a, "on") || a == "style" || a == "srcdoc" || a == "formaction"
+	switch {
+	case strings.HasPrefix(a, "on"), strings.HasPrefix(a, "data-zen-"):
+		return true
+	case a == "href":
+		return el != "a"
+	}
+	switch a {
+	case "style", "srcdoc", "formaction", "values", "from", "to", "by", "srcset", "xlink:href",
+		"attributename", "class", "rel", "id":
+		return true
+	}
+	return false
 }
 
 func newPolicy(allow []plugins.AllowRule) *bluemonday.Policy {
@@ -47,7 +64,7 @@ func newPolicy(allow []plugins.AllowRule) *bluemonday.Policy {
 		p.AllowElements(el)
 		var attrs []string
 		for _, a := range r.Attrs {
-			if a != "" && !forbiddenAttr(a) {
+			if a != "" && !forbiddenAttr(el, a) {
 				attrs = append(attrs, a)
 			}
 		}
@@ -74,6 +91,100 @@ func policyFor(allow []plugins.AllowRule) *bluemonday.Policy {
 	}
 	p, _ := policies.LoadOrStore(key, newPolicy(allow))
 	return p.(*bluemonday.Policy)
+}
+
+// scopedSanitise sanitises the page: everything with the base policy, and the
+// content of each plugin wrapper (an element with data-zen-plugin="<id>")
+// with the base policy plus that plugin's own allow rules, so a rule never
+// widens what the rest of the page may contain. The wrapper's content is
+// sanitised on its own and put back after the page has been sanitised; a
+// wrapper that is not closed is left to the base policy.
+func scopedSanitise(in string, rules map[string][]plugins.AllowRule) string {
+	if len(rules) == 0 || !strings.Contains(in, "data-zen-plugin") {
+		return basePolicy.Sanitize(in)
+	}
+	sc := &scoper{rules: rules, prefix: "zensan" + newNonce() + "n"}
+	out := basePolicy.Sanitize(sc.scope(in))
+	for round := 0; round <= len(sc.frags) && strings.Contains(out, sc.prefix); round++ {
+		pairs := make([]string, 0, 2*len(sc.frags))
+		for i, f := range sc.frags {
+			pairs = append(pairs, sc.token(i), f)
+		}
+		out = strings.NewReplacer(pairs...).Replace(out)
+	}
+	return out
+}
+
+type scoper struct {
+	rules  map[string][]plugins.AllowRule
+	prefix string
+	frags  []string // sanitised content of the wrappers, innermost first
+}
+
+func (sc *scoper) token(i int) string { return fmt.Sprintf("%s%dz", sc.prefix, i) }
+
+// scope returns in with the content of every wrapper of a plugin that has
+// rules replaced by a token for its sanitised content.
+func (sc *scoper) scope(in string) string {
+	z := html.NewTokenizer(strings.NewReader(in))
+	var out strings.Builder
+	pos, last := 0, 0 // last: what of in is already in out
+	for {
+		tt := z.Next()
+		if tt == html.ErrorToken {
+			out.WriteString(in[last:])
+			return out.String()
+		}
+		pos += len(z.Raw())
+		if tt != html.StartTagToken {
+			continue
+		}
+		name, hasAttr := z.TagName()
+		tag := string(name)
+		if tag != "div" && tag != "span" {
+			continue
+		}
+		var rs []plugins.AllowRule
+		for hasAttr {
+			var k, v []byte
+			k, v, hasAttr = z.TagAttr()
+			if string(k) == "data-zen-plugin" {
+				rs = sc.rules[string(v)]
+			}
+		}
+		if len(rs) == 0 {
+			continue
+		}
+		innerStart, depth := pos, 1
+		innerEnd := -1
+		for depth > 0 {
+			t2 := z.Next()
+			if t2 == html.ErrorToken {
+				break
+			}
+			rawStart := pos
+			pos += len(z.Raw())
+			switch t2 {
+			case html.StartTagToken, html.EndTagToken:
+				if n, _ := z.TagName(); string(n) == tag {
+					if t2 == html.StartTagToken {
+						depth++
+					} else if depth--; depth == 0 {
+						innerEnd = rawStart
+					}
+				}
+			}
+		}
+		if innerEnd < 0 { // not closed: the rest is sanitised by the base policy
+			out.WriteString(in[last:])
+			return out.String()
+		}
+		inner := sc.scope(in[innerStart:innerEnd])
+		sc.frags = append(sc.frags, policyFor(rs).Sanitize(inner))
+		out.WriteString(in[last:innerStart])
+		out.WriteString(sc.token(len(sc.frags) - 1))
+		last = innerEnd
+	}
 }
 
 // addInternalHref gives internal links href="#" after sanitising: bluemonday

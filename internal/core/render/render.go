@@ -158,7 +158,7 @@ func (r *Renderer) Render(pagePath string, src []byte) (Page, error) {
 	}
 
 	// 7 sanitise
-	out = addInternalHref(policyFor(set.Allow()).Sanitize(out))
+	out = addInternalHref(scopedSanitise(out, set.AllowByPlugin()))
 
 	return Page{
 		Path:        pagePath,
@@ -184,6 +184,15 @@ func pageTitle(st *state, meta map[string]any, doc ast.Node, body []byte, pagePa
 		title = strings.TrimSuffix(base, path.Ext(base))
 	}
 	return title
+}
+
+// PluginSet returns the plugins enabled for the page whose source (with its
+// frontmatter) is src, and their effective options, as Render sees them.
+func (r *Renderer) PluginSet(src []byte) *plugins.Set {
+	meta, _, _ := config.SplitFrontmatter(src)
+	settings := r.cfg.ForPage(meta)
+	set, _ := r.reg.Enabled(settings.Plugin, frontmatterPluginIDs(meta))
+	return set
 }
 
 // Title returns the title Render would give the page without running any

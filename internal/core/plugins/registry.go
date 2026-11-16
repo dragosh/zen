@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/fs"
 	"math"
+	"net/url"
 	"path"
 	"reflect"
 	"regexp"
@@ -36,7 +37,20 @@ type Registry struct {
 	layouts map[string]string // layout name -> owning plugin id
 	denied  []Manifest        // plugins the user did not allow
 
-	user atomic.Pointer[userOptions]
+	user     atomic.Pointer[userOptions]
+	assetVer atomic.Pointer[string]
+}
+
+// SetAssetVersion sets the ?v= value of the asset URLs of plugins that are
+// not AssetVersioners (the app version, for the built-in plugins).
+func (r *Registry) SetAssetVersion(v string) { r.assetVer.Store(&v) }
+
+// AssetVersion returns what SetAssetVersion set, "" when nothing was set.
+func (r *Registry) AssetVersion() string {
+	if v := r.assetVer.Load(); v != nil {
+		return *v
+	}
+	return ""
 }
 
 type userOptions struct {
@@ -196,6 +210,7 @@ func (r *Registry) AssetFS(id string) (fs.FS, bool) {
 // options and options of the wrong type (which keep their default).
 func (r *Registry) Enabled(lookup func(id string) (bool, map[string]any, bool), mentionedIDs []string) (*Set, []string) {
 	s := &Set{
+		version: r.AssetVersion(),
 		config:  map[string]map[string]any{},
 		blocks:  map[string]Plugin{},
 		inlines: map[string]Plugin{},
@@ -427,6 +442,7 @@ type Set struct {
 	inlines   map[string]Plugin
 	layouts   map[string]Plugin
 	denied    map[string]map[string]string // kind -> name -> id of the denied plugin
+	version   string                       // registry's asset version
 }
 
 // Plugins returns the enabled plugins in registration order.
@@ -467,6 +483,18 @@ func (s *Set) Allow() []AllowRule {
 	return out
 }
 
+// AllowByPlugin returns the sanitiser rules of the enabled plugins by plugin
+// id; a plugin's rules apply only inside that plugin's own wrapper.
+func (s *Set) AllowByPlugin() map[string][]AllowRule {
+	out := map[string][]AllowRule{}
+	for _, m := range s.manifests {
+		if len(m.Allow) > 0 {
+			out[m.ID] = append([]AllowRule(nil), m.Allow...)
+		}
+	}
+	return out
+}
+
 // Assets returns the CSS/JS URLs (/_plugins/<id>/<file>) of the enabled
 // plugins that implement AssetProvider, in registration order. Entries that
 // are not plain relative paths inside the plugin's file system are dropped.
@@ -479,13 +507,17 @@ func (s *Set) Assets() Assets {
 		}
 		id := s.manifests[i].ID
 		e := ap.Entry()
-		out.CSS = appendURLs(out.CSS, id, e.CSS)
-		out.JS = appendURLs(out.JS, id, e.JS)
+		ver := s.version
+		if v, ok := p.(AssetVersioner); ok {
+			ver = v.AssetVersion()
+		}
+		out.CSS = appendURLs(out.CSS, id, ver, e.CSS)
+		out.JS = appendURLs(out.JS, id, ver, e.JS)
 	}
 	return out
 }
 
-func appendURLs(dst []string, id string, files []string) []string {
+func appendURLs(dst []string, id, ver string, files []string) []string {
 	for _, f := range files {
 		if f == "" || strings.ContainsAny(f, `\:?#`) {
 			continue
@@ -494,7 +526,11 @@ func appendURLs(dst []string, id string, files []string) []string {
 		if clean == "." || !fs.ValidPath(clean) {
 			continue
 		}
-		dst = append(dst, "/_plugins/"+id+"/"+clean)
+		u := "/_plugins/" + id + "/" + clean
+		if ver != "" {
+			u += "?v=" + url.QueryEscape(ver)
+		}
+		dst = append(dst, u)
 	}
 	return dst
 }

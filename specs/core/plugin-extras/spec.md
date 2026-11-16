@@ -20,7 +20,7 @@ so each of those can then be built in its own folder without touching the core.
    `ActionHook { Action(ctx Context, payload []byte) ([]byte, error) }` and
    `StreamHook { Stream(c context.Context, ctx Context, payload []byte, emit func(chunk []byte)) error }`.
    `Context` gains `DataDir string` (the plugin's writable folder, same location rule as external plugins' `ZEN_DATA_DIR`) and `Workspace string`. `PluginInvoke`, `PluginStorageGet/Set` work for a built-in plugin when it is enabled (invoke: and implements `ActionHook`); they stay refused for unknown or switched-off plugins.
-2. **Streams.** `PluginStream(id, json) (callID string, error)` starts the plugin's stream (built-in `StreamHook`, or an external plugin declaring hook `stream`: its stdout is forwarded as it arrives, split on newlines, stdin = payload, `ZEN_HOOK=stream`). Chunks arrive as event `plugin:stream` `{call, chunk}`; the end as `{call, done: true, error: ""}` (non-zero exit / returned error → `error` text). `PluginCancel(callID)` cancels the context / kills the process group; a cancelled stream ends with `error: "cancelled"`. Limits: timeout from the manifest for external (`stream` may be up to `10m`, default 60s), 10 minutes for built-ins unless their context ends earlier; 4 MB total output per stream then it is cut with `error: "output limit"`; at most 4 streams at once; all streams of a window's page are cancelled when the folder changes or the app quits.
+2. **Streams.** `PluginStream(id, page, json) (callID string, error)` (`page` as for `PluginInvoke`) starts the plugin's stream (built-in `StreamHook`, or an external plugin declaring hook `stream`: its stdout is forwarded as it arrives, split on newlines, stdin = payload, `ZEN_HOOK=stream`). Chunks arrive as event `plugin:stream` `{call, chunk}`, **batched**: at most one chunk event per call every 50 ms, `chunk` the lines produced since the last event joined with `\n` (no trailing newline); the 4 MB limit counts every line once, newline and empty lines included; the end as `{call, done: true, error: ""}` (non-zero exit / returned error → `error` text). `PluginCancel(callID)` cancels the context / kills the process group; a cancelled stream ends with `error: "cancelled"`. Limits: timeout from the manifest for external (`stream` may be up to `10m`, default 60s), 10 minutes for built-ins unless their context ends earlier; 4 MB total output per stream then it is cut with `error: "output limit"`; at most 4 streams at once; all streams are cancelled when the folder changes or the app quits, and a plugin's streams when it is blocked or switched off.
 3. **User-scoped options.** An option with `scope: user` (`Option.Scope == "user"`, in `plugin.yml`: `options: { images: { type: map, scope: user } }`) takes its value from the global `config.yml` only: values in `.zen.yml` or frontmatter are ignored with a warning. Option types gain `map` (string → string) and `list` (strings).
 4. **Storage keys.** `PluginStorageKeys(id, prefix) []string` (sorted).
 5. **Runtime additions** (`ctx` in `frontend/src/plugins/runtime.ts`):
@@ -36,13 +36,14 @@ so each of those can then be built in its own folder without touching the core.
 
 ```go
 // service additions
-func (z *Zen) PluginStream(id, json string) (string, error)
+func (z *Zen) PluginStream(id, page, json string) (string, error)
+func (z *Zen) PluginInvoke(id, page, json string) (string, error)
 func (z *Zen) PluginCancel(call string) error
 func (z *Zen) PluginStorageKeys(id, prefix string) ([]string, error)
 const EventPluginStream = "plugin:stream" // {call string, chunk string, done bool, error string}
 ```
 ```ts
-interface Api { pluginStream(id: string, json: string): Promise<string>; pluginCancel(call: string): Promise<void>;
+interface Api { pluginStream(id: string, page: string, json: string): Promise<string>; pluginCancel(call: string): Promise<void>;
   pluginStorageKeys(id: string, prefix: string): Promise<string[]>;
   on(event: "plugin:stream", fn: (e: { call: string; chunk: string; done: boolean; error: string }) => void): () => void; }
 ```
@@ -55,7 +56,7 @@ interface Api { pluginStream(id: string, json: string): Promise<string>; pluginC
 | 2 | external and built-in streams: chunks in order, done, error, cancel kills children, limits, concurrency | `internal/core/extplugins/stream_test.go`, `internal/app/stream_test.go` |
 | 3 | user scope, map and list types, warnings | `internal/core/plugins/options_test.go`, `internal/core/extplugins/manifest_test.go` (added) |
 | 4 | keys | `internal/app/plugins_test.go` (added) |
-| 5 | stream/cancel/unmount, keys, anchor, badge | `frontend/src/plugins/runtime.test.ts` (added), `frontend/src/nav/tree.test.ts` (badge) |
+| 5 | stream/cancel/unmount, keys, anchor, badge (frontend: see core/plugin-hardening part B) | `frontend/src/plugins/runtime.test.ts` (added), `frontend/src/nav/tree.test.ts` (badge) |
 | 6 | print rules present; ⌘P handler | `frontend/src/page/css.test.ts`, `page.test.ts` |
 | api | fake and wails client | `frontend/src/api/*.test.ts` |
 
