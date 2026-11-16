@@ -197,7 +197,7 @@ id: note                      # [a-z][a-z0-9-]*, must equal the folder name
 version: 0.1.0                # SemVer
 apiVersion: 1
 description: Callout boxes
-default: true                 # on unless config switches it off
+default: true                 # on unless config switches it off (also when omitted)
 
 blocks: [note, warning]       # ```note fences and :::note containers
 inlines: [badge]              # :badge[text]{attrs}
@@ -319,8 +319,9 @@ says `layout: slides`. zen renders the page as usual and wraps it in
 Plugins run programs and scripts, so **zen asks before using a plugin for
 the first time**, naming what it will run. The answer is remembered for that
 exact version of the plugin's files (a change asks again) in
-`<user config dir>/zen/trusted-plugins.yml`. Blocked plugins render as plain
-markdown with a note on the page. Settings (the cog) lists every plugin with
+`<user config dir>/zen/trusted-plugins.yml`. Answering Block is remembered too, so zen does not
+ask again until the plugin changes. Blocked plugins render as plain markdown
+with a note on the page. Settings (the cog) lists every plugin with
 Allow / Block.
 
 ## Security rules

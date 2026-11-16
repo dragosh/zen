@@ -22,6 +22,8 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Added
 
+- External plugins: a folder with `plugin.yml` can add a backend program, an existing tool, page scripts with saved data, or a page layout. zen asks before running a plugin for the first time; Settings lists plugins with Allow / Block.
+- Demo plugins `note` (shell), `calc` (`bc`) and `progress` (page script), and a how-to in `examples/demo/plugins/writing-plugins.md`.
 - `examples/demo/`: a user guide that is also a demo of every feature (plugins, frontmatter, slugs, settings, Vale with a custom vocabulary). Open it with `cd examples/demo && zen`.
 - Settings files open in zen's own editor (YAML colours, line numbers; checked before saving, applied right away).
 - Settings cog at the bottom of the sidebar (⌘,): theme (System / Light / Dark, all windows) and buttons that open `config.yml` and the folder's `.zen.yml`, created from a commented template if missing.
