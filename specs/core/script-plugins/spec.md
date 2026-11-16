@@ -2,10 +2,11 @@
 
 | | |
 |---|---|
-| Status | planned (after the plugin hardening fixes) |
+| Status | specified |
 | Target version | 0.2.0 |
 | Depends on | core/extplugins, core/plugin-extras |
-| Owns | `internal/core/scriptplugins/` (new), discovery hook in `internal/core/extplugins`, docs/PLUGINS.md, `examples/demo/.zen/plugins/*.tengo` |
+| Branch | `feature/core-script-plugins` |
+| Owns | `internal/core/scriptplugins/` (new), `internal/core/extplugins/` (discovery, trust, Plugins() listing for script plugins), `internal/app/extplugins.go` (wiring only), `go.mod`/`go.sum` (add `github.com/d5/tengo/v2 v2.17.0` only), docs/PLUGINS.md, `examples/demo/.zen/plugins/` (new `.tengo` samples), `examples/demo/plugins/writing-plugins.md`, `internal/app/demo_test.go` |
 
 ## Why
 
@@ -73,16 +74,21 @@ if hook == "block" {
 - **Limits** per call: 200 ms wall time (`plugin.timeout` up to 2 s), 500 000 allocations, output 2 MB, script file 256 KB.
 - **Frontend**: a script plugin can still ship `js`/`css` files (folder form) and use `zen.register`; `ctx.invoke` runs the script with `hook == "action"`.
 
-## Trust
+## Trust (decided)
 
-Script plugins without permissions cannot touch files, processes or the
-network, so the prompt says "renders blocks only" and could be skipped for
-them (decision for the owner). With `"read"` it says "reads files in this
-folder". Hash/approval rules otherwise as today.
+Script plugins go through exactly the same discovery, hashing, fingerprint
+re-check, per-workspace approval and `plugins:changed` flow as folder plugins
+(core/plugin-hardening): the hash covers the `.tengo` file (single-file form)
+or the whole folder (folder form). They are **always asked about** — no
+silent allow — but the prompt describes them truthfully:
+- no permissions: "renders blocks inside zen; cannot read files, run programs or use the network";
+- `read`: "… and reads files in this folder".
+`Plugins()` reports `kind: "script"` (folder plugins `"program"` or `"page"`) so Settings can show it.
 
 ## Steps
 
+0. Add `github.com/d5/tengo/v2 v2.17.0` to go.mod (v3.0.0 is not a valid module).
 1. `internal/core/scriptplugins`: compile once per file hash, clone per call, globals, `zen` module, limits; implements `plugins.Plugin` + hooks + `AssetProvider` (inline CSS served as `/_plugins/<id>/inline.css`).
 2. Discovery: `*.tengo` and `*/plugin.tengo` next to `plugin.yml` folders; same id rules, same registry.
-3. Port the `note` demo plugin to Tengo (keep the shell version as the "program" example) and add a `.tengo` section to the how-to.
-4. Tests: inputs/outputs per hook, every limit, permission gating, malformed scripts as page warnings, concurrent calls, determinism of `zen.html` escaping.
+3. Demo: add `examples/demo/.zen/plugins/callout.tengo` (single file: `:::tip` / `:::caution` callouts with inline CSS and `zen.markdown` for the body) and `examples/demo/.zen/plugins/wordcount/plugin.tengo` (folder form, `permissions: ["read"]`, an inline `:words[]` showing the page's word count and a `:::pages` block listing every page with its word count via `zen.pages()` + `zen.read()`). Keep `note` (shell) as the program example. In `writing-plugins.md` add "The simplest plugin: one Tengo file" first, before the program section, with both samples' full source, the inputs/`zen` module table, limits, and permissions; use `:::tip` on that page so it renders. `TestDemoFolder` trusts the new samples and asserts they render.
+4. Tests: inputs/outputs per hook (block, inline, source, html, action via `PluginInvoke`), every limit (timeout, allocations, output, file size), permission gating (`zen.read` without `read` fails; paths outside the folder, `..`, symlinks out, non-markdown binary files refused), unknown imports (`os`) refused at load, malformed scripts as page warnings, concurrent calls with `-race`, `zen.html` escaping (attributes and text), `zen.markdown` nesting depth, trust/hash/fingerprint re-prompt after editing the `.tengo` file.
