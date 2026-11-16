@@ -15,7 +15,7 @@ test("colours only as the three lint signal tokens, defined for light and dark",
   const named = /\b(red|orange|yellow|green|blue|purple|pink|brown|gold|cyan|magenta|lime|navy|teal|olive|maroon|violet|indigo|crimson|tomato|coral|salmon)\b/i;
   expect(body).not.toMatch(named);
   for (const m of Array.from(body.matchAll(/var\((--[a-z0-9-]+)/g))) {
-    expect(["--lint-error", "--lint-warning", "--lint-suggestion", "--fg", "--fg-muted", "--bg", "--bg-subtle", "--rule", "--font-ui", "--font-mono", "--radius", "--btn-bg", "--btn-bg-hover", "--focus"]
+    expect(["--lint-error", "--lint-warning", "--lint-suggestion", "--fg", "--fg-muted", "--bg", "--bg-subtle", "--rule", "--font-ui", "--font-mono", "--radius", "--btn-bg", "--btn-bg-hover", "--focus", "--zen-lint-console-h"]
       .concat(Array.from({ length: 7 }, (_, i) => `--space-${i + 1}`))).toContain(m[1]);
   }
 });

@@ -65,7 +65,7 @@ score. The line above the quiz shows the best one.
    - [x] diagram
    - [x] polls
    - [ ] spreadsheet
-   - [x] highlight
+   - [x] codeblock
    > Spreadsheets are not a plugin.
 4. What is the name of the file that describes a plugin folder? = plugin.yml
    > Every plugin folder needs one.

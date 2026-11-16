@@ -11,6 +11,15 @@
   color: var(--fg);
   outline: none;
 }
+/* Full page: the deck covers the whole window, sidebar and toolbar included. */
+.slides-root[data-fullpage="true"] {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  min-height: 0;
+}
+.slides-root:fullscreen { min-height: 0; }
+.slides-root:focus-visible .slides-stage { outline: 2px solid var(--focus); outline-offset: 4px; }
 .slides-viewport {
   position: relative;
   flex: 1;
@@ -64,6 +73,10 @@
 .slides-progress { flex: 1; height: 4px; background: var(--btn-bg); border-radius: var(--radius); overflow: hidden; }
 .slides-progress-fill { height: 100%; background: var(--fg); }
 .slides-count { min-width: 5em; text-align: right; color: var(--fg); }
+.slides-full { font: inherit; padding: 2px 10px; border: 0; border-radius: var(--radius); background: var(--btn-bg); color: var(--fg); cursor: pointer; }
+.slides-full:hover { background: var(--btn-bg-hover); }
+.slides-full[aria-pressed="true"] { background: var(--btn-primary-bg); color: var(--btn-primary-fg); }
+.slides-full:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 
 .slides-overview { display: none; }
 .slides-root[data-overview="true"] .slides-viewport { display: none; }

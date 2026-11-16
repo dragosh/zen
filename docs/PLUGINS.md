@@ -124,7 +124,7 @@ Order of precedence, last wins:
 # config.yml or .zen.yml
 version: 1
 plugins:
-  highlight: true                 # on, default options
+  codeblock: true                 # on, default options
   diagram: { theme: neutral }     # on, with options
   slides: false                   # off
 ```
@@ -134,7 +134,7 @@ plugins:
 title: Architecture
 plugins:
   diagram: false          # off for this page only
-  highlight: { style: github }
+  codeblock: { style: github }
 ---
 ```
 
@@ -190,7 +190,7 @@ Unknown plugin ids and unknown options produce a warning in the page
 
 | ID | Version | Blocks | What it does |
 |---|---|---|---|
-| `highlight` | alpha | none (HTML hook over every `pre > code.language-*`) | syntax colouring in Go (chroma), CSS classes only |
+| `codeblock` | alpha | none (HTML hook over every `pre > code`) | syntax colouring in Go (chroma, CSS classes only), plus Copy and Wrap buttons in each block |
 | `diagram` | alpha | `mermaid`, `diagram` | emits a placeholder; a vendored mermaid script renders it in the page |
 | `slides` | 0.2 | `slides` | splits a container on `---` into a slide deck |
 | `polls` | 0.2 | `poll` | renders a list as a poll |

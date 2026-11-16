@@ -253,3 +253,41 @@
 .zen-settings-plugin-problem { color: var(--fg); }
 .zen-settings-plugin-trust { flex: none; }
 .zen-settings-plugins-empty { margin: 0; color: var(--fg-muted); font-size: 12px; }
+
+/* File › New Page… dialog (shell/newpage.ts) */
+.zen-newpage-backdrop {
+  position: fixed; inset: 0; z-index: 40;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 12vh 16px 16px;
+  background: color-mix(in srgb, var(--fg) 18%, transparent);
+}
+.zen-newpage {
+  width: min(460px, 100%);
+  padding: var(--space-4);
+  background: var(--bg); color: var(--fg);
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--fg) 18%, transparent);
+  font-family: var(--font-ui); font-size: 13px;
+}
+.zen-newpage-title { margin: 0 0 var(--space-3); font-size: 15px; font-weight: 600; }
+.zen-newpage-label { display: block; margin: var(--space-3) 0 var(--space-1); font-weight: 600; }
+.zen-newpage-layouts { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--space-2); }
+.zen-newpage-layout {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: var(--space-2) var(--space-3); text-align: left;
+  border: 1px solid var(--rule); border-radius: var(--radius); background: var(--bg);
+}
+.zen-newpage-layout[aria-checked="true"] { border-color: var(--fg); background: var(--btn-bg); }
+.zen-newpage-layout:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.zen-newpage-layout-name { font-weight: 600; }
+.zen-newpage-layout-hint { color: var(--fg-muted); font-size: 12px; line-height: 1.35; }
+.zen-newpage-name {
+  box-sizing: border-box; width: 100%; padding: 6px 8px;
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  background: var(--bg); color: var(--fg); font: 13px var(--font-mono);
+}
+.zen-newpage-name:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.zen-newpage-hint { margin: var(--space-1) 0 0; color: var(--fg-muted); font-size: 12px; }
+.zen-newpage-error { min-height: 1.4em; margin: var(--space-2) 0 0; color: var(--lint-error, var(--fg)); }
+.zen-newpage-actions { display: flex; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-2); }
+@media (max-width: 480px) { .zen-newpage-layouts { grid-template-columns: 1fr; } }

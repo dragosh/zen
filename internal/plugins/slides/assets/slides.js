@@ -4,6 +4,9 @@
 const BASE_W = 960; // slide width in CSS px before scaling to the pane
 const NOTE = /^note:/i;
 const STEP_KEYS = { ArrowRight: 1, " ": 1, PageDown: 1, ArrowLeft: -1, PageUp: -1 };
+// Focus in one of these outside the deck (the sidebar tree, a menu, a toolbar
+// button) owns the arrow keys and Space: the deck leaves them alone.
+const WIDGETS = "nav, aside, header, [role=tree], [role=treeitem], [role=menu], [role=menubar], [role=menuitem], [role=listbox], [role=tablist], [role=toolbar], [role=dialog], button, a[href], summary";
 
 /** "16:9" -> [16, 9]; anything else -> 16:9. */
 function parseRatio(text) {
@@ -85,8 +88,12 @@ zen.register("slides", {
     progress.append(fill);
     const count = el(doc, "span", "slides-count");
     count.setAttribute("aria-live", "polite");
-    const hint = el(doc, "span", "slides-hint", "O overview · F fullscreen");
-    bar.append(progress, count, hint);
+    const hint = el(doc, "span", "slides-hint", "O overview · F full page");
+    const full = el(doc, "button", "slides-full", "Full page");
+    full.type = "button";
+    full.title = "Full page (F, Esc to leave)";
+    full.setAttribute("aria-pressed", "false");
+    bar.append(progress, count, hint, full);
     root.append(viewport, overview, bar);
     host.replaceChildren(root);
 
@@ -160,20 +167,64 @@ zen.register("slides", {
       root.dataset.overview = "true";
     }
 
+    // ---- full page: the deck covers the window (and goes full screen when the
+    // webview allows it); F or the bar button toggles, Esc leaves ----
+    let screen = false; // the deck is the fullscreen element
+    function fullPage() {
+      return root.dataset.fullpage === "true";
+    }
+    function setFullPage(on) {
+      if (on === fullPage()) return;
+      if (on) {
+        root.dataset.fullpage = "true";
+        root.focus({ preventScroll: true });
+        if (typeof root.requestFullscreen === "function") {
+          const r = root.requestFullscreen();
+          if (r && typeof r.catch === "function") r.catch(() => {});
+        }
+      } else {
+        delete root.dataset.fullpage;
+        if (doc.fullscreenElement === root && typeof doc.exitFullscreen === "function") {
+          const r = doc.exitFullscreen();
+          if (r && typeof r.catch === "function") r.catch(() => {});
+        }
+      }
+      full.setAttribute("aria-pressed", String(on));
+      fit();
+    }
+    // Esc in real full screen is taken by the browser: leave full page with it.
+    function onScreen() {
+      if (doc.fullscreenElement === root) screen = true;
+      else if (screen) {
+        screen = false;
+        setFullPage(false);
+      }
+    }
+    doc.addEventListener("fullscreenchange", onScreen);
+    full.addEventListener("click", () => setFullPage(!fullPage()));
+    // A click on the deck gives it the keys (and takes them from the sidebar).
+    function onPointer(e) {
+      if (!(e.target && e.target.closest && e.target.closest("button"))) root.focus({ preventScroll: true });
+    }
+    root.addEventListener("pointerdown", onPointer);
+
     // ---- keys ----
     function onKey(e) {
-      if (e.metaKey || e.ctrlKey || e.altKey || !host.isConnected) return;
+      if (e.defaultPrevented || e.metaKey || e.ctrlKey || e.altKey || !host.isConnected) return;
       const t = e.target;
-      if (t && t.nodeType === 1 && (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable)) return;
+      if (t && t.nodeType === 1) {
+        if (/^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName) || t.isContentEditable) return;
+        if (!root.contains(t) && t.closest(WIDGETS)) return;
+      }
       const k = e.key;
       if (k in STEP_KEYS) go(index + STEP_KEYS[k], false);
       else if (k === "Home") go(0, false);
       else if (k === "End") go(total - 1, false);
       else if (k === "o" || k === "O") setOverview(!overviewOpen());
       else if (k === "Escape" && overviewOpen()) setOverview(false);
-      else if (k === "f" || k === "F") {
-        if (typeof root.requestFullscreen === "function") root.requestFullscreen().catch(() => {});
-      } else if (k === "p" || k === "P") {
+      else if (k === "Escape" && fullPage()) setFullPage(false);
+      else if (k === "f" || k === "F") setFullPage(!fullPage());
+      else if (k === "p" || k === "P") {
         if (typeof window.print === "function") window.print();
       } else return;
       e.preventDefault();
@@ -187,6 +238,9 @@ zen.register("slides", {
 
     return () => {
       doc.removeEventListener("keydown", onKey);
+      doc.removeEventListener("fullscreenchange", onScreen);
+      root.removeEventListener("pointerdown", onPointer);
+      if (fullPage()) setFullPage(false);
       offAnchor();
       if (ro) ro.disconnect();
       host.replaceChildren(...original);

@@ -16,8 +16,8 @@ import (
 	"time"
 
 	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zen/internal/plugins/codeblock"
 	"github.com/dragosh/zen/internal/plugins/diagram"
-	"github.com/dragosh/zen/internal/plugins/highlight"
 )
 
 // actor is a built-in plugin with an action and a stream hook.
@@ -83,7 +83,7 @@ func (a *actor) Stream(c context.Context, ctx plugins.Context, payload []byte, e
 func openActing(t *testing.T, dir, cfgDir string, extra ...plugins.Plugin) (*Zen, *sink) {
 	t.Helper()
 	reg := plugins.NewRegistry()
-	for _, p := range append([]plugins.Plugin{highlight.New(), diagram.New()}, extra...) {
+	for _, p := range append([]plugins.Plugin{codeblock.New(), diagram.New()}, extra...) {
 		if err := reg.Register(p); err != nil {
 			t.Fatal(err)
 		}
@@ -208,7 +208,7 @@ func TestStreamRefusals(t *testing.T) {
 	act, off := newActor("act"), newActor("off")
 	z, ev := openActing(t, dir, t.TempDir(), act, off)
 
-	for _, id := range []string{"highlight", "diagram", "nope", "", "../act", "lint", "off", "hello"} {
+	for _, id := range []string{"codeblock", "diagram", "nope", "", "../act", "lint", "off", "hello"} {
 		if _, err := z.PluginStream(id, `1`); err == nil {
 			t.Errorf("stream for %q accepted", id)
 		}

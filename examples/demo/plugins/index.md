@@ -10,7 +10,7 @@ page can never inject scripts into it.
 
 | Plugin | Does | On by default |
 |---|---|---|
-| [highlight](highlight.md) | colours code blocks | yes |
+| [codeblock](codeblock.md) | colours code blocks, adds Copy and Wrap buttons | yes |
 | [diagram](diagram.md) | draws mermaid diagrams | yes |
 | [quiz](quiz.md) | questions with saved answers and scores | yes |
 | [sandbox](sandbox.md) | runs a code block in a container | yes, after setup |
@@ -22,7 +22,7 @@ Turn one off or set its options in frontmatter, `.zen.yml` or `config.yml`:
 
 ```yaml
 plugins:
-  highlight: true
+  codeblock: true
   diagram: { theme: neutral }   # a mapping turns it on with options
   lint: false                   # false turns it off
 ```

@@ -1,7 +1,8 @@
 // The problems console (ui/lint): a panel docked under the editor listing every
 // Vale alert with its position, message and rule, and — for the selected one —
-// why it was flagged and where to read more. Text from Vale only ever reaches
-// the DOM through textContent.
+// why it was flagged and where to read more. Tabs filter by severity; the top
+// edge drags (or arrow-keys) the panel taller or shorter. Text from Vale only
+// ever reaches the DOM through textContent.
 import type { Alert } from "../api";
 import { el } from "../shell/dom";
 
@@ -22,6 +23,28 @@ export type ConsoleOptions = {
 const ICON: Record<Alert["severity"], string> = { error: "●", warning: "▲", suggestion: "◆" };
 const LABEL: Record<Alert["severity"], string> = { error: "Error", warning: "Warning", suggestion: "Suggestion" };
 const OPEN_KEY = "zen.lint.console.open";
+const HEIGHT_KEY = "zen.lint.console.height";
+const TAB_KEY = "zen.lint.console.tab";
+export const HEIGHT_MIN = 72;
+export const HEIGHT_MAX = 640;
+const HEIGHT_DEFAULT = 180;
+const HEIGHT_STEP = 24;
+
+type Tab = "all" | Alert["severity"];
+const TABS: { id: Tab; label: string }[] = [
+  { id: "all", label: "All" },
+  { id: "error", label: "Errors" },
+  { id: "warning", label: "Warnings" },
+  { id: "suggestion", label: "Suggestions" },
+];
+
+function readStr(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function writeStr(key: string, v: string): void {
+  try { localStorage.setItem(key, v); } catch { /* storage unavailable */ }
+}
+const clampHeight = (h: number) => Math.round(Math.min(HEIGHT_MAX, Math.max(HEIGHT_MIN, h)));
 
 function readOpen(): boolean {
   try { return localStorage.getItem(OPEN_KEY) !== "0"; } catch { return true; }
@@ -40,6 +63,8 @@ function counts(alerts: Alert[]): string {
   return parts.length ? parts.join(", ") : "No problems";
 }
 
+let consoleSeq = 0;
+
 export function renderConsole(opts: ConsoleOptions): LintConsole {
   const root = el("section", "zen-lint-console");
   root.setAttribute("aria-label", "Problems");
@@ -51,7 +76,41 @@ export function renderConsole(opts: ConsoleOptions): LintConsole {
   const title = el("span", "zen-lint-console-title", "Problems");
   const summary = el("span", "zen-lint-console-summary");
   toggle.append(title, summary);
-  head.append(toggle);
+
+  // Severity tabs.
+  const tablist = el("div", "zen-lint-console-tabs");
+  tablist.setAttribute("role", "tablist");
+  tablist.setAttribute("aria-label", "Filter problems");
+  let tab: Tab = (TABS.find((t) => t.id === readStr(TAB_KEY))?.id) ?? "all";
+  const tabBtns = TABS.map((t) => {
+    const b = el("button", "zen-lint-console-tab ghost");
+    b.type = "button";
+    b.id = `zen-lint-tab-${t.id}-${++consoleSeq}`;
+    b.dataset.tab = t.id;
+    b.setAttribute("role", "tab");
+    b.append(el("span", "zen-lint-console-tab-label", t.label), el("span", "zen-lint-console-tab-count", "0"));
+    b.addEventListener("click", () => setTab(t.id, false));
+    return b;
+  });
+  tablist.append(...tabBtns);
+  tablist.addEventListener("keydown", (e) => {
+    const i = TABS.findIndex((t) => t.id === tab);
+    const to = { ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 }[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    setTab(TABS[(to + TABS.length) % TABS.length].id, true);
+  });
+  head.append(toggle, tablist);
+
+  // Drag handle on the top edge.
+  const grip = el("div", "zen-lint-console-resize");
+  grip.setAttribute("role", "separator");
+  grip.setAttribute("aria-orientation", "horizontal");
+  grip.setAttribute("aria-label", "Resize problems panel");
+  grip.setAttribute("aria-valuemin", String(HEIGHT_MIN));
+  grip.setAttribute("aria-valuemax", String(HEIGHT_MAX));
+  grip.title = "Drag to resize (double-click to reset)";
+  grip.tabIndex = 0;
 
   const list = el("ol", "zen-lint-console-list");
   list.setAttribute("role", "listbox");
@@ -59,8 +118,46 @@ export function renderConsole(opts: ConsoleOptions): LintConsole {
   const detail = el("div", "zen-lint-console-detail");
   detail.setAttribute("aria-live", "polite");
   const body = el("div", "zen-lint-console-body");
+  body.setAttribute("role", "tabpanel");
   body.append(list, detail);
-  root.append(head, body);
+  root.append(grip, head, body);
+
+  let height = clampHeight(Number(readStr(HEIGHT_KEY)) || HEIGHT_DEFAULT);
+  function applyHeight(save: boolean): void {
+    root.style.setProperty("--zen-lint-console-h", `${height}px`);
+    grip.setAttribute("aria-valuenow", String(height));
+    if (save) writeStr(HEIGHT_KEY, String(height));
+  }
+  function setHeight(h: number, save = true): void {
+    height = clampHeight(h);
+    applyHeight(save);
+  }
+  applyHeight(false);
+  // The panel grows upwards: dragging up by d makes it d taller.
+  let drag: { y: number; h: number } | null = null;
+  const onMove = (e: PointerEvent) => { if (drag) setHeight(drag.h + (drag.y - e.clientY), false); };
+  const onUp = () => {
+    if (!drag) return;
+    drag = null;
+    root.classList.remove("is-resizing");
+    writeStr(HEIGHT_KEY, String(height));
+  };
+  grip.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    drag = { y: e.clientY, h: height };
+    root.classList.add("is-resizing");
+    if (!open) { open = true; writeOpen(true); renderOpen(); }
+  });
+  grip.addEventListener("dblclick", () => setHeight(HEIGHT_DEFAULT));
+  grip.addEventListener("keydown", (e) => {
+    const to = { ArrowUp: height + HEIGHT_STEP, ArrowDown: height - HEIGHT_STEP, Home: HEIGHT_MIN, End: HEIGHT_MAX }[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    setHeight(to);
+  });
+  window.addEventListener("pointermove", onMove);
+  window.addEventListener("pointerup", onUp);
 
   let open = readOpen();
   let alerts: Alert[] = [];
@@ -68,6 +165,7 @@ export function renderConsole(opts: ConsoleOptions): LintConsole {
 
   function renderOpen(): void {
     body.hidden = !open;
+    grip.hidden = !open;
     toggle.setAttribute("aria-expanded", String(open));
     root.classList.toggle("is-open", open);
   }
@@ -77,10 +175,38 @@ export function renderConsole(opts: ConsoleOptions): LintConsole {
     renderOpen();
   });
 
+  const shown = (a: Alert) => tab === "all" || a.severity === tab;
+  /** Indexes (into alerts) of the rows the current tab shows. */
+  const visible = () => alerts.flatMap((a, i) => (shown(a) ? [i] : []));
+
+  function renderTabs(): void {
+    const n = { all: alerts.length, error: 0, warning: 0, suggestion: 0 };
+    for (const a of alerts) n[a.severity]++;
+    tabBtns.forEach((b, i) => {
+      const id = TABS[i].id;
+      const on = id === tab;
+      b.setAttribute("aria-selected", String(on));
+      b.tabIndex = on ? 0 : -1;
+      b.querySelector(".zen-lint-console-tab-count")!.textContent = String(n[id]);
+      if (on) body.setAttribute("aria-labelledby", b.id);
+    });
+    Array.from(list.children).forEach((row, i) => { (row as HTMLElement).hidden = !alerts[i] || !shown(alerts[i]); });
+  }
+
+  function setTab(next: Tab, focus: boolean): void {
+    tab = next;
+    writeStr(TAB_KEY, tab);
+    renderTabs();
+    if (selected >= 0 && !shown(alerts[selected])) select(-1, false);
+    else select(selected, false);
+    if (focus) tabBtns[TABS.findIndex((t) => t.id === tab)].focus();
+  }
+
   function renderDetail(): void {
     const a = alerts[selected];
     if (!a) {
-      detail.replaceChildren(el("p", "zen-lint-console-hint", alerts.length ? "Select a problem to see why it was flagged." : ""));
+      const empty = tab === "all" ? "" : `No ${TABS.find((t) => t.id === tab)!.label.toLowerCase()}.`;
+      detail.replaceChildren(el("p", "zen-lint-console-hint", visible().length ? "Select a problem to see why it was flagged." : empty));
       return;
     }
     const heading = el("p", "zen-lint-console-detail-head");
@@ -104,21 +230,23 @@ export function renderConsole(opts: ConsoleOptions): LintConsole {
 
   function select(i: number, jump: boolean): void {
     selected = i;
+    const first = visible()[0];
     Array.from(list.children).forEach((row, j) => {
       row.setAttribute("aria-selected", String(j === i));
-      (row as HTMLElement).tabIndex = j === i || (i < 0 && j === 0) ? 0 : -1;
+      (row as HTMLElement).tabIndex = j === i || (i < 0 && j === first) ? 0 : -1;
     });
     renderDetail();
     if (jump && alerts[i]) opts.onSelect(alerts[i], i);
   }
 
   list.addEventListener("keydown", (e) => {
-    const n = alerts.length;
-    if (!n) return;
+    const vis = visible();
+    if (!vis.length) return;
     const step = { ArrowDown: 1, ArrowUp: -1 }[e.key];
     if (step !== undefined) {
       e.preventDefault();
-      const next = Math.min(n - 1, Math.max(0, (selected < 0 ? 0 : selected + step)));
+      const at = vis.indexOf(selected);
+      const next = vis[at < 0 ? 0 : Math.min(vis.length - 1, Math.max(0, at + step))];
       select(next, false);
       (list.children[next] as HTMLElement).focus();
     } else if (e.key === "Enter" && selected >= 0) {
@@ -154,10 +282,13 @@ export function renderConsole(opts: ConsoleOptions): LintConsole {
       }));
       // Keep the same problem selected across re-lints while it still exists.
       const again = keep ? alerts.findIndex((a) => a.check === keep.check && a.match === keep.match && a.line === keep.line) : -1;
-      select(again, false);
+      renderTabs();
+      select(again >= 0 && shown(alerts[again]) ? again : -1, false);
       renderOpen();
     },
     destroy() {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
       root.remove();
     },
   };

@@ -44,5 +44,6 @@ layoutOptions: { ratio: "4:3" }
 
 - Arrow keys, Space, Page Up and Page Down move between slides
 - Home and End jump to the first and last slide
-- O shows all slides, F fills the screen
+- O shows all slides, F shows the deck full page (Esc leaves)
+- Click the slide first if the sidebar has the focus
 - P prints one slide per page

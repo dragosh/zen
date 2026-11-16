@@ -124,10 +124,11 @@ mark.zen-lint-flash {
 
 /* Problems console (editor): docked under the source. */
 .zen-lint-console {
+  position: relative;
   flex: none;
   display: flex;
   flex-direction: column;
-  max-height: 40%;
+  max-height: 80%;
   border-top: 1px solid var(--rule);
   background: var(--bg-subtle);
   font-family: var(--font-ui);
@@ -145,8 +146,28 @@ mark.zen-lint-flash {
 .zen-lint-console.is-open .zen-lint-console-toggle::before { content: "▾"; }
 .zen-lint-console-title { font-weight: 600; letter-spacing: 0.02em; }
 .zen-lint-console-summary { color: var(--fg-muted); }
+.zen-lint-console-tabs { display: flex; gap: 2px; margin-left: auto; }
+.zen-lint-console-tab {
+  display: flex; gap: 6px; align-items: baseline;
+  padding: var(--space-1) var(--space-2);
+  background: none; border-radius: var(--radius); color: var(--fg-muted);
+  border-bottom: 2px solid transparent;
+}
+.zen-lint-console-tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--fg); border-radius: var(--radius) var(--radius) 0 0; }
+.zen-lint-console-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.zen-lint-console-tab-count { font-variant-numeric: tabular-nums; opacity: 0.8; }
+/* Top-edge drag handle: a 6px hit area over the border. */
+.zen-lint-console-resize {
+  position: absolute; left: 0; right: 0; top: -3px; height: 6px; z-index: 1;
+  cursor: row-resize; touch-action: none;
+}
+.zen-lint-console-resize[hidden] { display: none; }
+.zen-lint-console-resize:hover, .zen-lint-console.is-resizing .zen-lint-console-resize,
+.zen-lint-console-resize:focus-visible { background: var(--focus); outline: none; }
+.zen-lint-console.is-resizing { user-select: none; }
 .zen-lint-console-body {
   flex: 1 1 auto;
+  height: var(--zen-lint-console-h, 180px);
   min-height: 0;
   display: grid;
   grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);

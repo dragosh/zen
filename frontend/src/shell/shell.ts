@@ -6,6 +6,7 @@ import type { Api, NavNode, Workspace } from "../api";
 import { button, el, logo } from "./dom";
 import { createHistory } from "./history";
 import { createLayout, type Layout } from "./layout";
+import { openNewPage, type NewPageDialog } from "./newpage";
 import { createSettings, type SettingsPanel } from "./settings";
 import { createStore } from "./store";
 import type { Ctx, Feature, Store } from "./types";
@@ -119,9 +120,26 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     unmountNav = null;
     settings?.destroy();
     settings = null;
+    newPage?.close();
     layout?.destroy();
     layout = null;
     editorTitle = null;
+  }
+
+  let newPage: NewPageDialog | null = null;
+  /** File › New Page… (⌘N): ask for a name and layout, then open the new page in the editor. */
+  function showNewPage(): void {
+    if (kind.kind !== "main" || !layout || newPage) return;
+    const path = store.get().path;
+    const folder = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
+    newPage = openNewPage({
+      api, doc, folder,
+      onCreated: (created) => {
+        navigate(created);
+        void api.openEditor(created).catch((err) => console.error("zen: opening the editor failed", err));
+      },
+      onClose: () => { newPage = null; },
+    });
   }
 
   let settings: SettingsPanel | null = null;
@@ -240,6 +258,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
     const inFrame = layout !== null;
     if (e.key === "o" || e.key === "O") void openFolder();
+    else if ((e.key === "n" || e.key === "N") && inFrame) showNewPage();
     else if (e.key === "," && inFrame) toggleSettings();
     else if (e.key === "\\" && inFrame) layout!.toggleSidebar();
     else if (e.key === "[" && inFrame) back();
@@ -255,6 +274,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     if (editorTitle) titleEditor(workspace, store.get().path);
   });
   // Go closes the editor windows before it opens another folder.
+  const offNewPage = api.on("menu:new-page", showNewPage);
   const offOpened = api.on("workspace:opened", (s) => {
     if (!destroyed && s.workspace && kind.kind === "main") showFrame(s.workspace, s.page);
   });
@@ -267,6 +287,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       destroyed = true;
       doc.removeEventListener("keydown", onKey);
       offWorkspace();
+      offNewPage();
       offOpened();
       closeFrame();
       root.replaceChildren();

@@ -7,9 +7,9 @@ import (
 	"testing"
 
 	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zen/internal/plugins/codeblock"
 	"github.com/dragosh/zen/internal/plugins/course"
 	"github.com/dragosh/zen/internal/plugins/diagram"
-	"github.com/dragosh/zen/internal/plugins/highlight"
 	"github.com/dragosh/zen/internal/plugins/quiz"
 	"github.com/dragosh/zen/internal/plugins/sandbox"
 	"github.com/dragosh/zen/internal/plugins/slides"
@@ -23,7 +23,7 @@ func TestDemoFolder(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
 	demo := filepath.Join(filepath.Dir(file), "..", "..", "examples", "demo")
 	reg := plugins.NewRegistry()
-	for _, p := range []plugins.Plugin{highlight.New(), diagram.New(), slides.New(), course.New(), quiz.New(), sandbox.New()} {
+	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New(), slides.New(), course.New(), quiz.New(), sandbox.New()} {
 		if err := reg.Register(p); err != nil {
 			t.Fatal(err)
 		}
@@ -94,7 +94,7 @@ func TestDemoFolder(t *testing.T) {
 		t.Errorf("README children = %v", got)
 	}
 	for _, n := range tree[0].Children {
-		if n.Path == "plugins/index.md" && strings.Join(paths(n.Children), ",") != "plugins/writing-plugins.md,plugins/highlight.md,plugins/diagram.md,plugins/quiz.md,plugins/sandbox.md,layouts/slides.md,layouts/course.md,plugins/directives.md" {
+		if n.Path == "plugins/index.md" && strings.Join(paths(n.Children), ",") != "plugins/writing-plugins.md,plugins/codeblock.md,plugins/diagram.md,plugins/quiz.md,plugins/sandbox.md,layouts/slides.md,layouts/course.md,plugins/directives.md" {
 			t.Errorf("Plugins children = %v", paths(n.Children))
 		}
 		if n.Path == "configuration/settings.md" && strings.Join(paths(n.Children), ",") != "configuration/reference.md" {
@@ -123,8 +123,8 @@ func TestDemoFolder(t *testing.T) {
 		t.Error("slug link [A slug](install) not resolved")
 	}
 	// Plugins actually ran on their pages.
-	if hl, _ := z.Page("plugins/highlight.md"); !strings.Contains(hl.HTML, `class="chroma"`) {
-		t.Error("highlight did not colour plugins/highlight.md")
+	if hl, _ := z.Page("plugins/codeblock.md"); !strings.Contains(hl.HTML, `class="chroma"`) {
+		t.Error("codeblock did not colour plugins/codeblock.md")
 	}
 	if dg, _ := z.Page("plugins/diagram.md"); strings.Count(dg.HTML, `class="zen-diagram"`) != 3 {
 		t.Error("diagram page should have three diagrams")

@@ -1,5 +1,5 @@
 //go:build !race
 
-package highlight
+package codeblock
 
 const raceEnabled = false

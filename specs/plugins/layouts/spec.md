@@ -22,7 +22,7 @@ Note: speaker notes after "Note:" are hidden on the slide.
 ```
 
 - **Split:** each `<hr>` in the rendered page starts a new slide; without any, each `h1`/`h2` does.
-- **View:** one slide scaled to fit the pane at the chosen ratio; ← → Space PageUp/Down, Home/End, a progress bar, `n / total`; `F` for full screen (window), `O` for an overview grid, `P` for print (one slide per page, `@media print`).
+- **View:** one slide scaled to fit the pane at the chosen ratio; ← → Space PageUp/Down, Home/End, a progress bar, `n / total`; `F` (or the bar's Full page button) for full page: the deck covers the whole window and asks for full screen, which the main window's webview allows; `Esc` leaves. `O` for an overview grid, `P` for print (one slide per page, `@media print`). Keys reach the deck only when focus is not in a widget outside it (sidebar tree, menu, toolbar button) and no other handler used them; a click on the deck gives it focus.
 - **State:** current slide in the URL anchor (`#slide-3`) through `ctx.navigate`, so Back/Forward and live reload keep the place.
 - **Editing:** the editor window is unchanged; the main window follows live, staying on the current slide.
 

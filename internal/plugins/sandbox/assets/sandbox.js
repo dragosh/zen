@@ -44,9 +44,12 @@ function mount(root, ctx) {
   const stop = el(doc, "button", "zen-sandbox-stop", "Stop");
   run.type = stop.type = "button";
   stop.disabled = true;
+  const spin = el(doc, "span", "zen-sandbox-spin");
+  spin.setAttribute("aria-hidden", "true");
+  spin.hidden = true;
   const status = el(doc, "span", "zen-sandbox-status");
   status.setAttribute("role", "status");
-  bar.append(run, stop, status);
+  bar.append(run, stop, spin, status);
   const con = el(doc, "pre", "zen-sandbox-console");
   con.setAttribute("aria-live", "off");
   box.append(bar, con);
@@ -55,6 +58,15 @@ function mount(root, ctx) {
   let size = 0;
   let truncated = false;
   let gone = false;
+  let started = false; // first output seen: the container is up
+
+  // Until the first line arrives (image pull, VM boot) show a spinner.
+  function firstOutput() {
+    if (started) return;
+    started = true;
+    spin.hidden = true;
+    status.textContent = "running…";
+  }
 
   function append(text, err) {
     if (truncated) return;
@@ -73,14 +85,16 @@ function mount(root, ctx) {
   function setRunning(on) {
     run.disabled = on;
     stop.disabled = !on;
+    if (!on) spin.hidden = true;
   }
 
   function onChunk(raw) {
     let c;
     try { c = JSON.parse(raw); } catch { append(String(raw), false); return; }
-    if (c.s === "out") append(String(c.t ?? ""), false);
-    else if (c.s === "err") append(String(c.t ?? ""), true);
+    if (c.s === "out") { firstOutput(); append(String(c.t ?? ""), false); }
+    else if (c.s === "err") { firstOutput(); append(String(c.t ?? ""), true); }
     else if (c.s === "exit") {
+      spin.hidden = true;
       status.textContent = c.timedOut
         ? `timed out after ${seconds(c.ms)}`
         : `exit ${c.code} in ${seconds(c.ms)}`;
@@ -92,7 +106,9 @@ function mount(root, ctx) {
     con.replaceChildren();
     size = 0;
     truncated = false;
-    status.textContent = "running…";
+    started = false;
+    spin.hidden = false;
+    status.textContent = "starting container…";
     setRunning(true);
     const h = ctx.stream(
       { op: "run", image: attrs.image || "", cmd: attrs.cmd || "", file: attrs.file || "", code },

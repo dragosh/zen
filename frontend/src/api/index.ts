@@ -31,6 +31,9 @@ export type Alert = {
   /** Why the check flagged it ("" when Vale gives none) and an https link to read more (or ""). */
   description: string; link: string;
 };
+/** Templates offered by File › New Page: "" is a plain page. */
+export type PageLayout = "" | "slides" | "course";
+
 /** An editor's unsaved text shared with other windows; content null = draft gone. */
 export type Draft = { path: string; content: string | null };
 /** One piece of a plugin stream (core/plugin-extras): a chunk, or the end (`done`, with `error` "" on success). */
@@ -61,6 +64,12 @@ export interface Api {
    * from a commented template if missing.
    */
   openConfig(which: "global" | "workspace"): Promise<void>;
+  /**
+   * File › New Page: creates name (".md" added when missing; folders inside
+   * the workspace are created) from the layout's template and resolves to its
+   * path. Rejects when the file exists or the name is not allowed.
+   */
+  createPage(name: string, layout: PageLayout): Promise<string>;
   /** Every built-in and external plugin, for Settings › Plugins (ui/plugins). */
   plugins(): Promise<PluginInfo[]>;
   /** Records the user's Allow (true) or Block (false) for an external plugin and reloads. */
@@ -85,6 +94,8 @@ export interface Api {
   on(event: "plugin:stream", fn: (e: PluginStreamEvent) => void): () => void;
   /** Another window's unsaved text for a page (see draft); content null = draft gone. */
   on(event: "page:draft", fn: (d: Draft) => void): () => void;
+  /** File › New Page… (⌘N) in the app menu: show the New Page dialog. */
+  on(event: "menu:new-page", fn: () => void): () => void;
 }
 
 /**

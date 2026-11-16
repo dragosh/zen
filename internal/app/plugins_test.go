@@ -9,8 +9,8 @@ import (
 	"testing"
 
 	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zen/internal/plugins/codeblock"
 	"github.com/dragosh/zen/internal/plugins/diagram"
-	"github.com/dragosh/zen/internal/plugins/highlight"
 )
 
 // The "hello" plugin: a shell backend that leaves a marker in the folder
@@ -70,7 +70,7 @@ func pluginTree(t *testing.T, files map[string]string) string {
 func openWith(t *testing.T, dir, cfgDir string, confirm bool) (*Zen, *sink, *fakeDialogs) {
 	t.Helper()
 	reg := plugins.NewRegistry()
-	for _, p := range []plugins.Plugin{highlight.New(), diagram.New()} {
+	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New()} {
 		if err := reg.Register(p); err != nil {
 			t.Fatal(err)
 		}
@@ -143,11 +143,14 @@ func TestTrustPrompt(t *testing.T) {
 	if exists(ran) {
 		t.Fatal("a declined plugin ran")
 	}
-	if !hasWarning(pg, notAllowed) || strings.Contains(pg.HTML, "data-zen-plugin") || !strings.Contains(pg.HTML, `<code class="language-hello">`) {
+	if !hasWarning(pg, notAllowed) || strings.Contains(pg.HTML, `data-zen-plugin="hello"`) || !strings.Contains(pg.HTML, `<code class="language-hello">`) {
 		t.Errorf("declined page: %v\n%s", pg.Warnings, pg.HTML)
 	}
-	if len(pg.Assets.JS) != 0 || len(pg.Assets.CSS) != 0 {
-		t.Errorf("declined plugin's assets offered: %+v", pg.Assets)
+	// Only built-ins' assets (codeblock wraps the plain fence), none of hello's.
+	for _, u := range append(append([]string{}, pg.Assets.JS...), pg.Assets.CSS...) {
+		if strings.Contains(u, "/hello/") {
+			t.Errorf("declined plugin's assets offered: %+v", pg.Assets)
+		}
 	}
 	if other, _ := z.Page("other.md"); len(other.Warnings) != 0 {
 		t.Errorf("page not using the plugin has warnings: %v", other.Warnings)
@@ -288,7 +291,7 @@ func TestPluginTrustService(t *testing.T) {
 	if infoOf(t, z, "hello").Status != "blocked" {
 		t.Error("status after block")
 	}
-	for _, id := range []string{"highlight", "nope", "", "../x"} {
+	for _, id := range []string{"codeblock", "nope", "", "../x"} {
 		if err := z.PluginTrust(id, true); err == nil {
 			t.Errorf("PluginTrust(%q) accepted", id)
 		}
@@ -299,7 +302,7 @@ func TestPluginsList(t *testing.T) {
 	files := pluginDocs()
 	files[".zen.yml"] = "version: 1\nplugins:\n  diagram: false\n"
 	files[".zen/plugins/broken/plugin.yml"] = "id: broken\nversion: 1.0.0\napiVersion: 1\nmystery: 1\n"
-	files[".zen/plugins/highlight/plugin.yml"] = "id: highlight\nversion: 1.0.0\napiVersion: 1\n"
+	files[".zen/plugins/codeblock/plugin.yml"] = "id: codeblock\nversion: 1.0.0\napiVersion: 1\n"
 	files[".zen/plugins/thief/plugin.yml"] = "id: thief\nversion: 1.0.0\napiVersion: 1\nblocks: [mermaid]\n"
 	dir := pluginTree(t, files)
 	cfg := t.TempDir()
@@ -333,18 +336,18 @@ func TestPluginsList(t *testing.T) {
 			t.Fatalf("runs must be a list, never null: %s", raw)
 		}
 	}
-	if len(list) < 2 || list[0].ID != "highlight" || list[1].ID != "diagram" {
+	if len(list) < 2 || list[0].ID != "codeblock" || list[1].ID != "diagram" {
 		t.Fatalf("built-ins first: %s", raw)
 	}
 	want := map[string][2]string{ // id -> source, status
-		"highlight": {"builtin", "on"}, "diagram": {"builtin", "off"},
+		"codeblock": {"builtin", "on"}, "diagram": {"builtin", "off"},
 		"hello": {"folder", "on"}, "mine": {"user", "on"},
 		"broken": {"folder", "invalid"}, "thief": {"folder", "invalid"},
 	}
 	seen := map[string]int{}
 	for _, p := range list {
 		seen[p.ID]++
-		if w, ok := want[p.ID]; ok && p.ID != "highlight" && (p.Source != w[0] || p.Status != w[1]) {
+		if w, ok := want[p.ID]; ok && p.ID != "codeblock" && (p.Source != w[0] || p.Status != w[1]) {
 			t.Errorf("%s: %s/%s, want %v", p.ID, p.Source, p.Status, w)
 		}
 		if (p.Status == "invalid") != (p.Problem != "") {
@@ -354,8 +357,8 @@ func TestPluginsList(t *testing.T) {
 			t.Errorf("%s: problem leaks a path: %q", p.ID, p.Problem)
 		}
 	}
-	// highlight appears as the built-in and as the rejected folder plugin.
-	if seen["highlight"] != 2 || seen["hello"] != 1 || seen["mine"] != 1 || seen["broken"] != 1 || seen["thief"] != 1 {
+	// codeblock appears as the built-in and as the rejected folder plugin.
+	if seen["codeblock"] != 2 || seen["hello"] != 1 || seen["mine"] != 1 || seen["broken"] != 1 || seen["thief"] != 1 {
 		t.Errorf("listed: %v", seen)
 	}
 	if got := infoOf(t, z, "hello"); got.Version != "0.1.0" {
@@ -368,7 +371,7 @@ func TestPluginsList(t *testing.T) {
 			t.Fatal(err)
 		}
 		joined := strings.Join(pg.Warnings, "\n")
-		for _, w := range []string{`plugin "broken"`, `plugin "highlight"`, `plugin "thief"`} {
+		for _, w := range []string{`plugin "broken"`, `plugin "codeblock"`, `plugin "thief"`} {
 			if !strings.Contains(joined, w) {
 				t.Errorf("%s: no warning for %s in %q", path, w, pg.Warnings)
 			}
@@ -377,9 +380,9 @@ func TestPluginsList(t *testing.T) {
 			t.Errorf("%s: warnings %q", path, pg.Warnings)
 		}
 	}
-	// The built-in highlight still works.
+	// The built-in codeblock still works.
 	if pg, _ := z.Preview("other.md", "```go\nvar x = 1\n```\n"); !strings.Contains(pg.HTML, "chroma") {
-		t.Error("built-in highlight was replaced")
+		t.Error("built-in codeblock was replaced")
 	}
 }
 
@@ -548,7 +551,7 @@ func TestPluginInvoke(t *testing.T) {
 	if out, err := z.PluginInvoke("chatty", `"empty"`); err != nil || out != "null" {
 		t.Errorf("empty output: %q %v", out, err)
 	}
-	for _, id := range []string{"highlight", "diagram", "nope", "", "../hello"} {
+	for _, id := range []string{"codeblock", "diagram", "nope", "", "../hello"} {
 		if _, err := z.PluginInvoke(id, `1`); err == nil {
 			t.Errorf("invoke of %q accepted", id)
 		}
@@ -669,7 +672,7 @@ func TestBuiltinActionAndStorage(t *testing.T) {
 		t.Errorf("action error: %v", err)
 	}
 	// No ActionHook: refused. Unknown and switched off: refused.
-	for _, id := range []string{"highlight", "diagram", "nope", "off"} {
+	for _, id := range []string{"codeblock", "diagram", "nope", "off"} {
 		if _, err := z.PluginInvoke(id, `1`); err == nil {
 			t.Errorf("invoke of %q accepted", id)
 		}

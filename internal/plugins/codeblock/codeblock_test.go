@@ -1,4 +1,4 @@
-package highlight
+package codeblock
 
 import (
 	"io/fs"
@@ -17,7 +17,7 @@ func hook(t *testing.T) plugins.HTMLHook {
 	t.Helper()
 	h, ok := New().(plugins.HTMLHook)
 	if !ok {
-		t.Fatal("highlight does not implement HTMLHook")
+		t.Fatal("codeblock does not implement HTMLHook")
 	}
 	return h
 }
@@ -44,7 +44,7 @@ func main() { s := &quot;x&quot;; _ = 1 }
 
 func TestManifest(t *testing.T) {
 	m := New().Manifest()
-	if m.ID != "highlight" || !m.Default {
+	if m.ID != "codeblock" || !m.Default {
 		t.Fatalf("manifest = %+v", m)
 	}
 	if o := m.Config["style"]; o.Type != "string" || o.Default != "zen" {
@@ -53,8 +53,11 @@ func TestManifest(t *testing.T) {
 	if o := m.Config["lineNumbers"]; o.Type != "bool" || o.Default != false {
 		t.Errorf("lineNumbers option = %+v", o)
 	}
-	want := map[string]bool{"span": true, "pre": true, "code": true}
-	if len(m.Allow) != 3 {
+	if o := m.Config["wrap"]; o.Type != "bool" || o.Default != false {
+		t.Errorf("wrap option = %+v", o)
+	}
+	want := map[string]bool{"span": true, "pre": true, "code": true, "div": true}
+	if len(m.Allow) != 4 {
 		t.Errorf("allow = %+v", m.Allow)
 	}
 	for _, a := range m.Allow {
@@ -75,9 +78,20 @@ func TestHighlight(t *testing.T) {
 	if !strings.HasPrefix(out, "<p>x</p>") {
 		t.Errorf("surrounding html changed: %s", out)
 	}
+	if !strings.HasPrefix(out[len("<p>x</p>"):], wrapOpen+`<pre class="chroma`) || !strings.HasSuffix(out, "</code></pre></div>\n") {
+		t.Errorf("highlighted block not wrapped:\n%s", out)
+	}
+	// unknown language and no language: wrapped, text unchanged
 	for _, in := range []string{
-		"<pre><code class=\"language-nosuchlang\">a &lt; b\n</code></pre>\n",
-		"<pre><code>plain &lt; text\n</code></pre>\n",
+		"<pre><code class=\"language-nosuchlang\">a &lt; b\n</code></pre>",
+		"<pre><code>plain &lt; text\n</code></pre>",
+	} {
+		if got := run(t, in, false); got != wrapOpen+in+"</div>" {
+			t.Errorf("plain block:\n in: %s\nout: %s", in, got)
+		}
+	}
+	// blocks inside other plugins' elements are left alone
+	for _, in := range []string{
 		`<div data-zen-plugin="diagram"><div><pre><code class="language-go">func x()</code></pre></div></div>`,
 		`<span data-zen-plugin="x"><pre><code class="language-go">func x()</code></pre></span>`,
 	} {
@@ -89,6 +103,19 @@ func TestHighlight(t *testing.T) {
 	mixed := `<div data-zen-plugin="diagram"><div>a</div></div>` + goBlock
 	if out := run(t, mixed, false); !strings.Contains(out, `class="kd"`) {
 		t.Errorf("block after plugin element not highlighted: %s", out)
+	}
+}
+
+const wrapOpen = `<div data-zen-plugin="codeblock" class="zen-codeblock">`
+
+func TestWrapOption(t *testing.T) {
+	c := plugins.Context{Path: "a.md", Config: map[string]any{"wrap": true}}
+	out, err := hook(t).HTML(c, "<pre><code>x</code></pre>")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if want := `<div data-zen-plugin="codeblock" class="zen-codeblock zen-codeblock-wrap"><pre><code>x</code></pre></div>`; out != want {
+		t.Errorf("got %s", out)
 	}
 }
 
@@ -111,10 +138,13 @@ func TestCSS(t *testing.T) {
 		t.Fatal("not an AssetProvider")
 	}
 	e := ap.Entry()
-	if len(e.CSS) != 1 || e.CSS[0] != "highlight.css" {
+	if len(e.CSS) != 1 || e.CSS[0] != "codeblock.css" || len(e.JS) != 1 || e.JS[0] != "codeblock.js" {
 		t.Fatalf("entry = %+v", e)
 	}
-	b, err := fs.ReadFile(ap.Assets(), "highlight.css")
+	if _, err := fs.ReadFile(ap.Assets(), "codeblock.js"); err != nil {
+		t.Fatal(err)
+	}
+	b, err := fs.ReadFile(ap.Assets(), "codeblock.css")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -175,6 +205,9 @@ func TestThroughRenderer(t *testing.T) {
 	}
 	if !strings.Contains(h, "&lt;script&gt;") {
 		t.Errorf("code text lost: %s", h)
+	}
+	if strings.Count(h, `data-zen-plugin="codeblock"`) != 2 || !strings.Contains(h, `class="zen-codeblock"`) {
+		t.Errorf("wrapper stripped by sanitiser: %s", h)
 	}
 	if !strings.Contains(h, `<code class="language-nosuch">&lt;b&gt;`) {
 		t.Errorf("unknown language changed: %s", h)

@@ -24,7 +24,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 2 | [ui/navigation](ui/navigation/spec.md) | `frontend/src/nav` | ui/shell | done |
 | 2 | [ui/page](ui/page/spec.md) | `frontend/src/page` | ui/shell | done |
 | 2 | [ui/editor](ui/editor/spec.md) | `frontend/src/editor` | ui/shell | done |
-| 3 | [plugins/highlight](plugins/highlight/spec.md) | `internal/plugins/highlight` | core/render | done |
+| 3 | [plugins/codeblock](plugins/codeblock/spec.md) (was highlight) | `internal/plugins/codeblock` | core/render | done |
 | 3 | [plugins/diagram](plugins/diagram/spec.md) | `internal/plugins/diagram` | core/render | done |
 | 3 | [app/services](app/services/spec.md) | `internal/app`, `frontend/src/api/wails.ts` | all core, cli/commands | done |
 | 4 | [packaging/macos](packaging/macos/spec.md) | `build/darwin` | everything | done |
@@ -38,6 +38,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 8 | [plugins/layouts](plugins/layouts/spec.md) | `internal/plugins/{slides,course}`, demo pages | core/plugin-extras | done |
 | 8 | [plugins/quiz](plugins/quiz/spec.md) | `internal/plugins/quiz`, demo page | core/plugin-extras | done |
 | 8 | [plugins/sandbox](plugins/sandbox/spec.md) | `internal/plugins/sandbox`, demo page | core/plugin-extras | done |
+| 9 | [ui/new-page](ui/new-page/spec.md) | `internal/app/newpage.go`, `frontend/src/shell/newpage.ts`, File › New Page | app/services, ui/shell | done |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 

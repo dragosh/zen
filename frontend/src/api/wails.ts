@@ -121,6 +121,9 @@ const api: Api = {
   async openConfig(which) {
     await call(Zen.OpenConfig(which));
   },
+  async createPage(name, layout) {
+    return String((await call(Zen.CreatePage(name, layout))) ?? "");
+  },
   async openEditor(path) {
     await call(Zen.OpenEditor(path));
   },
@@ -156,7 +159,8 @@ const api: Api = {
   async pluginCancel(callId) {
     await call(Zen.PluginCancel(callId));
   },
-  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream", fn: (p: any) => void): () => void {
+  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "menu:new-page", fn: (p: any) => void): () => void {
+    if (event === "menu:new-page") return Events.On("menu:new-page", () => fn(undefined));
     if (event === "plugin:stream") {
       return Events.On("plugin:stream", (e: { data: unknown }) => {
         const d = payload(e.data) as { call?: unknown; chunk?: unknown; done?: unknown; error?: unknown } | null;

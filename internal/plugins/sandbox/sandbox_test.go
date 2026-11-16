@@ -250,7 +250,7 @@ func TestStreamRun(t *testing.T) {
 		t.Fatalf("args %v", args)
 	}
 	name := args[3]
-	want := []string{"run", "--rm", "--name", name, "--network", "none", "--no-dns", "--read-only", "-c", "2", "-m", "256M", "-v", host + ":/work", "-w", "/work", "python:3.12-slim", "sh", "-c", "python main.py"}
+	want := []string{"run", "--rm", "--name", name, "--network", "none", "--no-dns", "--read-only", "--progress", "none", "-c", "2", "-m", "256M", "-v", host + ":/work", "-w", "/work", "python:3.12-slim", "sh", "-c", "python main.py"}
 	if strings.Join(args, "\x00") != strings.Join(want, "\x00") {
 		t.Errorf("args\n got %q\nwant %q", args, want)
 	}

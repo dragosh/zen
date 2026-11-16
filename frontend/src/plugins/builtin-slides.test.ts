@@ -145,12 +145,58 @@ test("O opens the overview grid; a click picks a slide", () => {
   expect(r.dataset.overview).toBeUndefined();
 });
 
-test("F fullscreens the pane", () => {
+test("F toggles full page (and asks for full screen); Esc leaves", () => {
   const w = render(DECK);
   const r = w.querySelector<HTMLElement>(".slides-root")!;
+  const btn = w.querySelector<HTMLButtonElement>(".slides-full")!;
   r.requestFullscreen = vi.fn(() => Promise.resolve());
   key("f");
+  expect(r.dataset.fullpage).toBe("true");
+  expect(btn.getAttribute("aria-pressed")).toBe("true");
   expect(r.requestFullscreen).toHaveBeenCalled();
+  key("Escape");
+  expect(r.dataset.fullpage).toBeUndefined();
+  key("F");
+  expect(r.dataset.fullpage).toBe("true");
+  key("f");
+  expect(r.dataset.fullpage).toBeUndefined();
+});
+
+test("the Full page button toggles without full screen support", () => {
+  const w = render(DECK);
+  const r = w.querySelector<HTMLElement>(".slides-root")!;
+  const btn = w.querySelector<HTMLButtonElement>(".slides-full")!;
+  btn.click();
+  expect(r.dataset.fullpage).toBe("true");
+  btn.click();
+  expect(r.dataset.fullpage).toBeUndefined();
+});
+
+test("keys for the sidebar tree, menus and buttons outside the deck are left alone", () => {
+  const w = render(DECK);
+  const nav = document.body.appendChild(document.createElement("nav"));
+  const item = nav.appendChild(document.createElement("li"));
+  item.setAttribute("role", "treeitem");
+  item.tabIndex = 0;
+  for (const k of ["ArrowRight", " ", "End", "f"]) item.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true }));
+  const b = document.body.appendChild(document.createElement("button"));
+  b.dispatchEvent(new KeyboardEvent("keydown", { key: " ", bubbles: true }));
+  expect(current(w)).toBe(0);
+  expect(w.querySelector<HTMLElement>(".slides-root")!.dataset.fullpage).toBeUndefined();
+  // a key another handler already used is left alone too
+  const e = new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true });
+  e.preventDefault();
+  document.dispatchEvent(e);
+  expect(current(w)).toBe(0);
+});
+
+test("a click on the deck gives it the keys", () => {
+  const w = render(DECK);
+  const r = w.querySelector<HTMLElement>(".slides-root")!;
+  r.querySelector(".slides-viewport")!.dispatchEvent(new Event("pointerdown", { bubbles: true }));
+  expect(document.activeElement).toBe(r);
+  r.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  expect(current(w)).toBe(1);
 });
 
 test("the ratio option sets the slide shape", () => {

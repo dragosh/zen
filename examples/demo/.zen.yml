@@ -3,6 +3,6 @@
 version: 1
 
 plugins:
-  highlight: true
+  codeblock: true
   diagram: { theme: neutral }
   lint: true

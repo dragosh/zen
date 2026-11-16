@@ -2,9 +2,9 @@
 // sample workspace, emit() to simulate Go events, and a record of every call.
 import type { Api, Crumb, Draft, LintResult, NavNode, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
 
-type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig"
+type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig" | "createPage"
   | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys";
-type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent };
+type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "menu:new-page": undefined };
 
 export type FakeOptions = {
   /** What startup() resolves to. Default: no workspace (welcome screen). */
@@ -130,6 +130,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     "workspace:opened": new Set(),
     "page:draft": new Set(),
     "plugin:stream": new Set(),
+    "menu:new-page": new Set(),
   };
   let streamCount = 0;
   const failures = new Map<Method, Error>();
@@ -194,6 +195,16 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     openExternal: (url) => call("openExternal", [url], () => api.confirmExternal),
     openEditor: (path) => call("openEditor", [path], () => undefined),
     openConfig: (which) => call("openConfig", [which], () => undefined),
+    createPage: (name, layout) => call("createPage", [name, layout], () => {
+      let path = name.trim().replace(/^\/+/, "");
+      if (!path || path.endsWith("/")) throw new Error("give the page a name");
+      if (!/\.(md|markdown)$/i.test(path)) path += ".md";
+      if (path.split("/").some((p) => p === ".." || p.startsWith("."))) throw new Error("the page must be inside the open folder");
+      if (path in sources) throw new Error("a page with that name already exists");
+      const title = path.split("/").pop()!.replace(/\.[^.]+$/, "").replace(/[-_]/g, " ");
+      sources[path] = `---\ntitle: ${title}\n${layout ? `layout: ${layout}\n` : ""}---\n# ${title}\n`;
+      return path;
+    }),
     draft(path, content) {
       api.broadcasts.push({ event: "editor:draft", payload: { path, content } });
     },

@@ -8,11 +8,14 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Fixed
 
+- Slides: arrow keys and Space in the sidebar no longer also move the slides.
 - Page titles keep `<`, `>` and decode entities in the sidebar and breadcrumb.
 - Zen.app no longer hangs when opened from Finder.
 
 ### Changed
 
+- The `highlight` plugin is now `codeblock`: rename `highlight:` to `codeblock:` under `plugins` in your config.
+- The sandbox hides the container tool's progress lines and shows a spinner until the first output (needs `container` 1.7 or later).
 - The Open… button moved to the top-right corner of the sidebar.
 - Code blocks in the reader use a colour theme (shared with the editor) instead of grayscale.
 - Sidebar: clearer disclosure chevrons and guide lines for nested pages.
@@ -22,6 +25,10 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Added
 
+- File › New Page… (⌘N) asks for a name and a layout (page, slides or course) and opens the new page in the editor.
+- Editor: the Problems panel has severity tabs and can be resized from its top edge.
+- Slides: full page mode (F or the Full page button) that covers the window and goes full screen; Esc leaves.
+- Copy and Wrap buttons inside every code block.
 - `slides` and `course` page layouts (`layout:` in frontmatter), with keyboard control, printing and saved course progress.
 - `quiz` plugin: single, multiple and free-text questions in markdown; answers checked in Go, attempts and best score saved.
 - `sandbox` plugin: run a code block in a container image from your own allow-list, using the macOS `container` command, with live output.

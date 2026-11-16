@@ -32,7 +32,7 @@ const globalTemplate = `# zen global settings (all windows, all folders).
 version: 1
 
 # plugins:
-#   highlight: true          # syntax colours in code blocks
+#   codeblock: true          # code colours, Copy and Wrap buttons
 #   diagram: true            # mermaid diagrams
 #   lint: true               # Vale spelling and style flags
 

@@ -108,7 +108,7 @@ describe("editor: editor only, main window follows", () => {
   it("has no split view or preview", async () => {
     s = await setup();
     expect(Array.from(s.slots.actions.querySelectorAll("button")).map((b) => b.textContent)).toEqual(["Done"]);
-    expect(s.slots.main.querySelector("[role=separator], .zen-editor-preview, .zen-page")).toBeNull();
+    expect(s.slots.main.querySelector("[role=separator]:not(.zen-lint-console-resize), .zen-editor-preview, .zen-page")).toBeNull();
     const ev = key(document, "p", { metaKey: true, shiftKey: true });
     expect(ev.defaultPrevented).toBe(false);
   });

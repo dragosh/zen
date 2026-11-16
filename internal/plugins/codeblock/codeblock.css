@@ -97,3 +97,23 @@
   font-style: italic;
 }
 .chroma .cp, .chroma .cpf { color: var(--zen-hl-meta); font-style: normal; }
+
+/* block wrapper with the Copy and Wrap buttons (codeblock.js) */
+.zen-codeblock { position: relative; }
+.zen-codeblock-tools {
+  position: absolute; top: 6px; right: 6px; display: flex; gap: 4px;
+  opacity: 0; transition: opacity 0.15s;
+}
+.zen-codeblock:hover .zen-codeblock-tools,
+.zen-codeblock:focus-within .zen-codeblock-tools { opacity: 1; }
+@media (hover: none) { .zen-codeblock-tools { opacity: 1; } }
+.zen-codeblock-tools button {
+  font: 12px/1.4 var(--font-ui, system-ui, sans-serif); padding: 2px 8px;
+  border: 1px solid var(--rule, #e2e2e0); border-radius: var(--radius, 6px);
+  background: var(--bg, #ffffff); color: var(--fg-muted, #6b6b6b); cursor: pointer;
+}
+.zen-codeblock-tools button:hover { color: var(--fg, #111111); background: var(--btn-bg-hover, #e4e4e2); }
+.zen-codeblock-tools button[aria-pressed="true"] { color: var(--fg, #111111); background: var(--btn-bg, #ececeb); }
+.zen-codeblock-tools button:focus-visible { outline: 2px solid var(--focus, #2563eb); outline-offset: 1px; }
+.zen-codeblock-wrap > pre, .zen-codeblock-wrap > pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
+@media print { .zen-codeblock-tools { display: none; } }

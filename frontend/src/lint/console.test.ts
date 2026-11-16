@@ -93,3 +93,75 @@ test("arrow keys move the selection, Enter jumps", () => {
   expect(onSelect).toHaveBeenCalledTimes(1);
   expect(onSelect.mock.calls[0][1]).toBe(1);
 });
+
+const tabs = (c: { el: HTMLElement }) => Array.from(c.el.querySelectorAll<HTMLButtonElement>(".zen-lint-console-tab"));
+const shownRows = (c: { el: HTMLElement }) => rows(c).filter((r) => !r.hidden);
+const MIXED = () => [
+  alert({ match: "teh", line: 1 }),
+  alert({ match: "very", severity: "warning", check: "Vale.Avoid", line: 2 }),
+  alert({ match: "utilize", severity: "suggestion", check: "Vale.Use", line: 3 }),
+  alert({ match: "recieve", line: 4 }),
+];
+
+test("severity tabs show counts and filter the list", () => {
+  const { c } = setup();
+  c.update(MIXED());
+  const t = tabs(c);
+  expect(t.map((b) => b.textContent)).toEqual(["All4", "Errors2", "Warnings1", "Suggestions1"]);
+  expect(t[0].getAttribute("aria-selected")).toBe("true");
+  expect(shownRows(c)).toHaveLength(4);
+  t[1].click();
+  expect(t[1].getAttribute("aria-selected")).toBe("true");
+  expect(shownRows(c).map((r) => r.querySelector(".zen-lint-console-pos")!.textContent)).toEqual(["1:1", "4:1"]);
+  expect(c.el.querySelector(".zen-lint-console-body")!.getAttribute("aria-labelledby")).toBe(t[1].id);
+  // remembered
+  expect(localStorage.getItem("zen.lint.console.tab")).toBe("error");
+});
+
+test("arrow keys move between tabs; the list skips hidden rows", () => {
+  const { c } = setup();
+  c.update(MIXED());
+  const t = tabs(c);
+  t[0].dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
+  expect(t[1].getAttribute("aria-selected")).toBe("true");
+  expect(document.activeElement).toBe(t[1]);
+  const list = c.el.querySelector<HTMLElement>(".zen-lint-console-list")!;
+  list.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+  list.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+  expect(rows(c)[3].getAttribute("aria-selected")).toBe("true");
+});
+
+test("a tab with nothing in it says so", () => {
+  const { c } = setup();
+  c.update([alert({ match: "teh" })]);
+  tabs(c)[2].click();
+  expect(shownRows(c)).toHaveLength(0);
+  expect(c.el.querySelector(".zen-lint-console-hint")!.textContent).toBe("No warnings.");
+});
+
+test("the top edge resizes the panel by drag and by keys, and remembers it", () => {
+  const { c } = setup();
+  c.update(MIXED());
+  const grip = c.el.querySelector<HTMLElement>(".zen-lint-console-resize")!;
+  const h = () => c.el.style.getPropertyValue("--zen-lint-console-h");
+  expect(h()).toBe("180px");
+  grip.dispatchEvent(new PointerEvent("pointerdown", { button: 0, clientY: 500, bubbles: true }));
+  window.dispatchEvent(new PointerEvent("pointermove", { clientY: 400 }));
+  window.dispatchEvent(new PointerEvent("pointerup", {}));
+  expect(h()).toBe("280px");
+  expect(localStorage.getItem("zen.lint.console.height")).toBe("280");
+  grip.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowDown", bubbles: true }));
+  expect(h()).toBe("256px");
+  grip.dispatchEvent(new KeyboardEvent("keydown", { key: "End", bubbles: true }));
+  expect(grip.getAttribute("aria-valuenow")).toBe("640");
+  grip.dispatchEvent(new KeyboardEvent("keydown", { key: "Home", bubbles: true }));
+  expect(h()).toBe("72px");
+  grip.dispatchEvent(new MouseEvent("dblclick", { bubbles: true }));
+  expect(h()).toBe("180px");
+});
+
+test("a stored height is restored and clamped", () => {
+  localStorage.setItem("zen.lint.console.height", "9999");
+  const { c } = setup();
+  expect(c.el.style.getPropertyValue("--zen-lint-console-h")).toBe("640px");
+});

@@ -52,7 +52,7 @@ Switch plugins for one page, or set their options:
 
 ```yaml
 plugins:
-  highlight: false        # no code colours on this page
+  codeblock: false        # no code colours or buttons on this page
   diagram: { theme: dark }
   lint: false             # no Vale on this page
 ```

@@ -11,9 +11,9 @@ import (
 
 	"github.com/dragosh/zen/internal/core/config"
 	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zen/internal/plugins/codeblock"
 	"github.com/dragosh/zen/internal/plugins/course"
 	"github.com/dragosh/zen/internal/plugins/diagram"
-	"github.com/dragosh/zen/internal/plugins/highlight"
 	"github.com/dragosh/zen/internal/plugins/quiz"
 	"github.com/dragosh/zen/internal/plugins/sandbox"
 	"github.com/dragosh/zen/internal/plugins/slides"
@@ -46,9 +46,9 @@ type Options struct {
 	Mode string
 }
 
-// registerPlugins registers the built-in plugins in order: highlight, diagram.
+// registerPlugins registers the built-in plugins in order: codeblock, diagram.
 func registerPlugins(r *plugins.Registry) error {
-	for _, p := range []plugins.Plugin{highlight.New(), diagram.New(), slides.New(), course.New(), quiz.New(), sandbox.New()} {
+	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New(), slides.New(), course.New(), quiz.New(), sandbox.New()} {
 		if err := r.Register(p); err != nil {
 			return err
 		}
@@ -194,6 +194,10 @@ func Run(opts Options) error {
 		Width:  1100,
 		Height: 720,
 		URL:    "/",
+		// Element full screen, for the slides layout's full page (F).
+		Mac: application.MacWindow{
+			WebviewPreferences: application.MacWebviewPreferences{FullscreenEnabled: application.Enabled},
+		},
 	})
 	dialogs.win = win
 	windows.setMain(win)
@@ -234,10 +238,16 @@ func Run(opts Options) error {
 		}()
 	})
 
-	// Menu: File > Open Folder (Cmd+O).
+	// Menu: File > New Page (Cmd+N), Open Folder (Cmd+O).
 	menu := a.Menu.New()
 	menu.AddRole(application.AppMenu)
 	file := menu.AddSubmenu("File")
+	// The main window asks for the name and layout, then calls CreatePage.
+	file.Add("New Page…").SetAccelerator("CmdOrCtrl+N").OnClick(func(*application.Context) {
+		win.Show()
+		win.Focus()
+		sink.Emit(EventNewPage, nil)
+	})
 	file.Add("Open Folder…").SetAccelerator("CmdOrCtrl+O").OnClick(func(*application.Context) {
 		go func() {
 			if ws, err := z.PickFolder(); err == nil && ws != nil {

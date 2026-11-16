@@ -275,3 +275,36 @@ test("workspace:opened switches to that folder, also from the welcome screen", a
   expect(root.querySelector(".zen-welcome")).toBeNull();
   expect(s.store.get()).toMatchObject({ workspace: ws, path: "guides/install.md", mode: "read" });
 });
+
+test("File › New Page (menu or ⌘N) asks, creates, shows and opens the editor", async () => {
+  const api = withWorkspace("guides/install.md");
+  const s = boot(api);
+  await s.start();
+  api.emit("menu:new-page", undefined);
+  const dialog = () => document.querySelector<HTMLElement>(".zen-newpage-backdrop");
+  expect(dialog()).not.toBeNull();
+  expect(document.querySelector<HTMLInputElement>(".zen-newpage-name")!.value).toBe("guides/untitled");
+  key("n"); // already open: not a second one
+  expect(document.querySelectorAll(".zen-newpage-backdrop")).toHaveLength(1);
+  document.querySelector<HTMLElement>(".zen-newpage-layout[data-layout=course]")!.click();
+  document.querySelector<HTMLFormElement>(".zen-newpage")!.requestSubmit();
+  for (let i = 0; i < 5; i++) await tick();
+  expect(dialog()).toBeNull();
+  expect(api.callsTo("createPage")).toEqual([["guides/untitled", "course"]]);
+  expect(s.store.get().path).toBe("guides/untitled.md");
+  expect(api.callsTo("openEditor")).toEqual([["guides/untitled.md"]]);
+  key("n");
+  expect(dialog()).not.toBeNull();
+  s.destroy();
+  shell = undefined;
+  expect(dialog()).toBeNull();
+});
+
+test("no New Page dialog on the welcome screen", async () => {
+  const api = createFakeApi();
+  const s = boot(api);
+  await s.start();
+  api.emit("menu:new-page", undefined);
+  key("n");
+  expect(document.querySelector(".zen-newpage-backdrop")).toBeNull();
+});

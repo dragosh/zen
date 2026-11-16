@@ -296,7 +296,7 @@ func (plugin) Stream(c context.Context, ctx plugins.Context, payload []byte, emi
 	if !networkOpt(ctx) {
 		args = append(args, "--network", "none", "--no-dns")
 	}
-	args = append(args, "--read-only",
+	args = append(args, "--read-only", "--progress", "none",
 		"-c", fmt.Sprint(intOpt(ctx, "cpus", 1, 1, 8)),
 		"-m", memoryOpt(ctx),
 		"-v", tmp+":/work", "-w", "/work",

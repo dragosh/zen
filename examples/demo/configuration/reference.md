@@ -9,7 +9,7 @@ title: All settings
 version: 1                      # file format version
 
 plugins:
-  highlight: true               # or { lineNumbers: true }
+  codeblock: true               # or { lineNumbers: true, wrap: true }
   diagram: { theme: neutral }   # neutral | default | dark
   lint: true                    # Vale flags
 

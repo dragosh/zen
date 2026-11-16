@@ -1,7 +1,9 @@
-// Package highlight is the syntax highlighting plugin: an HTML hook that
-// replaces <pre><code class="language-X"> blocks with chroma output using CSS
-// classes only. Colours live in highlight.css (monochrome "zen" style).
-package highlight
+// Package codeblock is the code block plugin: an HTML hook that wraps every
+// <pre><code> block in a [data-zen-plugin="codeblock"] wrapper and replaces
+// blocks whose language chroma knows with chroma output using CSS classes
+// only. Colours live in codeblock.css; codeblock.js adds the Copy and Wrap
+// buttons inside each block.
+package codeblock
 
 import (
 	"embed"
@@ -23,49 +25,58 @@ import (
 // maxBlock is the largest code block that is highlighted.
 const maxBlock = 2 << 20
 
-//go:embed highlight.css
+//go:embed codeblock.css codeblock.js
 var assets embed.FS
 
 type plugin struct{}
 
-// New returns the highlight plugin.
+// New returns the codeblock plugin.
 func New() plugins.Plugin { return plugin{} }
 
 func (plugin) Manifest() plugins.Manifest {
 	return plugins.Manifest{
-		ID:          "highlight",
+		ID:          "codeblock",
 		Version:     "0.1.0",
 		APIVersion:  plugins.APIVersion,
-		Description: "Syntax highlighting for code blocks (chroma, CSS classes only).",
+		Description: "Code blocks: syntax colours (chroma, CSS classes only) and Copy and Wrap buttons.",
 		Default:     true,
 		Allow: []plugins.AllowRule{
 			{Element: "span", Attrs: []string{"class"}},
 			{Element: "pre", Attrs: []string{"class"}},
 			{Element: "code", Attrs: []string{"class"}},
+			{Element: "div", Attrs: []string{"class"}},
 		},
 		Config: map[string]plugins.Option{
 			"style":       {Type: "string", Default: "zen", Description: "Highlight style (only \"zen\" is shipped)."},
 			"lineNumbers": {Type: "bool", Default: false, Description: "Show a line-number gutter."},
+			"wrap":        {Type: "bool", Default: false, Description: "Wrap long lines by default (the Wrap button toggles it per block)."},
 		},
 	}
 }
 
-func (plugin) Assets() fs.FS         { return assets }
-func (plugin) Entry() plugins.Assets { return plugins.Assets{CSS: []string{"highlight.css"}} }
+func (plugin) Assets() fs.FS { return assets }
+func (plugin) Entry() plugins.Assets {
+	return plugins.Assets{CSS: []string{"codeblock.css"}, JS: []string{"codeblock.js"}}
+}
 
 var (
-	// blockRE matches goldmark's code block opening tag.
-	blockRE = regexp.MustCompile(`<pre><code class="language-([^"\s]+)">`)
+	// blockRE matches goldmark's code block opening tag, with or without a language.
+	blockRE = regexp.MustCompile(`<pre><code(?: class="language-([^"\s]+)")?>`)
 	// tagRE matches div/span tags, to track other plugins' elements.
 	tagRE = regexp.MustCompile(`<(/?)(div|span)\b([^>]*)>`)
 )
 
 const closing = "</code></pre>"
 
-// HTML highlights every code block whose language chroma knows. A page with a
-// block over 2 MB is returned unchanged with an error (a render warning).
+// HTML wraps every code block outside other plugins' elements and highlights
+// those whose language chroma knows. A page with a block over 2 MB is returned
+// unchanged with an error (a render warning).
 func (plugin) HTML(ctx plugins.Context, in string) (string, error) {
 	lineNumbers, _ := ctx.Config["lineNumbers"].(bool)
+	open := `<div data-zen-plugin="codeblock" class="zen-codeblock">`
+	if wrap, _ := ctx.Config["wrap"].(bool); wrap {
+		open = `<div data-zen-plugin="codeblock" class="zen-codeblock zen-codeblock-wrap">`
+	}
 	tags := tagRE.FindAllStringSubmatchIndex(in, -1)
 
 	var b strings.Builder
@@ -102,19 +113,21 @@ func (plugin) HTML(ctx plugins.Context, in string) (string, error) {
 			continue
 		}
 		bodyEnd := m[1] + end
-		lexer := lexers.Get(in[m[2]:m[3]])
-		if lexer == nil {
-			continue
-		}
 		if bodyEnd-m[1] > maxBlock {
 			return in, errors.New("code block over 2 MB not highlighted")
 		}
-		out, err := format(lexer, in[m[2]:m[3]], html.UnescapeString(in[m[1]:bodyEnd]), lineNumbers)
-		if err != nil {
-			continue
+		block := in[m[0] : bodyEnd+len(closing)]
+		if m[2] >= 0 {
+			if lexer := lexers.Get(in[m[2]:m[3]]); lexer != nil {
+				if out, err := format(lexer, in[m[2]:m[3]], html.UnescapeString(in[m[1]:bodyEnd]), lineNumbers); err == nil {
+					block = out
+				}
+			}
 		}
 		b.WriteString(in[last:m[0]])
-		b.WriteString(out)
+		b.WriteString(open)
+		b.WriteString(block)
+		b.WriteString("</div>")
 		last = bodyEnd + len(closing)
 	}
 	if last == 0 {
