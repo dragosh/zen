@@ -127,3 +127,56 @@ test("lint is configurable and recorded", async () => {
   expect((await withAlerts.lint("README.md", "zz")).alerts[0].match).toBe("zz");
   expect(withAlerts.callsTo("lint")).toEqual([["README.md", ""], ["README.md", ""], ["README.md", "zz"]]);
 });
+
+test("plugins: the list is settable and pluginTrust updates the status", async () => {
+  const api = createFakeApi({
+    plugins: [
+      { id: "highlight", version: "0.1.0", description: "", source: "builtin", status: "on", runs: [], problem: "" },
+      { id: "note", version: "0.1.0", description: "Callouts", source: "folder", status: "undecided", runs: ["./note.sh"], problem: "" },
+    ],
+  });
+  const list = await api.plugins();
+  expect(list.map((p) => p.id)).toEqual(["highlight", "note"]);
+  list[1].status = "on"; // a copy: the fake's own list is untouched
+  expect((await api.plugins())[1].status).toBe("undecided");
+
+  await api.pluginTrust("note", true);
+  expect((await api.plugins())[1].status).toBe("on");
+  await api.pluginTrust("note", false);
+  expect((await api.plugins())[1].status).toBe("blocked");
+  expect(api.callsTo("pluginTrust")).toEqual([["note", true], ["note", false]]);
+  await expect(api.pluginTrust("highlight", false)).rejects.toThrow("highlight");
+  await expect(api.pluginTrust("nope", true)).rejects.toThrow("nope");
+
+  api.pluginList = [];
+  expect(await createFakeApi().plugins()).toEqual([]);
+  expect(await api.plugins()).toEqual([]);
+});
+
+test("plugin storage is kept in memory per plugin; invoke answers are settable", async () => {
+  const api = createFakeApi();
+  expect(await api.pluginStorageGet("quiz", "score")).toBe("null");
+  await api.pluginStorageSet("quiz", "score", "{\"n\":3}");
+  expect(await api.pluginStorageGet("quiz", "score")).toBe("{\"n\":3}");
+  expect(await api.pluginStorageGet("other", "score")).toBe("null");
+  await expect(api.pluginStorageSet("quiz", "bad key!", "1")).rejects.toThrow("key");
+  await expect(api.pluginStorageSet("quiz", "k", "{nope")).rejects.toThrow("JSON");
+  expect(api.callsTo("pluginStorageSet")[0]).toEqual(["quiz", "score", "{\"n\":3}"]);
+
+  expect(await api.pluginInvoke("quiz", "{\"a\":1}")).toBe("null");
+  api.invokeResult = { ok: true };
+  expect(await api.pluginInvoke("quiz", "1")).toBe("{\"ok\":true}");
+  api.invokeResult = (id: string, payload: unknown) => ({ id, echo: payload });
+  expect(JSON.parse(await api.pluginInvoke("quiz", "{\"a\":1}"))).toEqual({ id: "quiz", echo: { a: 1 } });
+  expect(api.callsTo("pluginInvoke")).toHaveLength(3);
+});
+
+test("pages have no layout by default; decorate shapes what page() and preview() return", async () => {
+  const api = createFakeApi();
+  expect((await api.page("README.md")).layout).toBe("");
+  api.decorate = (p) => ({ ...p, layout: "slides", html: `<div data-zen-plugin="slides" data-zen-layout="slides">${p.html}</div>` });
+  const p = await api.page("README.md");
+  expect(p.layout).toBe("slides");
+  expect(p.html).toContain("data-zen-layout");
+  expect((await api.preview("README.md", "# X")).layout).toBe("slides");
+});

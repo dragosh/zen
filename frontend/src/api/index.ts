@@ -9,6 +9,18 @@ export type Page = {
   path: string; title: string; html: string;
   frontmatter: Record<string, unknown>; breadcrumb: Crumb[];
   assets: { css: string[]; js: string[] }; warnings: string[];
+  /** The layout a plugin took over this page with (frontmatter `layout:`), "" when none (ui/plugins). */
+  layout: string;
+};
+/** One built-in or external plugin as Settings lists it (core/extplugins). */
+export type PluginInfo = {
+  id: string; version: string; description: string;
+  source: "builtin" | "folder" | "user";
+  status: "on" | "off" | "blocked" | "undecided" | "invalid";
+  /** What it runs, as lines for people: a backend command line, "scripts in the page". */
+  runs: string[];
+  /** Why an invalid plugin was rejected, "" otherwise. */
+  problem: string;
 };
 export type Startup = { workspace: Workspace | null; page: string; mode: "read" | "edit" };
 /** One Vale finding (ui/lint). line is 1-based; col and endCol are 1-based rune columns, endCol inclusive. */
@@ -47,6 +59,15 @@ export interface Api {
    * from a commented template if missing.
    */
   openConfig(which: "global" | "workspace"): Promise<void>;
+  /** Every built-in and external plugin, for Settings › Plugins (ui/plugins). */
+  plugins(): Promise<PluginInfo[]>;
+  /** Records the user's Allow (true) or Block (false) for an external plugin and reloads. */
+  pluginTrust(id: string, allow: boolean): Promise<void>;
+  /** A plugin's stored value as JSON text; "null" when the key is absent. */
+  pluginStorageGet(id: string, key: string): Promise<string>;
+  pluginStorageSet(id: string, key: string, json: string): Promise<void>;
+  /** Runs the plugin's backend with ZEN_HOOK=action; JSON text in, JSON text out. */
+  pluginInvoke(id: string, json: string): Promise<string>;
   on(event: "workspace:changed", fn: (w: Workspace) => void): () => void;
   /** Also delivered when another window saved the page ("editor:saved"). */
   on(event: "page:changed", fn: (e: { path: string }) => void): () => void;

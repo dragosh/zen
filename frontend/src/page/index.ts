@@ -2,6 +2,7 @@
 // anchors, plugin assets, live reload, warnings, errors and the Edit action.
 import type { Alert, Page } from "../api";
 import { flash, markText, renderPanel } from "../lint";
+import { installRuntime } from "../plugins/runtime";
 import { button, el } from "../shell/dom";
 import type { Ctx, Feature } from "../shell/types";
 import { loadAssets } from "./assets";
@@ -14,8 +15,22 @@ const PROGRESS_DELAY = 150;
 /** The single innerHTML in the app: Page.html is sanitised in Go. */
 export function mountPage(el: HTMLElement, page: Page): void {
   el.innerHTML = page.html;
+  setLayout(el, page.layout);
   loadAssets(el.ownerDocument, page.assets);
   el.ownerDocument.dispatchEvent(new CustomEvent("zen:page-rendered", { detail: { root: el } }));
+}
+
+const LAYOUT_CLASS = "zen-layout-";
+
+/** A layout page (ui/plugins) is marked so page.css hands the whole pane to the plugin. */
+function setLayout(el: HTMLElement, layout: string): void {
+  for (const c of Array.from(el.classList)) if (c.startsWith(LAYOUT_CLASS)) el.classList.remove(c);
+  if (/^[a-z][a-z0-9-]*$/.test(layout ?? "")) {
+    el.dataset.layout = layout;
+    el.classList.add(LAYOUT_CLASS + layout);
+  } else {
+    delete el.dataset.layout;
+  }
 }
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -76,6 +91,17 @@ export const pageFeature: Feature = {
     });
     slots.actions.append(lintPanel.el, edit);
 
+    // External plugins (ui/plugins): their handlers mount on the wrappers of
+    // every render and are cleaned up before the next one replaces the article.
+    let rendered = { path: "", title: "" };
+    const plugins = installRuntime({ api: ctx.api, navigate: (path, anchor) => ctx.navigate(path, anchor), page: () => rendered });
+    function render(page: Page): void {
+      plugins.unmountAll();
+      rendered = { path: page.path, title: page.title };
+      mountPage(article, page);
+      plugins.mountAll(article);
+    }
+
     let seq = 0;
     let shownPath: string | null = null;
     let loadedAnchor = "";
@@ -135,7 +161,7 @@ export const pageFeature: Feature = {
       error.hidden = true;
       article.hidden = false;
       const scroll = main.scrollTop;
-      mountPage(article, page);
+      render(page);
       if (!keepScroll) lintPanel.update(null);
       void lint(path, mine);
       warningText.textContent = page.warnings.join("\n");
@@ -190,7 +216,7 @@ export const pageFeature: Feature = {
       error.hidden = true;
       article.hidden = false;
       const scroll = main.scrollTop;
-      mountPage(article, page);
+      render(page);
       void lint(path, mine, content);
       warningText.textContent = page.warnings.join("\n");
       warnings.hidden = page.warnings.length === 0;
@@ -213,6 +239,7 @@ export const pageFeature: Feature = {
     return () => {
       seq++;
       stopProgress();
+      plugins.destroy();
       offStore();
       offChanged();
       offDraft();

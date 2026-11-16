@@ -1,0 +1,11 @@
+id: progress
+version: 0.1.0
+apiVersion: 1
+description: Checklists that remember what you ticked
+default: true
+
+blocks: [progress]
+
+frontend:
+  js: [progress.js]
+  css: [progress.css]

@@ -2,7 +2,7 @@
 // getApi() only inside the Wails webview.
 import { Events, Window } from "@wailsio/runtime";
 import { Zen } from "../../bindings/github.com/dragosh/zen/internal/app/index.js";
-import type { Alert, Api, Crumb, LintResult, NavNode, Page, Startup, Workspace } from "./index";
+import type { Alert, Api, Crumb, LintResult, NavNode, Page, PluginInfo, Startup, Workspace } from "./index";
 
 type Raw = Record<string, any> | null | undefined;
 
@@ -29,6 +29,23 @@ function page(p: Raw): Page {
     breadcrumb: ((p?.breadcrumb ?? []) as Crumb[]).map((c) => ({ title: c.title, path: c.path })),
     assets: { css: p?.assets?.css ?? [], js: p?.assets?.js ?? [] },
     warnings: p?.warnings ?? [],
+    layout: typeof p?.layout === "string" ? p.layout : "",
+  };
+}
+
+const SOURCES: PluginInfo["source"][] = ["builtin", "folder", "user"];
+const STATUSES: PluginInfo["status"][] = ["on", "off", "blocked", "undecided", "invalid"];
+
+/** Unknown values fall to the careful side: an external plugin that is not in use. */
+function pluginInfo(p: Record<string, any>): PluginInfo {
+  return {
+    id: String(p.id ?? ""),
+    version: String(p.version ?? ""),
+    description: String(p.description ?? ""),
+    source: SOURCES.includes(p.source) ? p.source : "folder",
+    status: STATUSES.includes(p.status) ? p.status : "invalid",
+    runs: Array.isArray(p.runs) ? p.runs.map(String) : [],
+    problem: String(p.problem ?? ""),
   };
 }
 
@@ -112,6 +129,22 @@ const api: Api = {
   },
   async lint(path, content) {
     return lintResult((await call(Zen.Lint(path, content))) as Raw);
+  },
+  async plugins() {
+    const list = (await call(Zen.Plugins())) as Raw[] | null;
+    return (list ?? []).filter((p): p is Record<string, any> => Boolean(p)).map(pluginInfo);
+  },
+  async pluginTrust(id, allow) {
+    await call(Zen.PluginTrust(id, allow));
+  },
+  async pluginStorageGet(id, key) {
+    return (await call(Zen.PluginStorageGet(id, key))) || "null";
+  },
+  async pluginStorageSet(id, key, json) {
+    await call(Zen.PluginStorageSet(id, key, json));
+  },
+  async pluginInvoke(id, json) {
+    return (await call(Zen.PluginInvoke(id, json))) ?? "";
   },
   on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft", fn: (p: any) => void): () => void {
     if (event === "page:draft") {
