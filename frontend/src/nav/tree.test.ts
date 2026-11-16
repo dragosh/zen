@@ -61,3 +61,23 @@ test("empty tree shows a message", () => {
   expect(el.textContent).toContain("No markdown files in this folder");
   expect(items(el).length).toBe(0);
 });
+
+test("badges show muted after the title, as text, with the text as title", () => {
+  const evil = "<b>x</b>";
+  renderTree(el, deepTree(), opts({ badges: { "guides/install.md": "Done", "api.md": evil, "nope.md": "ghost" } }));
+  const label = (p: string) => row(p).querySelector(".zen-nav-label")!;
+  const badge = (p: string) => row(p).querySelector<HTMLElement>(".zen-nav-badge");
+  expect(badge("guides/install.md")!.textContent).toBe("Done");
+  expect(badge("guides/install.md")!.title).toBe("Done");
+  expect(label("guides/install.md").nextElementSibling).toBe(badge("guides/install.md"));
+  expect(badge("api.md")!.textContent).toBe(evil);
+  expect(row("api.md").querySelector("b")).toBeNull();
+  expect(badge("README.md")).toBeNull();
+  expect(el.querySelectorAll(".zen-nav-badge")).toHaveLength(2);
+});
+
+test("a badge is cut to 12 characters and an empty one is not drawn", () => {
+  renderTree(el, deepTree(), opts({ badges: { "README.md": "0123456789abcdef", "api.md": "" } }));
+  expect(row("README.md").querySelector(".zen-nav-badge")!.textContent).toBe("0123456789ab");
+  expect(row("api.md").querySelector(".zen-nav-badge")).toBeNull();
+});

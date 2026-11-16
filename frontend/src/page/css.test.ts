@@ -24,3 +24,16 @@ test("a layout page drops the reading column (ui/plugins)", () => {
   expect(rule?.[1]).toMatch(/max-width:\s*none/);
   expect(rule?.[1]).toMatch(/padding:\s*0/);
 });
+
+test("print: no sidebar, header or panels, the article uses the whole page (core/plugin-extras)", () => {
+  const print = css.match(/@media\s+print\s*\{([\s\S]*?)\n\}/);
+  expect(print, "an @media print block").not.toBeNull();
+  const body = print![1];
+  for (const hidden of [".zen-sidebar", ".zen-resizer", ".zen-top", ".zen-actions", ".zen-progress", ".zen-page-warnings", ".zen-page-error"]) {
+    expect(body, hidden).toContain(hidden);
+  }
+  expect(body).toMatch(/display:\s*none/);
+  expect(body).toMatch(/\.zen-main[^{]*\{[^}]*overflow:\s*visible/);
+  expect(body).toMatch(/\.zen-page[^{]*\{[^}]*max-width:\s*none/);
+  expect(body).not.toMatch(/#[0-9a-f]{3,8}\b|rgb\(|hsl\(/i);
+});

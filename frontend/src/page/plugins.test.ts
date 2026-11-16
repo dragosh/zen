@@ -141,3 +141,65 @@ test("a page without plugin blocks logs no errors", async () => {
   expect(err).not.toHaveBeenCalled();
   err.mockRestore();
 });
+
+// ---- core/plugin-extras wiring: anchor, badge, print ----
+
+test("ctx.anchor() is the current anchor; onAnchor fires when only the anchor changes, not on a reload", async () => {
+  const id = fresh();
+  withBlock(id);
+  env.ctx.store.set({ path: "README.md", anchor: "intro" });
+  mount();
+  let ctx!: PluginCtx;
+  zen()!.register(id, { mount(_el, c) { ctx = c; } });
+  await settle();
+  expect(ctx.anchor()).toBe("intro");
+  const seen: string[] = [];
+  ctx.onAnchor((a) => seen.push(a));
+  env.ctx.store.set({ anchor: "part-2" });
+  expect(seen).toEqual(["part-2"]);
+  expect(ctx.anchor()).toBe("part-2");
+  env.ctx.store.set({ anchor: "" });
+  expect(seen).toEqual(["part-2", ""]);
+  // another page is a new render: handlers of the old one are gone
+  env.ctx.navigate("b.md", "x");
+  await settle();
+  expect(seen).toEqual(["part-2", ""]);
+});
+
+test("ctx.badge puts a label in the store for the window's lifetime", async () => {
+  const id = fresh();
+  withBlock(id);
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  let ctx!: PluginCtx;
+  zen()!.register(id, { mount(_el, c) { ctx = c; } });
+  await settle();
+  ctx.badge("b.md", "2/5");
+  expect(env.ctx.store.get().badges).toEqual({ "b.md": "2/5" });
+  ctx.badge("README.md", "x".repeat(30));
+  expect(env.ctx.store.get().badges).toEqual({ "b.md": "2/5", "README.md": "x".repeat(12) });
+  ctx.badge("b.md", null);
+  expect(env.ctx.store.get().badges).toEqual({ "README.md": "x".repeat(12) });
+  unmount!(); unmount = undefined;
+  expect(env.ctx.store.get().badges).toEqual({ "README.md": "x".repeat(12) });
+});
+
+test("⌘P prints the page (not in an editor window); other keys do not", async () => {
+  const print = vi.spyOn(window, "print").mockImplementation(() => {});
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await settle();
+  const e = new KeyboardEvent("keydown", { key: "p", metaKey: true, cancelable: true, bubbles: true });
+  document.dispatchEvent(e);
+  expect(e.defaultPrevented).toBe(true);
+  expect(print).toHaveBeenCalledTimes(1);
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", ctrlKey: true, bubbles: true }));
+  expect(print).toHaveBeenCalledTimes(2);
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", bubbles: true }));
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", metaKey: true, shiftKey: true, bubbles: true }));
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "o", metaKey: true, bubbles: true }));
+  expect(print).toHaveBeenCalledTimes(2);
+  unmount!(); unmount = undefined;
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", metaKey: true, bubbles: true }));
+  expect(print).toHaveBeenCalledTimes(2);
+});
