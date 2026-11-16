@@ -1,0 +1,27 @@
+.zq-header { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: baseline; border-bottom: 1px solid var(--rule); padding-bottom: 8px; margin: 1em 0 8px; font-family: var(--font-ui); }
+.zq-summary { color: var(--fg-muted); font-size: 13px; }
+.zq-form { font-family: var(--font-ui); }
+.zq-question { border: 1px solid var(--rule); border-radius: var(--radius, 6px); margin: 12px 0; padding: 8px 16px 12px; }
+.zq-legend { font-family: var(--font-body); padding: 0 8px; font-weight: 600; }
+.zq-option { display: flex; gap: 8px; align-items: baseline; padding: 4px 0; cursor: pointer; }
+.zq-input { width: 100%; box-sizing: border-box; font: inherit; padding: 4px 8px; border: 1px solid var(--rule); border-radius: var(--radius, 6px); background: var(--bg); color: var(--fg); }
+.zq-input:focus-visible, .zq-option input:focus-visible, .zq-form button:focus-visible, .zq-outcome:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.zq-status { margin: 8px 0 0; font-weight: 600; min-height: 0; }
+.zq-status:empty, .zq-explanation:empty, .zq-note:empty, .zq-outcome:empty { display: none; }
+.zq-explanation { margin: 4px 0 0; color: var(--fg-muted); }
+.zq-right > .zq-status, .zq-outcome.zq-right { color: var(--code-meta); }
+.zq-wrong > .zq-status, .zq-outcome.zq-wrong { color: var(--lint-error); }
+.zq-right { border-color: var(--code-meta); }
+.zq-wrong { border-color: var(--lint-error); }
+.zq-outcome { font-weight: 600; margin: 12px 0; }
+.zq-outcome.zq-right, .zq-outcome.zq-wrong { border: 0; }
+.zq-note { color: var(--lint-error); }
+.zq-actions { display: flex; gap: 8px; }
+.zq-form button { font: inherit; padding: 4px 16px; border: 0; border-radius: var(--radius, 6px); background: var(--btn-bg); color: var(--fg); cursor: pointer; }
+.zq-form button:hover { background: var(--btn-bg-hover); }
+.zq-check { background: var(--btn-primary-bg); color: var(--btn-primary-fg); }
+.zq-check:hover { background: var(--btn-primary-bg); opacity: 0.9; }
+.zq-form button:disabled { opacity: 0.5; cursor: default; }
+.zq-results-items { list-style: none; padding: 0; font-family: var(--font-ui); }
+.zq-results-items li { padding: 4px 0; border-bottom: 1px solid var(--rule); }
+.zq-empty { color: var(--fg-muted); }
