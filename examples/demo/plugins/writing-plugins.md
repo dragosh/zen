@@ -161,13 +161,14 @@ frontend:
   css: [progress.css]
 ```
 
-The script registers a handler under the plugin's id. zen calls `mount` for
-every `progress` block on the page, and again each time the page is rendered:
+The script is a module whose default export has a `mount` function. zen loads
+it for this plugin only and calls `mount` for every `progress` block on the
+page, and again each time the page is rendered:
 
 ```js
 // .zen/plugins/progress/progress.js — :::progress{id=...} checklists that remember.
 // No backend: zen renders the container's task list, this script makes it clickable.
-zen.register("progress", {
+export default {
   async mount(el, ctx) {
     const boxes = Array.from(el.querySelectorAll('input[type="checkbox"]'));
     const count = document.createElement("p");
@@ -209,7 +210,7 @@ zen.register("progress", {
       count.remove();
     };
   },
-});
+};
 ```
 
 The style sheet uses zen's own colours, so it follows the light and dark themes:
@@ -313,7 +314,8 @@ Inside is the backend's HTML. For a plugin without a `block` hook it is the
 content itself: the markdown of a `:::` container rendered to HTML, or the text
 of a fence in `<pre class="zen-plugin-source">`.
 
-A script calls `zen.register(id, { mount(el, ctx) { … } })`. `el` is the
+A script is a module: `export default { mount(el, ctx) { … } }`. zen loads it
+for its own plugin, so it only ever sees that plugin's blocks. `el` is the
 wrapper. `mount` may return a function; zen calls it before the page is
 rendered again, so use it to stop timers and remove listeners.
 
@@ -324,11 +326,13 @@ rendered again, so use it to stop timers and remove listeners.
 | `ctx.page` | `{ path, title }` |
 | `ctx.storage.get(key)` / `.set(key, value)` | JSON values kept for each plugin and each folder, on this Mac (1 MB for a plugin) |
 | `ctx.invoke(payload)` | runs the backend with `ZEN_HOOK=action`; resolves to the JSON it prints |
+| `ctx.stream(payload, onChunk)` | runs the backend's stream hook; `onChunk` gets each line, and `done` resolves at the end |
 | `ctx.navigate(path, anchor?)` | open another page |
 
 Storage keys are up to 64 letters, digits, `.`, `_` and `-`. `get` gives
 `null` for a key that was never set. A script reaches its own plugin's storage
-and backend only.
+and backend only. Both calls use the settings of the page the block is on, so
+a plugin switched on for one page works there without extra code.
 
 An error in `mount` never breaks the page: it is shown in a box inside that
 one block.
@@ -355,6 +359,10 @@ Plugins run programs and scripts, so zen asks before it uses a plugin for the
 first time and names what the plugin runs. The answer is remembered for that
 exact set of files. Change one byte of a plugin and zen asks again.
 
+Allowing a plugin also lets its page script use zen's functions: it can read
+and write that plugin's storage and call its backend. Allow only plugins you
+trust. zen asks you in its own dialog, which a script cannot click for you.
+
 A plugin that is not allowed does nothing: its blocks show as plain markdown,
 with a note on the page. The settings panel (the cog, or <kbd>⌘,</kbd>) lists
 every plugin with where it comes from, what it runs, and an **Allow** or
@@ -377,9 +385,10 @@ every plugin with where it comes from, what it runs, and an **Allow** or
 - **The block times out.** The default is 5 seconds. Set `timeout`, up to `60s`.
 - **Tags or attributes disappear.** zen cleans the output. List what you need
   under `allow`. Scripts, styles, frames and `on…` attributes are never kept.
-- **The script does nothing.** The first argument of `zen.register` must be
-  the plugin's `id`, and the file must be listed under `frontend.js`.
+- **The script does nothing.** The file must be listed under `frontend.js`
+  and export a default object with a `mount` function. If it does not, the
+  block shows an error box naming the plugin.
 - **`storage.set` fails.** The value must be JSON, the key must use the
   characters above, and a plugin keeps at most 1 MB.
-- **A change to the plugin has no effect.** Reopen the folder. zen reads
-  plugins when a folder opens, and asks again because the files changed.
+- **A change to the plugin has no effect.** zen asks again because the files
+  changed. Allow the plugin, and the page loads the new script and styles.

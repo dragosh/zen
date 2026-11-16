@@ -1,6 +1,6 @@
 // .zen/plugins/progress/progress.js — :::progress{id=...} checklists that remember.
 // No backend: zen renders the container's task list, this script makes it clickable.
-zen.register("progress", {
+export default {
   async mount(el, ctx) {
     const boxes = Array.from(el.querySelectorAll('input[type="checkbox"]'));
     const count = document.createElement("p");
@@ -42,4 +42,4 @@ zen.register("progress", {
       count.remove();
     };
   },
-});
+};

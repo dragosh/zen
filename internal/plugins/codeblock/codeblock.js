@@ -73,4 +73,4 @@ function mount(root) {
   };
 }
 
-if (typeof globalThis.zen !== "undefined") globalThis.zen.register("codeblock", { mount });
+export default { mount };

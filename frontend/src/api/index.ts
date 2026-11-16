@@ -77,12 +77,15 @@ export interface Api {
   /** A plugin's stored value as JSON text; "null" when the key is absent. */
   pluginStorageGet(id: string, key: string): Promise<string>;
   pluginStorageSet(id: string, key: string, json: string): Promise<void>;
-  /** Runs the plugin's backend with ZEN_HOOK=action; JSON text in, JSON text out. */
-  pluginInvoke(id: string, json: string): Promise<string>;
+  /**
+   * Runs the plugin's backend with ZEN_HOOK=action; JSON text in, JSON text out. `page` is the
+   * workspace path of the page the block is on: Go resolves the plugin's settings for that page.
+   */
+  pluginInvoke(id: string, page: string, json: string): Promise<string>;
   /** The storage keys of a plugin that start with prefix ("" for all), sorted. */
   pluginStorageKeys(id: string, prefix: string): Promise<string[]>;
   /** Starts the plugin's stream; resolves to the call id. Output arrives as "plugin:stream" events. */
-  pluginStream(id: string, json: string): Promise<string>;
+  pluginStream(id: string, page: string, json: string): Promise<string>;
   /** Cancels a stream; it ends with error "cancelled". */
   pluginCancel(call: string): Promise<void>;
   on(event: "workspace:changed", fn: (w: Workspace) => void): () => void;
@@ -91,6 +94,8 @@ export interface Api {
   /** The app opened another folder (Finder "Open With", File > Open Folder). */
   on(event: "workspace:opened", fn: (s: Startup) => void): () => void;
   /** Chunks and the end of plugin streams, of every window (call ids are random; see plugins/runtime.ts). */
+  /** The external plugin set or a trust decision changed (or a folder was opened): reload plugin scripts and styles. */
+  on(event: "plugins:changed", fn: () => void): () => void;
   on(event: "plugin:stream", fn: (e: PluginStreamEvent) => void): () => void;
   /** Another window's unsaved text for a page (see draft); content null = draft gone. */
   on(event: "page:draft", fn: (d: Draft) => void): () => void;

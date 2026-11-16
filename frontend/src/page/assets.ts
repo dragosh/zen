@@ -1,4 +1,5 @@
-// Plugin assets named by Page.assets: loaded once per URL, only from /_plugins/.
+// Plugin stylesheets named by Page.assets: linked once per URL, only from /_plugins/.
+// Plugin scripts are not injected: the runtime import()s them (plugins/runtime.ts).
 import type { Page } from "../api";
 
 const PREFIX = "/_plugins/";
@@ -16,13 +17,5 @@ export function loadAssets(doc: Document, assets: Page["assets"]): void {
     link.href = href;
     link.dataset.zenAsset = href;
     doc.head.append(link);
-  }
-  for (const src of assets.js) {
-    if (!isPluginUrl(src) || doc.head.querySelector(`script[data-zen-asset="${CSS.escape(src)}"]`)) continue;
-    const script = doc.createElement("script");
-    script.type = "module";
-    script.src = src;
-    script.dataset.zenAsset = src;
-    doc.head.append(script);
   }
 }

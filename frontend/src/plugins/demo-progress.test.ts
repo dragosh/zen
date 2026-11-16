@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // The demo folder's frontend-only plugin (examples/demo/.zen/plugins/progress),
-// loaded as the app loads it: a plain script that calls zen.register.
+// loaded as the app loads it: an ES module with a default export, imported by the runtime.
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -13,15 +13,18 @@ const file = (name: string) => join(DIR, name);
 
 let api: FakeApi;
 let rt: ReturnType<typeof installRuntime>;
+/** The plugin script, an ES module with a default export; the runtime gets it through importModule. */
+let mod: unknown;
 let root: HTMLElement;
 
 beforeEach(async () => {
   document.body.replaceChildren();
   api = createFakeApi();
-  rt = installRuntime({ api, navigate: () => {}, page: () => ({ path: "plugins/writing-plugins.md", title: "Writing plugins" }) });
+  rt = installRuntime({ importModule: async () => mod, api, navigate: () => {}, page: () => ({ path: "plugins/writing-plugins.md", title: "Writing plugins" }) });
   root = document.body.appendChild(document.createElement("article"));
   // @ts-ignore plain browser JavaScript outside src, no types
-  await import("../../../examples/demo/.zen/plugins/progress/progress.js");
+  mod = await import("../../../examples/demo/.zen/plugins/progress/progress.js");
+  await rt.load({ js: ["/_plugins/progress/progress.js?v=test"], css: [] });
 });
 afterEach(() => rt.destroy());
 

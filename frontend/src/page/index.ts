@@ -10,6 +10,9 @@ import { handleLinkClick } from "./links";
 
 export { handleLinkClick };
 
+/** Test seam: replaces import() for plugin scripts (happy-dom cannot fetch modules). */
+export const pageHooks: { importModule?: (url: string) => Promise<unknown> } = {};
+
 const PROGRESS_DELAY = 150;
 
 /** The single innerHTML in the app: Page.html is sanitised in Go. */
@@ -97,6 +100,14 @@ export const pageFeature: Feature = {
     const anchorListeners = new Set<(anchor: string) => void>();
     const plugins = installRuntime({
       api: ctx.api, navigate: (path, anchor) => ctx.navigate(path, anchor), page: () => rendered,
+      importModule: pageHooks.importModule,
+      // The plugin set or the folder changed: the runtime dropped every script and style; render again so the
+      // page's new asset URLs are loaded and mounted.
+      refresh() {
+        if (shownPath === null || shownPath !== ctx.store.get().path) return;
+        if (draft !== null) void showDraft(shownPath, draft);
+        else void load(true);
+      },
       anchor: () => ctx.store.get().anchor,
       onAnchor(fn) {
         anchorListeners.add(fn);
@@ -112,7 +123,7 @@ export const pageFeature: Feature = {
       plugins.unmountAll();
       rendered = { path: page.path, title: page.title };
       mountPage(article, page);
-      plugins.mountAll(article);
+      void plugins.mountAll(article, page.assets);
     }
 
     let seq = 0;

@@ -4,7 +4,7 @@ import type { Api, Crumb, Draft, LintResult, NavNode, Page, PluginInfo, PluginSt
 
 type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig" | "createPage"
   | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys";
-type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "menu:new-page": undefined };
+type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "menu:new-page": undefined };
 
 export type FakeOptions = {
   /** What startup() resolves to. Default: no workspace (welcome screen). */
@@ -46,7 +46,7 @@ export type FakeApi = Api & {
   /** What plugins() lists (copies); pluginTrust() updates the status. Assignable. */
   pluginList: PluginInfo[];
   /** What pluginInvoke() answers: a JSON value, or a function of the plugin id and the parsed payload. Default null. */
-  invokeResult: unknown | ((id: string, payload: unknown) => unknown);
+  invokeResult: unknown | ((id: string, payload: unknown, page: string) => unknown);
   /** Shapes every page() and preview() result, e.g. to add plugin wrappers or a layout. */
   decorate?: (page: Page) => Page;
 };
@@ -130,6 +130,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     "workspace:opened": new Set(),
     "page:draft": new Set(),
     "plugin:stream": new Set(),
+    "plugins:changed": new Set(),
     "menu:new-page": new Set(),
   };
   let streamCount = 0;
@@ -229,13 +230,13 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
       if (!storage.has(id)) storage.set(id, new Map());
       storage.get(id)!.set(key, json);
     }),
-    pluginInvoke: (id, json) => call("pluginInvoke", [id, json], () => {
-      const r = typeof api.invokeResult === "function" ? (api.invokeResult as (id: string, payload: unknown) => unknown)(id, JSON.parse(json)) : api.invokeResult;
+    pluginInvoke: (id, page, json) => call("pluginInvoke", [id, page, json], () => {
+      const r = typeof api.invokeResult === "function" ? (api.invokeResult as (id: string, payload: unknown, page: string) => unknown)(id, JSON.parse(json), page) : api.invokeResult;
       return JSON.stringify(r ?? null);
     }),
     pluginStorageKeys: (id, prefix) => call("pluginStorageKeys", [id, prefix], () =>
       Array.from(storage.get(id)?.keys() ?? []).filter((k) => k.startsWith(prefix)).sort()),
-    pluginStream: (id, json) => call("pluginStream", [id, json], () => `call-${++streamCount}`),
+    pluginStream: (id, page, json) => call("pluginStream", [id, page, json], () => `call-${++streamCount}`),
     pluginCancel: (callId) => call("pluginCancel", [callId], () => undefined),
     on(event: keyof Events, fn: (p: never) => void) {
       const set = listeners[event] as Set<(p: never) => void>;

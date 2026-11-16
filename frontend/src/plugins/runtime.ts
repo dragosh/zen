@@ -1,6 +1,7 @@
-// The page side of external plugins (docs/PLUGINS.md "Frontend: mount on your
-// blocks"): the `zen` object plugin scripts register with, and mounting and
-// cleaning up their handlers on the [data-zen-plugin] wrappers of a page.
+// The page side of plugins (docs/PLUGINS.md "Frontend: mount on your blocks"):
+// each plugin's script is an ES module loaded with import() from the page's
+// assets; its default export ({ mount }) is bound to that plugin's id, and
+// mounted and cleaned up on the [data-zen-plugin] wrappers of the page.
 import type { Api, PluginStreamEvent } from "../api";
 
 export type PluginCtx = {
@@ -24,7 +25,20 @@ export type PluginCtx = {
 };
 export type CleanUp = () => void;
 export type PluginHandler = { mount(el: HTMLElement, ctx: PluginCtx): void | CleanUp | Promise<void | CleanUp> };
-export type Runtime = { mountAll(root: HTMLElement): void; unmountAll(): void; destroy(): void };
+export type Runtime = {
+  /**
+   * Mounts the page's wrappers. With assets, the scripts of the page are imported first (once per
+   * runtime generation); wrappers whose script is still loading mount when it arrives. Resolves
+   * when the imports are settled and their wrappers mounted.
+   */
+  mountAll(root: HTMLElement, assets?: PluginAssets): Promise<void>;
+  /** Imports the scripts named by assets without mounting anything yet. */
+  load(assets: PluginAssets): Promise<void>;
+  unmountAll(): void;
+  /** Unmounts everything, forgets every bound module and removes plugin stylesheets. */
+  reset(): void;
+  destroy(): void;
+};
 type Options = {
   api: Api; navigate(path: string, anchor?: string): void; page(): { path: string; title: string };
   /** The current page's anchor (default: none). */
@@ -33,7 +47,17 @@ type Options = {
   onAnchor?(fn: (anchor: string) => void): () => void;
   /** Sets or clears (null) the sidebar badge of a page. */
   badge?(path: string, text: string | null): void;
+  /** Loads a plugin script as an ES module (default: dynamic import()). Tests inject it. */
+  importModule?(url: string): Promise<unknown>;
+  /**
+   * Called after the runtime dropped everything because the plugin set changed (plugins:changed,
+   * workspace:opened, workspace:changed); the host re-renders the current page so its new asset
+   * URLs are loaded and mounted again.
+   */
+  refresh?(): void;
 };
+/** The plugin assets of a page (Page.assets); only the scripts are used here. */
+export type PluginAssets = { js: string[]; css?: string[] };
 
 const BADGE_MAX = 12;
 const noop = () => {};
@@ -45,31 +69,29 @@ type Mounted = {
   streams: Set<() => void>; offs: Set<() => void>;
 };
 
-/**
- * Handlers by plugin id. They outlive a runtime: a plugin's script is loaded
- * once per window (page/assets.ts), so its registration has to survive the
- * reader being unmounted and mounted again.
- */
-const handlers = new Map<string, PluginHandler>();
-/** The runtime of the reader that is showing a page, if any. */
-let active: { remount(id: string): void } | null = null;
-
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-function register(id: string, handler: PluginHandler): void {
-  if (typeof id !== "string" || id === "" || typeof handler?.mount !== "function") {
-    console.error(`zen: register(${JSON.stringify(id)}) needs a plugin id and an object with a mount(el, ctx) function`);
-    return;
-  }
-  handlers.set(id, handler);
-  active?.remount(id);
-}
-
-/** The object plugin scripts see; made once and kept, so a script may hold on to it. */
+/** window.zen: only a version; non-writable and non-configurable, so no script can replace it. */
 function ensureGlobal(): void {
   const w = window as unknown as { zen?: unknown };
-  if (!w.zen) w.zen = Object.freeze({ register, version: 1 });
+  const d = Object.getOwnPropertyDescriptor(w, "zen");
+  if (d && d.configurable === false) return;
+  try {
+    Object.defineProperty(w, "zen", { value: Object.freeze({ version: 2 }), writable: false, configurable: false, enumerable: true });
+  } catch (err) {
+    console.error("zen: could not define window.zen", err);
+  }
 }
+
+const PLUGIN_URL = /^\/_plugins\/([^/?#]+)\//;
+/** The plugin id a script URL belongs to ("" when it is not a /_plugins/ URL). */
+export function pluginOfUrl(url: string): string {
+  const m = PLUGIN_URL.exec(url);
+  return m ? decodeURIComponent(m[1]) : "";
+}
+
+/** What loading a plugin's scripts came to: its handler, or why there is none. */
+type Bound = { handler?: PluginHandler; error?: string; ready: Promise<void>; settled: boolean };
 
 /** `{key=value}` attributes from data-zen-attrs: strings only, {} when missing or invalid. */
 function parseAttrs(text: string | null): Record<string, string> {
@@ -148,7 +170,7 @@ export function installRuntime(opts: Options): Runtime {
     }
   }
 
-  function startStream(m: Mounted, id: string, payload: unknown, onChunk: (chunk: string) => void): { done: Promise<void>; cancel(): void } {
+  function startStream(m: Mounted, id: string, pagePath: string, payload: unknown, onChunk: (chunk: string) => void): { done: Promise<void>; cancel(): void } {
     let resolve!: () => void;
     let reject!: (err: Error) => void;
     const done = new Promise<void>((res, rej) => { resolve = res; reject = rej; });
@@ -196,7 +218,7 @@ export function installRuntime(opts: Options): Runtime {
     }
     listenIfNeeded();
     starting++;
-    opts.api.pluginStream(id, text).then((c) => {
+    opts.api.pluginStream(id, pagePath, text).then((c) => {
       starting--;
       call = c;
       if (over) {
@@ -237,10 +259,10 @@ export function installRuntime(opts: Options): Runtime {
         keys: (prefix?: string) => opts.api.pluginStorageKeys(id, prefix === undefined ? "" : String(prefix)),
       }),
       async invoke(payload: unknown): Promise<unknown> {
-        const text = await opts.api.pluginInvoke(id, JSON.stringify(payload ?? null) ?? "null");
+        const text = await opts.api.pluginInvoke(id, path, JSON.stringify(payload ?? null) ?? "null");
         return text ? (JSON.parse(text) as unknown) : null;
       },
-      stream: (payload: unknown, onChunk: (chunk: string) => void) => startStream(m, id, payload, onChunk),
+      stream: (payload: unknown, onChunk: (chunk: string) => void) => startStream(m, id, path, payload, onChunk),
       navigate: (path: string, anchor?: string) => opts.navigate(path, anchor),
       anchor: () => opts.anchor?.() ?? "",
       onAnchor(fn: (anchor: string) => void): () => void {
@@ -286,52 +308,140 @@ export function installRuntime(opts: Options): Runtime {
     }
   }
 
-  /** Mounts the wrappers of one plugin (or of every registered one) that are on the page. */
-  function mountIn(only?: string): void {
+  // ---- modules: one import() per script, bound to the plugin id its URL names ----
+  const importModule = opts.importModule ?? ((url: string) => import(/* @vite-ignore */ url) as Promise<unknown>);
+  /** Bumped by every mountAll, unmountAll, reset and destroy: late imports of an older one do nothing. */
+  let epoch = 0;
+  let bound = new Map<string, Bound>();
+
+  function bind(id: string, scripts: string[]): Bound {
+    const b: Bound = { ready: Promise.resolve(), settled: false };
+    b.ready = Promise.all(scripts.map((url) => importModule(url).then((mod) => ({ mod }), (err: unknown) => ({ err }))))
+      .then((results) => {
+        for (const r of results) {
+          const def = "mod" in r ? (r.mod as { default?: unknown } | null | undefined)?.default : undefined;
+          if (def && typeof (def as PluginHandler).mount === "function") {
+            b.handler = def as PluginHandler;
+            return;
+          }
+        }
+        const failed = results.find((r) => "err" in r) as { err: unknown } | undefined;
+        b.error = failed
+          ? `its script could not be loaded: ${message(failed.err)}`
+          : "its script has no default export with a mount(el, ctx) function";
+      })
+      .then(() => { b.settled = true; });
+    return b;
+  }
+
+  /** Starts importing the scripts of assets that no module is bound for yet; returns what is still loading. */
+  function loadScripts(assets: PluginAssets | undefined): Promise<unknown>[] {
+    const byId = new Map<string, string[]>();
+    for (const url of assets?.js ?? []) {
+      const id = pluginOfUrl(url);
+      if (id === "" || url.split(/[/?#]/).includes("..")) continue;
+      if (!byId.has(id)) byId.set(id, []);
+      byId.get(id)!.push(url);
+    }
+    const waits: Promise<unknown>[] = [];
+    byId.forEach((scripts, id) => {
+      let b = bound.get(id);
+      if (!b) {
+        b = bind(id, scripts);
+        bound.set(id, b);
+      }
+      if (!b.settled) waits.push(b.ready);
+    });
+    return waits;
+  }
+
+  /**
+   * Mounts at once when every script is here; otherwise once all of them have settled, so wrappers
+   * still mount in document order (a block inside a layout before the layout).
+   */
+  function mountWhenReady(assets: PluginAssets | undefined): Promise<void> {
+    const gen = epoch;
+    const waits = loadScripts(assets);
+    if (waits.length === 0) {
+      mountIn();
+      return Promise.resolve();
+    }
+    return Promise.all(waits).then(() => { if (gen === epoch) mountIn(); });
+  }
+
+  /** Mounts the wrappers of every plugin with a bound script that are on the page and not mounted yet. */
+  function mountIn(): void {
     if (!root) return;
     const here = root;
     for (const el of Array.from(here.querySelectorAll<HTMLElement>("[data-zen-plugin]"))) {
       const id = el.getAttribute("data-zen-plugin") ?? "";
-      const handler = handlers.get(id);
-      if (!handler || (only !== undefined && id !== only)) continue;
-      // An earlier mount (a layout, say) may have thrown this wrapper away.
-      if (!here.contains(el)) continue;
-      mountOne(el, id, handler);
+      const b = bound.get(id);
+      if (!b) continue;
+      // An earlier mount (a layout, say) may have thrown this wrapper away; some are mounted already.
+      if (!here.contains(el) || mounted.some((m) => m.el === el)) continue;
+      if (b.handler) {
+        mountOne(el, id, b.handler);
+      } else if (b.error) {
+        const m: Mounted = { el, id, dead: false, streams: new Set(), offs: new Set() };
+        mounted.push(m);
+        fail(m, "load", new Error(b.error));
+      }
     }
   }
 
   /** Last mounted first, so a block inside a layout goes before the layout. */
-  function unmount(only?: string): void {
-    const go = only === undefined ? mounted : mounted.filter((m) => m.id === only);
-    mounted = only === undefined ? [] : mounted.filter((m) => m.id !== only);
+  function unmount(): void {
+    const go = mounted;
+    mounted = [];
     for (const m of go.slice().reverse()) {
       m.dead = true;
       cleanUp(m);
     }
   }
 
-  const self = {
-    remount(id: string) {
-      unmount(id);
-      mountIn(id);
-    },
-  };
-  active = self;
+  function removeStylesheets(): void {
+    const doc = root?.ownerDocument ?? document;
+    for (const link of Array.from(doc.head.querySelectorAll<HTMLElement>("link[data-zen-asset]"))) {
+      if ((link.dataset.zenAsset ?? "").startsWith("/_plugins/")) link.remove();
+    }
+  }
+
+  function reset(): void {
+    epoch++;
+    unmount();
+    bound = new Map();
+    removeStylesheets();
+  }
+
+  // The plugin set or the folder changed: nothing loaded so far may keep running.
+  const offs = (["plugins:changed", "workspace:opened", "workspace:changed"] as const).map((ev) =>
+    opts.api.on(ev as "plugins:changed", () => {
+      reset();
+      opts.refresh?.();
+    }));
 
   return {
-    mountAll(next) {
+    mountAll(next, assets) {
+      epoch++;
       unmount();
       root = next;
-      mountIn();
+      return mountWhenReady(assets);
+    },
+    load(assets) {
+      return mountWhenReady(assets);
     },
     unmountAll() {
+      epoch++;
       unmount();
       root = null;
     },
+    reset,
     destroy() {
+      epoch++;
       unmount();
       root = null;
-      if (active === self) active = null;
+      bound = new Map();
+      for (const off of offs) off();
     },
   };
 }

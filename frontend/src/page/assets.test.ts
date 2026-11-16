@@ -10,15 +10,17 @@ const page = (assets: Page["assets"]): Page => ({
   path: "a.md", title: "A", html: "<h1>A</h1>", frontmatter: {}, breadcrumb: [], assets, warnings: [], layout: "",
 });
 
-test("assets are loaded once per URL, only from /_plugins/", () => {
+test("stylesheets are linked once per (versioned) URL, only from /_plugins/; scripts are never injected", () => {
   const assets = { css: ["/_plugins/d/a.css", "https://evil.test/x.css", "/_ws/x.css"], js: ["/_plugins/d/a.js", "//evil.test/x.js", "/_plugins/../x.js"] };
   loadAssets(document, assets);
   loadAssets(document, assets);
   const links = document.head.querySelectorAll("link[rel=stylesheet]");
-  const scripts = document.head.querySelectorAll("script");
   expect(Array.from(links, (l) => l.getAttribute("href"))).toEqual(["/_plugins/d/a.css"]);
-  expect(Array.from(scripts, (s) => s.getAttribute("src"))).toEqual(["/_plugins/d/a.js"]);
-  expect(scripts[0].getAttribute("type")).toBe("module");
+  // the runtime import()s plugin scripts, keyed by plugin id (plugins/runtime.ts)
+  expect(document.head.querySelectorAll("script")).toHaveLength(0);
+  // a changed plugin has a new URL and gets its own link
+  loadAssets(document, { css: ["/_plugins/d/a.css?v=abc123abc123"], js: [] });
+  expect(document.head.querySelectorAll("link[rel=stylesheet]")).toHaveLength(2);
 });
 
 test("mountPage sets the html, loads assets and fires zen:page-rendered", () => {

@@ -12,15 +12,18 @@ const ASSETS = join(dirname(fileURLToPath(import.meta.url)), "../../../internal/
 
 let api: FakeApi;
 let rt: ReturnType<typeof installRuntime>;
+/** The plugin script, an ES module with a default export; the runtime gets it through importModule. */
+let mod: unknown;
 let root: HTMLElement;
 
 beforeEach(async () => {
   document.body.replaceChildren();
   api = createFakeApi();
-  rt = installRuntime({ api, navigate: () => {}, page: () => ({ path: "quizzes/http.md", title: "HTTP" }) });
+  rt = installRuntime({ importModule: async () => mod, api, navigate: () => {}, page: () => ({ path: "quizzes/http.md", title: "HTTP" }) });
   root = document.body.appendChild(document.createElement("article"));
   // @ts-ignore plain browser JavaScript outside src, no types
-  await import("../../../internal/plugins/quiz/assets/quiz.js");
+  mod = await import("../../../internal/plugins/quiz/assets/quiz.js");
+  await rt.load({ js: ["/_plugins/quiz/quiz.js?v=test"], css: [] });
 });
 afterEach(() => rt.destroy());
 
@@ -108,7 +111,8 @@ test("Check sends the answers by question index and marks each question", async 
   await settle();
   submit(w);
   await settle();
-  const [id, payload] = api.callsTo("pluginInvoke")[0] as [string, string];
+  const [id, page, payload] = api.callsTo("pluginInvoke")[0] as [string, string, string];
+  expect(page).toBe("quizzes/http.md");
   expect(id).toBe("quiz");
   expect(JSON.parse(payload)).toEqual({ op: "check", quiz: "http", page: "quizzes/http.md", answers: { "0": 1, "1": [0, 1], "2": "Transport" } });
   const qs = Array.from(w.querySelectorAll(".zq-question"));
@@ -231,7 +235,7 @@ test("reveal=each checks one question at a time and scores at the end", async ()
   pick(w, 0, "POST");
   buttons[0].click();
   await settle();
-  const first = JSON.parse((api.callsTo("pluginInvoke")[0] as string[])[1]);
+  const first = JSON.parse((api.callsTo("pluginInvoke")[0] as string[])[2]);
   expect(first.answers).toEqual({ "0": 0 });
   expect(w.querySelectorAll(".zq-status")[0].textContent).toBe("Incorrect");
   expect(w.querySelector(".zq-outcome")?.textContent).toBe("");
@@ -259,7 +263,7 @@ test("shuffle changes the order, not the values sent", async () => {
     pick(w, 0, "PUT");
     submit(w);
     await settle();
-    expect(JSON.parse((api.callsTo("pluginInvoke")[0] as string[])[1]).answers["0"]).toBe(1);
+    expect(JSON.parse((api.callsTo("pluginInvoke")[0] as string[])[2]).answers["0"]).toBe(1);
   } finally {
     Math.random = orig;
   }
