@@ -68,16 +68,26 @@ frontend:
   css: [note.css]
 ```
 
-And the whole plugin is this script:
+And the whole plugin is this script. It serves both blocks, `note` and
+`warning`, and escapes everything it prints:
 
 ```sh
 #!/bin/sh
-# .zen/plugins/note/note.sh — renders :::note{title="..."} containers
-title="${ZEN_ATTR_TITLE:-Note}"
-printf '<div class="note"><strong>%s</strong>' "$title"
-sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g'      # body from stdin, escaped
+# .zen/plugins/note/note.sh — renders :::note and :::warning containers
+esc() { sed -e 's/&/\&amp;/g' -e 's/</\&lt;/g' -e 's/>/\&gt;/g'; }
+case "$ZEN_NAME" in
+  warning) kind=warning title=Warning ;;
+  *) kind=note title=Note ;;
+esac
+title="${ZEN_ATTR_TITLE:-$title}"
+printf '<div class="%s"><strong>' "$kind"
+printf '%s' "$title" | esc
+printf '</strong>\n'
+esc                                  # the body arrives on stdin
 printf '</div>'
 ```
+
+Its `note.css` gives the two boxes their look, using zen's own colours.
 
 zen starts the program once for each block, in the plugin folder. The body of
 the block arrives on standard input, the attributes arrive as environment

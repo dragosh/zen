@@ -32,7 +32,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 5 | [core/navmeta](core/navmeta/spec.md) | `internal/core/index`, `internal/app/{state,slugs}.go` | core/index, app/services | done |
 | 5 | [core/lint](core/lint/spec.md) | `internal/core/lint`, `resources.yml`, `build/darwin` helper fetch | packaging/macos | done |
 | 5b | [ui/lint](ui/lint/spec.md) | `internal/app/lint.go`, `frontend/src/lint`, page/editor wiring | ui/editor-window, core/lint | done |
-| 6 | [core/extplugins](core/extplugins/spec.md) | `internal/core/{extplugins,plugins,render}`, `internal/app`, demo plugins `note`, `calc` | core/plugins, core/render | done |
+| 6 | [core/extplugins](core/extplugins/spec.md) | `internal/core/{extplugins,plugins,render}`, `internal/app`, demo plugins `note`, `calc` | core/plugins, core/render | specified |
 | 6 | [ui/plugins](ui/plugins/spec.md) | `frontend/src/plugins`, api, page wiring, Settings › Plugins, demo how-to and `progress` plugin | ui/page, contract in docs/PLUGINS.md | specified |
 | 7 | [plugins/layouts](plugins/layouts/spec.md) (plan) | slides and course layouts | wave 6 | planned |
 | 7 | [plugins/quiz](plugins/quiz/spec.md) (plan) | quiz with stored results | wave 6 | planned |
