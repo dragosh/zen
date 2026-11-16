@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | planned |
+| Status | done |
 | Target version | 0.2.0 |
 | Depends on | core/extplugins (layouts), ui/plugins |
 | Kind | two external plugins, frontend only (shipped as built-in folders) |

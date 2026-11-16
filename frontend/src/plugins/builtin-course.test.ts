@@ -187,7 +187,7 @@ test("clean-up gives back the page as rendered", async () => {
   expect(w.querySelector(".course-root")).toBeNull();
   expect(w.querySelectorAll("h2")).toHaveLength(3);
   expect(Array.from(w.querySelectorAll("*")).some((e) => (e as HTMLElement).hidden)).toBe(false);
-  expect(boxes(w, 0).length + w.querySelectorAll("input").length).toBeGreaterThan(0);
+  expect(w.querySelectorAll("input").length).toBe(3);
   expect(Array.from(w.querySelectorAll("input")).every((i) => i.disabled)).toBe(true);
 });
 

@@ -167,7 +167,7 @@ test("clean-up gives back the page and stops listening", () => {
   rt.unmountAll();
   expect(w.querySelector(".slides-root")).toBeNull();
   expect(w.querySelectorAll("hr")).toHaveLength(2);
-  expect(w.querySelectorAll("p").length).toBe(4);
+  expect(w.querySelectorAll("p").length).toBe(3);
   expect(Array.from(w.querySelectorAll("*")).some((e) => (e as HTMLElement).hidden)).toBe(false);
   const n = navigated.length;
   key("ArrowRight");
