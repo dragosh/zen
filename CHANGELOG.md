@@ -22,6 +22,9 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Added
 
+- `slides` and `course` page layouts (`layout:` in frontmatter), with keyboard control, printing and saved course progress.
+- `quiz` plugin: single, multiple and free-text questions in markdown; answers checked in Go, attempts and best score saved.
+- `sandbox` plugin: run a code block in a container image from your own allow-list, using the macOS `container` command, with live output.
 - Plugin streams (live output), user-only plugin options, sidebar badges, Print (⌘P).
 - External plugins: a folder with `plugin.yml` can add a backend program, an existing tool, page scripts with saved data, or a page layout. zen asks before running a plugin for the first time; Settings lists plugins with Allow / Block.
 - Demo plugins `note` (shell), `calc` (`bc`) and `progress` (page script), and a how-to in `examples/demo/plugins/writing-plugins.md`.

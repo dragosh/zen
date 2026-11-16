@@ -11,8 +11,12 @@ import (
 
 	"github.com/dragosh/zen/internal/core/config"
 	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zen/internal/plugins/course"
 	"github.com/dragosh/zen/internal/plugins/diagram"
 	"github.com/dragosh/zen/internal/plugins/highlight"
+	"github.com/dragosh/zen/internal/plugins/quiz"
+	"github.com/dragosh/zen/internal/plugins/sandbox"
+	"github.com/dragosh/zen/internal/plugins/slides"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -44,7 +48,7 @@ type Options struct {
 
 // registerPlugins registers the built-in plugins in order: highlight, diagram.
 func registerPlugins(r *plugins.Registry) error {
-	for _, p := range []plugins.Plugin{highlight.New(), diagram.New()} {
+	for _, p := range []plugins.Plugin{highlight.New(), diagram.New(), slides.New(), course.New(), quiz.New(), sandbox.New()} {
 		if err := r.Register(p); err != nil {
 			return err
 		}

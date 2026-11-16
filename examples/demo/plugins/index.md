@@ -12,6 +12,10 @@ page can never inject scripts into it.
 |---|---|---|
 | [highlight](highlight.md) | colours code blocks | yes |
 | [diagram](diagram.md) | draws mermaid diagrams | yes |
+| [quiz](quiz.md) | questions with saved answers and scores | yes |
+| [sandbox](sandbox.md) | runs a code block in a container | yes, after setup |
+| [slides](../layouts/slides.md) | shows a page as a slide deck | yes |
+| [course](../layouts/course.md) | shows a page as steps with saved progress | yes |
 | `lint` | Vale flags (a switch, see [linting](../editing/linting.md)) | yes |
 
 Turn one off or set its options in frontmatter, `.zen.yml` or `config.yml`:
