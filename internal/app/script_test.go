@@ -10,6 +10,8 @@ import (
 	"testing"
 	"testing/fstest"
 	"time"
+
+	"github.com/dragosh/zen/internal/core/scriptplugins"
 )
 
 const shoutSrc = `plugin := {
@@ -380,5 +382,32 @@ if hook == "block" { out = zen.html("div", {class: "folder"}, body) }`}
 	z3, _, _ := openWith(t, pluginTree(t, files), t.TempDir(), true)
 	if got := infoOf(t, z3, "dup"); got.Status != "invalid" || !strings.Contains(got.Problem, "both") {
 		t.Errorf("dup: %+v", got)
+	}
+}
+
+func TestScriptHelpersEndWithTheFolderAndOnClose(t *testing.T) {
+	scriptplugins.Reset()
+	dir := pluginTree(t, scriptDocs())
+	z, _, _ := openWith(t, dir, t.TempDir(), true)
+	if _, err := z.Page("README.md"); err != nil {
+		t.Fatal(err)
+	}
+	if scriptplugins.HelperCount() == 0 {
+		t.Fatal("no helper after rendering script blocks")
+	}
+	// Another folder: the previous folder's helpers go.
+	other := pluginTree(t, map[string]string{"README.md": "# plain\n"})
+	if err := z.state.open(other); err != nil {
+		t.Fatalf("open: %v", err)
+	}
+	if n := scriptplugins.HelperCount(); n != 0 {
+		t.Errorf("%d helpers after the folder changed", n)
+	}
+	if _, err := z.Page("README.md"); err != nil {
+		t.Fatal(err)
+	}
+	z.close()
+	if n := scriptplugins.HelperCount(); n != 0 {
+		t.Errorf("%d helpers after close", n)
 	}
 }
