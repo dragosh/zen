@@ -30,7 +30,7 @@ function split(nodes) {
   return { intro, steps };
 }
 
-zen.register("course", {
+export default {
   async mount(host, ctx) {
     // :::check blocks are enabled by the layout around them; alone they stay read-only.
     if (ctx.kind !== "layout") return;
@@ -195,4 +195,4 @@ zen.register("course", {
       host.replaceChildren(...original);
     };
   },
-});
+};

@@ -317,10 +317,8 @@ async function mountResults(el, ctx) {
   return () => el.replaceChildren(...original);
 }
 
-if (typeof globalThis.zen === "object" && globalThis.zen) {
-  globalThis.zen.register("quiz", {
-    mount(el, ctx) {
-      return ctx.name === "quiz-results" ? mountResults(el, ctx) : mountQuiz(el, ctx);
-    },
-  });
-}
+export default {
+  mount(el, ctx) {
+    return ctx.name === "quiz-results" ? mountResults(el, ctx) : mountQuiz(el, ctx);
+  },
+};

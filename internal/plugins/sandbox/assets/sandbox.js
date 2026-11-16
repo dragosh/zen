@@ -151,4 +151,4 @@ function mount(root, ctx) {
   };
 }
 
-if (typeof globalThis.zen !== "undefined") globalThis.zen.register("sandbox", { mount });
+export default { mount };

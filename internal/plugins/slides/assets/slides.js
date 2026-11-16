@@ -41,7 +41,7 @@ function el(doc, name, cls, text) {
   return e;
 }
 
-zen.register("slides", {
+export default {
   mount(host, ctx) {
     if (ctx.kind !== "layout") return;
     const doc = host.ownerDocument;
@@ -246,4 +246,4 @@ zen.register("slides", {
       host.replaceChildren(...original);
     };
   },
-});
+};
