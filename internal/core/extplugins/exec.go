@@ -196,10 +196,19 @@ func (p *Plugin) env(c call, rt Runtime) []string {
 	sort.Strings(keys)
 	for _, k := range keys {
 		if ek := envKey(k); ek != "" {
-			env = append(env, "ZEN_CONFIG_"+ek+"="+noNUL(fmt.Sprint(cfg[k])))
+			env = append(env, "ZEN_CONFIG_"+ek+"="+noNUL(configEnv(cfg[k])))
 		}
 	}
 	return env
+}
+
+// configEnv is an option's value for ZEN_CONFIG_<KEY>: JSON for maps and lists.
+func configEnv(v any) string {
+	switch v.(type) {
+	case map[string]string, []string, map[string]any, []any:
+		return jsonOrEmpty(v)
+	}
+	return fmt.Sprint(v)
 }
 
 // toolPath is PATH for backends: the app's PATH plus the usual places of
@@ -287,7 +296,15 @@ func (c *collector) run(r io.Reader) {
 
 var errTimeout = errors.New("timed out")
 
-func (p *Plugin) run(c call) ([]byte, error) {
+// proc is a started backend: its pipes are the caller's to read and close.
+type proc struct {
+	cmd        *exec.Cmd
+	inW        *os.File
+	outR, errR *os.File
+}
+
+// spawn starts the backend for c in its own process group and feeds c.stdin.
+func (p *Plugin) spawn(c call) (*proc, error) {
 	if p.back == nil {
 		return nil, errors.New("the plugin has no backend")
 	}
@@ -311,9 +328,6 @@ func (p *Plugin) run(c call) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-
-	slots <- struct{}{}
-	defer func() { <-slots }()
 
 	cmd := exec.Command(prog, p.back.command[1:]...)
 	cmd.Dir = p.dir
@@ -348,11 +362,25 @@ func (p *Plugin) run(c call) ([]byte, error) {
 		errR.Close()
 		return nil, fmt.Errorf("could not start %s", filepath.Base(prog))
 	}
-
 	go func() {
 		_, _ = inW.Write(c.stdin) // a program that does not read its input is fine
 		inW.Close()
 	}()
+	return &proc{cmd: cmd, inW: inW, outR: outR, errR: errR}, nil
+}
+
+func (p *Plugin) run(c call) ([]byte, error) {
+	if p.back == nil {
+		return nil, errors.New("the plugin has no backend")
+	}
+	slots <- struct{}{}
+	defer func() { <-slots }()
+
+	sp, err := p.spawn(c)
+	if err != nil {
+		return nil, err
+	}
+	cmd, inW, outR, errR := sp.cmd, sp.inW, sp.outR, sp.errR
 	out := &collector{limit: maxStdout, done: make(chan struct{})}
 	out.onOvr = func() { killGroup(cmd) }
 	errc := &collector{limit: maxStderr, done: make(chan struct{})}
@@ -361,7 +389,7 @@ func (p *Plugin) run(c call) ([]byte, error) {
 
 	waited := make(chan error, 1)
 	go func() { waited <- cmd.Wait() }()
-	timer := time.NewTimer(p.back.timeout)
+	timer := time.NewTimer(p.callTimeout())
 	defer timer.Stop()
 	var waitErr error
 	timedOut := false
@@ -387,7 +415,7 @@ func (p *Plugin) run(c call) ([]byte, error) {
 
 	switch {
 	case timedOut:
-		return nil, fmt.Errorf("%w after %s", errTimeout, p.back.timeout)
+		return nil, fmt.Errorf("%w after %s", errTimeout, p.callTimeout())
 	case out.over:
 		return nil, errors.New("the output is larger than 2 MB")
 	case waitErr != nil:

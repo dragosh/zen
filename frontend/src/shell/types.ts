@@ -6,6 +6,8 @@ export type AppState = {
   mode: "read" | "edit";
   page?: Page;       // set by ui/page after a load
   dirty?: boolean;   // set by ui/editor
+  /** Short labels plugins put after a page's title in the sidebar (ctx.badge), by page path. */
+  badges?: Record<string, string>;
 };
 export type Store = { get(): AppState; set(p: Partial<AppState>): void; subscribe(fn: (s: AppState) => void): () => void };
 export type Slots = { nav: HTMLElement; breadcrumb: HTMLElement; actions: HTMLElement; main: HTMLElement };

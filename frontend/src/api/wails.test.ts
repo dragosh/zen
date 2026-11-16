@@ -31,6 +31,9 @@ vi.mock("../../bindings/github.com/dragosh/zen/internal/app/index.js", () => ({
     PluginStorageGet: binding("PluginStorageGet"),
     PluginStorageSet: binding("PluginStorageSet"),
     PluginInvoke: binding("PluginInvoke"),
+    PluginStream: binding("PluginStream"),
+    PluginCancel: binding("PluginCancel"),
+    PluginStorageKeys: binding("PluginStorageKeys"),
   },
 }));
 
@@ -287,6 +290,39 @@ describe("wails api", () => {
       ["PluginStorageSet", "note", "k", "2"],
       ["PluginInvoke", "note", "{}"], ["PluginInvoke", "note", "{}"],
     ]);
+  });
+
+  it("plugin streams: start, cancel, keys, and the plugin:stream event", async () => {
+    const api = (await import("./wails")).default;
+    results.PluginStream = "abc123";
+    expect(await api.pluginStream("sandbox", "{\"a\":1}")).toBe("abc123");
+    await expect(api.pluginCancel("abc123")).resolves.toBeUndefined();
+    results.PluginStorageKeys = ["a", "b"];
+    expect(await api.pluginStorageKeys("quiz", "")).toEqual(["a", "b"]);
+    results.PluginStorageKeys = null;
+    expect(await api.pluginStorageKeys("quiz", "x")).toEqual([]);
+    results.PluginStream = new Error("at most 4 streams run at once");
+    await expect(api.pluginStream("sandbox", "1")).rejects.toThrow("at most 4");
+    expect(calls.map((c) => [c.name, ...c.args])).toEqual([
+      ["PluginStream", "sandbox", "{\"a\":1}"], ["PluginCancel", "abc123"],
+      ["PluginStorageKeys", "quiz", ""], ["PluginStorageKeys", "quiz", "x"], ["PluginStream", "sandbox", "1"],
+    ]);
+
+    const got: unknown[] = [];
+    const off = api.on("plugin:stream", (e) => got.push(e));
+    fire("plugin:stream", { call: "abc123", chunk: "line", done: false, error: "" });
+    fire("plugin:stream", [{ call: "abc123", chunk: "", done: true, error: "cancelled" }]); // single arguments may arrive wrapped
+    fire("plugin:stream", { call: "abc123" });                                                 // missing fields are defaulted
+    fire("plugin:stream", { chunk: "no call" });                                               // not a stream event: dropped
+    fire("plugin:stream", null);
+    expect(got).toEqual([
+      { call: "abc123", chunk: "line", done: false, error: "" },
+      { call: "abc123", chunk: "", done: true, error: "cancelled" },
+      { call: "abc123", chunk: "", done: false, error: "" },
+    ]);
+    off();
+    fire("plugin:stream", { call: "abc123", chunk: "late", done: false, error: "" });
+    expect(got).toHaveLength(3);
   });
 
   it("in an editor window it answers for that window only (keep last: reloads the module)", async () => {

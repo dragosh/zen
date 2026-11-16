@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 )
 
 // writePlugin creates <base>/<id>/ with plugin.yml and files; names ending
@@ -227,5 +228,77 @@ func TestDiscover(t *testing.T) {
 	_, invalid := Scan(folder, user)
 	if len(invalid) != 1 || invalid[0].ID != "broken" || invalid[0].Problem == "" || invalid[0].Dir == "" {
 		t.Fatalf("invalid: %+v", invalid)
+	}
+}
+
+func TestOptionsMapListAndScope(t *testing.T) {
+	yml := "id: box\nversion: 1.0.0\napiVersion: 1\n" +
+		"options:\n" +
+		"  images: { type: map, scope: user, default: { py: \"python:3\" } }\n" +
+		"  tags: { type: list, default: [a, b] }\n" +
+		"  none: { type: map }\n" +
+		"  nolist: { type: list }\n" +
+		"  plain: { type: string }\n" +
+		"backend: { command: [\"cat\"], hooks: [block] }\n"
+	p, err := Load(writePlugin(t, t.TempDir(), "box", yml, nil))
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := p.Manifest().Config
+	if c["images"].Type != "map" || c["images"].Scope != "user" || fmt.Sprint(c["images"].Default) != "map[py:python:3]" {
+		t.Errorf("images: %+v", c["images"])
+	}
+	if _, ok := c["images"].Default.(map[string]string); !ok {
+		t.Errorf("map default is %T", c["images"].Default)
+	}
+	if v, ok := c["tags"].Default.([]string); !ok || strings.Join(v, ",") != "a,b" || c["tags"].Scope != "" {
+		t.Errorf("tags: %+v", c["tags"])
+	}
+	if v, ok := c["none"].Default.(map[string]string); !ok || len(v) != 0 {
+		t.Errorf("none: %#v", c["none"].Default)
+	}
+	if v, ok := c["nolist"].Default.([]string); !ok || len(v) != 0 {
+		t.Errorf("nolist: %#v", c["nolist"].Default)
+	}
+
+	bad := map[string]string{
+		"scope: folder":                        "options:\n  o: { type: string, scope: folder }\n",
+		"map default that is not a mapping":    "options:\n  o: { type: map, default: [a] }\n",
+		"map default with a non-string value":  "options:\n  o: { type: map, default: { a: 1 } }\n",
+		"list default that is not a list":      "options:\n  o: { type: list, default: x }\n",
+		"list default with a non-string entry": "options:\n  o: { type: list, default: [1] }\n",
+	}
+	for name, opts := range bad {
+		y := "id: box\nversion: 1.0.0\napiVersion: 1\n" + opts + "backend: { command: [\"cat\"], hooks: [block] }\n"
+		if _, err := Load(writePlugin(t, t.TempDir(), "box", y, nil)); err == nil {
+			t.Errorf("%s accepted", name)
+		}
+	}
+}
+
+func TestStreamHookAndTimeouts(t *testing.T) {
+	load := func(backend string) error {
+		y := "id: s\nversion: 1.0.0\napiVersion: 1\nbackend: " + backend + "\n"
+		_, err := Load(writePlugin(t, t.TempDir(), "s", y, nil))
+		return err
+	}
+	if err := load(`{ command: ["cat"], hooks: [stream], timeout: 10m }`); err != nil {
+		t.Errorf("10m stream timeout refused: %v", err)
+	}
+	if err := load(`{ command: ["cat"], hooks: [stream], timeout: 11m }`); err == nil {
+		t.Error("11m accepted")
+	}
+	if err := load(`{ command: ["cat"], hooks: [block], timeout: 2m }`); err == nil {
+		t.Error("2m accepted without the stream hook")
+	}
+	if err := load(`{ command: ["cat"], hooks: [stream, block], timeout: 61s }`); err != nil {
+		t.Errorf("stream plugin with 61s refused: %v", err)
+	}
+	p, err := Load(writePlugin(t, t.TempDir(), "s", "id: s\nversion: 1.0.0\napiVersion: 1\nbackend: { command: [\"cat\"], hooks: [stream] }\n", nil))
+	if err != nil || !p.HasHook("stream") {
+		t.Fatalf("stream hook: %v", err)
+	}
+	if p.streamTimeout() != 60*time.Second {
+		t.Errorf("default stream timeout %v", p.streamTimeout())
 	}
 }

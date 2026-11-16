@@ -6,9 +6,11 @@ import (
 	"io/fs"
 	"math"
 	"path"
+	"reflect"
 	"regexp"
 	"sort"
 	"strings"
+	"sync/atomic"
 )
 
 var (
@@ -33,6 +35,26 @@ type Registry struct {
 	inlines map[string]string // inline name -> owning plugin id
 	layouts map[string]string // layout name -> owning plugin id
 	denied  []Manifest        // plugins the user did not allow
+
+	user atomic.Pointer[userOptions]
+}
+
+type userOptions struct {
+	get func(id string) map[string]any
+}
+
+// SetUserOptions sets where options with scope "user" take their values
+// from: the options the user's global config sets for plugin id (nil for
+// none). Without it those options keep their defaults.
+func (r *Registry) SetUserOptions(get func(id string) map[string]any) {
+	r.user.Store(&userOptions{get: get})
+}
+
+func (r *Registry) userOptionsOf(id string) map[string]any {
+	if u := r.user.Load(); u != nil && u.get != nil {
+		return u.get(id)
+	}
+	return nil
 }
 
 // NewRegistry returns an empty registry.
@@ -114,9 +136,14 @@ func (r *Registry) Register(p Plugin) error {
 	}
 	for name, opt := range m.Config {
 		switch opt.Type {
-		case "string", "bool", "int":
+		case "string", "bool", "int", "map", "list":
 		default:
-			return fail("option %q has invalid type %q (want string, bool or int)", name, opt.Type)
+			return fail("option %q has invalid type %q (want string, bool, int, map or list)", name, opt.Type)
+		}
+		switch opt.Scope {
+		case "", ScopeUser:
+		default:
+			return fail("option %q has invalid scope %q (want user or nothing)", name, opt.Scope)
 		}
 	}
 
@@ -204,8 +231,14 @@ func (r *Registry) Enabled(lookup func(id string) (bool, map[string]any, bool), 
 			continue
 		}
 		cfg := make(map[string]any, len(m.Config))
+		hasUser := false
 		for name, opt := range m.Config {
-			cfg[name] = opt.Default
+			cfg[name] = cloneOption(opt.Default)
+			hasUser = hasUser || opt.Scope == ScopeUser
+		}
+		var user map[string]any
+		if hasUser {
+			user = r.userOptionsOf(m.ID)
 		}
 		names := make([]string, 0, len(opts))
 		for name := range opts {
@@ -218,7 +251,32 @@ func (r *Registry) Enabled(lookup func(id string) (bool, map[string]any, bool), 
 				warnings = append(warnings, fmt.Sprintf("plugin %q: unknown option %q", m.ID, name))
 				continue
 			}
+			if opt.Scope == ScopeUser {
+				// Only the global config counts; the merged value is a conflict
+				// unless it is that same value.
+				if uv, set := user[name]; !set || !reflect.DeepEqual(uv, opts[name]) {
+					warnings = append(warnings, fmt.Sprintf("plugin %q: option %q can only be set in the global config; ignored", m.ID, name))
+				}
+				continue
+			}
 			v, ok := coerce(opt.Type, opts[name])
+			if !ok {
+				warnings = append(warnings, fmt.Sprintf("plugin %q: option %q must be of type %s", m.ID, name, opt.Type))
+				continue
+			}
+			cfg[name] = v
+		}
+		unames := make([]string, 0, len(user))
+		for name := range user {
+			unames = append(unames, name)
+		}
+		sort.Strings(unames)
+		for _, name := range unames {
+			opt, known := m.Config[name]
+			if !known || opt.Scope != ScopeUser {
+				continue // other options of the global config come through the normal merge
+			}
+			v, ok := coerce(opt.Type, user[name])
 			if !ok {
 				warnings = append(warnings, fmt.Sprintf("plugin %q: option %q must be of type %s", m.ID, name, opt.Type))
 				continue
@@ -266,6 +324,25 @@ func (r *Registry) Enabled(lookup func(id string) (bool, map[string]any, bool), 
 	return s, warnings
 }
 
+// cloneOption copies a map or list default so no two pages share one.
+func cloneOption(v any) any {
+	switch t := v.(type) {
+	case map[string]string:
+		out := make(map[string]string, len(t))
+		for k, x := range t {
+			out[k] = x
+		}
+		return out
+	case []string:
+		return append([]string{}, t...)
+	}
+	return v
+}
+
+// CoerceOption checks v against an option type and returns it in its
+// canonical Go shape (string, bool, int, map[string]string or []string).
+func CoerceOption(typ string, v any) (any, bool) { return coerce(typ, v) }
+
 // coerce checks v against an option type. Integers may arrive in any integer
 // shape, or as an integral float, depending on the config decoder.
 func coerce(typ string, v any) (any, bool) {
@@ -276,6 +353,38 @@ func coerce(typ string, v any) (any, bool) {
 	case "bool":
 		b, ok := v.(bool)
 		return b, ok
+	case "map":
+		switch t := v.(type) {
+		case map[string]string:
+			return cloneOption(t), true
+		case map[string]any:
+			out := make(map[string]string, len(t))
+			for k, x := range t {
+				str, ok := x.(string)
+				if !ok {
+					return nil, false
+				}
+				out[k] = str
+			}
+			return out, true
+		}
+		return nil, false
+	case "list":
+		switch t := v.(type) {
+		case []string:
+			return cloneOption(t), true
+		case []any:
+			out := make([]string, 0, len(t))
+			for _, x := range t {
+				str, ok := x.(string)
+				if !ok {
+					return nil, false
+				}
+				out = append(out, str)
+			}
+			return out, true
+		}
+		return nil, false
 	case "int":
 		switch n := v.(type) {
 		case int:
@@ -331,7 +440,7 @@ func (s *Set) Plugins() []Plugin {
 func (s *Set) Context(id, pagePath string) Context {
 	cfg := make(map[string]any, len(s.config[id]))
 	for k, v := range s.config[id] {
-		cfg[k] = v
+		cfg[k] = cloneOption(v)
 	}
 	return Context{Path: pagePath, Config: cfg}
 }

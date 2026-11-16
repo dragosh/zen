@@ -94,7 +94,20 @@ export const pageFeature: Feature = {
     // External plugins (ui/plugins): their handlers mount on the wrappers of
     // every render and are cleaned up before the next one replaces the article.
     let rendered = { path: "", title: "" };
-    const plugins = installRuntime({ api: ctx.api, navigate: (path, anchor) => ctx.navigate(path, anchor), page: () => rendered });
+    const anchorListeners = new Set<(anchor: string) => void>();
+    const plugins = installRuntime({
+      api: ctx.api, navigate: (path, anchor) => ctx.navigate(path, anchor), page: () => rendered,
+      anchor: () => ctx.store.get().anchor,
+      onAnchor(fn) {
+        anchorListeners.add(fn);
+        return () => void anchorListeners.delete(fn);
+      },
+      badge(path, text) {
+        const badges = { ...(ctx.store.get().badges ?? {}) };
+        if (text === null) delete badges[path]; else badges[path] = text;
+        ctx.store.set({ badges });
+      },
+    });
     function render(page: Page): void {
       plugins.unmountAll();
       rendered = { path: page.path, title: page.title };
@@ -182,6 +195,7 @@ export const pageFeature: Feature = {
       else if (anchor !== loadedAnchor) {
         loadedAnchor = anchor;
         scrollToAnchor(anchor, true);
+        for (const fn of Array.from(anchorListeners)) fn(anchor);
       }
     };
 
@@ -194,6 +208,11 @@ export const pageFeature: Feature = {
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "e") {
         e.preventDefault();
         openEditor();
+      }
+      // File > Print (⌘P) prints through the menu in the app; this serves a browser.
+      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "p" && ctx.store.get().mode === "read") {
+        e.preventDefault();
+        doc.defaultView?.print();
       }
     };
     doc.addEventListener("keydown", onKey);
@@ -240,6 +259,7 @@ export const pageFeature: Feature = {
       seq++;
       stopProgress();
       plugins.destroy();
+      anchorListeners.clear();
       offStore();
       offChanged();
       offDraft();

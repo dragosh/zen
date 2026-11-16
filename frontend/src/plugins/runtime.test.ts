@@ -270,3 +270,210 @@ test("destroy cleans up; handlers stay registered for the next runtime", () => {
   rt.mountAll(root);
   expect(w.textContent).toBe("again");
 });
+
+// ---- core/plugin-extras: stream, storage.keys, anchor, badge ----
+
+type Extras = { anchor?: () => string; onAnchor?: (fn: (a: string) => void) => () => void; badge?: (path: string, text: string | null) => void };
+/** Replaces the runtime of beforeEach with one that has the extras wired. */
+function withExtras(extras: Extras = {}) {
+  rt.destroy();
+  rt = installRuntime({ api, navigate: () => {}, page: () => ({ path: "guides/a.md", title: "A" }), ...extras });
+}
+/** Mounts one block of a fresh plugin and returns its ctx. */
+function ctxOf(tag: string = "one"): PluginCtx {
+  const id = fresh();
+  wrapper(id, { name: tag });
+  let got!: PluginCtx;
+  zen().register(id, { mount(_el, ctx) { got = ctx; } });
+  rt.mountAll(root);
+  return got;
+}
+const chunk = (call: string, text: string) => api.emit("plugin:stream", { call, chunk: text, done: false, error: "" });
+const end = (call: string, error = "") => api.emit("plugin:stream", { call, chunk: "", done: true, error });
+
+test("storage.keys lists the plugin's keys, optionally by prefix", async () => {
+  const id = fresh();
+  wrapper(id);
+  let ctx!: PluginCtx;
+  zen().register(id, { mount(_el, c) { ctx = c; } });
+  rt.mountAll(root);
+  await ctx.storage.set("quiz.b", 1);
+  await ctx.storage.set("quiz.a", 2);
+  await ctx.storage.set("other", 3);
+  expect(await ctx.storage.keys("quiz.")).toEqual(["quiz.a", "quiz.b"]);
+  expect(await ctx.storage.keys()).toEqual(["other", "quiz.a", "quiz.b"]);
+  expect(api.callsTo("pluginStorageKeys")).toEqual([[id, "quiz."], [id, ""]]);
+});
+
+test("stream delivers chunks in order and done resolves when Go says so", async () => {
+  const ctx = ctxOf();
+  const got: string[] = [];
+  const s = ctx.stream({ q: 1 }, (c) => got.push(c));
+  await settle();
+  expect(api.callsTo("pluginStream")).toEqual([[ctx.id, "{\"q\":1}"]]);
+  chunk("call-1", "a");
+  chunk("call-1", "b");
+  let resolved = false;
+  void s.done.then(() => { resolved = true; });
+  await settle();
+  expect(resolved).toBe(false);
+  end("call-1");
+  await s.done;
+  expect(got).toEqual(["a", "b"]);
+  chunk("call-1", "after the end");
+  expect(got).toEqual(["a", "b"]);
+});
+
+test("chunks that arrive before the call id is known are not lost", async () => {
+  const ctx = ctxOf();
+  const got: string[] = [];
+  const s = ctx.stream(null, (c) => got.push(c));
+  chunk("call-1", "early");   // pluginStream() has not resolved yet
+  end("call-1");
+  await s.done;
+  expect(got).toEqual(["early"]);
+});
+
+test("done rejects with the stream's error text", async () => {
+  const ctx = ctxOf();
+  const s = ctx.stream("x", () => {});
+  await settle();
+  end("call-1", "exit code 3: boom");
+  await expect(s.done).rejects.toThrow("exit code 3: boom");
+  // a start that fails rejects too
+  api.failNext("pluginStream", new Error("too many streams"));
+  await expect(ctx.stream("y", () => {}).done).rejects.toThrow("too many streams");
+});
+
+test("a ctx only sees the chunks of its own calls", async () => {
+  const got: PluginCtx[] = [];
+  for (const name of ["a", "b"]) {
+    const id = fresh();
+    wrapper(id, { name });
+    zen().register(id, { mount(_el, c) { got.push(c); } });
+  }
+  rt.mountAll(root);
+  const [a, b] = got;
+  const ga: string[] = [];
+  const gb: string[] = [];
+  const sa = a.stream(1, (c) => ga.push(c));
+  const sb = b.stream(2, (c) => gb.push(c));
+  await settle();
+  chunk("call-2", "for b");
+  chunk("call-1", "for a");
+  chunk("call-99", "somebody else's");
+  end("call-1");
+  end("call-2");
+  await Promise.all([sa.done, sb.done]);
+  expect(ga).toEqual(["for a"]);
+  expect(gb).toEqual(["for b"]);
+});
+
+test("cancel tells Go, stops delivery and rejects done with cancelled", async () => {
+  const ctx = ctxOf();
+  const got: string[] = [];
+  const s = ctx.stream(1, (c) => got.push(c));
+  await settle();
+  chunk("call-1", "one");
+  s.cancel();
+  expect(api.callsTo("pluginCancel")).toEqual([["call-1"]]);
+  chunk("call-1", "two");
+  await expect(s.done).rejects.toThrow("cancelled");
+  expect(got).toEqual(["one"]);
+  s.cancel();
+  expect(api.callsTo("pluginCancel")).toHaveLength(1);
+});
+
+test("cancel before the call id is known cancels as soon as it is", async () => {
+  const ctx = ctxOf();
+  const s = ctx.stream(1, () => {});
+  s.cancel();
+  await expect(s.done).rejects.toThrow("cancelled");
+  await settle();
+  expect(api.callsTo("pluginCancel")).toEqual([["call-1"]]);
+});
+
+test("streams started by a block are cancelled when it unmounts", async () => {
+  const id = fresh();
+  wrapper(id);
+  let ctx!: PluginCtx;
+  zen().register(id, { mount(_el, c) { ctx = c; } });
+  rt.mountAll(root);
+  const s1 = ctx.stream(1, () => {});
+  const s2 = ctx.stream(2, () => {});
+  s1.done.catch(() => {});
+  s2.done.catch(() => {});
+  await settle();
+  end("call-2");
+  await s2.done;
+  rt.unmountAll();
+  expect(api.callsTo("pluginCancel")).toEqual([["call-1"]]); // the finished one is not cancelled again
+  await expect(s1.done).rejects.toThrow("cancelled");
+  // nothing is left listening after the page is gone
+  expect(() => chunk("call-1", "late")).not.toThrow();
+});
+
+test("an onChunk that throws does not break the stream", async () => {
+  const ctx = ctxOf();
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const got: string[] = [];
+  const s = ctx.stream(1, (c) => { got.push(c); if (c === "a") throw new Error("handler bug"); });
+  await settle();
+  chunk("call-1", "a");
+  chunk("call-1", "b");
+  end("call-1");
+  await s.done;
+  expect(got).toEqual(["a", "b"]);
+});
+
+test("anchor() and onAnchor(): current anchor, changes, removal on unmount", () => {
+  let current = "intro";
+  const subs = new Set<(a: string) => void>();
+  withExtras({ anchor: () => current, onAnchor: (fn) => { subs.add(fn); return () => void subs.delete(fn); } });
+  const ctx = ctxOf();
+  expect(ctx.anchor()).toBe("intro");
+  current = "next";
+  expect(ctx.anchor()).toBe("next");
+  const seen: string[] = [];
+  const off = ctx.onAnchor((a) => seen.push(a));
+  const off2 = ctx.onAnchor(() => {});
+  expect(subs.size).toBe(2);
+  subs.forEach((fn) => fn("part-2"));
+  expect(seen).toEqual(["part-2"]);
+  off2();
+  expect(subs.size).toBe(1);
+  expect(typeof off).toBe("function");
+  rt.unmountAll();
+  expect(subs.size).toBe(0);
+});
+
+test("anchor() is empty and onAnchor harmless when the host does not provide them", () => {
+  const ctx = ctxOf();
+  expect(ctx.anchor()).toBe("");
+  expect(() => ctx.onAnchor(() => {})()).not.toThrow();
+  expect(() => ctx.badge("a.md", "x")).not.toThrow();
+});
+
+test("badge(path, text) sets and clears a label, at most 12 characters", () => {
+  const calls: [string, string | null][] = [];
+  withExtras({ badge: (p, t) => void calls.push([p, t]) });
+  const ctx = ctxOf();
+  ctx.badge("guides/a.md", "Done");
+  ctx.badge("guides/a.md", "a very long label indeed");
+  ctx.badge("guides/a.md", null);
+  ctx.badge("guides/a.md", "");
+  ctx.badge("guides/a.md", "  ");
+  expect(calls).toEqual([["guides/a.md", "Done"], ["guides/a.md", "a very long "], ["guides/a.md", null], ["guides/a.md", null], ["guides/a.md", null]]);
+  // a badge outlives the block that set it
+  rt.unmountAll();
+  expect(calls).toHaveLength(5);
+});
+
+test("badge ignores a path that is not a string", () => {
+  const calls: unknown[] = [];
+  withExtras({ badge: (p, t) => void calls.push([p, t]) });
+  const ctx = ctxOf();
+  (ctx.badge as (p: unknown, t: unknown) => void)(42, "x");
+  (ctx.badge as (p: unknown, t: unknown) => void)("", "x");
+  expect(calls).toEqual([]);
+});

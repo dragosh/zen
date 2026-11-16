@@ -10,6 +10,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 
@@ -357,21 +358,59 @@ func (s *state) promptPending() {
 	}
 }
 
-// pluginFor returns the allowed external plugin id and the folder root.
-func (s *state) pluginFor(id string) (*extplugins.Plugin, string, error) {
+// target is a plugin the frontend talks to: a built-in one that is switched
+// on, or an external one the user allowed.
+type target struct {
+	p    plugins.Plugin
+	root string
+	ctx  plugins.Context // with the folder and the plugin's data folder
+}
+
+// target finds plugin id for the open folder. Built-in plugins must be
+// switched on; external ones only when needOn (invoke and stream), storage
+// stays reachable for an allowed plugin that is switched off.
+func (s *state) target(id string, needOn bool) (target, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.ws == nil || s.ext == nil {
-		return nil, "", errNoWorkspace
+		return target{}, errNoWorkspace
 	}
 	if !plugins.ValidName(id) {
-		return nil, "", errors.New("unknown plugin")
+		return target{}, errors.New("unknown plugin")
 	}
-	p := s.ext.active[id]
-	if p == nil {
-		return nil, "", fmt.Errorf("plugin %q is not an allowed external plugin of this folder", id)
+	var p plugins.Plugin
+	builtin := false
+	for _, bp := range s.base.Plugins() {
+		if bp.Manifest().ID == id {
+			p, builtin = bp, true
+		}
 	}
-	return p, s.ext.root, nil
+	if !builtin {
+		ep := s.ext.active[id]
+		if ep == nil {
+			return target{}, fmt.Errorf("plugin %q is not an allowed plugin of this folder", id)
+		}
+		p = ep
+	}
+	var ctx plugins.Context
+	if s.reg != nil && s.cfg != nil {
+		set, _ := s.reg.Enabled(s.cfg.ForPage(nil).Plugin, nil)
+		on := false
+		for _, ep := range set.Plugins() {
+			if ep == p {
+				on = true
+			}
+		}
+		if !on && (builtin || needOn) {
+			return target{}, fmt.Errorf("plugin %q is switched off", id)
+		}
+		ctx = set.Context(id, s.current)
+	}
+	ctx.Workspace = s.ext.root
+	if d := s.dataDir(s.ext.root, id); d != "" {
+		ctx.DataDir = filepath.Join(d, "files")
+	}
+	return target{p: p, root: s.ext.root, ctx: ctx}, nil
 }
 
 var storeLocks sync.Map // storage file -> *sync.Mutex
@@ -391,11 +430,11 @@ func validKey(k string) error {
 }
 
 func (s *state) storagePath(id string) (string, error) {
-	_, root, err := s.pluginFor(id)
+	t, err := s.target(id, false)
 	if err != nil {
 		return "", err
 	}
-	dir := s.dataDir(root, id)
+	dir := s.dataDir(t.root, id)
 	if dir == "" {
 		return "", errors.New("no settings folder on this system")
 	}
@@ -487,36 +526,22 @@ func (z *Zen) PluginStorageSet(id, key, value string) error {
 	return nil
 }
 
-// PluginInvoke runs an external plugin's action hook with a JSON payload and
-// returns the JSON it prints ("null" for no output).
+// PluginInvoke runs a plugin's action hook (a built-in ActionHook, or an
+// external backend with ZEN_HOOK=action) with a JSON payload and returns the
+// JSON it answers ("null" for no output).
 func (z *Zen) PluginInvoke(id, payload string) (string, error) {
 	if !json.Valid([]byte(payload)) {
 		return "", errors.New("the payload is not valid JSON")
 	}
-	p, _, err := z.state.pluginFor(id)
+	t, err := z.state.target(id, true)
 	if err != nil {
 		return "", err
 	}
-	z.state.mu.Lock()
-	var ctx plugins.Context
-	enabled := false
-	if z.state.reg != nil && z.state.cfg != nil {
-		set, _ := z.state.reg.Enabled(z.state.cfg.ForPage(nil).Plugin, nil)
-		for _, ep := range set.Plugins() {
-			if ep == plugins.Plugin(p) {
-				enabled = true
-			}
-		}
-		ctx = set.Context(id, z.state.current)
-	}
-	z.state.mu.Unlock()
-	if !p.HasHook("action") {
+	h, ok := plugins.ActionHookOf(t.p)
+	if !ok {
 		return "", fmt.Errorf("plugin %q does not declare the action hook", id)
 	}
-	if !enabled {
-		return "", fmt.Errorf("plugin %q is switched off", id)
-	}
-	out, err := p.Action(ctx, []byte(payload))
+	out, err := h.Action(t.ctx, []byte(payload))
 	if err != nil {
 		return "", fmt.Errorf("plugin %q: %v", id, err)
 	}
@@ -528,4 +553,29 @@ func (z *Zen) PluginInvoke(id, payload string) (string, error) {
 		return "", fmt.Errorf("plugin %q did not answer with JSON", id)
 	}
 	return string(out), nil
+}
+
+// PluginStorageKeys lists the plugin's storage keys that start with prefix
+// ("" for all), sorted.
+func (z *Zen) PluginStorageKeys(id, prefix string) ([]string, error) {
+	if prefix != "" {
+		if err := validKey(prefix); err != nil {
+			return nil, err
+		}
+	}
+	path, err := z.state.storagePath(id)
+	if err != nil {
+		return nil, err
+	}
+	mu := lockFor(path)
+	mu.Lock()
+	defer mu.Unlock()
+	keys := []string{}
+	for k := range readStore(path) {
+		if strings.HasPrefix(k, prefix) {
+			keys = append(keys, k)
+		}
+	}
+	sort.Strings(keys)
+	return keys, nil
 }

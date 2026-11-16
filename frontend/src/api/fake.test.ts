@@ -180,3 +180,32 @@ test("pages have no layout by default; decorate shapes what page() and preview()
   expect(p.html).toContain("data-zen-layout");
   expect((await api.preview("README.md", "# X")).layout).toBe("slides");
 });
+
+test("plugin streams: call ids, recorded calls, events through on(), cancel", async () => {
+  const api = createFakeApi();
+  const events: unknown[] = [];
+  const off = api.on("plugin:stream", (e) => events.push(e));
+  const a = await api.pluginStream("sandbox", "{\"cmd\":\"ls\"}");
+  const b = await api.pluginStream("sandbox", "{}");
+  expect(a).not.toBe(b);
+  expect(api.callsTo("pluginStream")).toEqual([["sandbox", "{\"cmd\":\"ls\"}"], ["sandbox", "{}"]]);
+  api.emit("plugin:stream", { call: a, chunk: "x", done: false, error: "" });
+  expect(events).toEqual([{ call: a, chunk: "x", done: false, error: "" }]);
+  await api.pluginCancel(a);
+  expect(api.callsTo("pluginCancel")).toEqual([[a]]);
+  off();
+  api.emit("plugin:stream", { call: a, chunk: "y", done: false, error: "" });
+  expect(events).toHaveLength(1);
+  api.failNext("pluginStream", new Error("busy"));
+  await expect(api.pluginStream("sandbox", "1")).rejects.toThrow("busy");
+});
+
+test("pluginStorageKeys lists a plugin's keys sorted, filtered by prefix", async () => {
+  const api = createFakeApi();
+  expect(await api.pluginStorageKeys("quiz", "")).toEqual([]);
+  for (const k of ["q.b", "q.a", "z"]) await api.pluginStorageSet("quiz", k, "1");
+  await api.pluginStorageSet("other", "q.c", "1");
+  expect(await api.pluginStorageKeys("quiz", "q.")).toEqual(["q.a", "q.b"]);
+  expect(await api.pluginStorageKeys("quiz", "")).toEqual(["q.a", "q.b", "z"]);
+  expect(api.callsTo("pluginStorageKeys")).toHaveLength(3);
+});

@@ -241,6 +241,11 @@ func Run(opts Options) error {
 			}
 		}()
 	})
+	// File > Print (Cmd+P): the main window's page prints through the web
+	// view's own window.print(); page.css has the @media print rules.
+	file.Add("Print…").SetAccelerator("CmdOrCtrl+P").OnClick(func(*application.Context) {
+		win.ExecJS("window.print()")
+	})
 	file.AddSeparator()
 	file.AddRole(application.CloseWindow)
 	menu.AddRole(application.EditMenu)

@@ -477,8 +477,8 @@ func TestPluginStorage(t *testing.T) {
 		t.Fatalf("after freeing space: %v", err)
 	}
 
-	// Refusals: built-ins, unknown ids, path tricks.
-	for _, id := range []string{"highlight", "diagram", "nope", "", "../hello", "hello/..", "lint"} {
+	// Refusals: unknown ids, path tricks (built-ins: see TestBuiltinActionAndStorage).
+	for _, id := range []string{"nope", "", "../hello", "hello/..", "lint"} {
 		if err := z.PluginStorageSet(id, "k", `1`); err == nil {
 			t.Errorf("set for %q accepted", id)
 		}
@@ -591,5 +591,151 @@ func TestLayoutInPageJSON(t *testing.T) {
 	raw, _ = json.Marshal(plain)
 	if !strings.Contains(string(raw), `"layout":""`) {
 		t.Errorf("JSON of a plain page: %s", raw)
+	}
+}
+
+func TestPluginStorageKeys(t *testing.T) {
+	dir := pluginTree(t, pluginDocs())
+	z, _, _ := openWith(t, dir, t.TempDir(), true)
+	if got, err := z.PluginStorageKeys("hello", ""); err != nil || got == nil || len(got) != 0 {
+		t.Fatalf("empty store: %#v %v", got, err)
+	}
+	for _, k := range []string{"quiz.b", "quiz.a", "other", "quiz.c.d", "Quiz.x"} {
+		if err := z.PluginStorageSet("hello", k, `1`); err != nil {
+			t.Fatal(err)
+		}
+	}
+	got, err := z.PluginStorageKeys("hello", "quiz.")
+	if err != nil || strings.Join(got, ",") != "quiz.a,quiz.b,quiz.c.d" {
+		t.Fatalf("prefix: %v %v", got, err)
+	}
+	if got, _ := z.PluginStorageKeys("hello", ""); strings.Join(got, ",") != "Quiz.x,other,quiz.a,quiz.b,quiz.c.d" {
+		t.Fatalf("all, sorted: %v", got)
+	}
+	if got, err := z.PluginStorageKeys("hello", "zzz"); err != nil || got == nil || len(got) != 0 {
+		t.Fatalf("no match: %#v %v", got, err)
+	}
+	for _, bad := range []string{"a b", "a/b", "../x", "k\n", strings.Repeat("k", 65), "a:b"} {
+		if _, err := z.PluginStorageKeys("hello", bad); err == nil {
+			t.Errorf("prefix %q accepted", bad)
+		}
+	}
+	for _, id := range []string{"nope", "", "../hello", "lint"} {
+		if _, err := z.PluginStorageKeys(id, ""); err == nil {
+			t.Errorf("keys of %q accepted", id)
+		}
+	}
+	if err := z.PluginTrust("hello", false); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := z.PluginStorageKeys("hello", ""); err == nil {
+		t.Error("blocked plugin listed keys")
+	}
+}
+
+func TestBuiltinActionAndStorage(t *testing.T) {
+	files := pluginDocs()
+	files[".zen.yml"] = "version: 1\nplugins:\n  off: false\n"
+	dir := pluginTree(t, files)
+	cfg := t.TempDir()
+	z, _ := openActing(t, dir, cfg, newActor("act"), newActor("off"))
+	if _, err := z.Page("other.md"); err != nil {
+		t.Fatal(err)
+	}
+	root := z.Startup().Workspace.Root
+
+	out, err := z.PluginInvoke("act", `{"n": 2}`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var res struct {
+		Payload   struct{ N int }
+		Data      string
+		Workspace string
+		Page      string
+		Config    map[string]any
+	}
+	if err := json.Unmarshal([]byte(out), &res); err != nil || res.Payload.N != 2 {
+		t.Fatalf("invoke: %q %v", out, err)
+	}
+	if res.Workspace != root || res.Page != "other.md" || res.Config["label"] != "hi" {
+		t.Errorf("context: %+v", res)
+	}
+	// The data folder follows the rule of external plugins.
+	if !strings.HasPrefix(res.Data, filepath.Join(cfg, "data")+string(filepath.Separator)) || filepath.Base(res.Data) != "files" || filepath.Base(filepath.Dir(res.Data)) != "act" {
+		t.Errorf("data dir %q", res.Data)
+	}
+	if _, err := z.PluginInvoke("act", `"fail"`); err == nil || !strings.Contains(err.Error(), "action failed") {
+		t.Errorf("action error: %v", err)
+	}
+	// No ActionHook: refused. Unknown and switched off: refused.
+	for _, id := range []string{"highlight", "diagram", "nope", "off"} {
+		if _, err := z.PluginInvoke(id, `1`); err == nil {
+			t.Errorf("invoke of %q accepted", id)
+		}
+	}
+
+	// Storage works for an enabled built-in, in the same place as for others.
+	if err := z.PluginStorageSet("act", "k", `{"a":1}`); err != nil {
+		t.Fatal(err)
+	}
+	if got, err := z.PluginStorageGet("act", "k"); err != nil || got != `{"a":1}` {
+		t.Fatalf("get: %q %v", got, err)
+	}
+	if keys, _ := z.PluginStorageKeys("act", ""); strings.Join(keys, ",") != "k" {
+		t.Fatalf("keys: %v", keys)
+	}
+	if matches, _ := filepath.Glob(filepath.Join(cfg, "data", "*", "act", "storage.json")); len(matches) != 1 {
+		t.Fatalf("storage file: %v", matches)
+	}
+	// ... but not for a switched-off or unknown one.
+	if err := z.PluginStorageSet("off", "k", `1`); err == nil {
+		t.Error("storage of a switched-off built-in")
+	}
+	if _, err := z.PluginStorageGet("off", "k"); err == nil {
+		t.Error("read of a switched-off built-in")
+	}
+	if _, err := z.PluginStorageKeys("off", ""); err == nil {
+		t.Error("keys of a switched-off built-in")
+	}
+}
+
+func TestUserScopedOptionsFromTheGlobalConfigOnly(t *testing.T) {
+	files := pluginDocs()
+	files[".zen.yml"] = "version: 1\nplugins:\n  act:\n    label: folder\n    images: { evil: \"attacker:latest\" }\n"
+	files["page.md"] = "---\nplugins:\n  act:\n    images: { worse: x }\n---\n# Page\n"
+	dir := pluginTree(t, files)
+	cfg := t.TempDir()
+	if err := os.WriteFile(filepath.Join(cfg, "config.yml"), []byte("version: 1\nplugins:\n  act:\n    images: { node: \"node:20\" }\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	z, _ := openActing(t, dir, cfg, newActor("act"))
+	pg, err := z.Page("page.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, w := range pg.Warnings {
+		if strings.Contains(w, `"images"`) {
+			n++
+		}
+	}
+	if n != 1 {
+		t.Errorf("want one warning about images, got %v", pg.Warnings)
+	}
+	out, err := z.PluginInvoke("act", `1`)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var res struct{ Config map[string]any }
+	if err := json.Unmarshal([]byte(out), &res); err != nil {
+		t.Fatal(err)
+	}
+	images, _ := res.Config["images"].(map[string]any)
+	if len(images) != 1 || images["node"] != "node:20" {
+		t.Errorf("images %v", res.Config["images"])
+	}
+	if res.Config["label"] != "folder" {
+		t.Errorf("a normal option should still come from the folder: %v", res.Config["label"])
 	}
 }

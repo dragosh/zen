@@ -1,10 +1,10 @@
 // In-memory Api for development in a browser and for tests: a three-page
 // sample workspace, emit() to simulate Go events, and a record of every call.
-import type { Api, Crumb, Draft, LintResult, NavNode, Page, PluginInfo, Startup, Workspace } from "./index";
+import type { Api, Crumb, Draft, LintResult, NavNode, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
 
 type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig"
-  | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke";
-type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft };
+  | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys";
+type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent };
 
 export type FakeOptions = {
   /** What startup() resolves to. Default: no workspace (welcome screen). */
@@ -129,7 +129,9 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     "page:changed": new Set(),
     "workspace:opened": new Set(),
     "page:draft": new Set(),
+    "plugin:stream": new Set(),
   };
+  let streamCount = 0;
   const failures = new Map<Method, Error>();
   let tree: NavNode[] = (startup.workspace ?? sampleWorkspace()).tree;
 
@@ -220,6 +222,10 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
       const r = typeof api.invokeResult === "function" ? (api.invokeResult as (id: string, payload: unknown) => unknown)(id, JSON.parse(json)) : api.invokeResult;
       return JSON.stringify(r ?? null);
     }),
+    pluginStorageKeys: (id, prefix) => call("pluginStorageKeys", [id, prefix], () =>
+      Array.from(storage.get(id)?.keys() ?? []).filter((k) => k.startsWith(prefix)).sort()),
+    pluginStream: (id, json) => call("pluginStream", [id, json], () => `call-${++streamCount}`),
+    pluginCancel: (callId) => call("pluginCancel", [callId], () => undefined),
     on(event: keyof Events, fn: (p: never) => void) {
       const set = listeners[event] as Set<(p: never) => void>;
       set.add(fn);

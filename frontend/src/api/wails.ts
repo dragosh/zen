@@ -146,7 +146,24 @@ const api: Api = {
   async pluginInvoke(id, json) {
     return (await call(Zen.PluginInvoke(id, json))) ?? "";
   },
-  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft", fn: (p: any) => void): () => void {
+  async pluginStorageKeys(id, prefix) {
+    const list = (await call(Zen.PluginStorageKeys(id, prefix))) as string[] | null;
+    return (list ?? []).map(String);
+  },
+  async pluginStream(id, json) {
+    return String((await call(Zen.PluginStream(id, json))) ?? "");
+  },
+  async pluginCancel(callId) {
+    await call(Zen.PluginCancel(callId));
+  },
+  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream", fn: (p: any) => void): () => void {
+    if (event === "plugin:stream") {
+      return Events.On("plugin:stream", (e: { data: unknown }) => {
+        const d = payload(e.data) as { call?: unknown; chunk?: unknown; done?: unknown; error?: unknown } | null;
+        if (typeof d?.call !== "string" || !d.call) return;
+        fn({ call: d.call, chunk: typeof d.chunk === "string" ? d.chunk : "", done: d.done === true, error: typeof d.error === "string" ? d.error : "" });
+      });
+    }
     if (event === "page:draft") {
       return Events.On("editor:draft", (e: { data: unknown; sender?: string }) => {
         if (e.sender === ownName) return;

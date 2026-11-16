@@ -33,6 +33,8 @@ export type Alert = {
 };
 /** An editor's unsaved text shared with other windows; content null = draft gone. */
 export type Draft = { path: string; content: string | null };
+/** One piece of a plugin stream (core/plugin-extras): a chunk, or the end (`done`, with `error` "" on success). */
+export type PluginStreamEvent = { call: string; chunk: string; done: boolean; error: string };
 /** available is false when Vale is missing or linting is switched off: show nothing. */
 export type LintResult = { available: boolean; alerts: Alert[] };
 
@@ -68,11 +70,19 @@ export interface Api {
   pluginStorageSet(id: string, key: string, json: string): Promise<void>;
   /** Runs the plugin's backend with ZEN_HOOK=action; JSON text in, JSON text out. */
   pluginInvoke(id: string, json: string): Promise<string>;
+  /** The storage keys of a plugin that start with prefix ("" for all), sorted. */
+  pluginStorageKeys(id: string, prefix: string): Promise<string[]>;
+  /** Starts the plugin's stream; resolves to the call id. Output arrives as "plugin:stream" events. */
+  pluginStream(id: string, json: string): Promise<string>;
+  /** Cancels a stream; it ends with error "cancelled". */
+  pluginCancel(call: string): Promise<void>;
   on(event: "workspace:changed", fn: (w: Workspace) => void): () => void;
   /** Also delivered when another window saved the page ("editor:saved"). */
   on(event: "page:changed", fn: (e: { path: string }) => void): () => void;
   /** The app opened another folder (Finder "Open With", File > Open Folder). */
   on(event: "workspace:opened", fn: (s: Startup) => void): () => void;
+  /** Chunks and the end of plugin streams, of every window (call ids are random; see plugins/runtime.ts). */
+  on(event: "plugin:stream", fn: (e: PluginStreamEvent) => void): () => void;
   /** Another window's unsaved text for a page (see draft); content null = draft gone. */
   on(event: "page:draft", fn: (d: Draft) => void): () => void;
 }

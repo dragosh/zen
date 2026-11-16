@@ -30,14 +30,18 @@ const (
 	maxManifest    = 256 << 10
 	defaultTimeout = 5 * time.Second
 	maxTimeout     = 60 * time.Second
+	// A plugin with the stream hook may ask for longer; it is the stream's limit.
+	maxStreamTimeout     = 10 * time.Minute
+	defaultStreamTimeout = 60 * time.Second
 )
 
-var validHooks = map[string]bool{"source": true, "block": true, "inline": true, "html": true, "action": true}
+var validHooks = map[string]bool{"source": true, "block": true, "inline": true, "html": true, "action": true, "stream": true}
 
 type rawOption struct {
 	Type        string `yaml:"type"`
 	Default     any    `yaml:"default"`
 	Description string `yaml:"description"`
+	Scope       string `yaml:"scope"`
 }
 
 type rawAllow struct {
@@ -77,6 +81,26 @@ type backend struct {
 	hooks   map[string]bool
 	text    bool // output: text
 	timeout time.Duration
+	// timeoutSet: the manifest gave a timeout (streams default to 60s otherwise).
+	timeoutSet bool
+}
+
+// callTimeout is the limit of a hook call other than a stream: the manifest's
+// timeout, never over 60s.
+func (p *Plugin) callTimeout() time.Duration {
+	if p.back.timeout > maxTimeout {
+		return maxTimeout
+	}
+	return p.back.timeout
+}
+
+// streamTimeout is the limit of a stream: the manifest's timeout (up to 10m),
+// 60s when it gave none.
+func (p *Plugin) streamTimeout() time.Duration {
+	if p.back.timeoutSet {
+		return p.back.timeout
+	}
+	return defaultStreamTimeout
 }
 
 // Runtime is what a plugin learns about the folder it runs for. Bind it
@@ -116,7 +140,7 @@ func (p *Plugin) Dir() string { return p.dir }
 func (p *Plugin) Bind(rt Runtime) { p.rt.Store(&rt) }
 
 // HasHook reports whether the manifest declares the hook (source, block,
-// inline, html or action).
+// inline, html, action or stream).
 func (p *Plugin) HasHook(name string) bool { return p.back != nil && p.back.hooks[name] }
 
 // Entry lists the frontend files (plugins.AssetProvider).
@@ -219,7 +243,12 @@ func Load(dir string) (*Plugin, error) {
 		if err != nil {
 			return nil, fmt.Errorf("option %q: %v", name, err)
 		}
-		m.Config[name] = plugins.Option{Type: o.Type, Default: def, Description: o.Description}
+		switch o.Scope {
+		case "", plugins.ScopeUser:
+		default:
+			return nil, fmt.Errorf("option %q: scope %q is not user", name, o.Scope)
+		}
+		m.Config[name] = plugins.Option{Type: o.Type, Default: def, Description: o.Description, Scope: o.Scope}
 	}
 	for _, a := range raw.Allow {
 		if strings.TrimSpace(a.Element) == "" {
@@ -273,8 +302,24 @@ func optionDefault(o rawOption) (any, error) {
 		if s, ok := o.Default.(string); ok {
 			return s, nil
 		}
+	case "map", "list":
+		if o.Default == nil {
+			v, _ := plugins.CoerceOption(o.Type, map[string]any{})
+			if o.Type == "list" {
+				v, _ = plugins.CoerceOption(o.Type, []any{})
+			}
+			return v, nil
+		}
+		if v, ok := plugins.CoerceOption(o.Type, o.Default); ok {
+			return v, nil
+		}
+		what := "a mapping of strings"
+		if o.Type == "list" {
+			what = "a list of strings"
+		}
+		return nil, fmt.Errorf("default %v is not %s", o.Default, what)
 	default:
-		return nil, fmt.Errorf("type %q is not string, bool or int", o.Type)
+		return nil, fmt.Errorf("type %q is not string, bool, int, map or list", o.Type)
 	}
 	return nil, fmt.Errorf("default %v is not of type %s", o.Default, o.Type)
 }
@@ -299,7 +344,7 @@ func loadBackend(real string, rb *rawBackend) (*backend, error) {
 		}
 	}
 	if len(rb.Hooks) == 0 {
-		return nil, errors.New("backend.hooks is empty (any of: source, block, inline, html, action)")
+		return nil, errors.New("backend.hooks is empty (any of: source, block, inline, html, action, stream)")
 	}
 	for _, h := range rb.Hooks {
 		if !validHooks[h] {
@@ -319,10 +364,14 @@ func loadBackend(real string, rb *rawBackend) (*backend, error) {
 		if err != nil || d <= 0 {
 			return nil, fmt.Errorf("backend.timeout %q is not a duration such as 5s", rb.Timeout)
 		}
-		if d > maxTimeout {
-			return nil, fmt.Errorf("backend.timeout %s is over the limit of %s", rb.Timeout, maxTimeout)
+		limit := maxTimeout
+		if b.hooks["stream"] {
+			limit = maxStreamTimeout
 		}
-		b.timeout = d
+		if d > limit {
+			return nil, fmt.Errorf("backend.timeout %s is over the limit of %s", rb.Timeout, limit)
+		}
+		b.timeout, b.timeoutSet = d, true
 	}
 	return b, nil
 }

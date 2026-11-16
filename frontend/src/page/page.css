@@ -115,3 +115,14 @@
   font: 13px/1.5 var(--font-mono);
   white-space: pre-wrap;
 }
+
+/* Print (File > Print, Cmd+P): only the article, on the whole page. Plugins
+   may add their own rules for what they draw. */
+@media print {
+  html, body, #app { height: auto; overflow: visible; }
+  .zen-sidebar, .zen-resizer, .zen-top, .zen-actions, .zen-progress, .zen-page-warnings, .zen-page-error { display: none !important; }
+  .zen-frame, .zen-content, .zen-main { display: block; height: auto; overflow: visible; }
+  .zen-page { max-width: none; width: auto; padding: 0; }
+  pre, blockquote, table, img { break-inside: avoid; }
+  h1, h2, h3, h4, h5, h6 { break-after: avoid; }
+}

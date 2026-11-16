@@ -74,3 +74,16 @@ test("breadcrumb follows store page and dirty flag in edit mode", async () => {
   shell.store.set({ mode: "read" });
   expect(bc.querySelector('[title="Unsaved changes"]')).toBeNull();
 });
+
+test("badges in the store are shown after the title and follow changes", async () => {
+  await boot();
+  const badge = (path: string) => item(nav(), path).querySelector<HTMLElement>(".zen-nav-badge");
+  expect(badge("guides/install.md")).toBeNull();
+  shell.store.set({ badges: { "guides/install.md": "3/5" } });
+  expect(badge("guides/install.md")!.textContent).toBe("3/5");
+  shell.store.set({ badges: { "guides/install.md": "4/5", "README.md": "new" } });
+  expect(badge("guides/install.md")!.textContent).toBe("4/5");
+  expect(badge("README.md")!.textContent).toBe("new");
+  shell.store.set({ badges: {} });
+  expect(badge("guides/install.md")).toBeNull();
+});
