@@ -173,12 +173,17 @@ func TestDemoFolder(t *testing.T) {
 	if words == nil || words[1] != strconv.Itoa(len(strings.Fields(string(src)))) {
 		t.Errorf("wordcount inline on the how-to: %v (want %d)\n%s", words, len(strings.Fields(string(src))), how.HTML)
 	}
-	if !strings.Contains(how.HTML, `data-zen-plugin="wordcount" data-zen-name="pages"`) || !strings.Contains(how.HTML, "reading/navigation.md") {
-		t.Errorf("wordcount pages block did not list the pages: %s", how.HTML)
+	list := regexp.MustCompile(`(?s)data-zen-plugin="wordcount" data-zen-name="pages"[^>]*><ul class="pages">(.*?)</ul>`).FindStringSubmatch(how.HTML)
+	if list == nil || strings.Count(list[1], "<li>") != 5 || !strings.Contains(list[1], "<li>zen user guide (README.md): ") || !strings.Contains(list[1], " words</li>") {
+		t.Errorf("wordcount pages block did not list five pages: %v", list)
 	}
-	caution, err := z.Preview("plugins/directives.md", ":::caution{title=\"Careful\"}\nMind the *gap* <b>x</b>.\n:::\n")
+	everyPage, err := z.Preview("plugins/directives.md", ":::pages\n:::\n")
+	if err != nil || strings.Count(everyPage.HTML, "<li>") != len(files) || !strings.Contains(everyPage.HTML, "reading/navigation.md") {
+		t.Errorf("wordcount pages without a limit: %v %d items for %d pages", err, strings.Count(everyPage.HTML, "<li>"), len(files))
+	}
+	caution, err := z.Preview("plugins/directives.md", ":::caution{title=\"Careful\"}\nMind the *gap* <i onclick=\"x()\">x</i>.\n:::\n")
 	if err != nil || !strings.Contains(caution.HTML, `<div class="callout caution">`) || !strings.Contains(caution.HTML, "Careful") ||
-		!strings.Contains(caution.HTML, "<em>gap</em>") || strings.Contains(caution.HTML, "<b>x</b>") {
+		!strings.Contains(caution.HTML, "<em>gap</em>") || strings.Contains(caution.HTML, "onclick") {
 		t.Errorf("caution block: %v %s", err, caution.HTML)
 	}
 	warn, err := z.Preview("plugins/directives.md", ":::warning\nMind the <gap> & co.\n:::\n")

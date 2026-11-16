@@ -167,7 +167,7 @@ func TestParseOption(t *testing.T) {
 }
 
 func TestContainmentHelpers(t *testing.T) {
-	real := t.TempDir()
+	real, _ := filepath.EvalSymlinks(t.TempDir())
 	os.MkdirAll(filepath.Join(real, "sub"), 0o755)
 	os.WriteFile(filepath.Join(real, "sub", "f.txt"), []byte("x"), 0o644)
 	outside := filepath.Join(t.TempDir(), "o.txt")

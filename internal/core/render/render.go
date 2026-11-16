@@ -103,7 +103,7 @@ func (r *Renderer) Render(pagePath string, src []byte) (Page, error) {
 		}
 		id := p.Manifest().ID
 		var out []byte
-		err := guard(func() (e error) { out, e = h.Source(set.Context(id, pagePath), body); return })
+		err := guard(func() (e error) { out, e = h.Source(st.ctx(id), body); return })
 		if err != nil {
 			st.warn(id, err)
 			continue
@@ -137,7 +137,7 @@ func (r *Renderer) Render(pagePath string, src []byte) (Page, error) {
 		}
 		id := p.Manifest().ID
 		var res string
-		err := guard(func() (e error) { res, e = h.HTML(set.Context(id, pagePath), out); return })
+		err := guard(func() (e error) { res, e = h.HTML(st.ctx(id), out); return })
 		if err != nil {
 			st.warn(id, err)
 			continue

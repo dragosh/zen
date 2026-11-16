@@ -31,14 +31,17 @@ How plugins are written into markdown: [plugin syntax](directives.md).
 
 ## Your own plugins
 
-A plugin is a folder with a `plugin.yml`: a program zen runs, scripts and
-styles for the page, or both. This folder carries three in `.zen/plugins/`:
+A plugin is one Tengo file zen runs itself, or a folder with a `plugin.yml`: a
+program zen runs, scripts and styles for the page, or both. This folder carries
+five in `.zen/plugins/`:
 
 | Plugin | Does | Made of |
 |---|---|---|
 | `note` | callout boxes | a shell script |
 | `calc` | sums, worked out by `bc` | a `plugin.yml` only |
 | `progress` | checklists that remember what you ticked | JavaScript and CSS |
+| `callout` | tip and caution boxes | one Tengo file |
+| `wordcount` | the words of a page, and a list of every page | a Tengo file that reads the folder |
 
 zen asks before it uses them for the first time. The cog lists every plugin
 with an Allow or Block button. To make one, read

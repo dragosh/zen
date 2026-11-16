@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | specified |
+| Status | done |
 | Target version | 0.2.0 |
 | Depends on | core/extplugins, core/plugin-extras |
 | Branch | `feature/core-script-plugins` |
@@ -92,3 +92,45 @@ silent allow — but the prompt describes them truthfully:
 2. Discovery: `*.tengo` and `*/plugin.tengo` next to `plugin.yml` folders; same id rules, same registry.
 3. Demo: add `examples/demo/.zen/plugins/callout.tengo` (single file: `:::tip` / `:::caution` callouts with inline CSS and `zen.markdown` for the body) and `examples/demo/.zen/plugins/wordcount/plugin.tengo` (folder form, `permissions: ["read"]`, an inline `:words[]` showing the page's word count and a `:::pages` block listing every page with its word count via `zen.pages()` + `zen.read()`). Keep `note` (shell) as the program example. In `writing-plugins.md` add "The simplest plugin: one Tengo file" first, before the program section, with both samples' full source, the inputs/`zen` module table, limits, and permissions; use `:::tip` on that page so it renders. `TestDemoFolder` trusts the new samples and asserts they render.
 4. Tests: inputs/outputs per hook (block, inline, source, html, action via `PluginInvoke`), every limit (timeout, allocations, output, file size), permission gating (`zen.read` without `read` fails; paths outside the folder, `..`, symlinks out, non-markdown binary files refused), unknown imports (`os`) refused at load, malformed scripts as page warnings, concurrent calls with `-race`, `zen.html` escaping (attributes and text), `zen.markdown` nesting depth, trust/hash/fingerprint re-prompt after editing the `.tengo` file.
+
+## Notes (from the build)
+
+- **zen.markdown needs the renderer.** A hook only gets a `plugins.Context`, so
+  `Context.Markdown func(src string) (string, error)` was added (core/plugins)
+  and set by core/render for every hook of a page (`state.ctx`), implemented as
+  a fragment of the same render: nested plugins run, their assets count for the
+  page, the HTML is sanitised once with the page, and the existing
+  `maxNesting` (8) bounds the depth through `state.depth`. `Zen.PluginInvoke`
+  sets it for actions from the renderer of the open folder. This touches
+  `internal/core/{plugins,render}`, outside the Owns row.
+- **Shared trust code.** `extplugins` exports `Subject` (what `Trust` decides
+  on: `Dir`, `Hash`, `Changed`), `Guard` (the fingerprint re-check, now used by
+  `Plugin` too), `ScanFolder`/`FolderFingerprint`/`HashFile`/`FileFingerprint`,
+  `ReadRegular`/`ResolveInside`/`CheckInside`/`InsideRel` and `ParseOption`, so
+  script plugins reuse the hardening and do not copy it. A single `.tengo` file
+  must be a regular file (a symlink could be repointed without changing the
+  fingerprint); in the folder form the rules are the folder's.
+- **The Tengo allocation budget does not bound memory.** `SetMaxAllocs` counts
+  objects, so `x = x + x` (arrays) or `s = s + s` (strings, 2 GB by default)
+  reached gigabytes in tens of milliseconds. zen sets `tengo.MaxStringLen` and
+  `MaxBytesLen` to 4 MB and watches the heap during a call (stop at +256 MB).
+  The heap figure is process-wide, so a very busy app could in theory stop an
+  innocent call; the limit is far above what a page render allocates.
+- **Withheld from the allowed modules:** `times.sleep` (blocks without
+  honouring the timeout) and `fmt.print`, `println`, `printf` (write to zen's
+  stdout).
+- **Known gap, not fixed: self-containing values crash the app.** `m := {};
+  m.self = m` is legal Tengo; `string(m)`, `m == m2`, `copy(m)` and `"s" + m`
+  then recurse until the Go stack overflows, a fatal error nothing can
+  recover. Verified with a bare `tengo.Script` (no zen code involved). Tengo has
+  several ways to make a cycle (index assignment, `splice`, `append` that
+  shares a backing array), so refusing one syntax is not enough. Options for the
+  lead: patch/vendor Tengo, run scripts in a helper process, or accept it for
+  plugins the user allowed after a prompt that says they cannot run programs
+  (it can stop the app, not read anything).
+- **Allocation figures.** 500 000 objects is about 150 000 loop iterations of
+  `n += i % 7` (every number made counts), so loops over a few thousand items
+  are fine and the demo plugins use a small fraction.
+- `plugin` map keys beyond the spec: `hooks` (source, html, action), `timeout`,
+  `options`, `default`, and for the folder form `js` and `stylesheets`.
+  `import("zen")` is not available; `zen` is a global.

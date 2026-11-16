@@ -123,10 +123,8 @@ type Plugin struct {
 	frontend plugins.Assets
 	rt       atomic.Pointer[Runtime]
 
-	hash        string // SHA-256 of the folder when it was loaded (what the user approves)
-	fingerprint string // cheap fingerprint of the folder when it was loaded
-	changed     atomic.Bool
-	onChange    atomic.Pointer[func()]
+	hash  string // SHA-256 of the folder when it was loaded (what the user approves)
+	guard *Guard // cheap fingerprint of the folder when it was loaded
 }
 
 // Invalid describes a plugin folder that was rejected.
@@ -141,6 +139,15 @@ func (p *Plugin) Manifest() plugins.Manifest { return p.man }
 
 // External marks plugins that run programs.
 func (p *Plugin) External() bool { return true }
+
+// Kind is "program" for a plugin with a backend and "page" for one that only
+// ships frontend files.
+func (p *Plugin) Kind() string {
+	if p.back != nil {
+		return "program"
+	}
+	return "page"
+}
 
 // Dir is the real path of the plugin folder.
 func (p *Plugin) Dir() string { return p.dir }
@@ -223,7 +230,7 @@ func Load(dir string) (*Plugin, error) {
 	if !plugins.ValidSemVer(raw.Version) {
 		return nil, fmt.Errorf("version %q is not valid SemVer (such as 1.0.0)", raw.Version)
 	}
-	p := &Plugin{dir: real, hash: hash, fingerprint: fp}
+	p := &Plugin{dir: real, hash: hash, guard: NewGuard(fp, func() (string, error) { return FolderFingerprint(real) })}
 	m := plugins.Manifest{
 		ID: raw.ID, Version: raw.Version, APIVersion: plugins.APIVersion,
 		Description: raw.Description, Default: raw.Default == nil || *raw.Default,

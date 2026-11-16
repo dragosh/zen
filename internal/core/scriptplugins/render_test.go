@@ -31,11 +31,11 @@ func TestMarkdownRendersThroughThePipeline(t *testing.T) {
 if hook == "block" { out = zen.html("div", {class: "note"}, zen.markdown(body)) }
 if hook == "inline" { out = zen.html("em", {}, body) }`)
 	chart := s.plugin("chart", `plugin := {version: "1.0.0", blocks: ["chart"], css: "b{color:blue}"}
-if hook == "block" { out = zen.html("p", {class: "chart"}, body) }`)
+if hook == "block" { out = zen.html("div", {class: "chart"}, body) }`)
 	pg := renderPage(t, []*scriptplugins.Plugin{note, chart}, "# T\n\n:::note\nSome **bold** text :badge[hi]\n\n:::chart\nC\n:::\n\n- one\n- two\n:::\n")
 	for _, want := range []string{
 		`data-zen-plugin="note"`, `<div class="note">`, `<strong>bold</strong>`, `<em>hi</em>`, `<li>one</li>`,
-		`data-zen-plugin="chart"`, `<p class="chart">C</p>`,
+		`data-zen-plugin="chart"`, `<div class="chart">C`,
 	} {
 		if !strings.Contains(pg.HTML, want) {
 			t.Errorf("page lacks %q:\n%s", want, pg.HTML)

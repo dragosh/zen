@@ -21,6 +21,8 @@ export type PluginInfo = {
   runs: string[];
   /** Why an invalid plugin was rejected, "" otherwise. */
   problem: string;
+  /** What it is made of: Go built into zen, a program zen runs, scripts and styles only, or one Tengo file zen runs itself. */
+  kind: "program" | "page" | "script" | "builtin";
 };
 export type Startup = { workspace: Workspace | null; page: string; mode: "read" | "edit" };
 /** One Vale finding (ui/lint). line is 1-based; col and endCol are 1-based rune columns, endCol inclusive. */

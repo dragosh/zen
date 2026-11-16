@@ -22,6 +22,7 @@ const THEMES: { id: Theme; label: string }[] = [
 ];
 
 const SOURCE_LABEL: Record<PluginInfo["source"], string> = { builtin: "Built in", folder: "This folder", user: "Your plugins" };
+const KIND_LABEL: Record<PluginInfo["kind"], string> = { builtin: "built in", program: "program", page: "page scripts", script: "script" };
 const STATUS_LABEL: Record<PluginInfo["status"], string> = {
   on: "On", off: "Off", blocked: "Blocked", undecided: "Not allowed yet", invalid: "Invalid",
 };
@@ -120,7 +121,7 @@ export function createSettings(opts: { api: Api; anchor: HTMLButtonElement; hasW
     head.append(el("span", "zen-settings-plugin-name", p.id));
     if (p.version) head.append(el("span", "zen-settings-plugin-version", p.version));
     head.append(el("span", "zen-settings-plugin-state", STATUS_LABEL[p.status]));
-    text.append(head, el("span", "zen-settings-plugin-hint", SOURCE_LABEL[p.source]));
+    text.append(head, el("span", "zen-settings-plugin-hint", `${SOURCE_LABEL[p.source]} · ${KIND_LABEL[p.kind]}`));
     if (p.runs.length > 0) text.append(el("span", "zen-settings-plugin-runs", `Runs: ${p.runs.join(", ")}`));
     if (p.problem) text.append(el("span", "zen-settings-plugin-problem", p.problem));
     r.append(text);

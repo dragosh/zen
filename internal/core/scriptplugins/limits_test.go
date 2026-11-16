@@ -43,15 +43,19 @@ if hook == "block" { for { } }`)
 	if d > 700*time.Millisecond {
 		t.Errorf("a 50ms timeout took %v", d)
 	}
-	// A longer budget lets work that needs it finish.
-	slow := s.plugin("slow", `plugin := {version: "1.0.0", blocks: ["x"], timeout: "2s"}
-if hook == "block" {
-    n := 0
-    for i := 0; i < 400000; i++ { n += i % 7 }
-    out = string(n)
-}`)
-	if got, err := block(slow, "x", "", nil); err != nil || got == "" {
-		t.Errorf("slow plugin: %q %v", got, err)
+	// A longer budget really is longer.
+	long := s.plugin("long", `plugin := {version: "1.0.0", blocks: ["x"], timeout: "1s"}
+if hook == "block" { for { } }`)
+	d = timed(func() { _, err = block(long, "x", "", nil) })
+	errContains(t, err, "1s")
+	if d < 900*time.Millisecond || d > 2500*time.Millisecond {
+		t.Errorf("a 1s timeout took %v", d)
+	}
+	// 2s is the most that can be asked for.
+	two := s.plugin("two", `plugin := {version: "1.0.0", blocks: ["x"], timeout: "2s"}
+if hook == "block" { out = "ok" }`)
+	if got := mustBlock(t, two, "x", "", nil); got != "ok" {
+		t.Error(got)
 	}
 	for _, bad := range []string{`"3s"`, `"2001ms"`, `"0s"`, `"-1s"`, `"soon"`, `5`, `true`} {
 		err := s.loadErr("bad", `plugin := {version: "1.0.0", blocks: ["x"], timeout: `+bad+`}`)
@@ -84,20 +88,21 @@ func TestContextCancelStopsACall(t *testing.T) {
 
 func TestAllocationBudget(t *testing.T) {
 	s := newSite(t)
-	p := s.plugin("alloc", withHeader(`if hook == "block" {
+	// A long timeout, so that the allocation budget is what stops it, even slowly (-race).
+	p := s.plugin("alloc", `plugin := {version: "1.0.0", blocks: ["x"], timeout: "2s"}`+"\n"+`if hook == "block" {
     a := []
     for i := 0; i < 100000000; i++ { a = append(a, "xxxxxxxx") }
-}`))
+}`)
 	var err error
 	d := timed(func() { _, err = block(p, "x", "", nil) })
 	errContains(t, err, "allocation")
 	if d > time.Second {
 		t.Errorf("the allocation budget took %v to hit", d)
 	}
-	// 500 000 is the budget: well under it works.
+	// 500 000 objects is the budget (every number made counts): well under it works.
 	under := s.plugin("under", withHeader(`if hook == "block" {
     n := 0
-    for i := 0; i < 100000; i++ { s := string(i); n += len(s) }
+    for i := 0; i < 50000; i++ { s := string(i); n += len(s) }
     out = string(n)
 }`))
 	if _, err := block(under, "x", "", nil); err != nil {

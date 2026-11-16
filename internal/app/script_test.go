@@ -323,7 +323,8 @@ if hook == "action" { out = {html: zen.markdown("**" + payload + "**")} }`,
 	}
 	z2, _, _ := openWith(t, pluginTree(t, files), t.TempDir(), true)
 	out, err := z2.PluginInvoke("md", "README.md", `"hi"`)
-	if err != nil || !strings.Contains(out, "<strong>hi</strong>") {
+	var md struct{ HTML string }
+	if err != nil || json.Unmarshal([]byte(out), &md) != nil || !strings.Contains(md.HTML, "<strong>hi</strong>") {
 		t.Errorf("markdown in an action: %q %v", out, err)
 	}
 }
@@ -333,10 +334,10 @@ func TestScriptPluginReadIsLimitedToTheFolder(t *testing.T) {
 	os.WriteFile(secret, []byte("TOP SECRET"), 0o644)
 	files := map[string]string{
 		"README.md": "# H\n\n:::cat\nREADME.md\n:::\n\n:::cat\nleak.md\n:::\n\n:::cat\n../secret.md\n:::\n",
-		".zen/plugins/cat.tengo": `plugin := {version: "1.0.0", blocks: ["cat"], permissions: ["read"]}
-if hook == "block" { out = zen.html("pre", {}, zen.read(text_trim(body))) }`,
+		".zen/plugins/cat.tengo": `text := import("text")
+plugin := {version: "1.0.0", blocks: ["cat"], permissions: ["read"]}
+if hook == "block" { out = zen.html("pre", {}, zen.read(text.trim_space(body))) }`,
 	}
-	files[".zen/plugins/cat.tengo"] = strings.Replace(files[".zen/plugins/cat.tengo"], "text_trim(body)", "body", 1)
 	dir := pluginTree(t, files)
 	os.Symlink(secret, filepath.Join(dir, "leak.md"))
 	z, _, _ := openWith(t, dir, t.TempDir(), true)
@@ -353,7 +354,7 @@ func TestScriptPluginsInTheUserFolderApplyEverywhere(t *testing.T) {
 	cfg := t.TempDir()
 	os.MkdirAll(filepath.Join(cfg, "plugins"), 0o755)
 	os.WriteFile(filepath.Join(cfg, "plugins", "mine.tengo"), []byte(`plugin := {version: "1.0.0", blocks: ["mine"]}
-if hook == "block" { out = zen.html("p", {class: "mine"}, body) }`), 0o644)
+if hook == "block" { out = zen.html("div", {class: "mine"}, body) }`), 0o644)
 	dirA := pluginTree(t, map[string]string{"README.md": "# A\n\n:::mine\nfrom A\n:::\n"})
 	z, _, dl := openWith(t, dirA, cfg, true)
 	if len(dl.asked) != 1 {
@@ -364,7 +365,7 @@ if hook == "block" { out = zen.html("p", {class: "mine"}, body) }`), 0o644)
 	}
 	// The folder's plugin of the same id wins over the user's.
 	files := map[string]string{"README.md": "# B\n\n:::mine\nfrom B\n:::\n", ".zen/plugins/mine.tengo": `plugin := {version: "2.0.0", blocks: ["mine"]}
-if hook == "block" { out = zen.html("p", {class: "folder"}, body) }`}
+if hook == "block" { out = zen.html("div", {class: "folder"}, body) }`}
 	z2, _, _ := openWith(t, pluginTree(t, files), cfg, true)
 	pg, _ := z2.Page("README.md")
 	if got := infoOf(t, z2, "mine"); got.Source != "folder" || got.Version != "2.0.0" || !strings.Contains(pg.HTML, `class="folder"`) {

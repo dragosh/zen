@@ -12,11 +12,12 @@ beforeEach(() => {
 });
 
 const PLUGINS: PluginInfo[] = [
-  { id: "highlight", version: "0.1.0", description: "Code colours", source: "builtin", status: "on", runs: [], problem: "" },
-  { id: "note", version: "0.2.0", description: "Callouts", source: "folder", status: "undecided", runs: ["./note.sh", "scripts in the page"], problem: "" },
-  { id: "calc", version: "0.1.0", description: "", source: "user", status: "on", runs: ["bc -l"], problem: "" },
-  { id: "old", version: "1.0.0", description: "", source: "folder", status: "blocked", runs: ["<img src=x>"], problem: "" },
-  { id: "broken", version: "", description: "", source: "folder", status: "invalid", runs: [], problem: "plugin.yml: id must equal the folder name <b>x</b>" },
+  { id: "highlight", version: "0.1.0", description: "Code colours", source: "builtin", status: "on", runs: [], problem: "", kind: "builtin" },
+  { id: "note", version: "0.2.0", description: "Callouts", source: "folder", status: "undecided", runs: ["./note.sh", "scripts in the page"], problem: "", kind: "program" },
+  { id: "calc", version: "0.1.0", description: "", source: "user", status: "on", runs: ["bc -l"], problem: "", kind: "program" },
+  { id: "shout", version: "0.1.0", description: "", source: "folder", status: "on", runs: ["renders blocks inside zen; cannot read files, run programs or use the network"], problem: "", kind: "script" },
+  { id: "old", version: "1.0.0", description: "", source: "folder", status: "blocked", runs: ["<img src=x>"], problem: "", kind: "program" },
+  { id: "broken", version: "", description: "", source: "folder", status: "invalid", runs: [], problem: "plugin.yml: id must equal the folder name <b>x</b>", kind: "program" },
 ];
 
 function setup(hasWorkspace = true, plugins: PluginInfo[] = []) {
@@ -104,7 +105,7 @@ test("plugins: lists name, version, origin, what runs and status, after the conf
   await settle();
   expect(api.callsTo("plugins")).toHaveLength(1);
   const rows = Array.from(s.el.querySelectorAll<HTMLElement>(".zen-settings-plugin"));
-  expect(rows.map((r) => r.dataset.plugin)).toEqual(["highlight", "note", "calc", "old", "broken"]);
+  expect(rows.map((r) => r.dataset.plugin)).toEqual(["highlight", "note", "calc", "shout", "old", "broken"]);
   const files = s.el.querySelector(".zen-settings-file")!;
   expect(files.compareDocumentPosition(rows[0]) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 
@@ -122,6 +123,11 @@ test("plugins: lists name, version, origin, what runs and status, after the conf
   expect(text("calc")).toContain("Your plugins");
   expect(text("calc")).toContain("bc -l");
   expect(text("old")).toContain("Blocked");
+  // What each plugin is made of.
+  expect(text("highlight")).toContain("built in");
+  expect(text("note")).toContain("program");
+  expect(text("shout")).toContain("script");
+  expect(text("shout")).toContain("cannot read files");
 });
 
 test("plugins: Allow and Block call pluginTrust and refresh the list", async () => {

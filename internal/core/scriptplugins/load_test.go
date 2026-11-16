@@ -51,7 +51,7 @@ func TestInvalidPluginMaps(t *testing.T) {
 func TestSyntaxAndRuntimeErrorsNameTheLine(t *testing.T) {
 	s := newSite(t)
 	err := s.loadErr("syntax", "plugin := {version: \"1.0.0\", blocks: [\"x\"]}\n\nif hook == \"block\" {\n  out = (\n}\n")
-	errContains(t, err, "line 4")
+	errContains(t, err, "line 5")
 	noPath(t, err, s.dir)
 	if strings.Contains(err.Error(), "\n") {
 		t.Errorf("multi-line: %q", err)
