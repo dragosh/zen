@@ -86,7 +86,7 @@ func TestBundleLayout(t *testing.T) {
 		"CFBundlePackageType":        "APPL",
 		"CFBundleIconFile":           "icons",
 		"CFBundleShortVersionString": short,
-		"LSMinimumSystemVersion":     "12.0",
+		"LSMinimumSystemVersion":     "13.0",
 	}
 	for k, w := range want {
 		if got := plist(t, k); got != w {

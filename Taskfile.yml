@@ -50,6 +50,12 @@ tasks:
     summary: Runs Go tests
     deps:
       - task: common:build:frontend
+    env:
+      # Same macOS minimum as the app build (build/darwin/Taskfile.yml),
+      # so the linker does not warn about newer object files.
+      CGO_CFLAGS: "-mmacosx-version-min=13.0"
+      CGO_LDFLAGS: "-mmacosx-version-min=13.0"
+      MACOSX_DEPLOYMENT_TARGET: "13.0"
     cmds:
       - go vet ./...
       - go test ./...

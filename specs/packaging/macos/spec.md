@@ -16,7 +16,7 @@
 
 ## Behaviour
 
-1. `task package` builds `bin/Zen.app` with `Contents/MacOS/zen` (the single binary: GUI and CLI), `Info.plist` (name `Zen`, id `io.github.dragosh.zen`, version per docs/VERSIONING.md, document type markdown and folders, minimum macOS 12), icon, and `Contents/Helpers/` holding every binary listed in `resources.yml` for the target arch.
+1. `task package` builds `bin/Zen.app` with `Contents/MacOS/zen` (the single binary: GUI and CLI), `Info.plist` (name `Zen`, id `io.github.dragosh.zen`, version per docs/VERSIONING.md, document type markdown and folders, minimum macOS 13, the oldest Go 1.27 supports), icon, and `Contents/Helpers/` holding every binary listed in `resources.yml` for the target arch.
 2. `Zen.app/Contents/MacOS/zen --version` prints the stamped version; double-clicking the app opens the welcome screen (no cwd workspace when launched by Finder: detected by the absence of a TTY and cwd `/`).
 3. Opening a folder or markdown file with the app (handled in `internal/app` via `ApplicationOpenedWithFile` and the `workspace:opened` event) (Finder "Open With", `open -a Zen docs/`) opens that workspace.
 4. `task install:cli` links `/usr/local/bin/zen` (or `INSTALL_DIR`) to the binary inside the installed app; `task install` (dev link) keeps working.
