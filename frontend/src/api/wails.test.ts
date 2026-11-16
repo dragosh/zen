@@ -279,33 +279,33 @@ describe("wails api", () => {
     expect(await api.pluginStorageGet("note", "k")).toBe("null");
     await expect(api.pluginStorageSet("note", "k", "2")).resolves.toBeUndefined();
     results.PluginInvoke = "[1]";
-    expect(await api.pluginInvoke("note", "{}")).toBe("[1]");
+    expect(await api.pluginInvoke("note", "a.md", "{}")).toBe("[1]");
     results.PluginInvoke = new Error("plugin \"note\" has no action hook");
-    await expect(api.pluginInvoke("note", "{}")).rejects.toThrow("no action hook");
+    await expect(api.pluginInvoke("note", "a.md", "{}")).rejects.toThrow("no action hook");
 
     expect(calls.map((c) => [c.name, ...c.args])).toEqual([
       ["Plugins"], ["Plugins"],
       ["PluginTrust", "note", true],
       ["PluginStorageGet", "note", "k"], ["PluginStorageGet", "note", "k"],
       ["PluginStorageSet", "note", "k", "2"],
-      ["PluginInvoke", "note", "{}"], ["PluginInvoke", "note", "{}"],
+      ["PluginInvoke", "note", "a.md", "{}"], ["PluginInvoke", "note", "a.md", "{}"],
     ]);
   });
 
   it("plugin streams: start, cancel, keys, and the plugin:stream event", async () => {
     const api = (await import("./wails")).default;
     results.PluginStream = "abc123";
-    expect(await api.pluginStream("sandbox", "{\"a\":1}")).toBe("abc123");
+    expect(await api.pluginStream("sandbox", "p.md", "{\"a\":1}")).toBe("abc123");
     await expect(api.pluginCancel("abc123")).resolves.toBeUndefined();
     results.PluginStorageKeys = ["a", "b"];
     expect(await api.pluginStorageKeys("quiz", "")).toEqual(["a", "b"]);
     results.PluginStorageKeys = null;
     expect(await api.pluginStorageKeys("quiz", "x")).toEqual([]);
     results.PluginStream = new Error("at most 4 streams run at once");
-    await expect(api.pluginStream("sandbox", "1")).rejects.toThrow("at most 4");
+    await expect(api.pluginStream("sandbox", "p.md", "1")).rejects.toThrow("at most 4");
     expect(calls.map((c) => [c.name, ...c.args])).toEqual([
-      ["PluginStream", "sandbox", "{\"a\":1}"], ["PluginCancel", "abc123"],
-      ["PluginStorageKeys", "quiz", ""], ["PluginStorageKeys", "quiz", "x"], ["PluginStream", "sandbox", "1"],
+      ["PluginStream", "sandbox", "p.md", "{\"a\":1}"], ["PluginCancel", "abc123"],
+      ["PluginStorageKeys", "quiz", ""], ["PluginStorageKeys", "quiz", "x"], ["PluginStream", "sandbox", "p.md", "1"],
     ]);
 
     const got: unknown[] = [];
@@ -342,5 +342,15 @@ describe("wails api", () => {
     } finally {
       history.replaceState(null, "", "/");
     }
+  });
+
+  it("plugins:changed arrives without a payload", async () => {
+    const api = (await import("./wails")).default;
+    let n = 0;
+    const off = api.on("plugins:changed", () => { n++; });
+    for (const fn of listeners.get("plugins:changed") ?? []) fn({ name: "plugins:changed", data: null });
+    off();
+    for (const fn of listeners.get("plugins:changed") ?? []) fn({ name: "plugins:changed", data: null });
+    expect(n).toBe(1);
   });
 });

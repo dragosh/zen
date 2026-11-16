@@ -12,6 +12,8 @@ const PATH = "demo/layouts/course.md";
 
 let api: FakeApi;
 let rt: ReturnType<typeof installRuntime>;
+/** The plugin script, an ES module with a default export; the runtime gets it through importModule. */
+let mod: unknown;
 let root: HTMLElement;
 let badges: [string, string | null][] = [];
 
@@ -19,7 +21,7 @@ beforeEach(async () => {
   document.body.replaceChildren();
   badges = [];
   api = createFakeApi();
-  rt = installRuntime({
+  rt = installRuntime({ importModule: async () => mod,
     api,
     navigate: () => {},
     page: () => ({ path: PATH, title: "Course" }),
@@ -27,7 +29,8 @@ beforeEach(async () => {
   });
   root = document.body.appendChild(document.createElement("article"));
   // @ts-ignore plain browser JavaScript outside src, no types
-  await import("../../../internal/plugins/course/assets/course.js");
+  mod = await import("../../../internal/plugins/course/assets/course.js");
+  await rt.load({ js: ["/_plugins/course/course.js?v=test"], css: [] });
 });
 afterEach(() => rt.destroy());
 

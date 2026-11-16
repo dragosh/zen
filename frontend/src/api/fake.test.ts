@@ -163,12 +163,15 @@ test("plugin storage is kept in memory per plugin; invoke answers are settable",
   await expect(api.pluginStorageSet("quiz", "k", "{nope")).rejects.toThrow("JSON");
   expect(api.callsTo("pluginStorageSet")[0]).toEqual(["quiz", "score", "{\"n\":3}"]);
 
-  expect(await api.pluginInvoke("quiz", "{\"a\":1}")).toBe("null");
+  expect(await api.pluginInvoke("quiz", "a.md", "{\"a\":1}")).toBe("null");
   api.invokeResult = { ok: true };
-  expect(await api.pluginInvoke("quiz", "1")).toBe("{\"ok\":true}");
+  expect(await api.pluginInvoke("quiz", "a.md", "1")).toBe("{\"ok\":true}");
   api.invokeResult = (id: string, payload: unknown) => ({ id, echo: payload });
-  expect(JSON.parse(await api.pluginInvoke("quiz", "{\"a\":1}"))).toEqual({ id: "quiz", echo: { a: 1 } });
+  expect(JSON.parse(await api.pluginInvoke("quiz", "a.md", "{\"a\":1}"))).toEqual({ id: "quiz", echo: { a: 1 } });
   expect(api.callsTo("pluginInvoke")).toHaveLength(3);
+  expect(api.callsTo("pluginInvoke")[0]).toEqual(["quiz", "a.md", "{\"a\":1}"]); // the page is recorded
+  api.invokeResult = (_id: string, _payload: unknown, page: string) => ({ page });
+  expect(JSON.parse(await api.pluginInvoke("quiz", "z.md", "1"))).toEqual({ page: "z.md" });
 });
 
 test("pages have no layout by default; decorate shapes what page() and preview() return", async () => {
@@ -185,10 +188,10 @@ test("plugin streams: call ids, recorded calls, events through on(), cancel", as
   const api = createFakeApi();
   const events: unknown[] = [];
   const off = api.on("plugin:stream", (e) => events.push(e));
-  const a = await api.pluginStream("sandbox", "{\"cmd\":\"ls\"}");
-  const b = await api.pluginStream("sandbox", "{}");
+  const a = await api.pluginStream("sandbox", "a.md", "{\"cmd\":\"ls\"}");
+  const b = await api.pluginStream("sandbox", "b.md", "{}");
   expect(a).not.toBe(b);
-  expect(api.callsTo("pluginStream")).toEqual([["sandbox", "{\"cmd\":\"ls\"}"], ["sandbox", "{}"]]);
+  expect(api.callsTo("pluginStream")).toEqual([["sandbox", "a.md", "{\"cmd\":\"ls\"}"], ["sandbox", "b.md", "{}"]]);
   api.emit("plugin:stream", { call: a, chunk: "x", done: false, error: "" });
   expect(events).toEqual([{ call: a, chunk: "x", done: false, error: "" }]);
   await api.pluginCancel(a);
@@ -197,7 +200,7 @@ test("plugin streams: call ids, recorded calls, events through on(), cancel", as
   api.emit("plugin:stream", { call: a, chunk: "y", done: false, error: "" });
   expect(events).toHaveLength(1);
   api.failNext("pluginStream", new Error("busy"));
-  await expect(api.pluginStream("sandbox", "1")).rejects.toThrow("busy");
+  await expect(api.pluginStream("sandbox", "a.md", "1")).rejects.toThrow("busy");
 });
 
 test("pluginStorageKeys lists a plugin's keys sorted, filtered by prefix", async () => {
@@ -208,4 +211,14 @@ test("pluginStorageKeys lists a plugin's keys sorted, filtered by prefix", async
   expect(await api.pluginStorageKeys("quiz", "q.")).toEqual(["q.a", "q.b"]);
   expect(await api.pluginStorageKeys("quiz", "")).toEqual(["q.a", "q.b", "z"]);
   expect(api.callsTo("pluginStorageKeys")).toHaveLength(3);
+});
+
+test("plugins:changed is an event like the others", () => {
+  const api = createFakeApi();
+  let n = 0;
+  const off = api.on("plugins:changed", () => { n++; });
+  api.emit("plugins:changed", undefined);
+  off();
+  api.emit("plugins:changed", undefined);
+  expect(n).toBe(1);
 });

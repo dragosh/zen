@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // The built-in sandbox plugin's frontend (internal/plugins/sandbox/assets), loaded
-// as the app loads it: a plain script that calls zen.register.
+// as the app loads it: an ES module with a default export, imported by the runtime.
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -12,17 +12,20 @@ const DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../internal/plu
 
 let api: FakeApi;
 let rt: ReturnType<typeof installRuntime>;
+/** The plugin script, an ES module with a default export; the runtime gets it through importModule. */
+let mod: unknown;
 let root: HTMLElement;
 
 beforeEach(async () => {
   document.body.replaceChildren();
   api = createFakeApi();
   api.invokeResult = { service: "running", images: ["python"] };
-  rt = installRuntime({ api, navigate: () => {}, page: () => ({ path: "plugins/sandbox.md", title: "Sandbox" }) });
+  rt = installRuntime({ importModule: async () => mod, api, navigate: () => {}, page: () => ({ path: "plugins/sandbox.md", title: "Sandbox" }) });
   root = document.body.appendChild(document.createElement("article"));
   vi.resetModules();
   // @ts-ignore plain browser JavaScript outside src, no types
-  await import("../../../internal/plugins/sandbox/assets/sandbox.js");
+  mod = await import("../../../internal/plugins/sandbox/assets/sandbox.js");
+  await rt.load({ js: ["/_plugins/sandbox/sandbox.js?v=test"], css: [] });
 });
 afterEach(() => rt.destroy());
 
@@ -65,7 +68,7 @@ test("shows the code read-only, Run and Stop, and asks for the status", async ()
   expect(q<HTMLButtonElement>(w, ".zen-sandbox-run")!.textContent).toBe("Run");
   expect(q<HTMLButtonElement>(w, ".zen-sandbox-stop")!.disabled).toBe(true);
   expect(q(w, ".zen-sandbox-console")).not.toBeNull();
-  expect(api.callsTo("pluginInvoke")).toEqual([["sandbox", JSON.stringify({ op: "status" })]]);
+  expect(api.callsTo("pluginInvoke")).toEqual([["sandbox", "plugins/sandbox.md", JSON.stringify({ op: "status" })]]);
 });
 
 test("an editable block gets a textarea and runs the edited code", async () => {
@@ -77,7 +80,8 @@ test("an editable block gets a textarea and runs the edited code", async () => {
   ta.dispatchEvent(new Event("input"));
   click(w, ".zen-sandbox-run");
   await settle();
-  const [id, json] = api.callsTo("pluginStream")[0] as [string, string];
+  const [id, page, json] = api.callsTo("pluginStream")[0] as [string, string, string];
+  expect(page).toBe("plugins/sandbox.md");
   expect(id).toBe("sandbox");
   expect(JSON.parse(json)).toEqual({ op: "run", image: "python", cmd: "python main.py", file: "main.py", code: "print(2)" });
 });
@@ -87,7 +91,7 @@ test("Run streams output as plain text, stderr tagged, ANSI stripped, then the e
   await settle();
   click(w, ".zen-sandbox-run");
   await settle();
-  expect(JSON.parse((api.callsTo("pluginStream")[0] as string[])[1])).toMatchObject({ op: "run", image: "python", code: "print('hi')\n" });
+  expect(JSON.parse((api.callsTo("pluginStream")[0] as string[])[2])).toMatchObject({ op: "run", image: "python", code: "print('hi')\n" });
   expect(q<HTMLButtonElement>(w, ".zen-sandbox-run")!.disabled).toBe(true);
   expect(q<HTMLButtonElement>(w, ".zen-sandbox-stop")!.disabled).toBe(false);
   streamEvt("call-1", { s: "out", t: "\u001b[32mhello\u001b[0m <img src=x onerror=alert(1)>" });

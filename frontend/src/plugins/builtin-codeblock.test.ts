@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 // The built-in codeblock plugin's frontend (internal/plugins/codeblock), loaded
-// as the app loads it: a plain script that calls zen.register.
+// as the app loads it: an ES module with a default export, imported by the runtime.
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createFakeApi } from "../api/fake";
 import { installRuntime } from "./runtime";
@@ -8,14 +8,17 @@ import { installRuntime } from "./runtime";
 let rt: ReturnType<typeof installRuntime>;
 let root: HTMLElement;
 let codeText: (pre: Element) => string;
+let mod: unknown;
 
 beforeEach(async () => {
   document.body.replaceChildren();
-  rt = installRuntime({ api: createFakeApi(), navigate: () => {}, page: () => ({ path: "a.md", title: "A" }) });
+  rt = installRuntime({ importModule: async () => mod, api: createFakeApi(), navigate: () => {}, page: () => ({ path: "a.md", title: "A" }) });
   root = document.body.appendChild(document.createElement("article"));
   vi.resetModules();
   // @ts-ignore plain browser JavaScript outside src, no types
-  ({ codeText } = await import("../../../internal/plugins/codeblock/codeblock.js"));
+  mod = await import("../../../internal/plugins/codeblock/codeblock.js");
+  ({ codeText } = mod as { codeText: (pre: Element) => string });
+  await rt.load({ js: ["/_plugins/codeblock/codeblock.js?v=test"], css: [] });
 });
 afterEach(() => {
   rt.destroy();

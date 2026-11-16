@@ -3,22 +3,42 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createFakeApi, type FakeApi } from "../api/fake";
 import { installRuntime, type PluginCtx } from "./runtime";
 
-type Zen = { version: number; register(id: string, h: { mount(el: HTMLElement, ctx: PluginCtx): unknown }): void };
-const zen = () => (window as unknown as { zen: Zen }).zen;
+/** Plugin scripts by URL: what import() would hand back (happy-dom cannot fetch modules). */
+const modules = new Map<string, unknown>();
+const imported: string[] = [];
+const importModule = async (url: string): Promise<unknown> => {
+  imported.push(url);
+  if (!modules.has(url)) throw new Error(`404 ${url}`);
+  return modules.get(url);
+};
+const urlOf = (id: string) => `/_plugins/${id}/${id}.js?v=abc123abc123`;
+let registered: string[] = [];
+/** Publishes plugin `id`'s script as a module with this default export and names it in the page's assets. */
+function register(id: string, handler: unknown): void {
+  modules.set(urlOf(id), { default: handler });
+  if (!registered.includes(id)) registered.push(id);
+}
+const assets = () => ({ js: registered.map(urlOf), css: [] as string[] });
+/** What the reader does after every render. */
+const mount = () => rt.mountAll(root, assets());
 
 let api: FakeApi;
 let rt: ReturnType<typeof installRuntime>;
 let navigations: [string, string | undefined][];
 let root: HTMLElement;
 let n = 0;
-/** A fresh plugin id per test: handlers outlive a runtime (scripts load once). */
 const fresh = () => `p${++n}`;
+let refreshes = 0;
 
 beforeEach(() => {
   document.body.replaceChildren();
   api = createFakeApi();
   navigations = [];
-  rt = installRuntime({ api, navigate: (p, a) => void navigations.push([p, a]), page: () => ({ path: "guides/a.md", title: "A" }) });
+  modules.clear();
+  imported.length = 0;
+  registered = [];
+  refreshes = 0;
+  rt = installRuntime({ api, navigate: (p, a) => void navigations.push([p, a]), page: () => ({ path: "guides/a.md", title: "A" }), importModule, refresh: () => { refreshes++; } });
   root = document.body.appendChild(document.createElement("article"));
 });
 afterEach(() => { rt.destroy(); vi.restoreAllMocks(); });
@@ -35,20 +55,29 @@ function wrapper(id: string, opts: { tag?: "div" | "span"; name?: string; attrs?
 }
 const settle = async () => { for (let i = 0; i < 5; i++) await new Promise((r) => setTimeout(r, 0)); };
 
-test("window.zen exists with version 1 as soon as the runtime is installed", () => {
-  expect(zen().version).toBe(1);
-  expect(typeof zen().register).toBe("function");
+test("window.zen is { version: 2 }, frozen, non-writable and non-configurable; there is no register", async () => {
+  const z = (window as unknown as { zen: { version: number; register?: unknown } }).zen;
+  expect(z.version).toBe(2);
+  expect(z.register).toBeUndefined();
+  expect(Object.isFrozen(z)).toBe(true);
+  const d = Object.getOwnPropertyDescriptor(window, "zen")!;
+  expect(d.writable).toBe(false);
+  expect(d.configurable).toBe(false);
+  expect(() => { (window as unknown as { zen: unknown }).zen = { version: 99 }; }).toThrow();
+  expect(() => Object.defineProperty(window, "zen", { value: {} })).toThrow();
+  installRuntime({ api, navigate: () => {}, page: () => ({ path: "a.md", title: "A" }), importModule }).destroy();
+  expect((window as unknown as { zen: { version: number } }).zen.version).toBe(2);
 });
 
-test("mounts every wrapper of a registered plugin with its ctx", () => {
+test("mounts every wrapper of a registered plugin with its ctx", async () => {
   const id = fresh();
   const block = wrapper(id, { name: "quiz", attrs: "{\"id\":\"q1\",\"title\":\"Two words\"}" });
   const inline = wrapper(id, { tag: "span", name: "badge" });
   const layout = wrapper(id, { layout: "slides", attrs: "{\"transition\":\"fade\"}" });
   const seen: { el: HTMLElement; ctx: PluginCtx }[] = [];
-  zen().register(id, { mount(el, ctx) { seen.push({ el, ctx }); } });
+  register(id, { mount(el, ctx) { seen.push({ el, ctx }); } });
   expect(seen).toHaveLength(0); // nothing rendered yet
-  rt.mountAll(root);
+  await mount();
   expect(seen.map((s) => s.el)).toEqual([block, inline, layout]);
   expect(seen.map((s) => s.ctx.kind)).toEqual(["block", "inline", "layout"]);
   expect(seen.map((s) => s.ctx.name)).toEqual(["quiz", "badge", "slides"]);
@@ -62,50 +91,178 @@ test("mounts every wrapper of a registered plugin with its ctx", () => {
   expect(navigations).toEqual([["b.md", "part"], ["c.md", undefined]]);
 });
 
-test("attrs are {} for invalid JSON or anything that is not an object of strings", () => {
+test("attrs are {} for invalid JSON or anything that is not an object of strings", async () => {
   const id = fresh();
   wrapper(id, { attrs: "{not json" });
   wrapper(id, { attrs: "[1,2]" });
   wrapper(id, { attrs: "\"text\"" });
   wrapper(id, { attrs: "{\"a\":\"x\",\"n\":3,\"o\":{}}" });
   const attrs: unknown[] = [];
-  zen().register(id, { mount(_el, ctx) { attrs.push(ctx.attrs); } });
-  rt.mountAll(root);
+  register(id, { mount(_el, ctx) { attrs.push(ctx.attrs); } });
+  await mount();
   expect(attrs).toEqual([{}, {}, {}, { a: "x" }]);
 });
 
-test("wrappers nobody registered for (built-ins, unknown ids) are left alone", () => {
+test("wrappers nobody registered for (built-ins, unknown ids) are left alone", async () => {
   const id = fresh();
   const builtin = wrapper("highlight", { text: "code" });
   const mine = wrapper(id);
-  zen().register(id, { mount(el) { el.textContent = "mounted"; } });
-  rt.mountAll(root);
+  register(id, { mount(el) { el.textContent = "mounted"; } });
+  await mount();
   expect(builtin.textContent).toBe("code");
   expect(builtin.querySelector(".zen-plugin-error")).toBeNull();
   expect(mine.textContent).toBe("mounted");
 });
 
-test("a handler registering late mounts the wrappers already on the page", () => {
-  const id = fresh();
-  const w = wrapper(id);
-  rt.mountAll(root);
-  expect(w.textContent).toBe("content");
-  zen().register(id, { mount(el) { el.textContent = "late"; } });
-  expect(w.textContent).toBe("late");
+test("scripts are imported with their versioned URL and bound to the id in that URL", async () => {
+  const a = fresh();
+  const b = fresh();
+  const wa = wrapper(a);
+  const wb = wrapper(b);
+  register(a, { mount(el) { el.textContent = "A"; } });
+  register(b, { mount(el) { el.textContent = "B"; } });
+  await mount();
+  expect(imported).toEqual([urlOf(a), urlOf(b)]);
+  expect(imported[0]).toContain("?v=");
+  expect(wa.textContent).toBe("A");
+  expect(wb.textContent).toBe("B");
 });
 
-test("registering twice replaces the handler and remounts after the old clean-up", () => {
+test("a script cannot take over another plugin's blocks: handlers belong to the id of their own URL", async () => {
+  const mine = fresh();
+  const other = fresh();
+  const wo = wrapper(other, { text: "other's" });
+  wrapper(mine);
+  const seen: string[] = [];
+  register(mine, { mount(_el, ctx) { seen.push(ctx.id); } });
+  // the other plugin has no script on this page
+  await mount();
+  expect(seen).toEqual([mine]);
+  expect(wo.textContent).toBe("other's");
+  expect(wo.querySelector(".zen-plugin-error")).toBeNull();
+});
+
+test("a script that is imported once keeps its module for later renders; mounting needs no new import", async () => {
+  const id = fresh();
+  const log: string[] = [];
+  register(id, { mount() { log.push("mount"); return () => log.push("clean"); } });
+  wrapper(id);
+  await mount();
+  root.replaceChildren();
+  wrapper(id);
+  await mount();
+  expect(imported).toEqual([urlOf(id)]);
+  expect(log).toEqual(["mount", "clean", "mount"]);
+});
+
+test("a module without a default mount shows an error naming the plugin; others mount", async () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const bad = fresh();
+  const bad2 = fresh();
+  const good = fresh();
+  const w1 = wrapper(bad);
+  const w2 = wrapper(bad2);
+  const w3 = wrapper(good);
+  modules.set(urlOf(bad), { mount() {} }); // named export, no default
+  registered.push(bad);
+  register(bad2, { notMount: 1 });
+  register(good, { mount(el) { el.textContent = "fine"; } });
+  await mount();
+  expect(w1.querySelector(".zen-plugin-error")!.textContent).toContain(bad);
+  expect(w2.querySelector(".zen-plugin-error")!.textContent).toContain(bad2);
+  expect(w3.textContent).toBe("fine");
+  expect(w3.querySelector(".zen-plugin-error")).toBeNull();
+});
+
+test("a script that fails to load shows an error in its wrappers only", async () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const id = fresh();
+  const w = wrapper(id);
+  registered.push(id); // no module behind the URL: import() rejects
+  await mount();
+  expect(w.querySelector(".zen-plugin-error")!.textContent).toContain(id);
+  expect(w.querySelector(".zen-plugin-error")!.textContent).toContain("404");
+});
+
+test("a script with no wrapper on the page (diagram-like, no default) is quiet", async () => {
+  const err = vi.spyOn(console, "error").mockImplementation(() => {});
+  modules.set(urlOf("quiet"), { other: 1 });
+  registered.push("quiet");
+  await mount();
+  expect(err).not.toHaveBeenCalled();
+  expect(root.querySelector(".zen-plugin-error")).toBeNull();
+});
+
+test("only /_plugins/<id>/ script URLs are imported", async () => {
+  await rt.load({ js: ["https://evil.test/x.js", "/_ws/x.js", "/_plugins/../x.js", "//evil.test/_plugins/a/a.js"] });
+  expect(imported).toEqual([]);
+});
+
+test("plugins:changed unmounts everything, forgets the modules, removes plugin stylesheets and asks the host to refresh", async () => {
   const id = fresh();
   const w = wrapper(id);
   const log: string[] = [];
-  zen().register(id, { mount() { log.push("mount 1"); return () => log.push("clean 1"); } });
-  rt.mountAll(root);
-  zen().register(id, { mount(el) { log.push("mount 2"); el.textContent = "second"; } });
-  expect(log).toEqual(["mount 1", "clean 1", "mount 2"]);
-  expect(w.textContent).toBe("second");
-  rt.unmountAll();
-  rt.mountAll(root);
-  expect(log).toEqual(["mount 1", "clean 1", "mount 2", "mount 2"]);
+  register(id, { mount() { log.push("mount"); return () => log.push("clean"); } });
+  const mk = (href: string) => {
+    const l = document.createElement("link");
+    l.rel = "stylesheet";
+    l.href = href;
+    l.dataset.zenAsset = href;
+    document.head.append(l);
+  };
+  mk(`/_plugins/${id}/a.css?v=1`);
+  const other = document.createElement("link");
+  other.dataset.zenAsset = "https://x.test/a.css";
+  document.head.append(other);
+  await mount();
+  expect(log).toEqual(["mount"]);
+
+  api.emit("plugins:changed", undefined);
+  expect(log).toEqual(["mount", "clean"]);
+  expect(document.head.querySelector("link[data-zen-asset^='/_plugins/']")).toBeNull();
+  expect(document.head.contains(other)).toBe(true);
+  expect(refreshes).toBe(1);
+
+  // the host re-renders with new URLs: the module is imported again
+  modules.set(`/_plugins/${id}/${id}.js?v=newhash00000`, { default: { mount(el: HTMLElement) { el.textContent = "v2"; } } });
+  await rt.mountAll(root, { js: [`/_plugins/${id}/${id}.js?v=newhash00000`], css: [] });
+  expect(imported).toEqual([urlOf(id), `/_plugins/${id}/${id}.js?v=newhash00000`]);
+  expect(w.textContent).toBe("v2");
+  other.remove();
+});
+
+test("workspace:opened and workspace:changed reset the same way; destroy stops listening", async () => {
+  const id = fresh();
+  wrapper(id);
+  const log: string[] = [];
+  register(id, { mount() { log.push("mount"); return () => log.push("clean"); } });
+  await mount();
+  api.emit("workspace:opened", { workspace: { root: "/x", name: "x", nav: [], tags: [] } as never, page: "", mode: "read" });
+  expect(log).toEqual(["mount", "clean"]);
+  expect(refreshes).toBe(1);
+  await mount();
+  api.emit("workspace:changed", { root: "/x", name: "x", nav: [], tags: [] } as never);
+  expect(log).toEqual(["mount", "clean", "mount", "clean"]);
+  expect(refreshes).toBe(2);
+  rt.destroy();
+  api.emit("plugins:changed", undefined);
+  expect(refreshes).toBe(2);
+});
+
+test("a late import of an older generation does not mount into a reset runtime", async () => {
+  const id = fresh();
+  const w = wrapper(id);
+  let release!: () => void;
+  const slow = new Promise<void>((r) => { release = r; });
+  const mod = { default: { mount(el: HTMLElement) { el.textContent = "mounted"; } } };
+  rt.destroy();
+  rt = installRuntime({ api, navigate: () => {}, page: () => ({ path: "a.md", title: "A" }), importModule: async () => { await slow; return mod; } });
+  const p = rt.mountAll(root, { js: [urlOf(id)] });
+  rt.reset();
+  release();
+  await p;
+  await settle();
+  expect(w.textContent).toBe("content");
 });
 
 test("unmountAll runs every clean-up once, last mounted first, sync and async alike", async () => {
@@ -115,9 +272,9 @@ test("unmountAll runs every clean-up once, last mounted first, sync and async al
   wrapper(b, { name: "two" });
   wrapper(a, { name: "three" });
   const log: string[] = [];
-  zen().register(a, { mount(_el, ctx) { return () => log.push(`clean ${ctx.name}`); } });
-  zen().register(b, { async mount(_el, ctx) { await Promise.resolve(); return () => log.push(`clean ${ctx.name}`); } });
-  rt.mountAll(root);
+  register(a, { mount(_el, ctx) { return () => log.push(`clean ${ctx.name}`); } });
+  register(b, { async mount(_el, ctx) { await Promise.resolve(); return () => log.push(`clean ${ctx.name}`); } });
+  await mount();
   await settle();
   rt.unmountAll();
   expect(log).toEqual(["clean three", "clean two", "clean one"]);
@@ -130,8 +287,8 @@ test("an async mount that finishes after the unmount is cleaned up at once", asy
   wrapper(id);
   let finish!: (clean: () => void) => void;
   const cleaned = vi.fn();
-  zen().register(id, { mount: () => new Promise<() => void>((r) => { finish = r; }) });
-  rt.mountAll(root);
+  register(id, { mount: () => new Promise<() => void>((r) => { finish = r; }) });
+  await mount();
   rt.unmountAll();
   expect(cleaned).not.toHaveBeenCalled();
   finish(cleaned);
@@ -139,15 +296,15 @@ test("an async mount that finishes after the unmount is cleaned up at once", asy
   expect(cleaned).toHaveBeenCalledTimes(1);
 });
 
-test("mountAll on a new render cleans up what was mounted before", () => {
+test("mountAll on a new render cleans up what was mounted before", async () => {
   const id = fresh();
   wrapper(id);
   const log: string[] = [];
-  zen().register(id, { mount() { log.push("mount"); return () => log.push("clean"); } });
-  rt.mountAll(root);
+  register(id, { mount() { log.push("mount"); return () => log.push("clean"); } });
+  await mount();
   root.replaceChildren();
   wrapper(id);
-  rt.mountAll(root);
+  await mount();
   expect(log).toEqual(["mount", "clean", "mount"]);
 });
 
@@ -159,10 +316,10 @@ test("a mount that throws or rejects shows an error in its own wrapper only", as
   const w1 = wrapper(bad);
   const w2 = wrapper(slow);
   const w3 = wrapper(good);
-  zen().register(bad, { mount() { throw new Error("<b>boom</b>"); } });
-  zen().register(slow, { async mount() { throw new Error("later"); } });
-  zen().register(good, { mount(el) { el.textContent = "fine"; } });
-  rt.mountAll(root);
+  register(bad, { mount() { throw new Error("<b>boom</b>"); } });
+  register(slow, { async mount() { throw new Error("later"); } });
+  register(good, { mount(el) { el.textContent = "fine"; } });
+  await mount();
   await settle();
   const box = w1.querySelector(".zen-plugin-error")!;
   expect(box.textContent).toContain(bad);
@@ -174,27 +331,16 @@ test("a mount that throws or rejects shows an error in its own wrapper only", as
   expect(err).toHaveBeenCalledTimes(2);
 });
 
-test("a handler without a mount function is reported, not thrown", () => {
-  const err = vi.spyOn(console, "error").mockImplementation(() => {});
-  const id = fresh();
-  const w = wrapper(id);
-  rt.mountAll(root);
-  expect(() => zen().register(id, {} as never)).not.toThrow();
-  expect(() => zen().register("", { mount() {} })).not.toThrow();
-  expect(w.querySelector(".zen-plugin-error")).toBeNull();
-  expect(err).toHaveBeenCalled();
-});
-
-test("a clean-up that throws does not stop the others", () => {
+test("a clean-up that throws does not stop the others", async () => {
   const err = vi.spyOn(console, "error").mockImplementation(() => {});
   const a = fresh();
   const b = fresh();
   const w1 = wrapper(a);
   wrapper(b);
   const cleaned = vi.fn();
-  zen().register(a, { mount: () => cleaned });
-  zen().register(b, { mount: () => () => { throw new Error("stuck"); } });
-  rt.mountAll(root);
+  register(a, { mount: () => cleaned });
+  register(b, { mount: () => () => { throw new Error("stuck"); } });
+  await mount();
   expect(() => rt.unmountAll()).not.toThrow();
   expect(cleaned).toHaveBeenCalledTimes(1);
   expect(err).toHaveBeenCalledTimes(1);
@@ -208,8 +354,8 @@ test("storage round trips JSON values under the plugin's own id; missing keys ar
   wrapper(a);
   wrapper(b);
   const ctxs: Record<string, PluginCtx> = {};
-  for (const id of [a, b]) zen().register(id, { mount(_el, ctx) { ctxs[id] = ctx; } });
-  rt.mountAll(root);
+  for (const id of [a, b]) register(id, { mount(_el, ctx) { ctxs[id] = ctx; } });
+  await mount();
 
   expect(await ctxs[a].storage.get("count")).toBeNull();
   await ctxs[a].storage.set("count", 3);
@@ -229,8 +375,8 @@ test("storage.set rejects values that are not JSON; API failures reject", async 
   const id = fresh();
   wrapper(id);
   let ctx!: PluginCtx;
-  zen().register(id, { mount(_el, c) { ctx = c; } });
-  rt.mountAll(root);
+  register(id, { mount(_el, c) { ctx = c; } });
+  await mount();
   const loop: Record<string, unknown> = {};
   loop.self = loop;
   await expect(ctx.storage.set("k", loop)).rejects.toThrow();
@@ -245,30 +391,30 @@ test("invoke sends the payload as JSON for the plugin's own id and resolves the 
   const id = fresh();
   wrapper(id);
   let ctx!: PluginCtx;
-  zen().register(id, { mount(_el, c) { ctx = c; } });
-  rt.mountAll(root);
+  register(id, { mount(_el, c) { ctx = c; } });
+  await mount();
   api.invokeResult = (pid: string, payload: unknown) => ({ pid, payload });
   expect(await ctx.invoke({ answer: 2 })).toEqual({ pid: id, payload: { answer: 2 } });
   expect(await ctx.invoke(undefined)).toEqual({ pid: id, payload: null });
-  expect(api.callsTo("pluginInvoke")).toEqual([[id, "{\"answer\":2}"], [id, "null"]]);
+  // the page the block is on goes along (core/plugin-hardening M4)
+  expect(api.callsTo("pluginInvoke")).toEqual([[id, "guides/a.md", "{\"answer\":2}"], [id, "guides/a.md", "null"]]);
   api.failNext("pluginInvoke", new Error("no action hook"));
   await expect(ctx.invoke(1)).rejects.toThrow("no action hook");
 });
 
-test("destroy cleans up; handlers stay registered for the next runtime", () => {
+test("destroy cleans up and forgets its modules; a new runtime imports again", async () => {
   const id = fresh();
   const w = wrapper(id);
   const cleaned = vi.fn();
-  zen().register(id, { mount(el) { el.textContent = "on"; return cleaned; } });
-  rt.mountAll(root);
+  register(id, { mount(el) { el.textContent = "on"; return cleaned; } });
+  await mount();
   rt.destroy();
   expect(cleaned).toHaveBeenCalledTimes(1);
   w.textContent = "content";
-  zen().register(id, { mount(el) { el.textContent = "again"; } }); // no page: only recorded
-  expect(w.textContent).toBe("content");
-  rt = installRuntime({ api, navigate: () => {}, page: () => ({ path: "x.md", title: "X" }) });
-  rt.mountAll(root);
-  expect(w.textContent).toBe("again");
+  rt = installRuntime({ api, navigate: () => {}, page: () => ({ path: "x.md", title: "X" }), importModule });
+  await mount();
+  expect(w.textContent).toBe("on");
+  expect(imported).toEqual([urlOf(id), urlOf(id)]);
 });
 
 // ---- core/plugin-extras: stream, storage.keys, anchor, badge ----
@@ -277,15 +423,15 @@ type Extras = { anchor?: () => string; onAnchor?: (fn: (a: string) => void) => (
 /** Replaces the runtime of beforeEach with one that has the extras wired. */
 function withExtras(extras: Extras = {}) {
   rt.destroy();
-  rt = installRuntime({ api, navigate: () => {}, page: () => ({ path: "guides/a.md", title: "A" }), ...extras });
+  rt = installRuntime({ api, navigate: () => {}, page: () => ({ path: "guides/a.md", title: "A" }), importModule, ...extras });
 }
 /** Mounts one block of a fresh plugin and returns its ctx. */
-function ctxOf(tag: string = "one"): PluginCtx {
+async function ctxOf(tag: string = "one"): Promise<PluginCtx> {
   const id = fresh();
   wrapper(id, { name: tag });
   let got!: PluginCtx;
-  zen().register(id, { mount(_el, ctx) { got = ctx; } });
-  rt.mountAll(root);
+  register(id, { mount(_el, ctx) { got = ctx; } });
+  await mount();
   return got;
 }
 const chunk = (call: string, text: string) => api.emit("plugin:stream", { call, chunk: text, done: false, error: "" });
@@ -295,8 +441,8 @@ test("storage.keys lists the plugin's keys, optionally by prefix", async () => {
   const id = fresh();
   wrapper(id);
   let ctx!: PluginCtx;
-  zen().register(id, { mount(_el, c) { ctx = c; } });
-  rt.mountAll(root);
+  register(id, { mount(_el, c) { ctx = c; } });
+  await mount();
   await ctx.storage.set("quiz.b", 1);
   await ctx.storage.set("quiz.a", 2);
   await ctx.storage.set("other", 3);
@@ -306,11 +452,11 @@ test("storage.keys lists the plugin's keys, optionally by prefix", async () => {
 });
 
 test("stream delivers chunks in order and done resolves when Go says so", async () => {
-  const ctx = ctxOf();
+  const ctx = await ctxOf();
   const got: string[] = [];
   const s = ctx.stream({ q: 1 }, (c) => got.push(c));
   await settle();
-  expect(api.callsTo("pluginStream")).toEqual([[ctx.id, "{\"q\":1}"]]);
+  expect(api.callsTo("pluginStream")).toEqual([[ctx.id, "guides/a.md", "{\"q\":1}"]]);
   chunk("call-1", "a");
   chunk("call-1", "b");
   let resolved = false;
@@ -325,7 +471,7 @@ test("stream delivers chunks in order and done resolves when Go says so", async 
 });
 
 test("chunks that arrive before the call id is known are not lost", async () => {
-  const ctx = ctxOf();
+  const ctx = await ctxOf();
   const got: string[] = [];
   const s = ctx.stream(null, (c) => got.push(c));
   chunk("call-1", "early");   // pluginStream() has not resolved yet
@@ -335,7 +481,7 @@ test("chunks that arrive before the call id is known are not lost", async () => 
 });
 
 test("done rejects with the stream's error text", async () => {
-  const ctx = ctxOf();
+  const ctx = await ctxOf();
   const s = ctx.stream("x", () => {});
   await settle();
   end("call-1", "exit code 3: boom");
@@ -350,9 +496,9 @@ test("a ctx only sees the chunks of its own calls", async () => {
   for (const name of ["a", "b"]) {
     const id = fresh();
     wrapper(id, { name });
-    zen().register(id, { mount(_el, c) { got.push(c); } });
+    register(id, { mount(_el, c) { got.push(c); } });
   }
-  rt.mountAll(root);
+  await mount();
   const [a, b] = got;
   const ga: string[] = [];
   const gb: string[] = [];
@@ -370,7 +516,7 @@ test("a ctx only sees the chunks of its own calls", async () => {
 });
 
 test("cancel tells Go, stops delivery and rejects done with cancelled", async () => {
-  const ctx = ctxOf();
+  const ctx = await ctxOf();
   const got: string[] = [];
   const s = ctx.stream(1, (c) => got.push(c));
   await settle();
@@ -385,7 +531,7 @@ test("cancel tells Go, stops delivery and rejects done with cancelled", async ()
 });
 
 test("cancel before the call id is known cancels as soon as it is", async () => {
-  const ctx = ctxOf();
+  const ctx = await ctxOf();
   const s = ctx.stream(1, () => {});
   s.cancel();
   await expect(s.done).rejects.toThrow("cancelled");
@@ -397,8 +543,8 @@ test("streams started by a block are cancelled when it unmounts", async () => {
   const id = fresh();
   wrapper(id);
   let ctx!: PluginCtx;
-  zen().register(id, { mount(_el, c) { ctx = c; } });
-  rt.mountAll(root);
+  register(id, { mount(_el, c) { ctx = c; } });
+  await mount();
   const s1 = ctx.stream(1, () => {});
   const s2 = ctx.stream(2, () => {});
   s1.done.catch(() => {});
@@ -414,7 +560,7 @@ test("streams started by a block are cancelled when it unmounts", async () => {
 });
 
 test("an onChunk that throws does not break the stream", async () => {
-  const ctx = ctxOf();
+  const ctx = await ctxOf();
   vi.spyOn(console, "error").mockImplementation(() => {});
   const got: string[] = [];
   const s = ctx.stream(1, (c) => { got.push(c); if (c === "a") throw new Error("handler bug"); });
@@ -426,11 +572,11 @@ test("an onChunk that throws does not break the stream", async () => {
   expect(got).toEqual(["a", "b"]);
 });
 
-test("anchor() and onAnchor(): current anchor, changes, removal on unmount", () => {
+test("anchor() and onAnchor(): current anchor, changes, removal on unmount", async () => {
   let current = "intro";
   const subs = new Set<(a: string) => void>();
   withExtras({ anchor: () => current, onAnchor: (fn) => { subs.add(fn); return () => void subs.delete(fn); } });
-  const ctx = ctxOf();
+  const ctx = await ctxOf();
   expect(ctx.anchor()).toBe("intro");
   current = "next";
   expect(ctx.anchor()).toBe("next");
@@ -447,17 +593,17 @@ test("anchor() and onAnchor(): current anchor, changes, removal on unmount", () 
   expect(subs.size).toBe(0);
 });
 
-test("anchor() is empty and onAnchor harmless when the host does not provide them", () => {
-  const ctx = ctxOf();
+test("anchor() is empty and onAnchor harmless when the host does not provide them", async () => {
+  const ctx = await ctxOf();
   expect(ctx.anchor()).toBe("");
   expect(() => ctx.onAnchor(() => {})()).not.toThrow();
   expect(() => ctx.badge("a.md", "x")).not.toThrow();
 });
 
-test("badge(path, text) sets and clears a label, at most 12 characters", () => {
+test("badge(path, text) sets and clears a label, at most 12 characters", async () => {
   const calls: [string, string | null][] = [];
   withExtras({ badge: (p, t) => void calls.push([p, t]) });
-  const ctx = ctxOf();
+  const ctx = await ctxOf();
   ctx.badge("guides/a.md", "Done");
   ctx.badge("guides/a.md", "a very long label indeed");
   ctx.badge("guides/a.md", null);
@@ -469,10 +615,10 @@ test("badge(path, text) sets and clears a label, at most 12 characters", () => {
   expect(calls).toHaveLength(5);
 });
 
-test("badge ignores a path that is not a string", () => {
+test("badge ignores a path that is not a string", async () => {
   const calls: unknown[] = [];
   withExtras({ badge: (p, t) => void calls.push([p, t]) });
-  const ctx = ctxOf();
+  const ctx = await ctxOf();
   (ctx.badge as (p: unknown, t: unknown) => void)(42, "x");
   (ctx.badge as (p: unknown, t: unknown) => void)("", "x");
   expect(calls).toEqual([]);

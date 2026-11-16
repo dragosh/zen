@@ -2,11 +2,20 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createFakeApi, type FakeApi } from "../api/fake";
 import type { PluginCtx } from "../plugins/runtime";
-import { mountPage, pageFeature } from "./index";
+import { mountPage, pageFeature, pageHooks } from "./index";
 import { setup, tick, type Env } from "./helpers.test-util";
 
-type Zen = { register(id: string, h: { mount(el: HTMLElement, ctx: PluginCtx): unknown }): void };
-const zen = () => (window as unknown as { zen?: Zen }).zen;
+/** Plugin scripts by URL: what import() would hand back. */
+const modules = new Map<string, unknown>();
+const imported: string[] = [];
+pageHooks.importModule = async (url) => {
+  imported.push(url);
+  if (!modules.has(url)) throw new Error(`404 ${url}`);
+  return modules.get(url);
+};
+const urlOf = (id: string, v = "aaaaaaaaaaaa") => `/_plugins/${id}/${id}.js?v=${v}`;
+let version = "aaaaaaaaaaaa";
+const register = (id: string, h: { mount(el: HTMLElement, ctx: PluginCtx): unknown }) => { modules.set(urlOf(id, version), { default: h }); };
 
 let env: Env;
 let api: FakeApi;
@@ -17,6 +26,9 @@ const fresh = () => `pg${++n}`;
 beforeEach(() => {
   document.head.replaceChildren();
   document.body.replaceChildren();
+  modules.clear();
+  imported.length = 0;
+  version = "aaaaaaaaaaaa";
   api = createFakeApi({ sources: { "README.md": "# Home\n\nText.", "b.md": "# B\n\nBee." } });
   env = setup(api);
 });
@@ -27,12 +39,17 @@ const article = () => env.slots.main.querySelector("article.zen-page") as HTMLEl
 const settle = async () => { for (let i = 0; i < 5; i++) await tick(); };
 /** Every page gets one block of plugin `id` after its own content. */
 const withBlock = (id: string) => {
-  api.decorate = (p) => ({ ...p, html: `${p.html}<div data-zen-plugin="${id}" data-zen-name="box" data-zen-attrs='{"k":"v"}'>raw</div>` });
+  api.decorate = (p) => ({
+    ...p, html: `${p.html}<div data-zen-plugin="${id}" data-zen-name="box" data-zen-attrs='{"k":"v"}'>raw</div>`,
+    assets: { css: [`/_plugins/${id}/${id}.css?v=${version}`], js: [urlOf(id, version)] },
+  });
 };
 
-test("the zen object exists once the reader is mounted, before any page or script loads", () => {
+test("the zen object exists once the reader is mounted: a version only", () => {
   mount();
-  expect(typeof zen()?.register).toBe("function");
+  const z = (window as unknown as { zen?: { version: number; register?: unknown } }).zen;
+  expect(z?.version).toBe(2);
+  expect(z?.register).toBeUndefined();
 });
 
 test("mounts plugin blocks after a render, with the page being shown and the app's navigate", async () => {
@@ -41,7 +58,7 @@ test("mounts plugin blocks after a render, with the page being shown and the app
   env.ctx.store.set({ path: "README.md" });
   mount();
   const seen: PluginCtx[] = [];
-  zen()!.register(id, { mount(el, ctx) { seen.push(ctx); el.textContent = "mounted"; } });
+  register(id, { mount(el, ctx) { seen.push(ctx); el.textContent = "mounted"; } });
   await settle();
   expect(seen).toHaveLength(1);
   expect(seen[0].page).toEqual({ path: "README.md", title: "Home" });
@@ -57,7 +74,7 @@ test("cleans up before every re-render: navigation, live reload and draft update
   env.ctx.store.set({ path: "README.md" });
   mount();
   const log: string[] = [];
-  zen()!.register(id, {
+  register(id, {
     mount(el, ctx) {
       log.push(`mount ${ctx.page.path}`);
       return () => log.push(`clean ${ctx.page.path} ${el.isConnected ? "connected" : "gone"}`);
@@ -84,13 +101,65 @@ test("cleans up before every re-render: navigation, live reload and draft update
   expect(log.slice(7)).toEqual(["clean b.md connected"]);
 });
 
+test("plugins:changed re-renders the page with the new asset URLs: old script and stylesheet gone, new ones loaded", async () => {
+  const id = fresh();
+  withBlock(id);
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  const log: string[] = [];
+  register(id, { mount(el) { log.push("mount v1"); el.textContent = "v1"; return () => log.push("clean v1"); } });
+  await settle();
+  expect(Array.from(document.head.querySelectorAll("link"), (l) => l.getAttribute("href"))).toEqual([`/_plugins/${id}/${id}.css?v=aaaaaaaaaaaa`]);
+
+  // Go reports a new plugin set; the plugin's files changed, so its URLs carry a new version
+  version = "bbbbbbbbbbbb";
+  register(id, { mount(el) { log.push("mount v2"); el.textContent = "v2"; } });
+  api.emit("plugins:changed", undefined);
+  await settle();
+  expect(log).toEqual(["mount v1", "clean v1", "mount v2"]);
+  expect(imported).toEqual([urlOf(id, "aaaaaaaaaaaa"), urlOf(id, "bbbbbbbbbbbb")]);
+  expect(Array.from(document.head.querySelectorAll("link"), (l) => l.getAttribute("href"))).toEqual([`/_plugins/${id}/${id}.css?v=bbbbbbbbbbbb`]);
+  expect(article().querySelector(`[data-zen-plugin="${id}"]`)!.textContent).toBe("v2");
+  expect(document.head.querySelector("script")).toBeNull();
+});
+
+test("a plugin that is no longer on the page after plugins:changed is unmounted and not run again", async () => {
+  const id = fresh();
+  withBlock(id);
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  const log: string[] = [];
+  register(id, { mount() { log.push("mount"); return () => log.push("clean"); } });
+  await settle();
+  api.decorate = undefined; // the plugin was blocked: the page comes back without its assets
+  api.emit("plugins:changed", undefined);
+  await settle();
+  expect(log).toEqual(["mount", "clean"]);
+  expect(document.head.querySelector("link")).toBeNull();
+});
+
+test("ctx.invoke and ctx.stream name the page being shown", async () => {
+  const id = fresh();
+  withBlock(id);
+  env.ctx.store.set({ path: "b.md" });
+  mount();
+  let ctx!: PluginCtx;
+  register(id, { mount(_el, c) { ctx = c; } });
+  await settle();
+  await ctx.invoke({ a: 1 });
+  ctx.stream({ s: 1 }, () => {});
+  await settle();
+  expect(api.callsTo("pluginInvoke")).toEqual([[id, "b.md", "{\"a\":1}"]]);
+  expect(api.callsTo("pluginStream")).toEqual([[id, "b.md", "{\"s\":1}"]]);
+});
+
 test("a failed load leaves nothing mounted twice", async () => {
   const id = fresh();
   withBlock(id);
   env.ctx.store.set({ path: "README.md" });
   mount();
   const log: string[] = [];
-  zen()!.register(id, { mount() { log.push("mount"); return () => log.push("clean"); } });
+  register(id, { mount() { log.push("mount"); return () => log.push("clean"); } });
   await settle();
   api.failNext("page", new Error("gone"));
   api.emit("page:changed", { path: "README.md" });
@@ -103,12 +172,12 @@ test("a failed load leaves nothing mounted twice", async () => {
 test("a layout page marks the article so the plugin gets the whole pane", async () => {
   const id = fresh();
   api.decorate = (p) => p.path === "README.md"
-    ? { ...p, layout: "slides", html: `<div data-zen-plugin="${id}" data-zen-layout="slides">${p.html}</div>` }
+    ? { ...p, layout: "slides", assets: { css: [], js: [urlOf(id)] }, html: `<div data-zen-plugin="${id}" data-zen-layout="slides">${p.html}</div>` }
     : p;
   env.ctx.store.set({ path: "README.md" });
   mount();
   const kinds: string[] = [];
-  zen()!.register(id, { mount(_el, ctx) { kinds.push(`${ctx.kind}:${ctx.name}`); } });
+  register(id, { mount(_el, ctx) { kinds.push(`${ctx.kind}:${ctx.name}`); } });
   await settle();
   expect(kinds).toEqual(["layout:slides"]);
   expect(article().dataset.layout).toBe("slides");
@@ -150,7 +219,7 @@ test("ctx.anchor() is the current anchor; onAnchor fires when only the anchor ch
   env.ctx.store.set({ path: "README.md", anchor: "intro" });
   mount();
   let ctx!: PluginCtx;
-  zen()!.register(id, { mount(_el, c) { ctx = c; } });
+  register(id, { mount(_el, c) { ctx = c; } });
   await settle();
   expect(ctx.anchor()).toBe("intro");
   const seen: string[] = [];
@@ -172,7 +241,7 @@ test("ctx.badge puts a label in the store for the window's lifetime", async () =
   env.ctx.store.set({ path: "README.md" });
   mount();
   let ctx!: PluginCtx;
-  zen()!.register(id, { mount(_el, c) { ctx = c; } });
+  register(id, { mount(_el, c) { ctx = c; } });
   await settle();
   ctx.badge("b.md", "2/5");
   expect(env.ctx.store.get().badges).toEqual({ "b.md": "2/5" });

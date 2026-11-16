@@ -10,6 +10,8 @@ import { installRuntime } from "./runtime";
 const ASSETS = join(dirname(fileURLToPath(import.meta.url)), "../../../internal/plugins/slides/assets");
 
 let rt: ReturnType<typeof installRuntime>;
+/** The plugin script, an ES module with a default export; the runtime gets it through importModule. */
+let mod: unknown;
 let root: HTMLElement;
 let anchor = "";
 let listeners: ((a: string) => void)[] = [];
@@ -20,7 +22,7 @@ beforeEach(async () => {
   anchor = "";
   listeners = [];
   navigated.length = 0;
-  rt = installRuntime({
+  rt = installRuntime({ importModule: async () => mod,
     api: createFakeApi(),
     navigate: (p, a) => { navigated.push([p, a]); },
     page: () => ({ path: "demo/deck.md", title: "Deck" }),
@@ -29,7 +31,8 @@ beforeEach(async () => {
   });
   root = document.body.appendChild(document.createElement("article"));
   // @ts-ignore plain browser JavaScript outside src, no types
-  await import("../../../internal/plugins/slides/assets/slides.js");
+  mod = await import("../../../internal/plugins/slides/assets/slides.js");
+  await rt.load({ js: ["/_plugins/slides/slides.js?v=test"], css: [] });
 });
 afterEach(() => rt.destroy());
 
