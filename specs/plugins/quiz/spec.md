@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | planned |
+| Status | done |
 | Target version | 0.2.0 |
 | Depends on | core/extplugins, ui/plugins |
 | Kind | external plugin, frontend only; optional backend for exporting results |
