@@ -85,7 +85,10 @@ func (s *state) servePlugin(w http.ResponseWriter, r *http.Request, rest string)
 		http.NotFound(w, r)
 		return
 	}
-	fsys, ok := s.reg.AssetFS(id)
+	s.mu.Lock()
+	reg := s.reg
+	s.mu.Unlock()
+	fsys, ok := reg.AssetFS(id)
 	if !ok {
 		http.NotFound(w, r)
 		return

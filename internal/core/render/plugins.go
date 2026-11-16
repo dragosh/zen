@@ -4,22 +4,35 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"html"
 	"strings"
 
 	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/yuin/goldmark"
+	"github.com/yuin/goldmark/renderer"
+	"github.com/yuin/goldmark/text"
+	"github.com/yuin/goldmark/util"
 )
+
+// maxNesting is how many levels of plugin containers with default content
+// may nest.
+const maxNesting = 8
 
 // state is the per-render mutable state; one goroutine uses it.
 type state struct {
-	set      *plugins.Set
-	path     string
-	nonce    string
-	frags    []string // placeholder index -> HTML
-	texts    []string // placeholder index -> plain text (for the title)
-	used     map[string]bool
-	warnings []string
+	r         *Renderer
+	set       *plugins.Set
+	path      string
+	nonce     string
+	frags     []string // placeholder index -> HTML
+	texts     []string // placeholder index -> plain text (for the title)
+	used      map[string]bool
+	warnings  []string
+	denied    []string // ids of not-allowed plugins the page uses, in order
+	depth     int      // nesting of default-content containers
+	titleOnly bool     // only the title is wanted: run no hooks
 }
 
 func newNonce() string {
@@ -32,6 +45,16 @@ func (st *state) warn(id string, err error) {
 	st.warnings = append(st.warnings, fmt.Sprintf("plugin %q: %v", id, err))
 }
 
+// deny records that the page uses a name of a plugin that is not allowed.
+func (st *state) deny(id string) {
+	for _, d := range st.denied {
+		if d == id {
+			return
+		}
+	}
+	st.denied = append(st.denied, id)
+}
+
 func (st *state) token(i int) string { return fmt.Sprintf("zenph%sn%dz", st.nonce, i) }
 
 // placeholder stores fragment HTML and returns its token.
@@ -41,13 +64,46 @@ func (st *state) placeholder(html, plain string) string {
 	return st.token(len(st.frags) - 1)
 }
 
-// block runs a block hook and returns the wrapped HTML.
+// attrsJSON returns the data-zen-attrs attribute for attrs ("" when empty).
+func attrsJSON(attrs map[string]string) string {
+	if len(attrs) == 0 {
+		return ""
+	}
+	var b bytes.Buffer
+	enc := json.NewEncoder(&b)
+	enc.SetEscapeHTML(false)
+	if enc.Encode(attrs) != nil {
+		return ""
+	}
+	return ` data-zen-attrs="` + html.EscapeString(strings.TrimSpace(b.String())) + `"`
+}
+
+func wrapper(tag, id, name string, attrs map[string]string, inner string) string {
+	return "<" + tag + ` data-zen-plugin="` + html.EscapeString(id) + `" data-zen-name="` + html.EscapeString(name) + `"` +
+		attrsJSON(attrs) + ">" + inner + "</" + tag + ">"
+}
+
+// block renders a block and returns the wrapped HTML. A plugin without a
+// block hook gets default content: a container's body as markdown, a fence's
+// body as text.
 func (st *state) block(p plugins.Plugin, b plugins.Block) string {
 	id := p.Manifest().ID
+	if st.titleOnly {
+		return ""
+	}
 	var out string
-	err := fmt.Errorf("plugin does not render blocks")
-	if h, ok := p.(plugins.BlockHook); ok {
+	var err error
+	if h, ok := plugins.BlockHookOf(p); ok {
 		err = guard(func() (e error) { out, e = h.RenderBlock(st.set.Context(id, st.path), b); return })
+	} else if b.Fenced {
+		out = `<pre class="zen-plugin-source">` + html.EscapeString(b.Body) + "</pre>"
+	} else if st.depth >= maxNesting {
+		st.warnings = append(st.warnings, fmt.Sprintf("plugin %q: containers nested more than %d levels deep are shown as text", id, maxNesting))
+		return `<pre class="zen-plugin-source">` + html.EscapeString(b.Body) + "</pre>"
+	} else {
+		st.depth++
+		out = st.fragment(b.Body)
+		st.depth--
 	}
 	if err != nil {
 		st.warn(id, err)
@@ -55,15 +111,20 @@ func (st *state) block(p plugins.Plugin, b plugins.Block) string {
 	} else {
 		st.used[id] = true
 	}
-	return `<div data-zen-plugin="` + html.EscapeString(id) + `">` + out + "</div>"
+	return wrapper("div", id, b.Name, b.Attrs, out)
 }
 
 func (st *state) inline(p plugins.Plugin, in plugins.Inline) string {
 	id := p.Manifest().ID
+	if st.titleOnly {
+		return ""
+	}
 	var out string
-	err := fmt.Errorf("plugin does not render inlines")
-	if h, ok := p.(plugins.InlineHook); ok {
+	var err error
+	if h, ok := plugins.InlineHookOf(p); ok {
 		err = guard(func() (e error) { out, e = h.RenderInline(st.set.Context(id, st.path), in); return })
+	} else {
+		out = html.EscapeString(in.Text)
 	}
 	if err != nil {
 		st.warn(id, err)
@@ -71,7 +132,23 @@ func (st *state) inline(p plugins.Plugin, in plugins.Inline) string {
 	} else {
 		st.used[id] = true
 	}
-	return `<span data-zen-plugin="` + html.EscapeString(id) + `">` + out + "</span>"
+	return wrapper("span", id, in.Name, in.Attrs, out)
+}
+
+// fragment renders markdown (a container's body) through the same pipeline
+// and returns its HTML, placeholders filled.
+func (st *state) fragment(src string) string {
+	body := st.replaceContainers([]byte(src))
+	body = st.replaceInlines(body)
+	md := newMarkdown(goldmark.WithRendererOptions(
+		renderer.WithNodeRenderers(util.Prioritized(&nodeRenderer{st: st, r: st.r}, 100)),
+	))
+	doc := md.Parser().Parse(text.NewReader(body))
+	var buf bytes.Buffer
+	if err := md.Renderer().Render(&buf, body, doc); err != nil {
+		return html.EscapeString(src)
+	}
+	return st.fill(buf.String())
 }
 
 // replaceContainers renders the outermost containers owned by an enabled
@@ -88,6 +165,9 @@ func (st *state) replaceContainers(src []byte) []byte {
 		}
 		p := st.set.Block(sp.Name)
 		if p == nil {
+			if id := st.set.Denied("block", sp.Name); id != "" {
+				st.deny(id)
+			}
 			continue
 		}
 		h := st.block(p, plugins.Block{Name: sp.Name, Body: sp.Body, Attrs: sp.Attrs})
@@ -105,7 +185,7 @@ func (st *state) replaceContainers(src []byte) []byte {
 // replaceInlines replaces inline directives of enabled plugins outside
 // fenced code blocks with placeholder tokens.
 func (st *state) replaceInlines(src []byte) []byte {
-	known := func(n string) bool { return st.set.Inline(n) != nil }
+	known := func(n string) bool { return st.set.Inline(n) != nil || st.set.Denied("inline", n) != "" }
 	if bytes.IndexByte(src, ':') < 0 {
 		return src
 	}
@@ -134,7 +214,12 @@ func (st *state) replaceInlines(src []byte) []byte {
 		}
 		at := 0
 		for _, sp := range plugins.ScanInlines(line, known) {
-			h := st.inline(st.set.Inline(sp.Name), plugins.Inline{Name: sp.Name, Text: sp.Body, Attrs: sp.Attrs})
+			ip := st.set.Inline(sp.Name)
+			if ip == nil { // a plugin that is not allowed: the text stays literal
+				st.deny(st.set.Denied("inline", sp.Name))
+				continue
+			}
+			h := st.inline(ip, plugins.Inline{Name: sp.Name, Text: sp.Body, Attrs: sp.Attrs})
 			out.Write(line[at:sp.Start])
 			out.WriteString(st.placeholder(h, sp.Body))
 			at = sp.End

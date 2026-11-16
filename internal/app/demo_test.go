@@ -24,11 +24,24 @@ func TestDemoFolder(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	z, err := newZen(zenOptions{Registry: reg, Dir: demo, Events: &sink{}, Dialogs: &fakeDialogs{}})
+	// The demo ships external plugins (.zen/plugins): allow them through the
+	// trust prompt, with a private settings folder.
+	dialogs := &fakeDialogs{confirm: true}
+	z, err := newZen(zenOptions{Registry: reg, ConfigDir: t.TempDir(), Dir: demo, Events: &sink{}, Dialogs: dialogs})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(z.close)
+	if len(dialogs.asked) != 1 || !strings.Contains(dialogs.asked[0], "note") || !strings.Contains(dialogs.asked[0], "./note.sh") ||
+		!strings.Contains(dialogs.asked[0], "calc") || !strings.Contains(dialogs.asked[0], "bc -l") ||
+		!strings.Contains(dialogs.asked[0], "progress") || !strings.Contains(dialogs.asked[0], "scripts in the page") {
+		t.Fatalf("trust prompt: %q", dialogs.asked)
+	}
+	for _, id := range []string{"note", "calc", "progress"} {
+		if got := infoOf(t, z, id); got.Status != "on" || got.Source != "folder" {
+			t.Errorf("demo plugin %s: %+v", id, got)
+		}
+	}
 
 	st := z.Startup()
 	if st.Page != "README.md" {
@@ -77,7 +90,7 @@ func TestDemoFolder(t *testing.T) {
 		t.Errorf("README children = %v", got)
 	}
 	for _, n := range tree[0].Children {
-		if n.Path == "plugins/index.md" && strings.Join(paths(n.Children), ",") != "plugins/highlight.md,plugins/diagram.md,plugins/directives.md" {
+		if n.Path == "plugins/index.md" && strings.Join(paths(n.Children), ",") != "plugins/writing-plugins.md,plugins/highlight.md,plugins/diagram.md,plugins/directives.md" {
 			t.Errorf("Plugins children = %v", paths(n.Children))
 		}
 		if n.Path == "configuration/settings.md" && strings.Join(paths(n.Children), ",") != "configuration/reference.md" {
@@ -111,5 +124,35 @@ func TestDemoFolder(t *testing.T) {
 	}
 	if dg, _ := z.Page("plugins/diagram.md"); strings.Count(dg.HTML, `class="zen-diagram"`) != 3 {
 		t.Error("diagram page should have three diagrams")
+	}
+	// The external demo plugins: :::note on the directives page goes through
+	// note.sh; calc pipes a fence through bc.
+	dir, _ := z.Page("plugins/directives.md")
+	if !strings.Contains(dir.HTML, `data-zen-plugin="note" data-zen-name="note"`) || !strings.Contains(dir.HTML, `<div class="note"><strong>Remember</strong>`) {
+		t.Errorf("note plugin did not render the container: %s", dir.HTML)
+	}
+	if !strings.Contains(strings.Join(dir.Assets.CSS, ","), "/_plugins/note/note.css") {
+		t.Errorf("note assets: %+v", dir.Assets)
+	}
+	// The how-to shows the real plugins at work: bc's answer, a ticked-able
+	// checklist rendered by the frontend-only progress plugin.
+	how, err := z.Page("plugins/writing-plugins.md")
+	if err != nil || !strings.Contains(how.HTML, `<pre class="zen-plugin-output">1024`) || !strings.Contains(how.HTML, "3.1428") {
+		t.Errorf("calc block on the how-to: %v %s", err, how.HTML)
+	}
+	if !strings.Contains(how.HTML, `data-zen-plugin="progress" data-zen-name="progress" data-zen-attrs="{&#34;id&#34;:&#34;first-plugin&#34;}"`) ||
+		strings.Count(how.HTML, `type="checkbox"`) < 3 {
+		t.Errorf("progress container lost its task list: %s", how.HTML)
+	}
+	if !strings.Contains(strings.Join(how.Assets.JS, ","), "/_plugins/progress/progress.js") {
+		t.Errorf("progress script not offered: %+v", how.Assets)
+	}
+	warn, err := z.Preview("plugins/directives.md", ":::warning\nMind the <gap> & co.\n:::\n")
+	if err != nil || !strings.Contains(warn.HTML, `<div class="warning"><strong>Warning</strong>`) || !strings.Contains(warn.HTML, "Mind the &lt;gap&gt; &amp; co.") {
+		t.Errorf("warning block: %v %s", err, warn.HTML)
+	}
+	calc, err := z.Preview("plugins/directives.md", "```calc\n2 + 3 * 4\n```\n")
+	if err != nil || !strings.Contains(calc.HTML, `<pre class="zen-plugin-output">14`) || len(calc.Warnings) != 0 {
+		t.Errorf("calc block: %v %v %s", err, calc.Warnings, calc.HTML)
 	}
 }

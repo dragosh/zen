@@ -36,7 +36,9 @@ func newPolicy(allow []plugins.AllowRule) *bluemonday.Policy {
 	p.AllowAttrs("data-zen-link").Matching(regexp.MustCompile(`^(internal|external|broken)$`)).OnElements("a")
 	p.AllowAttrs("data-path", "data-anchor").OnElements("a")
 	p.AllowAttrs("rel").Matching(regexp.MustCompile(`^noopener noreferrer$`)).OnElements("a")
-	p.AllowAttrs("data-zen-plugin").Matching(regexp.MustCompile(`^[a-z][a-z0-9-]*$`)).OnElements("div", "span")
+	name := regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
+	p.AllowAttrs("data-zen-plugin", "data-zen-name", "data-zen-layout").Matching(name).OnElements("div", "span")
+	p.AllowAttrs("data-zen-attrs").OnElements("div", "span")
 	for _, r := range allow {
 		el := strings.ToLower(strings.TrimSpace(r.Element))
 		if el == "" || forbiddenElements[el] {

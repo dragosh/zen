@@ -89,6 +89,21 @@ func (d *wailsDialogs) PickFolder() (string, error) {
 	return dir, nil
 }
 
+// Ready reports whether the dialogs can be shown (the window exists).
+func (d *wailsDialogs) Ready() bool { return d.app != nil && d.win != nil }
+
+// ConfirmTrust is the prompt before plugins of a folder are used.
+func (d *wailsDialogs) ConfirmTrust(message string) bool {
+	answer := make(chan bool, 2)
+	dlg := d.app.Dialog.Question().SetTitle("Allow plugins?").SetMessage(message)
+	allow := dlg.AddButton("Allow").OnClick(func() { answer <- true })
+	block := dlg.AddButton("Block").OnClick(func() { answer <- false })
+	dlg.SetDefaultButton(block).SetCancelButton(block).AttachToWindow(d.win)
+	_ = allow
+	dlg.Show()
+	return <-answer
+}
+
 func (d *wailsDialogs) Confirm(message string) bool {
 	answer := make(chan bool, 2)
 	dlg := d.app.Dialog.Question().SetTitle("Open Link").SetMessage(message)
@@ -124,6 +139,10 @@ func Run(opts Options) error {
 		return err
 	}
 	globalPath, _ := config.GlobalPath()
+	configDir := ""
+	if globalPath != "" {
+		configDir = filepath.Dir(globalPath)
+	}
 	sink := &appSink{}
 	dialogs := &wailsDialogs{}
 	// The main window always reads; `zen edit` opens an editor window once
@@ -131,7 +150,8 @@ func Run(opts Options) error {
 	z, err := newZen(zenOptions{
 		Registry: reg, GlobalPath: globalPath,
 		Dir: opts.Dir, Page: opts.Page, Mode: "read",
-		Events: sink, Dialogs: dialogs,
+		ConfigDir: configDir,
+		Events:    sink, Dialogs: dialogs,
 	})
 	if err != nil {
 		return err
@@ -180,6 +200,7 @@ func Run(opts Options) error {
 
 	a.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
 		go func() {
+			z.state.promptPending() // plugins of the folder given on the command line
 			if err := z.openStartupEditor(opts.Mode); err != nil {
 				a.Dialog.Warning().SetTitle("Could not edit").SetMessage(err.Error()).Show()
 			}

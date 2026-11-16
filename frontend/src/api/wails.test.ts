@@ -25,6 +25,12 @@ vi.mock("../../bindings/github.com/dragosh/zen/internal/app/index.js", () => ({
     OpenExternal: binding("OpenExternal"),
     OpenEditor: binding("OpenEditor"),
     Lint: binding("Lint"),
+    OpenConfig: binding("OpenConfig"),
+    Plugins: binding("Plugins"),
+    PluginTrust: binding("PluginTrust"),
+    PluginStorageGet: binding("PluginStorageGet"),
+    PluginStorageSet: binding("PluginStorageSet"),
+    PluginInvoke: binding("PluginInvoke"),
   },
 }));
 
@@ -82,7 +88,10 @@ describe("wails api", () => {
 
     results.Page = page;
     const p = await api.page("a.md");
-    expect(p).toEqual({ ...page, frontmatter: {}, breadcrumb: [], assets: { css: [], js: [] }, warnings: [] });
+    expect(p).toEqual({ ...page, frontmatter: {}, breadcrumb: [], assets: { css: [], js: [] }, warnings: [], layout: "" });
+    results.Page = { ...page, layout: "slides" };
+    expect((await api.page("a.md")).layout).toBe("slides");
+    calls.pop();
 
     results.Source = "# a";
     expect(await api.source("a.md")).toBe("# a");
@@ -244,6 +253,40 @@ describe("wails api", () => {
     await import("./wails");
     window.dispatchEvent(new CustomEvent("zen:close-window"));
     expect(windowCalls).toEqual(["Close"]);
+  });
+
+  it("plugins: maps the list defensively and passes the other calls through", async () => {
+    const api = (await import("./wails")).default;
+    results.Plugins = [
+      { id: "note", version: "0.1.0", description: "Callouts", source: "folder", status: "undecided", runs: ["./note.sh"], problem: "" },
+      { id: "x", source: "elsewhere", status: "weird", runs: null },
+      null,
+    ];
+    expect(await api.plugins()).toEqual([
+      { id: "note", version: "0.1.0", description: "Callouts", source: "folder", status: "undecided", runs: ["./note.sh"], problem: "" },
+      { id: "x", version: "", description: "", source: "folder", status: "invalid", runs: [], problem: "" },
+    ]);
+    results.Plugins = null;
+    expect(await api.plugins()).toEqual([]);
+
+    await expect(api.pluginTrust("note", true)).resolves.toBeUndefined();
+    results.PluginStorageGet = "{\"n\":1}";
+    expect(await api.pluginStorageGet("note", "k")).toBe("{\"n\":1}");
+    results.PluginStorageGet = "";
+    expect(await api.pluginStorageGet("note", "k")).toBe("null");
+    await expect(api.pluginStorageSet("note", "k", "2")).resolves.toBeUndefined();
+    results.PluginInvoke = "[1]";
+    expect(await api.pluginInvoke("note", "{}")).toBe("[1]");
+    results.PluginInvoke = new Error("plugin \"note\" has no action hook");
+    await expect(api.pluginInvoke("note", "{}")).rejects.toThrow("no action hook");
+
+    expect(calls.map((c) => [c.name, ...c.args])).toEqual([
+      ["Plugins"], ["Plugins"],
+      ["PluginTrust", "note", true],
+      ["PluginStorageGet", "note", "k"], ["PluginStorageGet", "note", "k"],
+      ["PluginStorageSet", "note", "k", "2"],
+      ["PluginInvoke", "note", "{}"], ["PluginInvoke", "note", "{}"],
+    ]);
   });
 
   it("in an editor window it answers for that window only (keep last: reloads the module)", async () => {

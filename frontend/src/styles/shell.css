@@ -191,7 +191,9 @@
   left: 8px;
   bottom: 48px;
   z-index: 20;
-  width: min(300px, calc(100vw - 32px));
+  width: min(320px, calc(100vw - 32px));
+  max-height: calc(100vh - 64px);
+  overflow-y: auto;
   padding: var(--space-4);
   background: var(--bg);
   color: var(--fg);
@@ -232,3 +234,22 @@
 .zen-settings-file-hint { color: var(--fg-muted); font-size: 12px; }
 .zen-settings-status { margin: var(--space-2) 0 0; min-height: 1em; color: var(--fg-muted); font-size: 12px; }
 .zen-settings-status:empty { display: none; }
+.zen-settings-plugin {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+.zen-settings-plugin + .zen-settings-plugin { border-top: 1px solid var(--rule); }
+.zen-settings-plugin-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 12px; overflow-wrap: anywhere; }
+.zen-settings-plugin-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
+.zen-settings-plugin-name { font-family: var(--font-mono); }
+.zen-settings-plugin-version, .zen-settings-plugin-hint, .zen-settings-plugin-runs { color: var(--fg-muted); }
+.zen-settings-plugin-state { margin-left: auto; font-weight: 600; }
+.zen-settings-plugin[data-status="off"] .zen-settings-plugin-state,
+.zen-settings-plugin[data-status="on"] .zen-settings-plugin-state { font-weight: 400; color: var(--fg-muted); }
+.zen-settings-plugin-runs { font-family: var(--font-mono); font-size: 11px; }
+.zen-settings-plugin-problem { color: var(--fg); }
+.zen-settings-plugin-trust { flex: none; }
+.zen-settings-plugins-empty { margin: 0; color: var(--fg-muted); font-size: 12px; }

@@ -7,6 +7,10 @@ Click the **cog** at the bottom of the sidebar, or press <kbd>⌘,</kbd>.
 - **Appearance**: System, Light or Dark, for every zen window on this Mac.
 - **config.yml**: settings for all folders. **Open** edits it in zen's editor.
 - **.zen.yml**: settings for the open folder.
+- **Plugins**: every plugin, where it comes from and what it runs. An external
+  plugin has an **Allow** or **Block** button: a blocked plugin renders as
+  plain markdown until you allow it. See
+  [Writing your own plugin](../plugins/writing-plugins.md).
 
 A missing file is created from a template with every setting commented out,
 so opening it changes nothing. zen checks the YAML when you save: a mistake is

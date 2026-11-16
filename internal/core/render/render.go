@@ -7,7 +7,9 @@ package render
 import (
 	"bytes"
 	"fmt"
+	stdhtml "html"
 	"path"
+	"sort"
 	"strings"
 
 	"github.com/dragosh/zen/internal/core/config"
@@ -34,6 +36,7 @@ type Page struct {
 	Frontmatter       map[string]any
 	Assets            plugins.Assets
 	Warnings          []string
+	Layout            string // layout plugin name applied to the page, "" when none
 }
 
 // Renderer renders pages. It holds no mutable state and is safe for
@@ -85,7 +88,7 @@ func (r *Renderer) Render(pagePath string, src []byte) (Page, error) {
 	settings := r.cfg.ForPage(meta)
 	set, regWarn := r.reg.Enabled(settings.Plugin, frontmatterPluginIDs(meta))
 
-	st := &state{set: set, path: pagePath, used: map[string]bool{}, nonce: newNonce()}
+	st := &state{r: r, set: set, path: pagePath, used: map[string]bool{}, nonce: newNonce()}
 	st.warnings = append(st.warnings, settings.Warnings...)
 	if fmWarn != "" {
 		st.warnings = append(st.warnings, fmWarn)
@@ -94,7 +97,7 @@ func (r *Renderer) Render(pagePath string, src []byte) (Page, error) {
 
 	// 2 source hooks
 	for _, p := range set.Plugins() {
-		h, ok := p.(plugins.SourceHook)
+		h, ok := plugins.SourceHookOf(p)
 		if !ok {
 			continue
 		}
@@ -117,16 +120,7 @@ func (r *Renderer) Render(pagePath string, src []byte) (Page, error) {
 	))
 	doc := md.Parser().Parse(text.NewReader(body))
 
-	title := ""
-	if t, ok := meta["title"].(string); ok && strings.TrimSpace(t) != "" {
-		title = strings.TrimSpace(t)
-	} else {
-		title = st.plain(firstH1(doc, body))
-	}
-	if title == "" {
-		base := path.Base(pagePath)
-		title = strings.TrimSuffix(base, path.Ext(base))
-	}
+	title := pageTitle(st, meta, doc, body, pagePath)
 
 	// 4+5 render, with fenced plugin blocks and link rewriting
 	var buf bytes.Buffer
@@ -137,7 +131,7 @@ func (r *Renderer) Render(pagePath string, src []byte) (Page, error) {
 
 	// 6 HTML hooks
 	for _, p := range set.Plugins() {
-		h, ok := p.(plugins.HTMLHook)
+		h, ok := plugins.HTMLHookOf(p)
 		if !ok {
 			continue
 		}
@@ -154,6 +148,15 @@ func (r *Renderer) Render(pagePath string, src []byte) (Page, error) {
 		out = res
 	}
 
+	// 6b layout
+	layout := ""
+	if name, wrapped := r.layout(st, meta, out); wrapped != "" {
+		layout, out = name, wrapped
+	}
+	for _, id := range st.denied {
+		st.warnings = append(st.warnings, fmt.Sprintf("plugin %q is not allowed (Settings › Plugins)", id))
+	}
+
 	// 7 sanitise
 	out = addInternalHref(policyFor(set.Allow()).Sanitize(out))
 
@@ -164,7 +167,86 @@ func (r *Renderer) Render(pagePath string, src []byte) (Page, error) {
 		Frontmatter: meta,
 		Assets:      usedAssets(set.Assets(), st.used),
 		Warnings:    st.warnings,
+		Layout:      layout,
 	}, nil
+}
+
+// pageTitle is the frontmatter title, else the first h1, else the file name.
+func pageTitle(st *state, meta map[string]any, doc ast.Node, body []byte, pagePath string) string {
+	title := ""
+	if t, ok := meta["title"].(string); ok && strings.TrimSpace(t) != "" {
+		title = strings.TrimSpace(t)
+	} else {
+		title = st.plain(firstH1(doc, body))
+	}
+	if title == "" {
+		base := path.Base(pagePath)
+		title = strings.TrimSuffix(base, path.Ext(base))
+	}
+	return title
+}
+
+// Title returns the title Render would give the page without running any
+// plugin hook (so indexing never starts an external program).
+func (r *Renderer) Title(pagePath string, src []byte) string {
+	meta, body, _ := config.SplitFrontmatter(src)
+	settings := r.cfg.ForPage(meta)
+	set, _ := r.reg.Enabled(settings.Plugin, frontmatterPluginIDs(meta))
+	st := &state{r: r, set: set, path: pagePath, used: map[string]bool{}, nonce: newNonce(), titleOnly: true}
+	body = st.replaceContainers(body)
+	body = st.replaceInlines(body)
+	doc := newMarkdown().Parser().Parse(text.NewReader(body))
+	return pageTitle(st, meta, doc, body, pagePath)
+}
+
+// layout wraps the page in its layout plugin's element when the frontmatter
+// asks for one. It returns the layout name and the wrapped HTML, or "" when
+// the page has no (usable) layout; problems become warnings.
+func (r *Renderer) layout(st *state, meta map[string]any, out string) (string, string) {
+	raw, present := meta["layout"]
+	if !present {
+		return "", ""
+	}
+	name, ok := raw.(string)
+	if !ok || !plugins.ValidName(name) {
+		st.warnings = append(st.warnings, "layout must be a name such as slides")
+		return "", ""
+	}
+	p := st.set.Layout(name)
+	if p == nil {
+		switch {
+		case st.set.Denied("layout", name) != "":
+			st.deny(st.set.Denied("layout", name))
+		case r.reg.Layout(name) != nil:
+			st.warnings = append(st.warnings, fmt.Sprintf("layout %q belongs to plugin %q, which is switched off", name, r.reg.Layout(name).Manifest().ID))
+		default:
+			st.warnings = append(st.warnings, fmt.Sprintf("unknown layout %q", name))
+		}
+		return "", ""
+	}
+	attrs := map[string]string{}
+	switch opts := meta["layoutOptions"].(type) {
+	case nil:
+	case map[string]any:
+		keys := make([]string, 0, len(opts))
+		for k := range opts {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		for _, k := range keys {
+			if s, ok := opts[k].(string); ok {
+				attrs[k] = s
+			} else {
+				st.warnings = append(st.warnings, fmt.Sprintf("layoutOptions.%s must be text; ignored", k))
+			}
+		}
+	default:
+		st.warnings = append(st.warnings, "layoutOptions must be a mapping; ignored")
+	}
+	id := p.Manifest().ID
+	st.used[id] = true
+	return name, `<div data-zen-plugin="` + stdhtml.EscapeString(id) + `" data-zen-layout="` + stdhtml.EscapeString(name) + `"` +
+		attrsJSON(attrs) + ">" + out + "</div>"
 }
 
 // Links returns the resolved links and images of the page in document order.

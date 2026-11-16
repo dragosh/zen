@@ -1,8 +1,9 @@
 // In-memory Api for development in a browser and for tests: a three-page
 // sample workspace, emit() to simulate Go events, and a record of every call.
-import type { Api, Crumb, Draft, LintResult, NavNode, Page, Startup, Workspace } from "./index";
+import type { Api, Crumb, Draft, LintResult, NavNode, Page, PluginInfo, Startup, Workspace } from "./index";
 
-type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig";
+type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig"
+  | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke";
 type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft };
 
 export type FakeOptions = {
@@ -16,6 +17,8 @@ export type FakeOptions = {
   lint?: LintResult;
   /** Development only: computes lint() from the content instead (api/index.ts). */
   devLint?: (path: string, content: string) => LintResult;
+  /** What plugins() lists. Default: none. */
+  plugins?: PluginInfo[];
 };
 
 type LintAnswer = LintResult | ((path: string, content: string) => LintResult);
@@ -40,7 +43,15 @@ export type FakeApi = Api & {
   broadcasts: ({ event: "editor:saved"; payload: { path: string } } | { event: "editor:draft"; payload: Draft })[];
   /** What lint() resolves to (a copy); assignable between calls. */
   lintResult: LintAnswer;
+  /** What plugins() lists (copies); pluginTrust() updates the status. Assignable. */
+  pluginList: PluginInfo[];
+  /** What pluginInvoke() answers: a JSON value, or a function of the plugin id and the parsed payload. Default null. */
+  invokeResult: unknown | ((id: string, payload: unknown) => unknown);
+  /** Shapes every page() and preview() result, e.g. to add plugin wrappers or a layout. */
+  decorate?: (page: Page) => Page;
 };
+
+const STORAGE_KEY = /^[A-Za-z0-9._-]{1,64}$/;
 
 const SOURCES: Record<string, string> = {
   "README.md": "# Sample docs\n\nA small workspace served by the fake API.\n\nStart with [Install](guides/install.md), then read [Usage](guides/usage.md).\n",
@@ -122,13 +133,17 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
   const failures = new Map<Method, Error>();
   let tree: NavNode[] = (startup.workspace ?? sampleWorkspace()).tree;
 
+  /** Plugin storage: plugin id -> key -> JSON text. */
+  const storage = new Map<string, Map<string, string>>();
+
   const render = (path: string, content: string): Page => {
     const { title, html } = renderFake(path, content, (p) => p in sources);
-    return {
+    const page: Page = {
       path, title, html, frontmatter: {},
       breadcrumb: crumbs(tree, path) ?? [{ title, path }],
-      assets: { css: [], js: [] }, warnings: [],
+      assets: { css: [], js: [] }, warnings: [], layout: "",
     };
+    return api.decorate ? api.decorate(page) : page;
   };
   const need = (path: string): string => {
     if (!(path in sources)) throw new Error(`page not found: ${path}`);
@@ -151,6 +166,8 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     confirmExternal: true,
     broadcasts: [],
     lintResult: options.devLint ?? options.lint ?? { available: false, alerts: [] },
+    pluginList: (options.plugins ?? []).map((p) => ({ ...p, runs: [...p.runs] })),
+    invokeResult: null,
     callsTo: (method) => api.calls.filter((c) => c.method === method).map((c) => c.args),
     emit(event, payload) {
       for (const fn of Array.from(listeners[event])) fn(payload);
@@ -181,6 +198,27 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     lint: (path, content) => call("lint", [path, content], () => {
       const r = typeof api.lintResult === "function" ? api.lintResult(path, content) : api.lintResult;
       return { available: r.available, alerts: r.alerts.map((a) => ({ ...a })) };
+    }),
+    plugins: () => call("plugins", [], () => api.pluginList.map((p) => ({ ...p, runs: [...p.runs] }))),
+    pluginTrust: (id, allow) => call("pluginTrust", [id, allow], () => {
+      const p = api.pluginList.find((x) => x.id === id);
+      if (!p || p.source === "builtin") throw new Error(`plugin "${id}" is not an external plugin`);
+      if (p.status !== "invalid") p.status = allow ? "on" : "blocked";
+    }),
+    pluginStorageGet: (id, key) => call("pluginStorageGet", [id, key], () => storage.get(id)?.get(key) ?? "null"),
+    pluginStorageSet: (id, key, json) => call("pluginStorageSet", [id, key, json], () => {
+      if (!STORAGE_KEY.test(key)) throw new Error(`invalid storage key "${key}"`);
+      try {
+        JSON.parse(json);
+      } catch {
+        throw new Error("value is not JSON");
+      }
+      if (!storage.has(id)) storage.set(id, new Map());
+      storage.get(id)!.set(key, json);
+    }),
+    pluginInvoke: (id, json) => call("pluginInvoke", [id, json], () => {
+      const r = typeof api.invokeResult === "function" ? (api.invokeResult as (id: string, payload: unknown) => unknown)(id, JSON.parse(json)) : api.invokeResult;
+      return JSON.stringify(r ?? null);
     }),
     on(event: keyof Events, fn: (p: never) => void) {
       const set = listeners[event] as Set<(p: never) => void>;

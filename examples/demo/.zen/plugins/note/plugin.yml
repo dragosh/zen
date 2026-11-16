@@ -1,0 +1,17 @@
+id: note
+version: 0.1.0
+apiVersion: 1
+description: Callout boxes
+default: true
+
+blocks: [note, warning]
+
+allow:
+  - { element: div, attrs: [class] }
+
+backend:
+  command: ["./note.sh"]
+  hooks: [block]
+
+frontend:
+  css: [note.css]

@@ -64,7 +64,7 @@ test("breadcrumb follows store page and dirty flag in edit mode", async () => {
   // The shell no longer enters edit mode from startup (ui/editor-window); set it directly.
   await boot("guides/install.md");
   shell.store.set({ mode: "edit" });
-  shell.store.set({ page: { path: "guides/install.md", title: "Install", html: "", frontmatter: {}, warnings: [], assets: { css: [], js: [] },
+  shell.store.set({ page: { path: "guides/install.md", title: "Install", html: "", frontmatter: {}, warnings: [], assets: { css: [], js: [] }, layout: "",
     breadcrumb: [{ title: "Guides", path: "guides" }, { title: "Install", path: "guides/install.md" }] } });
   const bc = root.querySelector<HTMLElement>(".zen-breadcrumb")!;
   expect(bc.textContent).toContain("Guides");

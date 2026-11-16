@@ -1,7 +1,8 @@
 // The settings panel, opened from the cog at the bottom of the sidebar:
-// theme (this machine, all windows) and the two config files, opened in
-// zen's own editor window. All text through textContent.
-import type { Api } from "../api";
+// theme (this machine, all windows), the two config files, opened in zen's
+// own editor window, and the plugins with Allow / Block for external ones.
+// All text through textContent.
+import type { Api, PluginInfo } from "../api";
 import { button, el } from "./dom";
 import { setTheme, storedTheme, type Theme } from "./theme";
 
@@ -19,6 +20,12 @@ const THEMES: { id: Theme; label: string }[] = [
   { id: "light", label: "Light" },
   { id: "dark", label: "Dark" },
 ];
+
+const SOURCE_LABEL: Record<PluginInfo["source"], string> = { builtin: "Built in", folder: "This folder", user: "Your plugins" };
+const STATUS_LABEL: Record<PluginInfo["status"], string> = {
+  on: "On", off: "Off", blocked: "Blocked", undecided: "Not allowed yet", invalid: "Invalid",
+};
+const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
 export function createSettings(opts: { api: Api; anchor: HTMLButtonElement; hasWorkspace(): boolean }): SettingsPanel {
   const { api, anchor } = opts;
@@ -89,11 +96,65 @@ export function createSettings(opts: { api: Api; anchor: HTMLButtonElement; hasW
       status.textContent = `${name} opened in the editor.`;
       close();
     } catch (err) {
-      status.textContent = `Could not open ${name}: ${err instanceof Error ? err.message : String(err)}`;
+      status.textContent = `Could not open ${name}: ${message(err)}`;
     }
   }
 
-  panel.append(title, themeLabel, seg, filesLabel, global.r, local.r, status);
+  // Plugins: read from the API each time the panel opens and after Allow / Block.
+  const pluginsLabel = el("p", "zen-settings-label", "Plugins");
+  pluginsLabel.id = "zen-settings-plugins-label";
+  const pluginList = el("div", "zen-settings-plugins");
+  pluginList.setAttribute("role", "list");
+  pluginList.setAttribute("aria-labelledby", pluginsLabel.id);
+  const pluginStatus = el("p", "zen-settings-status zen-settings-plugins-status");
+  pluginStatus.setAttribute("role", "status");
+  let pluginSeq = 0;
+
+  function pluginRow(p: PluginInfo): HTMLElement {
+    const r = el("div", "zen-settings-plugin");
+    r.setAttribute("role", "listitem");
+    r.dataset.plugin = p.id;
+    r.dataset.status = p.status;
+    const text = el("div", "zen-settings-plugin-text");
+    const head = el("div", "zen-settings-plugin-head");
+    head.append(el("span", "zen-settings-plugin-name", p.id));
+    if (p.version) head.append(el("span", "zen-settings-plugin-version", p.version));
+    head.append(el("span", "zen-settings-plugin-state", STATUS_LABEL[p.status]));
+    text.append(head, el("span", "zen-settings-plugin-hint", SOURCE_LABEL[p.source]));
+    if (p.runs.length > 0) text.append(el("span", "zen-settings-plugin-runs", `Runs: ${p.runs.join(", ")}`));
+    if (p.problem) text.append(el("span", "zen-settings-plugin-problem", p.problem));
+    r.append(text);
+    if (p.source !== "builtin" && p.status !== "invalid") {
+      const allow = p.status === "blocked" || p.status === "undecided";
+      const verb = allow ? "Allow" : "Block";
+      r.append(button(`${verb} ${p.id}`, () => void trust(p.id, allow), { className: "zen-settings-plugin-trust", text: verb }));
+    }
+    return r;
+  }
+  async function refreshPlugins(): Promise<void> {
+    const mine = ++pluginSeq;
+    try {
+      const list = await api.plugins();
+      if (mine !== pluginSeq) return;
+      if (list.length === 0) pluginList.replaceChildren(el("p", "zen-settings-plugins-empty", "No plugins in this folder."));
+      else pluginList.replaceChildren(...list.map(pluginRow));
+    } catch (err) {
+      if (mine !== pluginSeq) return;
+      pluginList.replaceChildren(el("p", "zen-settings-plugins-empty", `Could not list plugins: ${message(err)}`));
+    }
+  }
+  async function trust(id: string, allow: boolean): Promise<void> {
+    pluginStatus.textContent = "";
+    for (const b of Array.from(pluginList.querySelectorAll("button"))) b.disabled = true;
+    try {
+      await api.pluginTrust(id, allow);
+    } catch (err) {
+      pluginStatus.textContent = `Could not ${allow ? "allow" : "block"} ${id}: ${message(err)}`;
+    }
+    await refreshPlugins();
+  }
+
+  panel.append(title, themeLabel, seg, filesLabel, global.r, local.r, status, pluginsLabel, pluginList, pluginStatus);
 
   const onDocDown = (e: Event) => {
     const t = e.target as Node | null;
@@ -113,6 +174,8 @@ export function createSettings(opts: { api: Api; anchor: HTMLButtonElement; hasW
     renderTheme();
     local.b.disabled = !opts.hasWorkspace();
     status.textContent = "";
+    pluginStatus.textContent = "";
+    void refreshPlugins();
     panel.hidden = false;
     anchor.setAttribute("aria-expanded", "true");
     doc.addEventListener("mousedown", onDocDown, true);

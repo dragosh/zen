@@ -201,7 +201,7 @@ func TestPluginBlocks(t *testing.T) {
 	contains(t, p.HTML, `data-zen-plugin="demo"`, `box|false|c|hello`, "after")
 
 	p = render(t, r, "Status: :badge[stable]{k=g} ok\n")
-	contains(t, p.HTML, `<span data-zen-plugin="demo">`, `badge|stable|g`, "Status:", "ok")
+	contains(t, p.HTML, `<span data-zen-plugin="demo" data-zen-name="badge" data-zen-attrs=`, `badge|stable|g`, "Status:", "ok")
 
 	// disabled plugin: plain code block and literal text
 	p = render(t, r, "```offb\nx\n```\n\n:offi[t] and :::offb\n")
