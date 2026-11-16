@@ -1,0 +1,140 @@
+/* slides.css — the "slides" layout. Chrome uses zen's tokens. */
+/* The pane hands the layout the whole page area; stretch down it. */
+.zen-layout-slides { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+[data-zen-layout="slides"] { display: flex; flex-direction: column; flex: 1; min-height: 0; margin: 0; }
+.slides-root {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: max(24em, 70vh);
+  background: var(--bg-subtle, var(--bg));
+  color: var(--fg);
+  outline: none;
+}
+.slides-viewport {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+.slides-stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: var(--slides-w);
+  height: var(--slides-h);
+  transform-origin: center center;
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  box-sizing: border-box;
+}
+.slides-slide {
+  position: absolute;
+  inset: 0;
+  box-sizing: border-box;
+  padding: 56px 72px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  overflow: hidden;
+  font-size: 28px;
+  line-height: 1.4;
+}
+.slides-slide[hidden] { display: none; }
+[data-transition="fade"] .slides-slide { animation: slides-fade 0.25s ease; }
+@keyframes slides-fade { from { opacity: 0; } to { opacity: 1; } }
+.slides-content > :first-child { margin-top: 0; }
+.slides-content > :last-child { margin-bottom: 0; }
+.slides-content h1 { font-size: 2.2em; line-height: 1.15; border: 0; padding: 0; margin: 0 0 0.4em; }
+.slides-content h2 { font-size: 1.6em; line-height: 1.2; margin: 0 0 0.5em; }
+.slides-content pre { font-size: 0.75em; }
+.slides-content img, .slides-content svg { max-width: 100%; max-height: 60%; }
+.slides-notes { display: none; }
+
+.slides-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--rule);
+  background: var(--bg);
+  font: 13px/1.5 var(--font-ui);
+  color: var(--fg-muted);
+}
+.slides-progress { flex: 1; height: 4px; background: var(--btn-bg); border-radius: var(--radius); overflow: hidden; }
+.slides-progress-fill { height: 100%; background: var(--fg); }
+.slides-count { min-width: 5em; text-align: right; color: var(--fg); }
+
+.slides-overview { display: none; }
+.slides-root[data-overview="true"] .slides-viewport { display: none; }
+.slides-root[data-overview="true"] .slides-overview {
+  display: grid;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: var(--space-4);
+  padding: var(--space-5);
+  align-content: start;
+}
+.slides-thumb {
+  position: relative;
+  display: block;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--bg);
+  cursor: pointer;
+  overflow: hidden;
+  aspect-ratio: var(--slides-ratio);
+  font: inherit;
+}
+.slides-thumb:hover { background: var(--btn-bg-hover); }
+.slides-thumb[data-current="true"] { border-color: var(--fg); }
+.slides-thumb-slide {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: var(--slides-w);
+  height: var(--slides-h);
+  padding: 56px 72px;
+  box-sizing: border-box;
+  font-size: 28px;
+  line-height: 1.4;
+  text-align: left;
+  color: var(--fg);
+  transform: scale(0.25);
+  transform-origin: top left;
+  pointer-events: none;
+}
+.slides-thumb-n {
+  position: absolute;
+  right: var(--space-2);
+  bottom: var(--space-1);
+  font: 12px/1 var(--font-ui);
+  color: var(--fg-muted);
+}
+
+@media print {
+  [data-zen-layout="slides"], .zen-layout-slides { display: block; }
+  .slides-root { display: block; height: auto; background: none; }
+  .slides-bar, .slides-overview { display: none !important; }
+  .slides-viewport { display: block !important; overflow: visible; }
+  .slides-stage {
+    position: static;
+    width: auto;
+    height: auto;
+    transform: none !important;
+    border: 0;
+  }
+  .slides-slide, .slides-slide[hidden] {
+    position: relative;
+    display: flex !important;
+    width: 100%;
+    height: auto;
+    aspect-ratio: var(--slides-ratio);
+    break-after: page;
+    page-break-after: always;
+    animation: none;
+  }
+}
