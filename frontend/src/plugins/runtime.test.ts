@@ -470,6 +470,17 @@ test("stream delivers chunks in order and done resolves when Go says so", async 
   expect(got).toEqual(["a", "b"]);
 });
 
+test("a batched chunk (lines joined by Go) reaches the plugin one line at a time, empty lines kept", async () => {
+  const ctx = await ctxOf();
+  const got: string[] = [];
+  const s = ctx.stream(null, (c) => got.push(c));
+  await settle();
+  chunk("call-1", '{"s":"out","t":"one"}\n\n{"s":"out","t":"three"}');
+  end("call-1");
+  await s.done;
+  expect(got).toEqual(['{"s":"out","t":"one"}', "", '{"s":"out","t":"three"}']);
+});
+
 test("chunks that arrive before the call id is known are not lost", async () => {
   const ctx = await ctxOf();
   const got: string[] = [];

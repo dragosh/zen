@@ -80,29 +80,48 @@ func TestH1SymlinksInsideAndOutside(t *testing.T) {
 	}
 }
 
-// H1: .DS_Store is hashed like any file (it can be the command).
-func TestH1DSStoreIsHashed(t *testing.T) {
+// H1: a .DS_Store can never be run or served (so leaving Finder's files out
+// of the hash is safe), and Finder touching one does not ask to approve again.
+func TestH1DSStoreIsNeverUsedAndNotHashed(t *testing.T) {
 	root := t.TempDir()
-	pdir := filepath.Join(root, "plugins", "x")
-	mkfile(t, pdir, "plugin.yml", blockYML+"backend: {command: [./.DS_Store], hooks: [block]}\n", 0o644)
-	mkfile(t, pdir, ".DS_Store", "#!/bin/sh\necho benign\n", 0o755)
+	for _, tc := range []struct{ name, yml string }{
+		{"command", blockYML + "backend: {command: [./.DS_Store], hooks: [block]}\n"},
+		{"argument", blockYML + "backend: {command: [sh, .DS_Store], hooks: [block]}\n"},
+		{"symlinked command", blockYML + "backend: {command: [./run.sh], hooks: [block]}\n"},
+		{"frontend", blockYML + "frontend: {js: [.DS_Store]}\n"},
+	} {
+		pdir := filepath.Join(root, "plugins", strings.ReplaceAll(tc.name, " ", "-"))
+		mkfile(t, pdir, "plugin.yml", strings.Replace(tc.yml, "id: x", "id: "+filepath.Base(pdir), 1), 0o644)
+		mkfile(t, pdir, ".DS_Store", "#!/bin/sh\necho EVIL\n", 0o755)
+		if tc.name == "symlinked command" {
+			if err := os.Symlink(".DS_Store", filepath.Join(pdir, "run.sh")); err != nil {
+				t.Fatal(err)
+			}
+		}
+		if _, err := Load(pdir); err == nil || !strings.Contains(err.Error(), ".DS_Store") {
+			t.Errorf("%s: want a .DS_Store refusal, got %v", tc.name, err)
+		}
+	}
+
+	// A plugin that does not use it: Finder rewriting .DS_Store changes nothing.
+	pdir := filepath.Join(root, "plugins", "ok")
+	mkfile(t, pdir, "plugin.yml", strings.Replace(blockYML, "id: x", "id: ok", 1)+"backend: {command: [./run.sh], hooks: [block]}\n", 0o644)
+	mkfile(t, pdir, "run.sh", "#!/bin/sh\necho ok\n", 0o755)
 	p, err := Load(pdir)
 	if err != nil {
 		t.Fatal(err)
 	}
 	h1, _ := p.Hash()
-	mkfile(t, pdir, ".DS_Store", "#!/bin/sh\necho EVIL\n", 0o755)
+	mkfile(t, pdir, ".DS_Store", "finder state", 0o644)
 	p2, err := Load(pdir)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if h2, _ := p2.Hash(); h1 == h2 {
-		t.Fatal("the hash ignores .DS_Store")
+	if h2, _ := p2.Hash(); h1 != h2 {
+		t.Fatal("Finder's .DS_Store changed the hash")
 	}
-	tr := LoadTrust("")
-	tr.Set(p, "", true)
-	if _, decided := tr.Decision(p2, ""); decided {
-		t.Fatal("a changed .DS_Store must ask again")
+	if p.Changed() { // loaded before Finder wrote the file
+		t.Fatal("Finder's .DS_Store marked the plugin changed")
 	}
 }
 

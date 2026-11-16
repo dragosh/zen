@@ -403,7 +403,9 @@ Plugins run programs and scripts, so **zen asks before using a plugin for
 the first time**, naming what it will run. The answer is remembered for that
 exact version of the plugin's files in
 `<user config dir>/zen/trusted-plugins.yml`: the hash covers every file of the
-folder (nothing is skipped, a symlink by its target's content) and is taken
+folder (a symlink by its target's content), except Finder's `.DS_Store`
+files, which Finder rewrites whenever you look at the folder; a plugin can
+never run, pass or serve a `.DS_Store` (the manifest is refused). It is taken
 once, when the plugin is loaded; the answer is for exactly that. A decision is
 for one plugin folder **in one workspace** (a folder that links to an approved
 plugin is asked about); plugins in your own plugin folder apply to every

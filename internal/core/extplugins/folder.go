@@ -46,6 +46,12 @@ func scanFolder(real string, read bool) (hash, fingerprint string, err error) {
 		}
 		rel, _ := filepath.Rel(real, path)
 		rel = filepath.ToSlash(rel)
+		if d.Name() == finderFile && !d.IsDir() {
+			// Finder rewrites these whenever the folder is viewed; hashing them
+			// would ask to approve the plugin again after every look. A plugin
+			// can never run or serve one (refuseFinderFile), so skipping is safe.
+			return nil
+		}
 		files++
 		if files > maxFiles {
 			return fmt.Errorf("the plugin folder has more than %d files", maxFiles)
@@ -166,7 +172,13 @@ func insideRel(real, full string) bool {
 // is caught too.
 func checkArgs(real string, command []string) error {
 	for i, a := range command {
-		if i == 0 || a == "" || strings.ContainsRune(a, 0) {
+		if a == "" || strings.ContainsRune(a, 0) {
+			continue
+		}
+		if err := refuseFinderFile(real, a, "backend.command"); err != nil {
+			return err
+		}
+		if i == 0 {
 			continue
 		}
 		path := a
@@ -180,6 +192,25 @@ func checkArgs(real string, command []string) error {
 		if err != nil || !insideRel(real, full) {
 			return fmt.Errorf("backend.command argument %s names a file outside the plugin folder", a)
 		}
+	}
+	return nil
+}
+
+// finderFile is the name of the folder-view file Finder writes everywhere.
+const finderFile = ".DS_Store"
+
+// refuseFinderFile rejects a reference (command, argument, frontend file)
+// that names or resolves to a .DS_Store file: those are left out of the hash.
+func refuseFinderFile(real, name, what string) error {
+	if filepath.Base(name) == finderFile {
+		return fmt.Errorf("%s may not use %s files", what, finderFile)
+	}
+	path := name
+	if !filepath.IsAbs(path) {
+		path = filepath.Join(real, path)
+	}
+	if full, err := filepath.EvalSymlinks(path); err == nil && filepath.Base(full) == finderFile {
+		return fmt.Errorf("%s may not use %s files", what, finderFile)
 	}
 	return nil
 }

@@ -441,6 +441,9 @@ func checkInside(real, name, what string) error {
 	if name == "" || strings.ContainsAny(name, "\\:?#") {
 		return fmt.Errorf("%s %q is not a valid path", what, name)
 	}
+	if err := refuseFinderFile(real, name, what); err != nil {
+		return err
+	}
 	full, err := resolveInside(real, name, what)
 	if err != nil {
 		return err

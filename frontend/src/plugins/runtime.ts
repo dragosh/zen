@@ -196,10 +196,14 @@ export function installRuntime(opts: Options): Runtime {
         finish(e.error ? new Error(e.error) : undefined);
         return;
       }
-      try {
-        onChunk(e.chunk);
-      } catch (err) {
-        console.error(`zen: plugin "${id}" stream handler failed`, err);
+      // Go batches output (one event per 50 ms, lines joined with "\n");
+      // plugins still get one call per line.
+      for (const line of e.chunk.split("\n")) {
+        try {
+          onChunk(line);
+        } catch (err) {
+          console.error(`zen: plugin "${id}" stream handler failed`, err);
+        }
       }
     };
     if (m.dead) {

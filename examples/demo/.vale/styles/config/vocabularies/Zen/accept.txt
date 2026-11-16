@@ -10,3 +10,5 @@ Fibonacci
 (?i)linter
 (?i)outdent
 (?i)autolinks?
+(?i)codeblock
+Esc
