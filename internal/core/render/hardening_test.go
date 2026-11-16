@@ -36,10 +36,10 @@ func TestM7AllowRulesAreScopedAndCannotAllowDangerousParts(t *testing.T) {
 			t.Errorf("%q survived: %s", bad, out)
 		}
 	}
-	if !strings.Contains(out, `<svg viewBox="0 0 1 1">`) {
+	if !strings.Contains(out, `<svg viewbox="0 0 1 1">`) {
 		t.Errorf("the plugin's own svg was removed: %s", out)
 	}
-	if strings.Contains(out, `viewBox="0 0 2 2"`) {
+	if strings.Contains(out, `viewbox="0 0 2 2"`) {
 		t.Errorf("the rule applied outside the plugin's wrapper: %s", out)
 	}
 }
@@ -49,5 +49,21 @@ func TestM7AttrsJSONInjectionIsEscaped(t *testing.T) {
 	out := xrender(t, "<div data-zen-plugin=\"x\" data-zen-attrs='{\"a\":\"\\u003c/div\\u003e\\\" onclick=x'>t</div>\n").HTML
 	if strings.Contains(out, " onclick") && !strings.Contains(out, "&#34; onclick") && !strings.Contains(out, "&quot; onclick") {
 		t.Errorf("injected attribute: %s", out)
+	}
+}
+
+// M7: rules of nested wrappers apply to their own content only; an unclosed
+// wrapper gets no extra rules.
+func TestM7NestedScopes(t *testing.T) {
+	rules := map[string][]plugins.AllowRule{"p": {{Element: "svg"}}, "q": {{Element: "canvas", Attrs: []string{"width"}}}}
+	in := `<div data-zen-plugin="p" data-zen-name="p"><svg></svg><canvas width="1"></canvas>` +
+		`<div data-zen-plugin="q" data-zen-name="q"><canvas width="2"></canvas><svg></svg></div></div><svg></svg>`
+	out := scopedSanitise(in, rules)
+	want := `<div data-zen-plugin="p" data-zen-name="p"><svg></svg><div data-zen-plugin="q" data-zen-name="q"><canvas width="2"></canvas></div></div>`
+	if out != want {
+		t.Errorf("got  %s\nwant %s", out, want)
+	}
+	if got := scopedSanitise(`<div data-zen-plugin="p" data-zen-name="p"><div><svg></svg>`, rules); strings.Contains(got, "<svg") {
+		t.Errorf("an unclosed wrapper widened the policy: %s", got)
 	}
 }

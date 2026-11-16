@@ -1,6 +1,7 @@
 package extplugins
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -21,12 +22,11 @@ import (
 )
 
 const (
-	maxStdout     = 2 << 20  // bytes of stdout a backend may print
-	maxStderr     = 16 << 10 // bytes of stderr kept
-	maxBackends   = 4        // backend processes running at once, per app
-	errLines      = 5        // lines of stderr shown in an error
-	errBytes      = 600      // bytes of stderr shown in an error
-	pipeDrainWait = 500 * time.Millisecond
+	maxStdout   = 2 << 20  // bytes of stdout a backend may print
+	maxStderr   = 16 << 10 // bytes of stderr kept
+	maxBackends = 4        // backend processes running at once, per app
+	errLines    = 5        // lines of stderr shown in an error
+	errBytes    = 600      // bytes of stderr shown in an error
 )
 
 var slots = make(chan struct{}, maxBackends)
@@ -178,12 +178,7 @@ func (p *Plugin) env(c call, rt Runtime) []string {
 	for k := range attrs {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		if ek := envKey(k); ek != "" {
-			env = append(env, "ZEN_ATTR_"+ek+"="+noNUL(attrs[k]))
-		}
-	}
+	env = append(env, prefixed("ZEN_ATTR_", keys, func(k string) string { return attrs[k] })...)
 	cfg := c.ctx.Config
 	if cfg == nil {
 		cfg = map[string]any{}
@@ -193,13 +188,33 @@ func (p *Plugin) env(c call, rt Runtime) []string {
 	for k := range cfg {
 		keys = append(keys, k)
 	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		if ek := envKey(k); ek != "" {
-			env = append(env, "ZEN_CONFIG_"+ek+"="+noNUL(configEnv(cfg[k])))
-		}
-	}
+	env = append(env, prefixed("ZEN_CONFIG_", keys, func(k string) string { return configEnv(cfg[k]) })...)
 	return env
+}
+
+// prefixed makes the PREFIX<KEY>=value entries for names. Names are taken in
+// sorted order; when several map to the same variable (a-b and a_b are both
+// A_B) the one that sorts last wins and only one entry is emitted. The
+// *_JSON variables always carry every name.
+func prefixed(prefix string, names []string, value func(name string) string) []string {
+	sort.Strings(names)
+	vals := map[string]string{}
+	var order []string
+	for _, k := range names {
+		ek := envKey(k)
+		if ek == "" {
+			continue
+		}
+		if _, seen := vals[ek]; !seen {
+			order = append(order, ek)
+		}
+		vals[ek] = noNUL(value(k))
+	}
+	out := make([]string, 0, len(order))
+	for _, ek := range order {
+		out = append(out, prefix+ek+"="+vals[ek])
+	}
+	return out
 }
 
 // configEnv is an option's value for ZEN_CONFIG_<KEY>: JSON for maps and lists.
@@ -223,7 +238,12 @@ func toolPath() string {
 			out = append(out, d)
 		}
 	}
-	for _, d := range []string{"/usr/bin", "/bin", "/usr/sbin", "/sbin", "/opt/homebrew/bin", "/usr/local/bin"} {
+	home, _ := os.UserHomeDir()
+	extra := []string{}
+	if home != "" {
+		extra = append(extra, filepath.Join(home, ".local", "bin"), filepath.Join(home, ".cargo", "bin"))
+	}
+	for _, d := range append([]string{"/usr/bin", "/bin", "/usr/sbin", "/sbin", "/opt/homebrew/bin", "/usr/local/bin", "/opt/local/bin"}, extra...) {
 		if !have[d] {
 			have[d] = true
 			out = append(out, d)
@@ -308,6 +328,12 @@ func (p *Plugin) spawn(c call) (*proc, error) {
 	if p.back == nil {
 		return nil, errors.New("the plugin has no backend")
 	}
+	if p.Changed() {
+		return nil, ErrChanged
+	}
+	if err := checkArgs(p.dir, p.back.command); err != nil {
+		return nil, err
+	}
 	rt := Runtime{}
 	if r := p.rt.Load(); r != nil {
 		rt = *r
@@ -369,59 +395,106 @@ func (p *Plugin) spawn(c call) (*proc, error) {
 	return &proc{cmd: cmd, inW: inW, outR: outR, errR: errR}, nil
 }
 
+// ctx is the context that ends the plugin's calls (Runtime.Ctx).
+func (p *Plugin) ctx() context.Context {
+	if r := p.rt.Load(); r != nil && r.Ctx != nil {
+		return r.Ctx
+	}
+	return context.Background()
+}
+
+var errCancelled = errors.New("cancelled")
+
+// result is how a started backend ended.
+type result struct {
+	waitErr   error // from Wait: nil, an *exec.ExitError or another error
+	timedOut  bool  // the deadline passed (the process or a pipe was still open)
+	cancelled bool  // the context was cancelled
+	stderr    []byte
+}
+
+// spawnWait is the one place that waits for a started backend, for run and
+// Stream. It reads stdout with readOut (in its own goroutine) and keeps the
+// first maxStderr bytes of stderr. One deadline, timeout from now, covers the
+// process and both pipes: when it passes, or ctx is cancelled, the process
+// group is killed, the pipes are closed (a child that left the group and still
+// holds them cannot keep anything open) and the result says which. Normally
+// it returns when the process exited and both pipes reached EOF. On return no
+// goroutine of the call is running: readOut is never called again.
+func spawnWait(ctx context.Context, sp *proc, timeout time.Duration, readOut func(io.Reader)) result {
+	dctx, stop := context.WithTimeout(ctx, timeout)
+	defer stop()
+	errc := &collector{limit: maxStderr, done: make(chan struct{})}
+	go errc.run(sp.errR)
+	outDone := make(chan struct{})
+	go func() { defer close(outDone); readOut(sp.outR) }()
+	waited := make(chan error, 1)
+	go func() { waited <- sp.cmd.Wait() }()
+
+	var res result
+	interrupted := false
+	select {
+	case res.waitErr = <-waited:
+	case <-dctx.Done():
+		interrupted = true
+		killGroup(sp.cmd)
+		res.waitErr = <-waited
+	}
+	killGroup(sp.cmd) // children left behind do not outlive the call
+	for _, d := range []chan struct{}{outDone, errc.done} {
+		select {
+		case <-d:
+		case <-dctx.Done():
+			interrupted = true
+		}
+	}
+	sp.outR.Close() // wakes a reader that a leftover process keeps waiting
+	sp.errR.Close()
+	sp.inW.Close()
+	<-outDone
+	<-errc.done
+	if interrupted {
+		if ctx.Err() != nil {
+			res.cancelled = true
+		} else {
+			res.timedOut = true
+		}
+	}
+	res.stderr = errc.buf
+	return res
+}
+
 func (p *Plugin) run(c call) ([]byte, error) {
 	if p.back == nil {
 		return nil, errors.New("the plugin has no backend")
 	}
-	slots <- struct{}{}
-	defer func() { <-slots }()
+	ctx := p.ctx()
+	select {
+	case slots <- struct{}{}:
+		defer func() { <-slots }()
+	case <-ctx.Done():
+		return nil, errCancelled
+	}
 
 	sp, err := p.spawn(c)
 	if err != nil {
 		return nil, err
 	}
-	cmd, inW, outR, errR := sp.cmd, sp.inW, sp.outR, sp.errR
 	out := &collector{limit: maxStdout, done: make(chan struct{})}
-	out.onOvr = func() { killGroup(cmd) }
-	errc := &collector{limit: maxStderr, done: make(chan struct{})}
-	go out.run(outR)
-	go errc.run(errR)
-
-	waited := make(chan error, 1)
-	go func() { waited <- cmd.Wait() }()
-	timer := time.NewTimer(p.callTimeout())
-	defer timer.Stop()
-	var waitErr error
-	timedOut := false
-	select {
-	case waitErr = <-waited:
-	case <-timer.C:
-		timedOut = true
-		killGroup(cmd)
-		waitErr = <-waited
-	}
-	killGroup(cmd) // children left behind do not outlive the call
-	grace := time.NewTimer(pipeDrainWait)
-	for _, d := range []chan struct{}{out.done, errc.done} {
-		select {
-		case <-d:
-		case <-grace.C:
-		}
-	}
-	grace.Stop()
-	outR.Close()
-	errR.Close()
-	inW.Close()
+	out.onOvr = func() { killGroup(sp.cmd) }
+	res := spawnWait(ctx, sp, p.callTimeout(), out.run)
 
 	switch {
-	case timedOut:
+	case res.cancelled:
+		return nil, errCancelled
+	case res.timedOut:
 		return nil, fmt.Errorf("%w after %s", errTimeout, p.callTimeout())
 	case out.over:
 		return nil, errors.New("the output is larger than 2 MB")
-	case waitErr != nil:
+	case res.waitErr != nil:
 		var ee *exec.ExitError
-		if errors.As(waitErr, &ee) {
-			return nil, fmt.Errorf("exit code %d%s", ee.ExitCode(), stderrSummary(errc.buf))
+		if errors.As(res.waitErr, &ee) {
+			return nil, fmt.Errorf("exit code %d%s", ee.ExitCode(), stderrSummary(res.stderr))
 		}
 		return nil, errors.New("the plugin did not finish")
 	}
@@ -452,12 +525,13 @@ func stderrSummary(b []byte) string {
 // assetFS serves only the files the manifest lists, from the plugin folder,
 // refusing anything that resolves outside it.
 type assetFS struct {
+	p     *Plugin
 	dir   string
 	files map[string]bool
 }
 
 func (a assetFS) Open(name string) (fs.File, error) {
-	if !fs.ValidPath(name) || !a.files[name] {
+	if !fs.ValidPath(name) || !a.files[name] || a.p.Changed() {
 		return nil, &fs.PathError{Op: "open", Path: name, Err: fs.ErrNotExist}
 	}
 	full, err := resolveInside(a.dir, name, "file")
@@ -485,5 +559,5 @@ func (p *Plugin) Assets() fs.FS {
 	for _, f := range append(append([]string(nil), p.frontend.JS...), p.frontend.CSS...) {
 		files[f] = true
 	}
-	return assetFS{dir: p.dir, files: files}
+	return assetFS{p: p, dir: p.dir, files: files}
 }

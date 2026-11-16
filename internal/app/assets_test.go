@@ -99,10 +99,11 @@ func TestExternalPluginAssets(t *testing.T) {
 		return rec
 	}
 
-	blocked, _, _ := openWith(t, dir, cfg, false)
+	blocked, _, bdl := openWith(t, dir, cfg, false)
 	if r := get(blocked, "/_plugins/hello/hello.js"); r.Code == 200 {
 		t.Fatal("asset of a plugin that is not allowed was served")
 	}
+	bdl.confirm = true // the user confirms in the Allow dialog
 	if err := blocked.PluginTrust("hello", true); err != nil {
 		t.Fatal(err)
 	}

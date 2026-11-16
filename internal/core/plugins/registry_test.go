@@ -375,3 +375,32 @@ func TestAssets(t *testing.T) {
 		t.Error("unknown plugin has an FS")
 	}
 }
+
+type versioned struct {
+	fakeAssets
+	v string
+}
+
+func (v versioned) AssetVersion() string { return v.v }
+
+// Contract 2: asset URLs carry ?v=: the plugin's own version, else the registry's.
+func TestAssetURLsAreVersioned(t *testing.T) {
+	r := NewRegistry()
+	mk := func(id string) fakeAssets {
+		return fakeAssets{fake{Manifest{ID: id, Version: "1.0.0", APIVersion: APIVersion, Default: true}},
+			fstest.MapFS{"a.js": {Data: []byte("1")}}, Assets{JS: []string{"a.js"}}}
+	}
+	if err := r.Register(mk("builtin")); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.Register(versioned{mk("ext"), "0123456789ab"}); err != nil {
+		t.Fatal(err)
+	}
+	if s, _ := r.Enabled(nil, nil); !reflect.DeepEqual(s.Assets().JS, []string{"/_plugins/builtin/a.js", "/_plugins/ext/a.js?v=0123456789ab"}) {
+		t.Errorf("without a registry version: %v", s.Assets().JS)
+	}
+	r.SetAssetVersion("0.2.0")
+	if s, _ := r.Enabled(nil, nil); !reflect.DeepEqual(s.Assets().JS, []string{"/_plugins/builtin/a.js?v=0.2.0", "/_plugins/ext/a.js?v=0123456789ab"}) {
+		t.Errorf("with a registry version: %v", s.Assets().JS)
+	}
+}

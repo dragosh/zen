@@ -181,6 +181,13 @@ type AssetProvider interface {
 	Entry() Assets
 }
 
+// AssetVersioner is implemented by plugins whose asset URLs carry their own
+// version (?v=<AssetVersion>): external plugins use the first 12 hex digits
+// of their approved hash, so a changed plugin loads under a new URL. Plugins
+// without it use the registry's version (SetAssetVersion, the app version
+// for built-ins).
+type AssetVersioner interface{ AssetVersion() string }
+
 // ErrorBox returns the HTML shown in place of a block whose hook failed. The
 // plugin id and the message are HTML-escaped.
 func ErrorBox(pluginID string, err error) string {

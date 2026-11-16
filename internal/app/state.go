@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -9,6 +10,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/dragosh/zen/internal/cli"
 	"github.com/dragosh/zen/internal/core/config"
 	"github.com/dragosh/zen/internal/core/extplugins"
 	"github.com/dragosh/zen/internal/core/index"
@@ -22,6 +24,10 @@ import (
 const (
 	EventWorkspaceChanged = "workspace:changed"
 	EventPageChanged      = "page:changed"
+	// EventPluginsChanged (no payload) follows any change to the external
+	// plugin set or to a trust decision, and a folder open: the page side
+	// unmounts its plugins and loads them again from the current page.
+	EventPluginsChanged = "plugins:changed"
 )
 
 // EventSink delivers events to the frontend.
@@ -89,8 +95,11 @@ type state struct {
 	events     EventSink
 	dialogs    Dialogs
 	trust      *extplugins.Trust
-	ext        *extState // guarded by mu
-	streams    streams   // running plugin streams (stream.go)
+	ext        *extState  // guarded by mu
+	streams    streams    // running plugin streams (stream.go)
+	reloadMu   sync.Mutex // serialises loading the external plugins (open, trust changes, plugin edits)
+	life       context.Context
+	stop       context.CancelFunc // ends every plugin call (the app quits)
 
 	mu      sync.Mutex
 	ws      *workspace.Workspace
@@ -110,7 +119,18 @@ func newState(reg *plugins.Registry, globalPath string, events EventSink) *state
 	if reg == nil {
 		reg = plugins.NewRegistry()
 	}
-	return &state{base: reg, reg: reg, globalPath: globalPath, events: events, trust: extplugins.LoadTrust("")}
+	if reg.AssetVersion() == "" {
+		reg.SetAssetVersion(cli.Version) // built-in assets are versioned by the app version
+	}
+	life, stop := context.WithCancel(context.Background())
+	return &state{base: reg, reg: reg, globalPath: globalPath, events: events, trust: extplugins.LoadTrust(""), life: life, stop: stop}
+}
+
+// emit sends an event unless there is nobody to send it to.
+func (s *state) emit(name string, data any) {
+	if s.events != nil {
+		s.events.Emit(name, data)
+	}
 }
 
 // open replaces the workspace with dir ("" closes it) and starts watching.
@@ -128,7 +148,8 @@ func (s *state) open(dir string) error {
 	if ws != nil {
 		root = ws.Root()
 	}
-	ext := s.loadExternal(root, true) // may ask the user; no lock is held
+	s.reloadMu.Lock()
+	ext := s.loadExternal(root, true) // may ask the user; no state lock is held
 	s.streams.cancelAll()             // streams belong to the folder they started in
 	s.watchMu.Lock()
 	defer s.watchMu.Unlock()
@@ -137,10 +158,16 @@ func (s *state) open(dir string) error {
 		s.w = nil
 	}
 	s.mu.Lock()
+	old := s.ext
 	s.ws, s.current, s.idx = ws, "", nil
 	s.ext, s.reg = ext, ext.reg
 	s.rebuildLocked()
 	s.mu.Unlock()
+	if old != nil {
+		old.cancel() // calls of the previous folder's plugins end
+	}
+	s.reloadMu.Unlock()
+	s.emit(EventPluginsChanged, nil)
 	if ws == nil {
 		return nil
 	}
@@ -272,22 +299,92 @@ func (s *state) home() string {
 	return s.ws.Home()
 }
 
+// renderSnap is what a render needs from the state, taken under the lock so
+// the backends of external plugins run without holding it.
+type renderSnap struct {
+	r        *render.Renderer
+	root     string
+	extWarns []string
+	navWarn  []string
+	idxWarn  []string
+	crumbs   []Crumb
+}
+
+func (s *state) snapLocked(path string) renderSnap {
+	sn := renderSnap{r: s.r, root: s.ws.Root()}
+	if s.ext != nil {
+		sn.extWarns = append(sn.extWarns, s.ext.warns...)
+	}
+	sn.navWarn = append(sn.navWarn, s.navWarn[strings.ToLower(path)]...)
+	sn.idxWarn = s.idx.Warnings(path)
+	sn.crumbs = []Crumb{}
+	for _, c := range s.idx.Breadcrumb(path) {
+		sn.crumbs = append(sn.crumbs, Crumb{Title: c.Title, Path: c.Path})
+	}
+	return sn
+}
+
+// render runs the pipeline on src outside the state lock.
+func (sn renderSnap) render(path string, src []byte) (Page, error) {
+	rp, err := sn.r.Render(path, src)
+	if err != nil {
+		return Page{}, cleanErrFor(sn.root, path, err)
+	}
+	p := Page{
+		Path: path, Title: rp.Title, HTML: rp.HTML, Layout: rp.Layout,
+		Frontmatter: rp.Frontmatter, Breadcrumb: sn.crumbs,
+		Assets:   PageAssets{CSS: rp.Assets.CSS, JS: rp.Assets.JS},
+		Warnings: rp.Warnings,
+	}
+	if p.Path == "" {
+		p.Path = path
+	}
+	if p.Frontmatter == nil {
+		p.Frontmatter = map[string]any{}
+	}
+	if p.Assets.CSS == nil {
+		p.Assets.CSS = []string{}
+	}
+	if p.Assets.JS == nil {
+		p.Assets.JS = []string{}
+	}
+	p.Warnings = append(p.Warnings, sn.extWarns...)
+	_, _, navWarn := index.ParseMeta(p.Frontmatter)
+	p.Warnings = append(p.Warnings, navWarn...)
+	p.Warnings = append(p.Warnings, sn.navWarn...)
+	p.Warnings = append(p.Warnings, sn.idxWarn...)
+	if p.Warnings == nil {
+		p.Warnings = []string{}
+	}
+	return p, nil
+}
+
 func (s *state) page(path string) (Page, error) {
 	if !isMarkdownPath(path) {
 		return Page{}, s.cleanErr(path, workspace.ErrNotMarkdown)
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.ws == nil {
+		s.mu.Unlock()
 		return Page{}, errNoWorkspace
 	}
+	ws := s.ws
 	src, err := s.ws.Read(path)
 	if err != nil {
-		return Page{}, s.cleanErr(path, err)
+		err = s.cleanErr(path, err)
+		s.mu.Unlock()
+		return Page{}, err
 	}
-	p, err := s.renderLocked(path, src)
+	sn := s.snapLocked(path)
+	s.mu.Unlock()
+
+	p, err := sn.render(path, src) // backends run here, not under the lock
 	if err == nil {
-		s.current = path
+		s.mu.Lock()
+		if s.ws == ws {
+			s.current = path
+		}
+		s.mu.Unlock()
 	}
 	return p, err
 }
@@ -313,14 +410,18 @@ func (s *state) preview(path, content string) (Page, error) {
 		return Page{}, s.cleanErr(path, workspace.ErrNotMarkdown)
 	}
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	if s.ws == nil {
+		s.mu.Unlock()
 		return Page{}, errNoWorkspace
 	}
 	if _, err := s.ws.Resolve(path); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		return Page{}, s.cleanErr(path, err)
+		err = s.cleanErr(path, err)
+		s.mu.Unlock()
+		return Page{}, err
 	}
-	return s.renderLocked(path, []byte(content))
+	sn := s.snapLocked(path)
+	s.mu.Unlock()
+	return sn.render(path, []byte(content))
 }
 
 func (s *state) save(path, content string) error {
@@ -332,47 +433,17 @@ func (s *state) save(path, content string) error {
 	return s.cleanErr(path, s.ws.Write(path, []byte(content)))
 }
 
-func (s *state) renderLocked(path string, src []byte) (Page, error) {
-	rp, err := s.r.Render(path, src)
-	if err != nil {
-		return Page{}, s.cleanErr(path, err)
-	}
-	p := Page{
-		Path: path, Title: rp.Title, HTML: rp.HTML, Layout: rp.Layout,
-		Frontmatter: rp.Frontmatter, Breadcrumb: []Crumb{},
-		Assets:   PageAssets{CSS: rp.Assets.CSS, JS: rp.Assets.JS},
-		Warnings: rp.Warnings,
-	}
-	if p.Path == "" {
-		p.Path = path
-	}
-	if p.Frontmatter == nil {
-		p.Frontmatter = map[string]any{}
-	}
-	if p.Assets.CSS == nil {
-		p.Assets.CSS = []string{}
-	}
-	if p.Assets.JS == nil {
-		p.Assets.JS = []string{}
-	}
-	if s.ext != nil {
-		p.Warnings = append(p.Warnings, s.ext.warns...)
-	}
-	_, _, navWarn := index.ParseMeta(p.Frontmatter)
-	p.Warnings = append(p.Warnings, navWarn...)
-	p.Warnings = append(p.Warnings, s.navWarn[strings.ToLower(path)]...)
-	p.Warnings = append(p.Warnings, s.idx.Warnings(path)...)
-	if p.Warnings == nil {
-		p.Warnings = []string{}
-	}
-	for _, c := range s.idx.Breadcrumb(path) {
-		p.Breadcrumb = append(p.Breadcrumb, Crumb{Title: c.Title, Path: c.Path})
-	}
-	return p, nil
-}
-
 // cleanErr turns an error into a message without absolute paths.
 func (s *state) cleanErr(rel string, err error) error {
+	root := ""
+	if s.ws != nil {
+		root = s.ws.Root()
+	}
+	return cleanErrFor(root, rel, err)
+}
+
+// cleanErrFor is cleanErr for a workspace at root ("" for none).
+func cleanErrFor(root, rel string, err error) error {
 	if err == nil {
 		return nil
 	}
@@ -390,9 +461,9 @@ func (s *state) cleanErr(rel string, err error) error {
 		return fmt.Errorf("%s: %v", rel, pe.Err)
 	}
 	msg := err.Error()
-	if s.ws != nil {
-		msg = strings.ReplaceAll(msg, s.ws.Root()+string(os.PathSeparator), "")
-		msg = strings.ReplaceAll(msg, s.ws.Root(), ".")
+	if root != "" {
+		msg = strings.ReplaceAll(msg, root+string(os.PathSeparator), "")
+		msg = strings.ReplaceAll(msg, root, ".")
 	}
 	return errors.New(msg)
 }
@@ -451,6 +522,9 @@ func (s *state) handle(evs []watch.Event) {
 	for _, p := range pages {
 		s.events.Emit(EventPageChanged, PageChanged{Path: p})
 	}
+	if cfg {
+		s.reconcileStreams() // a plugin may have been switched off
+	}
 }
 
 // reloadConfig re-reads the config files after one was saved in the editor
@@ -474,6 +548,7 @@ func (s *state) reloadConfig() {
 	if current != "" {
 		s.events.Emit(EventPageChanged, PageChanged{Path: current})
 	}
+	s.reconcileStreams()
 }
 
 func isMarkdownPath(p string) bool {

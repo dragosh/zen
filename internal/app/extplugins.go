@@ -2,11 +2,13 @@ package app
 
 import (
 	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -14,6 +16,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/dragosh/zen/internal/core/atomicfile"
 	"github.com/dragosh/zen/internal/core/extplugins"
 	"github.com/dragosh/zen/internal/core/plugins"
 )
@@ -50,6 +53,8 @@ type candidate struct {
 
 // extState is everything derived from the external plugins of the open folder.
 type extState struct {
+	ctx     context.Context // ends the calls of these plugins when they are replaced or the app quits
+	cancel  context.CancelFunc
 	reg     *plugins.Registry
 	root    string
 	cands   []candidate
@@ -79,6 +84,7 @@ func (e *extState) undecided() bool {
 // cloneBase returns a registry holding the built-in plugins.
 func (s *state) cloneBase() *plugins.Registry {
 	r := plugins.NewRegistry()
+	r.SetAssetVersion(s.base.AssetVersion())
 	for _, p := range s.base.Plugins() {
 		_ = r.Register(p)
 	}
@@ -124,7 +130,13 @@ func tilde(p string) string {
 
 func trustPrompt(root string, cands []candidate) string {
 	var b strings.Builder
-	b.WriteString("This folder uses plugins. A plugin runs programs and scripts on your Mac, so zen asks before using one for the first time.\n")
+	if len(cands) == 1 {
+		b.WriteString("Allow this plugin? ")
+	} else {
+		b.WriteString("This folder uses plugins. ")
+	}
+	b.WriteString("A plugin runs programs and scripts on your Mac with your own access to files and the network, " +
+		"and its script in the page can use zen's functions. zen asks before using one for the first time and again when its files change.\n")
 	for _, c := range cands {
 		m := c.p.Manifest()
 		where := tilde(c.p.Dir())
@@ -139,8 +151,21 @@ func trustPrompt(root string, cands []candidate) string {
 			fmt.Fprintf(&b, "  runs: %s\n", r)
 		}
 	}
-	b.WriteString("\nAllow them? Blocked plugins stay off; Settings › Plugins changes the answer later.")
+	if len(cands) == 1 {
+		b.WriteString("\nAllow it? Settings › Plugins changes the answer later.")
+	} else {
+		b.WriteString("\nAllow them? Blocked plugins stay off; Settings › Plugins changes the answer later.")
+	}
 	return b.String()
+}
+
+// scopeOf is the trust scope of a plugin: the folder root for a plugin of the
+// folder, "" for one of the user's own (those apply to every folder).
+func scopeOf(root string, c candidate) string {
+	if c.source == "folder" {
+		return root
+	}
+	return ""
 }
 
 // loadExternal discovers the external plugins of the folder at root, asks
@@ -148,6 +173,10 @@ func trustPrompt(root string, cands []candidate) string {
 // and builds the registry. Nothing external runs here.
 func (s *state) loadExternal(root string, prompt bool) *extState {
 	e := &extState{root: root, active: map[string]*extplugins.Plugin{}}
+	e.ctx, e.cancel = context.WithCancel(s.life)
+	if n := s.trust.Notice(); n != "" {
+		e.warns = append(e.warns, n)
+	}
 	if root == "" {
 		e.reg = s.base
 		return e
@@ -209,7 +238,7 @@ func (s *state) loadExternal(root string, prompt bool) *extState {
 
 	decide := func() {
 		for i := range e.cands {
-			switch allowed, decided := s.trust.Decision(e.cands[i].p); {
+			switch allowed, decided := s.trust.Decision(e.cands[i].p, scopeOf(root, e.cands[i])); {
 			case !decided:
 				e.cands[i].status = "undecided"
 			case allowed:
@@ -230,7 +259,9 @@ func (s *state) loadExternal(root string, prompt bool) *extState {
 		if len(ask) > 0 {
 			allow := s.ask(trustPrompt(root, ask))
 			for _, c := range ask {
-				_ = s.trust.Set(c.p, allow)
+				if err := s.trust.Set(c.p, scopeOf(root, c), allow); err != nil {
+					e.warns = append(e.warns, fmt.Sprintf("plugin %q: %v", c.p.Manifest().ID, err))
+				}
 			}
 			decide()
 		}
@@ -247,7 +278,8 @@ func (s *state) loadExternal(root string, prompt bool) *extState {
 		if data != "" {
 			data = filepath.Join(data, "files")
 		}
-		c.p.Bind(extplugins.Runtime{Workspace: root, DataDir: data})
+		c.p.Bind(extplugins.Runtime{Workspace: root, DataDir: data, Ctx: e.ctx})
+		c.p.OnChange(func() { go s.pluginFilesChanged(e) })
 		if err := e.reg.Register(c.p); err == nil {
 			e.active[m.ID] = c.p
 		}
@@ -298,10 +330,15 @@ func (s *state) pluginList() []PluginInfo {
 }
 
 // PluginTrust records the user's decision about an external plugin and
-// reloads the plugins of the open folder.
+// reloads the plugins of the open folder. Allowing shows the native Allow /
+// Block dialog first and records Allow only when the user confirms there
+// (nothing a page script does can allow a plugin); declining changes nothing.
+// Blocking needs no dialog.
 func (z *Zen) PluginTrust(id string, allow bool) error { return z.state.pluginTrust(id, allow) }
 
 func (s *state) pluginTrust(id string, allow bool) error {
+	s.reloadMu.Lock()
+	defer s.reloadMu.Unlock()
 	s.mu.Lock()
 	ext := s.ext
 	s.mu.Unlock()
@@ -312,16 +349,52 @@ func (s *state) pluginTrust(id string, allow bool) error {
 	if c == nil {
 		return errors.New("unknown plugin")
 	}
-	if err := s.trust.Set(c.p, allow); err != nil {
+	if allow {
+		if !s.canAsk() {
+			return errors.New("zen cannot ask for confirmation now; try again in a moment")
+		}
+		if !s.ask(trustPrompt(ext.root, []candidate{*c})) {
+			return nil
+		}
+	}
+	err := s.trust.Set(c.p, scopeOf(ext.root, *c), allow)
+	if err != nil && !errors.Is(err, extplugins.ErrChanged) {
 		return err
 	}
-	s.reloadExternal(false, true)
+	if !allow {
+		s.streams.cancelPlugin(id)
+	}
+	s.reloadHeld(false, true)
+	if err != nil {
+		return errors.New("the plugin changed; check Settings › Plugins and allow it again")
+	}
 	return nil
 }
 
+// pluginFilesChanged is called when a plugin that was allowed is found
+// changed on disk: it is loaded again, and asks again.
+func (s *state) pluginFilesChanged(was *extState) {
+	s.reloadMu.Lock()
+	defer s.reloadMu.Unlock()
+	s.mu.Lock()
+	current := s.ext
+	s.mu.Unlock()
+	if current != was { // already replaced
+		return
+	}
+	s.reloadHeld(false, true)
+}
+
 // reloadExternal rebuilds the registry (asking about undecided plugins when
-// prompt is set), re-renders and tells the frontend.
+// prompt is set), re-renders and tells the frontend. Reloads are serialised.
 func (s *state) reloadExternal(prompt, always bool) {
+	s.reloadMu.Lock()
+	defer s.reloadMu.Unlock()
+	s.reloadHeld(prompt, always)
+}
+
+// reloadHeld is reloadExternal for callers that hold reloadMu.
+func (s *state) reloadHeld(prompt, always bool) {
 	s.mu.Lock()
 	ws := s.ws
 	s.mu.Unlock()
@@ -332,18 +405,25 @@ func (s *state) reloadExternal(prompt, always bool) {
 	s.mu.Lock()
 	if s.ws != ws { // another folder was opened meanwhile
 		s.mu.Unlock()
+		ext.cancel()
 		return
 	}
+	old := s.ext
 	s.ext, s.reg = ext, ext.reg
 	s.rebuildLocked()
 	w := s.workspaceLocked()
 	current := s.current
 	s.mu.Unlock()
+	if old != nil {
+		old.cancel()
+	}
+	s.reconcileStreams()
+	s.emit(EventPluginsChanged, nil)
 	if w != nil && always {
-		s.events.Emit(EventWorkspaceChanged, w)
+		s.emit(EventWorkspaceChanged, w)
 	}
 	if current != "" {
-		s.events.Emit(EventPageChanged, PageChanged{Path: current})
+		s.emit(EventPageChanged, PageChanged{Path: current})
 	}
 }
 
@@ -366,10 +446,12 @@ type target struct {
 	ctx  plugins.Context // with the folder and the plugin's data folder
 }
 
-// target finds plugin id for the open folder. Built-in plugins must be
-// switched on; external ones only when needOn (invoke and stream), storage
-// stays reachable for an allowed plugin that is switched off.
-func (s *state) target(id string, needOn bool) (target, error) {
+// target finds plugin id for the open folder, for the page at page (its
+// frontmatter decides which plugins are on and their options; ZEN_PAGE is
+// page). Built-in plugins must be switched on; external ones only when needOn
+// (invoke and stream), storage stays reachable for an allowed plugin that is
+// switched off. An empty page means no page: the folder's settings.
+func (s *state) target(id, page string, needOn bool) (target, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.ws == nil || s.ext == nil {
@@ -393,8 +475,21 @@ func (s *state) target(id string, needOn bool) (target, error) {
 		p = ep
 	}
 	var ctx plugins.Context
-	if s.reg != nil && s.cfg != nil {
-		set, _ := s.reg.Enabled(s.cfg.ForPage(nil).Plugin, nil)
+	if s.r != nil {
+		var src []byte
+		if page != "" {
+			if !isMarkdownPath(page) {
+				return target{}, errors.New("the page is not a markdown file")
+			}
+			b, err := s.ws.Read(page)
+			switch {
+			case err == nil:
+				src = b
+			case !errors.Is(err, fs.ErrNotExist): // a page that is not saved yet has no frontmatter on disk
+				return target{}, s.cleanErr(page, err)
+			}
+		}
+		set := s.r.PluginSet(src)
 		on := false
 		for _, ep := range set.Plugins() {
 			if ep == p {
@@ -404,7 +499,7 @@ func (s *state) target(id string, needOn bool) (target, error) {
 		if !on && (builtin || needOn) {
 			return target{}, fmt.Errorf("plugin %q is switched off", id)
 		}
-		ctx = set.Context(id, s.current)
+		ctx = set.Context(id, page)
 	}
 	ctx.Workspace = s.ext.root
 	if d := s.dataDir(s.ext.root, id); d != "" {
@@ -430,7 +525,7 @@ func validKey(k string) error {
 }
 
 func (s *state) storagePath(id string) (string, error) {
-	t, err := s.target(id, false)
+	t, err := s.target(id, "", false)
 	if err != nil {
 		return "", err
 	}
@@ -441,15 +536,25 @@ func (s *state) storagePath(id string) (string, error) {
 	return filepath.Join(dir, "storage.json"), nil
 }
 
-func readStore(path string) map[string]json.RawMessage {
+// readStore reads the plugin's storage file. A file that cannot be parsed is
+// set aside as storage.json.corrupt-<time> (never overwritten) and the error
+// says so; the next call starts from an empty store.
+func readStore(path string) (map[string]json.RawMessage, error) {
 	m := map[string]json.RawMessage{}
-	if b, err := os.ReadFile(path); err == nil {
-		_ = json.Unmarshal(b, &m)
-		if m == nil {
-			m = map[string]json.RawMessage{}
-		}
+	b, err := os.ReadFile(path)
+	if errors.Is(err, os.ErrNotExist) {
+		return m, nil
 	}
-	return m
+	if err != nil {
+		return nil, errors.New("plugin storage could not be read")
+	}
+	if err := json.Unmarshal(b, &m); err != nil || m == nil {
+		if to, serr := atomicfile.SetAside(path); serr == nil {
+			return nil, fmt.Errorf("plugin storage was damaged and was moved to %s; it starts empty now", filepath.Base(to))
+		}
+		return nil, errors.New("plugin storage is damaged and could not be set aside")
+	}
+	return m, nil
 }
 
 // PluginStorageGet returns the JSON text stored under key by an external
@@ -465,7 +570,11 @@ func (z *Zen) PluginStorageGet(id, key string) (string, error) {
 	mu := lockFor(path)
 	mu.Lock()
 	defer mu.Unlock()
-	if v, ok := readStore(path)[key]; ok {
+	m, err := readStore(path)
+	if err != nil {
+		return "", err
+	}
+	if v, ok := m[key]; ok {
 		return string(v), nil
 	}
 	return "null", nil
@@ -491,7 +600,10 @@ func (z *Zen) PluginStorageSet(id, key, value string) error {
 	mu := lockFor(path)
 	mu.Lock()
 	defer mu.Unlock()
-	m := readStore(path)
+	m, err := readStore(path)
+	if err != nil {
+		return err
+	}
 	m[key] = json.RawMessage(compact.String())
 	total := 0
 	for k, v := range m {
@@ -504,23 +616,7 @@ func (z *Zen) PluginStorageSet(id, key, value string) error {
 	if err != nil {
 		return errors.New("could not store the value")
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return errors.New("could not store the value")
-	}
-	tmp, err := os.CreateTemp(filepath.Dir(path), ".storage.*")
-	if err != nil {
-		return errors.New("could not store the value")
-	}
-	_, werr := tmp.Write(data)
-	cerr := tmp.Close()
-	if werr == nil && cerr == nil {
-		werr = os.Chmod(tmp.Name(), 0o600)
-	}
-	if werr == nil && cerr == nil {
-		werr = os.Rename(tmp.Name(), path)
-	}
-	if werr != nil || cerr != nil {
-		os.Remove(tmp.Name())
+	if err := atomicfile.Write(path, data); err != nil {
 		return errors.New("could not store the value")
 	}
 	return nil
@@ -529,11 +625,14 @@ func (z *Zen) PluginStorageSet(id, key, value string) error {
 // PluginInvoke runs a plugin's action hook (a built-in ActionHook, or an
 // external backend with ZEN_HOOK=action) with a JSON payload and returns the
 // JSON it answers ("null" for no output).
-func (z *Zen) PluginInvoke(id, payload string) (string, error) {
+//
+// page is the workspace path of the page the block is on: its frontmatter
+// decides whether the plugin is on and its options, and it is ZEN_PAGE.
+func (z *Zen) PluginInvoke(id, page, payload string) (string, error) {
 	if !json.Valid([]byte(payload)) {
 		return "", errors.New("the payload is not valid JSON")
 	}
-	t, err := z.state.target(id, true)
+	t, err := z.state.target(id, page, true)
 	if err != nil {
 		return "", err
 	}
@@ -570,8 +669,12 @@ func (z *Zen) PluginStorageKeys(id, prefix string) ([]string, error) {
 	mu := lockFor(path)
 	mu.Lock()
 	defer mu.Unlock()
+	m, err := readStore(path)
+	if err != nil {
+		return nil, err
+	}
 	keys := []string{}
-	for k := range readStore(path) {
+	for k := range m {
 		if strings.HasPrefix(k, prefix) {
 			keys = append(keys, k)
 		}

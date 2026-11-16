@@ -7,6 +7,7 @@ package extplugins
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -108,6 +109,9 @@ func (p *Plugin) streamTimeout() time.Duration {
 type Runtime struct {
 	Workspace string // folder root (ZEN_WORKSPACE)
 	DataDir   string // writable data folder of this plugin (ZEN_DATA_DIR), created on demand
+	// Ctx ends every call of the plugin when cancelled (the folder changed, the
+	// app quits); nil means never.
+	Ctx context.Context
 }
 
 // Plugin is a loaded external plugin. It implements plugins.Plugin, the
@@ -118,6 +122,11 @@ type Plugin struct {
 	back     *backend
 	frontend plugins.Assets
 	rt       atomic.Pointer[Runtime]
+
+	hash        string // SHA-256 of the folder when it was loaded (what the user approves)
+	fingerprint string // cheap fingerprint of the folder when it was loaded
+	changed     atomic.Bool
+	onChange    atomic.Pointer[func()]
 }
 
 // Invalid describes a plugin folder that was rejected.
@@ -187,10 +196,11 @@ func Load(dir string) (*Plugin, error) {
 	if err != nil {
 		return nil, errors.New("plugin folder not readable")
 	}
-	if err := checkSize(real); err != nil {
+	hash, fp, err := scanFolder(real, true)
+	if err != nil {
 		return nil, err
 	}
-	data, err := readManifest(filepath.Join(real, "plugin.yml"))
+	data, err := readManifest(real)
 	if err != nil {
 		return nil, err
 	}
@@ -213,7 +223,7 @@ func Load(dir string) (*Plugin, error) {
 	if !plugins.ValidSemVer(raw.Version) {
 		return nil, fmt.Errorf("version %q is not valid SemVer (such as 1.0.0)", raw.Version)
 	}
-	p := &Plugin{dir: real}
+	p := &Plugin{dir: real, hash: hash, fingerprint: fp}
 	m := plugins.Manifest{
 		ID: raw.ID, Version: raw.Version, APIVersion: plugins.APIVersion,
 		Description: raw.Description, Default: raw.Default == nil || *raw.Default,
@@ -258,6 +268,9 @@ func Load(dir string) (*Plugin, error) {
 	}
 	if raw.Backend != nil {
 		if p.back, err = loadBackend(real, raw.Backend); err != nil {
+			return nil, err
+		}
+		if err := checkArgs(real, p.back.command); err != nil {
 			return nil, err
 		}
 	}
@@ -376,50 +389,32 @@ func loadBackend(real string, rb *rawBackend) (*backend, error) {
 	return b, nil
 }
 
-func readManifest(path string) ([]byte, error) {
-	data, err := os.ReadFile(path)
+// readManifest reads plugin.yml of the folder: a regular file inside it (a
+// symlink is followed only when it stays inside), at most maxManifest bytes.
+func readManifest(real string) ([]byte, error) {
+	path := filepath.Join(real, "plugin.yml")
+	if _, err := os.Lstat(path); err != nil {
+		return nil, errors.New("plugin.yml not found")
+	}
+	full, err := filepath.EvalSymlinks(path)
 	if err != nil {
 		return nil, errors.New("plugin.yml not found")
 	}
-	if len(data) > maxManifest {
+	if !insideRel(real, full) {
+		return nil, errors.New("plugin.yml points outside the plugin folder")
+	}
+	fi, err := os.Lstat(full)
+	if err != nil || !fi.Mode().IsRegular() {
+		return nil, errors.New("plugin.yml is not a regular file")
+	}
+	data, err := readRegular(full, maxManifest)
+	switch {
+	case err == nil:
+		return data, nil
+	case err.Error() == "too large":
 		return nil, errors.New("plugin.yml is too large")
 	}
-	return data, nil
-}
-
-// checkSize enforces the folder limits (500 files, 20 MB).
-func checkSize(real string) error {
-	files, size := 0, int64(0)
-	err := filepath.WalkDir(real, func(_ string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() {
-			return nil
-		}
-		files++
-		if files > maxFiles {
-			return fmt.Errorf("the plugin folder has more than %d files", maxFiles)
-		}
-		if d.Type().IsRegular() {
-			fi, err := d.Info()
-			if err != nil {
-				return err
-			}
-			size += fi.Size()
-			if size > maxBytes {
-				return errors.New("the plugin folder is larger than 20 MB")
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		if strings.HasPrefix(err.Error(), "the plugin folder") {
-			return err
-		}
-		return errors.New("plugin folder not readable")
-	}
-	return nil
+	return nil, errors.New("plugin.yml is not readable")
 }
 
 // resolveInside resolves a path relative to the plugin folder (symlinks
@@ -434,8 +429,7 @@ func resolveInside(real, rel, what string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("%s %s not found", what, rel)
 	}
-	back, err := filepath.Rel(real, full)
-	if err != nil || back == ".." || strings.HasPrefix(back, ".."+string(filepath.Separator)) {
+	if !insideRel(real, full) {
 		return "", fmt.Errorf("%s %s is outside the plugin folder", what, rel)
 	}
 	return full, nil

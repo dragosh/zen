@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os/exec"
 	"sync"
-	"time"
 
 	"github.com/dragosh/zen/internal/core/plugins"
 )
@@ -33,12 +33,8 @@ func (p *Plugin) Stream(c context.Context, ctx plugins.Context, payload []byte, 
 	if err != nil {
 		return err
 	}
-	cmd := sp.cmd
-	errc := &collector{limit: maxStderr, done: make(chan struct{})}
-	go errc.run(sp.errR)
-
 	var (
-		mu     sync.Mutex // guards closed and emit
+		mu     sync.Mutex // guards closed, over and emit
 		closed bool
 		over   bool
 	)
@@ -49,21 +45,19 @@ func (p *Plugin) Stream(c context.Context, ctx plugins.Context, payload []byte, 
 			emit(b)
 		}
 	}
-	readDone := make(chan struct{})
-	go func() {
-		defer close(readDone)
+	readOut := func(r io.Reader) {
 		total := 0
 		var pending []byte
 		buf := make([]byte, 32<<10)
 		for {
-			n, err := sp.outR.Read(buf)
+			n, err := r.Read(buf)
 			for _, b := range buf[:n] {
 				total++
 				if total > plugins.MaxStreamOutput {
 					mu.Lock()
 					over = true
 					mu.Unlock()
-					killGroup(cmd)
+					killGroup(sp.cmd)
 					return
 				}
 				if b == '\n' {
@@ -80,53 +74,24 @@ func (p *Plugin) Stream(c context.Context, ctx plugins.Context, payload []byte, 
 				return
 			}
 		}
-	}()
-
-	waited := make(chan error, 1)
-	go func() { waited <- cmd.Wait() }()
-	timer := time.NewTimer(p.streamTimeout())
-	defer timer.Stop()
-	var waitErr error
-	timedOut, cancelled := false, false
-	select {
-	case waitErr = <-waited:
-	case <-c.Done():
-		cancelled = true
-		killGroup(cmd)
-		waitErr = <-waited
-	case <-timer.C:
-		timedOut = true
-		killGroup(cmd)
-		waitErr = <-waited
 	}
-	killGroup(cmd) // children left behind do not outlive the stream
-	grace := time.NewTimer(pipeDrainWait)
-	for _, d := range []chan struct{}{readDone, errc.done} {
-		select {
-		case <-d:
-		case <-grace.C:
-		}
-	}
-	grace.Stop()
+	res := spawnWait(c, sp, p.streamTimeout(), readOut)
 	mu.Lock()
 	closed = true
 	hitLimit := over
 	mu.Unlock()
-	sp.outR.Close()
-	sp.errR.Close()
-	sp.inW.Close()
 
 	switch {
-	case cancelled || c.Err() != nil:
+	case res.cancelled || c.Err() != nil:
 		return c.Err()
-	case timedOut:
+	case res.timedOut:
 		return fmt.Errorf("%w after %s", errTimeout, p.streamTimeout())
 	case hitLimit:
 		return plugins.ErrOutputLimit
-	case waitErr != nil:
+	case res.waitErr != nil:
 		var ee *exec.ExitError
-		if errors.As(waitErr, &ee) {
-			return fmt.Errorf("exit code %d%s", ee.ExitCode(), stderrSummary(errc.buf))
+		if errors.As(res.waitErr, &ee) {
+			return fmt.Errorf("exit code %d%s", ee.ExitCode(), stderrSummary(res.stderr))
 		}
 		return errors.New("the plugin did not finish")
 	}

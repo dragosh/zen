@@ -100,8 +100,8 @@ func TestH1DSStoreIsHashed(t *testing.T) {
 		t.Fatal("the hash ignores .DS_Store")
 	}
 	tr := LoadTrust("")
-	tr.Set(p, true)
-	if _, decided := tr.Decision(p2); decided {
+	tr.Set(p, "", true)
+	if _, decided := tr.Decision(p2, ""); decided {
 		t.Fatal("a changed .DS_Store must ask again")
 	}
 }
@@ -110,7 +110,7 @@ func TestH1DSStoreIsHashed(t *testing.T) {
 func TestH1ArgumentsOutsideRefused(t *testing.T) {
 	root := t.TempDir()
 	mkfile(t, root, "secret.sh", "#!/bin/sh\n", 0o755)
-	for name, arg := range map[string]string{"relative": "../secret.sh", "absolute": filepath.Join(root, "secret.sh"), "etc": "/etc/hosts"} {
+	for name, arg := range map[string]string{"relative": "../../secret.sh", "absolute": filepath.Join(root, "secret.sh"), "etc": "/etc/hosts"} {
 		pdir := writePlugin(t, filepath.Join(root, name), "x", blockYML+"backend: {command: [sh, \""+arg+"\"], hooks: [block]}\n", nil)
 		if _, err := Load(pdir); err == nil || !strings.Contains(err.Error(), "outside the plugin folder") {
 			t.Errorf("%s argument %q: %v", name, arg, err)
@@ -248,5 +248,134 @@ func TestL10ToolPath(t *testing.T) {
 		if !strings.Contains(got, ":"+d+":") {
 			t.Errorf("%s missing from %s", d, got)
 		}
+	}
+}
+
+// M1: a plugin whose folder changed after load does not run and serves nothing.
+func TestM1ChangedPluginDoesNotRunOrServe(t *testing.T) {
+	dir := writePlugin(t, t.TempDir(), "x", blockYML+"backend: {command: [./run.sh], hooks: [block]}\nfrontend: {js: [x.js]}\n",
+		map[string]string{"run.sh": "#!/bin/sh\necho ok\n", "x.js": "1"})
+	p, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	calls := 0
+	p.OnChange(func() { calls++ })
+	if p.Changed() {
+		t.Fatal("unchanged folder reported as changed")
+	}
+	if out, err := p.RenderBlock(plugins.Context{}, plugins.Block{Name: "x"}); err != nil || !strings.Contains(out, "ok") {
+		t.Fatalf("before: %q %v", out, err)
+	}
+	if _, err := p.Assets().Open("x.js"); err != nil {
+		t.Fatal(err)
+	}
+	mkfile(t, dir, "run.sh", "#!/bin/sh\necho EVIL\n", 0o755)
+	if _, err := p.RenderBlock(plugins.Context{}, plugins.Block{Name: "x"}); err != ErrChanged {
+		t.Fatalf("after the edit: %v", err)
+	}
+	if _, err := p.Assets().Open("x.js"); err == nil {
+		t.Fatal("an asset of a changed plugin was served")
+	}
+	if !p.Changed() || calls != 1 {
+		t.Fatalf("OnChange must be called once, got %d", calls)
+	}
+	// Even if the file is put back, the loaded plugin stays refused until it is reloaded.
+	mkfile(t, dir, "run.sh", "#!/bin/sh\necho ok\n", 0o755)
+	if _, err := p.RenderBlock(plugins.Context{}, plugins.Block{Name: "x"}); err == nil {
+		t.Fatal("ran after a change was seen")
+	}
+}
+
+// M1: adding a file or an argument file outside after load is caught.
+func TestM1NewFileAndLateArgument(t *testing.T) {
+	root := t.TempDir()
+	late := filepath.Join(root, "late.sh")
+	dir := writePlugin(t, filepath.Join(root, "p"), "x", blockYML+"backend: {command: [sh, "+late+"], hooks: [block]}\n", nil)
+	p, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	mkfile(t, root, "late.sh", "echo EVIL\n", 0o644) // names a file only now
+	if _, err := p.RenderBlock(plugins.Context{}, plugins.Block{Name: "x"}); err == nil || !strings.Contains(err.Error(), "outside the plugin folder") {
+		t.Fatalf("late argument file: %v", err)
+	}
+}
+
+// M2: approval is for the files as loaded; an allow after a change is refused.
+func TestM2ApprovalIsForTheLoadedHash(t *testing.T) {
+	p := tinyPlugin(t)
+	tr := LoadTrust("")
+	os.WriteFile(filepath.Join(p.Dir(), "run.sh"), []byte("#!/bin/sh\nevil\n"), 0o755)
+	if err := tr.Set(p, "", true); err != ErrChanged {
+		t.Fatalf("Set after a change: %v", err)
+	}
+	if _, decided := tr.Decision(p, ""); decided {
+		t.Fatal("recorded anyway")
+	}
+	if v := p.AssetVersion(); len(v) != 12 {
+		t.Fatalf("asset version %q", v)
+	}
+}
+
+// L5: the same plugin folder is a different plugin in another workspace.
+func TestL5TrustIsPerWorkspace(t *testing.T) {
+	p := tinyPlugin(t)
+	file := filepath.Join(t.TempDir(), "trusted-plugins.yml")
+	tr := LoadTrust(file)
+	if err := tr.Set(p, "/work/a", true); err != nil {
+		t.Fatal(err)
+	}
+	if a, d := LoadTrust(file).Decision(p, "/work/a"); !a || !d {
+		t.Fatal("allowed in its own workspace")
+	}
+	if _, d := LoadTrust(file).Decision(p, "/work/b"); d {
+		t.Fatal("decision leaked to another workspace")
+	}
+	if _, d := LoadTrust(file).Decision(p, ""); d {
+		t.Fatal("decision leaked to the user scope")
+	}
+}
+
+// L3: a call is cancelled with the plugin's context.
+func TestL3RunIsCancelled(t *testing.T) {
+	p, _, _ := scripted(t, `{command: ["./run.sh"], hooks: [block], timeout: 30s}`, "sleep 20")
+	c, cancel := context.WithCancel(context.Background())
+	p.Bind(Runtime{Workspace: t.TempDir(), Ctx: c})
+	go func() { time.Sleep(200 * time.Millisecond); cancel() }()
+	start := time.Now()
+	_, err := p.RenderBlock(plugins.Context{}, plugins.Block{Name: "p"})
+	if err == nil || !strings.Contains(err.Error(), "cancelled") || time.Since(start) > 3*time.Second {
+		t.Fatalf("%v after %v", err, time.Since(start))
+	}
+}
+
+// L8: a corrupt trust file is set aside and reported once, never overwritten;
+// saves are atomic and private.
+func TestL8CorruptTrustFileIsSetAside(t *testing.T) {
+	p := tinyPlugin(t)
+	dir := t.TempDir()
+	file := filepath.Join(dir, "trusted-plugins.yml")
+	os.WriteFile(file, []byte("{{{ not yaml"), 0o600)
+	tr := LoadTrust(file)
+	n := tr.Notice()
+	if !strings.Contains(n, "corrupt") || tr.Notice() != "" {
+		t.Fatalf("notice once: %q", n)
+	}
+	matches, _ := filepath.Glob(file + ".corrupt-*")
+	if len(matches) != 1 {
+		t.Fatalf("the corrupt file must be kept aside: %v", matches)
+	}
+	if b, _ := os.ReadFile(matches[0]); string(b) != "{{{ not yaml" {
+		t.Fatal("the set-aside file changed")
+	}
+	if err := tr.Set(p, "", true); err != nil {
+		t.Fatal(err)
+	}
+	if a, d := LoadTrust(file).Decision(p, ""); !a || !d {
+		t.Fatal("new decision lost")
+	}
+	if tmp, _ := filepath.Glob(filepath.Join(dir, ".tmp-*")); len(tmp) != 0 {
+		t.Fatalf("temporary files left: %v", tmp)
 	}
 }
