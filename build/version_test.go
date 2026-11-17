@@ -113,7 +113,7 @@ func main() {
 	if err != nil {
 		t.Fatalf("run stamped binary: %v", err)
 	}
-	if string(got) != "zen "+version+"\n" {
-		t.Fatalf("--version printed %q, want %q", got, "zen "+version+"\n")
+	if string(got) != "zenmd "+version+"\n" {
+		t.Fatalf("--version printed %q, want %q", got, "zenmd "+version+"\n")
 	}
 }

@@ -259,7 +259,7 @@ func TestInfoPlist(t *testing.T) {
 		"LSApplicationCategoryType":     "public.app-category.productivity",
 		"ITSAppUsesNonExemptEncryption": false,
 		"NSHumanReadableCopyright":      configValue(t, "copyright"),
-		"CFBundleExecutable":            "zen",
+		"CFBundleExecutable":            "zenmd",
 		"CFBundlePackageType":           "APPL",
 		"NSHighResolutionCapable":       true,
 	}
@@ -372,7 +372,7 @@ func TestPrivacyManifest(t *testing.T) {
 
 	// Symbol scan: a category is declared exactly when the binary imports its symbols.
 	bin := ""
-	for _, p := range []string{filepath.Join(bundle, "Contents/MacOS/zen"), "../../bin/zen"} {
+	for _, p := range []string{filepath.Join(bundle, "Contents/MacOS/zenmd"), "../../bin/zenmd"} {
 		if _, err := os.Stat(p); err == nil {
 			bin = p
 			break

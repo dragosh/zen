@@ -171,7 +171,7 @@ func TestHelpAndVersion(t *testing.T) {
 	}
 	for _, a := range [][]string{{"-v"}, {"--version"}, {"version"}} {
 		r := run(t, cwd, nil, a...)
-		if r.code != 0 || r.launched || r.stdout != "zen "+Version+"\n" {
+		if r.code != 0 || r.launched || r.stdout != "zenmd "+Version+"\n" {
 			t.Fatalf("%v: %+v", a, r)
 		}
 	}
@@ -267,7 +267,7 @@ func TestBuildCommand(t *testing.T) {
 	expect(t, run(t, h, nil, "--", "build"), Launch{Dir: filepath.Join(h, "build"), Mode: "read"})
 	// The usage text lists it.
 	r := run(t, h, nil, "--help")
-	if !strings.Contains(r.stdout, "zen build [folder]") || !strings.Contains(r.stdout, "--portable") || !strings.Contains(r.stdout, "--hosted") {
+	if !strings.Contains(r.stdout, "zenmd build [folder]") || !strings.Contains(r.stdout, "--portable") || !strings.Contains(r.stdout, "--hosted") {
 		t.Errorf("usage lacks build:\n%s", r.stdout)
 	}
 }
@@ -287,7 +287,7 @@ func TestBuildExitCodes(t *testing.T) {
 	builderErr = errors.New("output folder is not empty")
 	defer func() { builderErr = nil }()
 	r = run(t, ws, nil, "build")
-	if r.code != 1 || !strings.Contains(r.stderr, "zen: output folder is not empty") || !strings.Contains(r.stderr, "a.md: a warning") {
+	if r.code != 1 || !strings.Contains(r.stderr, "zenmd: output folder is not empty") || !strings.Contains(r.stderr, "a.md: a warning") {
 		t.Fatalf("failure: %+v", r)
 	}
 	builderErr = nil
@@ -354,7 +354,7 @@ func TestInitCommand(t *testing.T) {
 	expect(t, run(t, h, nil, "--", "init"), Launch{Dir: filepath.Join(h, "init"), Mode: "read"})
 	// The usage text lists it.
 	r = run(t, h, nil, "--help")
-	if !strings.Contains(r.stdout, "zen init site") || !strings.Contains(r.stdout, "--techdocs") {
+	if !strings.Contains(r.stdout, "zenmd init site") || !strings.Contains(r.stdout, "--techdocs") {
 		t.Errorf("usage lacks init:\n%s", r.stdout)
 	}
 	for _, line := range strings.Split(r.stdout, "\n") {
@@ -375,7 +375,7 @@ func TestInitExitCodes(t *testing.T) {
 	initerErr = errors.New("files already exist: README.md")
 	defer func() { initerErr = nil }()
 	r = run(t, h, nil, "init", "site", "--techdocs")
-	if r.code != 1 || r.stderr != "zen: files already exist: README.md\n" || r.launched {
+	if r.code != 1 || r.stderr != "zenmd: files already exist: README.md\n" || r.launched {
 		t.Fatalf("failure: %+v", r)
 	}
 	// 2: usage errors from the Initer, with the usage text.
@@ -399,12 +399,71 @@ func TestInitExitCodes(t *testing.T) {
 		}
 	}
 	// -h anywhere after init prints the usage and exits 0.
-	if r := run(t, h, nil, "init", "site", "--help"); r.code != 0 || r.inited || !strings.Contains(r.stdout, "zen init site") {
+	if r := run(t, h, nil, "init", "site", "--help"); r.code != 0 || r.inited || !strings.Contains(r.stdout, "zenmd init site") {
 		t.Errorf("help: %+v", r)
 	}
 	// No Initer wired: a plain error, not a crash.
 	var out, errOut bytes.Buffer
 	if code := Run([]string{"init", "site", "--techdocs"}, h, &out, &errOut, func(Launch) error { return nil }, nil, nil); code != 1 || !strings.Contains(errOut.String(), "init") {
 		t.Errorf("nil initer: %d %q", code, errOut.String())
+	}
+}
+
+func TestUsageNamesZenmd(t *testing.T) {
+	r := run(t, t.TempDir(), nil, "help")
+	if !strings.HasPrefix(r.stdout, "zenmd - the zen.md engine: markdown folders as pages, sites and print\n") {
+		t.Fatalf("usage starts with %q", strings.SplitN(r.stdout, "\n", 2)[0])
+	}
+	for _, line := range strings.Split(r.stdout, "\n") {
+		if strings.HasPrefix(strings.TrimSpace(line), "zen ") {
+			t.Errorf("usage example still uses zen: %q", line)
+		}
+	}
+	for _, want := range []string{"zenmd [path]", "zenmd edit [path]", "zenmd build [folder]", "zenmd init site", "zenmd help", "zenmd version"} {
+		if !strings.Contains(r.stdout, want) {
+			t.Errorf("usage lacks %q", want)
+		}
+	}
+}
+
+func TestProgramName(t *testing.T) {
+	for argv0, want := range map[string]string{
+		"zenmd":                  "zenmd",
+		"zen":                    "zen",
+		"/usr/local/bin/zen":     "zen",
+		"/usr/local/bin/zenmd":   "zenmd",
+		"./zen":                  "zen",
+		"../bin/zen":             "zen",
+		"ZEN":                    "zen",
+		"/tmp/go-build123/exe/x": "zenmd", // go run .
+		"":                       "zenmd",
+		"/Applications/Zen.app/Contents/MacOS/zenmd": "zenmd",
+	} {
+		if got := ProgramName(argv0); got != want {
+			t.Errorf("ProgramName(%q) = %q, want %q", argv0, got, want)
+		}
+	}
+	if Name != "zenmd" || Alias != "zen" {
+		t.Errorf("Name %q Alias %q", Name, Alias)
+	}
+}
+
+func TestAliasNotice(t *testing.T) {
+	const line = "zen is now zenmd; the zen name stops working in 0.4.0\n"
+	var b bytes.Buffer
+	Notice(&b, "zen")
+	if b.String() != line {
+		t.Fatalf("notice = %q", b.String())
+	}
+	b.Reset()
+	Notice(&b, "zenmd")
+	if b.String() != "" {
+		t.Fatalf("zenmd printed %q", b.String())
+	}
+	// Run itself never prints the notice, so stdout and exit codes are
+	// the same under both names.
+	r := run(t, t.TempDir(), nil, "--version")
+	if strings.Contains(r.stdout+r.stderr, "stops working") {
+		t.Fatalf("Run printed the notice: %+v", r)
 	}
 }
