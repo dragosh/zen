@@ -1,0 +1,89 @@
+package config
+
+import (
+	"path/filepath"
+	"reflect"
+	"strings"
+	"testing"
+)
+
+func buildOf(t *testing.T, global, folder string) (Build, []string, error) {
+	t.Helper()
+	dir := t.TempDir()
+	g, root := "", ""
+	if global != "" {
+		g = write(t, filepath.Join(dir, "config.yml"), global)
+	}
+	if folder != "" {
+		root = filepath.Join(dir, "ws")
+		write(t, filepath.Join(root, WorkspaceFile), folder)
+	}
+	cfg := Load(g, root)
+	if ws := cfg.Warnings(); len(ws) != 0 {
+		t.Fatalf("loading warned about a build: section: %v", ws)
+	}
+	return cfg.Build()
+}
+
+func TestBuildSection(t *testing.T) {
+	// Nothing configured: zero values.
+	b, warns, err := buildOf(t, "", "")
+	if err != nil || len(warns) != 0 || !reflect.DeepEqual(b, Build{}) {
+		t.Errorf("empty: %+v %v %v", b, warns, err)
+	}
+
+	// All keys.
+	b, warns, err = buildOf(t, "", `
+build:
+  out: _site
+  id: my-notes
+  editURL: https://github.com/me/notes/edit/main/{path}
+  drafts: true
+  portable: true
+  exclude: ["private/**", "scratch.md"]
+`)
+	want := Build{Out: "_site", ID: "my-notes", EditURL: "https://github.com/me/notes/edit/main/{path}", Drafts: true, Portable: true, Exclude: []string{"private/**", "scratch.md"}}
+	if err != nil || len(warns) != 0 || !reflect.DeepEqual(b, want) {
+		t.Errorf("all keys: %+v %v %v", b, warns, err)
+	}
+
+	// The folder wins key by key over the global file; the rest comes from global.
+	b, _, err = buildOf(t, "build:\n  out: global-out\n  id: g\n  drafts: true\n  exclude: [\"a/**\"]\n", "build:\n  out: _site\n  portable: true\n  exclude: [\"b/**\"]\n")
+	want = Build{Out: "_site", ID: "g", Drafts: true, Portable: true, Exclude: []string{"b/**"}}
+	if err != nil || !reflect.DeepEqual(b, want) {
+		t.Errorf("layers: %+v %v", b, err)
+	}
+	// Global alone works.
+	b, _, err = buildOf(t, "build:\n  id: only-global\n", "")
+	if err != nil || b.ID != "only-global" {
+		t.Errorf("global only: %+v %v", b, err)
+	}
+
+	// Unknown keys are warnings (sorted), the rest still applies.
+	b, warns, err = buildOf(t, "", "build:\n  out: x\n  zebra: 1\n  apple: 2\n")
+	if err != nil || b.Out != "x" || len(warns) != 2 || !strings.Contains(warns[0], "build.apple") || !strings.Contains(warns[1], "build.zebra") {
+		t.Errorf("unknown keys: %+v %v %v", b, warns, err)
+	}
+
+	// Wrong types are errors naming the key.
+	for yaml, key := range map[string]string{
+		"build:\n  out: 5\n":                  "build.out",
+		"build:\n  id: [a]\n":                 "build.id",
+		"build:\n  editURL: true\n":           "build.editURL",
+		"build:\n  drafts: \"yes\"\n":         "build.drafts",
+		"build:\n  portable: 1\n":             "build.portable",
+		"build:\n  exclude: \"private/**\"\n": "build.exclude",
+		"build:\n  exclude: [1]\n":            "build.exclude",
+		"build: nope\n":                       "build",
+		"build:\n  - a\n":                     "build",
+	} {
+		_, _, err := buildOf(t, "", yaml)
+		if err == nil || !strings.Contains(err.Error(), key) {
+			t.Errorf("%q: error %v, want one naming %s", yaml, err, key)
+		}
+	}
+	// An id that could escape its namespace.
+	if _, _, err := buildOf(t, "", "build:\n  id: \"a b/c\"\n"); err == nil || !strings.Contains(err.Error(), "build.id") {
+		t.Errorf("bad id: %v", err)
+	}
+}
