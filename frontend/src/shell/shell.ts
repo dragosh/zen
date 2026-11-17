@@ -7,6 +7,7 @@ import { button, el, logo } from "./dom";
 import { createHistory } from "./history";
 import { createLayout, type Layout } from "./layout";
 import { openNewPage, type NewPageDialog } from "./newpage";
+import { closeWindowKey, reloadKey } from "./keys";
 import { createSettingsView, type SettingsView } from "./settings";
 import { createStore } from "./store";
 import type { Ctx, Feature, Store } from "./types";
@@ -309,6 +310,17 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   }
 
   const onKey = (e: KeyboardEvent) => {
+    // ⌘W closes this window, main or editor, through the close handshake (an
+    // editor with unsaved changes asks first). ⌘R does nothing in production.
+    if (closeWindowKey(e)) {
+      e.preventDefault();
+      window.dispatchEvent(new CustomEvent("zen:close-window"));
+      return;
+    }
+    if (reloadKey(e) && import.meta.env.PROD) {
+      e.preventDefault();
+      return;
+    }
     if (kind.kind !== "main") return; // an editor window has no folder or history
     if (e.key === "Escape" && settings && !newPage && !e.defaultPrevented) {
       e.preventDefault();
@@ -335,6 +347,8 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   });
   // Go closes the editor windows before it opens another folder.
   const offNewPage = api.on("menu:new-page", showNewPage);
+  // Zen › Settings… (⌘,) from any window: Go shows the main window first.
+  const offSettings = onMenuSettings(api, openSettings);
   const offOpened = api.on("workspace:opened", (s) => {
     if (!destroyed && s.workspace && kind.kind === "main") showFrame(s.workspace, s.page);
   });
@@ -348,9 +362,22 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       doc.removeEventListener("keydown", onKey);
       offWorkspace();
       offNewPage();
+      offSettings();
       offOpened();
       closeFrame();
       root.replaceChildren();
     },
   };
+}
+
+/**
+ * Subscribes to "menu:settings". The api's event union gains this name at
+ * integration (app/menu); until then the call is typed loosely.
+ */
+function onMenuSettings(api: Api, fn: () => void): () => void {
+  try {
+    return (api.on as (event: string, f: () => void) => () => void)("menu:settings", fn);
+  } catch {
+    return () => {}; // an api that does not know the event yet (see above)
+  }
 }
