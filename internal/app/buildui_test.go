@@ -58,6 +58,9 @@ func newBuildZen(t *testing.T, files map[string]string) *buildZen {
 
 func newBuildZenIn(t *testing.T, dir string) *buildZen {
 	t.Helper()
+	if dir != "" {
+		dir, _ = filepath.EvalSymlinks(dir) // the workspace root is symlink-resolved
+	}
 	b := &buildZen{dir: dir, cfg: t.TempDir(), sink: &hookSink{}}
 	z, err := newZen(zenOptions{
 		Registry: plugins.NewRegistry(), GlobalPath: filepath.Join(b.cfg, "config.yml"),
@@ -208,10 +211,11 @@ func TestBuildProgressAndCancel(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(out2, ".zen-build")); err != nil {
 		t.Errorf("no marker after cancel: %v", err)
 	}
-	if n := htmlCount(t, out2); n != 1 { // b.html; README is index.html
-		t.Errorf("cancelled build wrote %d pages besides the home", n)
+	if n := htmlCount(t, out2); n != 2 { // README.html and b.html
+		t.Errorf("cancelled build wrote %d pages, want 2", n)
 	}
 	// And the next build is a normal one.
+	b2.sink.hook = nil
 	r, err = b2.z.BuildWebsite(BuildOptions{Out: out2, Portable: true, Clean: true})
 	if err != nil || r.Cancelled || r.Pages != 5 {
 		t.Fatalf("after cancel: %+v, %v", r, err)
@@ -324,6 +328,8 @@ func TestSameAsCLI(t *testing.T) {
 	StaticAssets = stubAssets()
 	t.Cleanup(func() { StaticAssets = prev })
 	b := newBuildZenIn(t, dir)
+	trustFile := filepath.Join(b.cfg, "trusted-plugins.yml")
+	trustBefore, _ := os.ReadFile(trustFile)
 
 	for _, c := range []struct {
 		name string
@@ -381,8 +387,8 @@ func TestSameAsCLI(t *testing.T) {
 		}
 	}
 	// Read-only trust: the build never wrote the trust file.
-	if _, err := os.Stat(filepath.Join(b.cfg, "trusted-plugins.yml")); err == nil {
-		t.Error("the build wrote the trust file")
+	if after, _ := os.ReadFile(trustFile); string(after) != string(trustBefore) {
+		t.Error("the build changed the trust file")
 	}
 }
 
