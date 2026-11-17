@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { LayoutInfo, PluginInfo } from "../api";
 import { createFakeApi } from "../api/fake";
+import { rememberBuild, type BuildApi } from "./buildsite";
 import { createSettingsView, type SettingsView } from "./settings";
 import { followTheme, storedTheme, THEME_KEY } from "./theme";
 
@@ -68,10 +69,10 @@ async function plugins(plugins: PluginInfo[] = PLUGINS, hasWorkspace = true): Pr
 
 // ---- the page and its sections
 
-test("it is a page with a section list on the left: Appearance, Configuration files, Plugins, Layouts", () => {
+test("it is a page with a section list on the left: Appearance, Configuration files, Plugins, Layouts, Website", () => {
   const { s } = setup();
   const names = Array.from(s.el.querySelectorAll(".zen-settings-section")).map((b) => b.textContent);
-  expect(names).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts"]);
+  expect(names).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Website"]);
   expect(s.el.querySelector("h1")!.textContent).toBe("Settings");
   expect(s.el.getAttribute("aria-label")).toBe("Settings");
   expect(s.el.classList.contains("zen-settings-page")).toBe(true);
@@ -622,4 +623,52 @@ test("layouts: a failing preview leaves the snippet alone; a stale preview does 
 test("layouts: the Plugins help no longer lists layouts a plugin adds", async () => {
   const { s } = await plugins();
   expect(panel(s, "plugins").textContent).not.toContain("Layouts");
+});
+
+// ---- Website (ui/static-build)
+
+const WEBSITE_OPTIONS = { out: "/Users/me/site/_site", portable: false, drafts: true, clean: false, print: true };
+function websiteSetup(hasWorkspace = true) {
+  const api = createFakeApi();
+  const build = { buildOptions: vi.fn(() => Promise.resolve({ ...WEBSITE_OPTIONS })) } as unknown as BuildApi;
+  const openBuild = vi.fn();
+  const s = createSettingsView({ api, hasWorkspace: () => hasWorkspace, build, openBuild, root: () => (hasWorkspace ? "/Users/me/site" : "") });
+  document.body.append(s.el);
+  s.show();
+  return { s, build, openBuild };
+}
+
+test("website section: the folder's build options and a Build… button that opens the dialog", async () => {
+  const { s, build, openBuild } = websiteSetup();
+  await settle();
+  section(s, "website").click();
+  expect(panel(s, "website").hidden).toBe(false);
+  expect(build.buildOptions).toHaveBeenCalled();
+  const text = panel(s, "website").textContent!;
+  expect(text).toContain("_site");
+  expect(text).toContain("A web server only");
+  expect(text).toContain("Drafts included");
+  expect(text).toContain("No build yet");
+  const b = panel(s, "website").querySelector<HTMLButtonElement>(".zen-settings-build")!;
+  expect(b.textContent).toBe("Build…");
+  b.click();
+  expect(openBuild).toHaveBeenCalledTimes(1);
+});
+
+test("website section: shows the last build's time, page count and output folder", async () => {
+  const { s } = websiteSetup();
+  rememberBuild("/Users/me/site", { out: "/Users/me/site/_site", pages: 34, files: 19, warnings: [], millis: 800, cancelled: false });
+  s.show();
+  await settle();
+  const text = panel(s, "website").querySelector(".zen-settings-build-last")!.textContent!;
+  expect(text).toContain("34 pages");
+  expect(text).toContain("_site");
+  expect(text).not.toContain("No build yet");
+});
+
+test("website section: no folder open disables Build…", async () => {
+  const { s, build } = websiteSetup(false);
+  await settle();
+  expect(panel(s, "website").querySelector<HTMLButtonElement>(".zen-settings-build")!.disabled).toBe(true);
+  expect(build.buildOptions).not.toHaveBeenCalled();
 });
