@@ -26,18 +26,22 @@ body.zen-site { height: auto; overflow: auto; font: 13px/1.4 var(--font-ui); }
   min-height: 100vh;
 }
 .zen-site-frame > .zen-site-body:only-child { grid-column: 1 / -1; }
+/* The sidebar runs the full height of the window and scrolls on its own. */
 .zen-site-side {
   position: sticky;
   top: 0;
   align-self: start;
-  max-height: 100vh;
+  height: 100vh;
+  box-sizing: border-box;
   overflow: auto;
   padding: var(--space-3) var(--space-2);
   border-right: 1px solid var(--rule);
   font-family: var(--font-ui);
 }
 .zen-site-body { min-width: 0; display: flex; flex-direction: column; }
-.zen-site-body main { flex: 1; }
+/* main hands a layout page the rest of the window, like the app's pane: a slide deck fills it. */
+.zen-site-body main { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+.zen-site-body main > .zen-page[data-layout] { flex: 1; display: flex; flex-direction: column; min-width: 0; }
 
 .zen-site-menu > summary {
   cursor: pointer;
@@ -79,7 +83,7 @@ body.zen-site { height: auto; overflow: auto; font: 13px/1.4 var(--font-ui); }
 /* Narrow: one column, the sidebar behind "Contents". */
 @media (max-width: 719px) {
   .zen-site-frame { grid-template-columns: minmax(0, 1fr); }
-  .zen-site-side { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--rule); }
+  .zen-site-side { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--rule); }
   .zen-site-crumbs { padding-left: var(--space-4); padding-right: var(--space-4); }
   .zen-page { padding-left: var(--space-4); padding-right: var(--space-4); }
 }
