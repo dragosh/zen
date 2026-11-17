@@ -112,6 +112,7 @@ export function backdrop(ta: HTMLTextAreaElement, opts: BackdropOptions = {}): B
   if (opts.lineNumbers) mirror.classList.add("has-line-numbers");
 
   function render(): void {
+    ensureSynced();
     marks = [];
     if (!ranges.length && !decorated) {
       mirror.replaceChildren();
@@ -194,10 +195,26 @@ export function backdrop(ta: HTMLTextAreaElement, opts: BackdropOptions = {}): B
     mirror.scrollLeft = ta.scrollLeft;
   }
 
+  /** What the last copy was taken from; a change means the copy is stale. */
+  let synced = "";
+  function shape(cs: CSSStyleDeclaration): string {
+    return [cs.font, cs.lineHeight, cs.paddingLeft, cs.paddingRight, ta.clientWidth, ta.offsetWidth].join("|");
+  }
+
+  /**
+   * Copies the textarea's typography and box to the mirror. Does nothing
+   * (and stays due) while the textarea is not in the page: a detached
+   * element has no computed style, which left the mirror in the UI font with
+   * no gutter, so the caret drifted from the drawn text.
+   */
   function sync(): void {
+    if (!ta.isConnected) {
+      synced = "";
+      return;
+    }
     const view = doc.defaultView;
     const cs = view?.getComputedStyle(ta);
-    if (!cs) return;
+    if (!cs || !cs.font && !cs.fontFamily) return;
     for (const p of MIRRORED) {
       const v = cs[p] || ta.style[p];
       if (v) mirror.style[p] = v;
@@ -205,7 +222,15 @@ export function backdrop(ta: HTMLTextAreaElement, opts: BackdropOptions = {}): B
     // A scrollbar narrows the textarea's text; give the mirror the same width.
     const bars = ta.offsetWidth - ta.clientWidth - (parseFloat(cs.borderLeftWidth) || 0) - (parseFloat(cs.borderRightWidth) || 0);
     if (bars > 0) mirror.style.paddingRight = `${(parseFloat(cs.paddingRight) || 0) + bars}px`;
+    synced = shape(cs);
     syncScroll();
+  }
+
+  /** Re-syncs when the copy is due or the textarea's shape changed since. */
+  function ensureSynced(): void {
+    if (!ta.isConnected) return;
+    const cs = doc.defaultView?.getComputedStyle(ta);
+    if (!synced || (cs && shape(cs) !== synced)) sync();
   }
 
   const onInput = () => refresh();
@@ -213,6 +238,10 @@ export function backdrop(ta: HTMLTextAreaElement, opts: BackdropOptions = {}): B
   ta.addEventListener("scroll", syncScroll);
   const ro = typeof ResizeObserver === "function" ? new ResizeObserver(() => sync()) : null;
   ro?.observe(ta);
+  // Not only the observer: a window created hidden may not deliver it.
+  const onResize = () => ensureSynced();
+  doc.defaultView?.addEventListener("resize", onResize);
+  void (doc as Document & { fonts?: { ready?: Promise<unknown> } }).fonts?.ready?.then(() => sync());
   sync();
   if (decorated) render();
 
@@ -270,6 +299,7 @@ export function backdrop(ta: HTMLTextAreaElement, opts: BackdropOptions = {}): B
       ta.removeEventListener("input", onInput);
       ta.removeEventListener("scroll", syncScroll);
       ro?.disconnect();
+      doc.defaultView?.removeEventListener("resize", onResize);
       if (wrap.parentNode) wrap.parentNode.insertBefore(ta, wrap);
       else if (parent) parent.insertBefore(ta, next);
       wrap.remove();

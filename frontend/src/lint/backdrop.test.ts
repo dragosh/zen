@@ -193,3 +193,41 @@ describe("backdrop", () => {
     type(ta, "x"); // listeners are gone: no throw
   });
 });
+
+describe("backdrop typography sync", () => {
+  it("copies the textarea's typography even when built before it is in the page", () => {
+    document.body.replaceChildren();
+    const host = document.createElement("div");
+    const ta = document.createElement("textarea");
+    ta.style.fontFamily = "Menlo";
+    ta.style.fontSize = "13px";
+    ta.style.lineHeight = "20.8px";
+    ta.style.paddingLeft = "58px";
+    ta.value = "teh line";
+    host.append(ta);
+    // Built detached, like the editor does before mounting its root.
+    const bd = backdrop(ta, { lineNumbers: true });
+    expect(bd.mirror.style.lineHeight).toBe("");
+    document.body.append(host);
+    // The next draw (an input, or alerts arriving) syncs first.
+    bd.update([alert({ match: "teh" })]);
+    expect(bd.mirror.style.lineHeight).toBe("20.8px");
+    expect(bd.mirror.style.paddingLeft).toBe("58px");
+    expect(bd.mirror.style.fontFamily).toContain("Menlo");
+    bd.destroy();
+  });
+
+  it("re-syncs when the textarea's typography changes", () => {
+    document.body.replaceChildren();
+    const ta = document.createElement("textarea");
+    ta.style.lineHeight = "20px";
+    document.body.append(ta);
+    const bd = backdrop(ta, { lineNumbers: true });
+    expect(bd.mirror.style.lineHeight).toBe("20px");
+    ta.style.lineHeight = "24px";
+    ta.value = "x";
+    ta.dispatchEvent(new Event("input"));
+    expect(bd.mirror.style.lineHeight).toBe("24px");
+    bd.destroy();
+  });
+});

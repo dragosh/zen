@@ -257,6 +257,10 @@ export const editorFeature: Feature = {
     ta.addEventListener("scroll", followSource);
     root.append(toolbar, bar, panes, problems.el);
     slots.main.append(root);
+    // The textarea is in the page only now: copy its typography to the
+    // highlight/lint layer (also again next frame, after layout settles).
+    lintView.sync();
+    requestAnimationFrame(() => lintView.sync());
 
     function setDirty(v: boolean): void {
       dirty = v;
