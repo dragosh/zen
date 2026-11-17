@@ -91,7 +91,6 @@ func TestOpenBuiltSite(t *testing.T) {
 	}
 }
 
-
 func TestPickBuildFolder(t *testing.T) {
 	b := newBuildApp(t)
 	b.z.dialogs.(*fakeDialogs).folder = "/some/where"

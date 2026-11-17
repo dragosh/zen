@@ -32,7 +32,7 @@ type PluginStreamEvent struct {
 }
 
 const (
-	maxStreams  = 4                     // streams running at once, per app
+	maxStreams  = 4                     // streams running at once, per session
 	streamBatch = 50 * time.Millisecond // at most one chunk event per stream in this time
 )
 

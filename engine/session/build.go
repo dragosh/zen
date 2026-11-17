@@ -14,7 +14,6 @@ import (
 
 	"github.com/dragosh/zen/internal/core/config"
 	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/core/scriptplugins"
 	"github.com/dragosh/zen/internal/core/site"
 )
 
@@ -66,11 +65,7 @@ func WriteSite(env SiteEnv, b SiteOptions, stdout, stderr io.Writer) error {
 	// A headless session: no events, no watcher, no prompter, so nothing can
 	// ask and the trust file is only read.
 	st := New(Options{GlobalPath: env.GlobalPath, Registry: env.Registry, Version: env.Version})
-	defer func() {
-		st.stop()
-		scriptplugins.Reset()
-		st.streams.cancelAll()
-	}()
+	defer st.Close()
 	if err := st.Open(root); err != nil {
 		return st.cleanErr(".", err)
 	}

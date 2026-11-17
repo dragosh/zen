@@ -342,7 +342,7 @@ func (s *Session) reloadLayoutsHeld(prompt bool) {
 	}
 }
 
-// promptPendingLayouts asks about layouts that could not be asked about while
+// PromptPendingLayouts asks about layouts that could not be asked about while
 // the application was starting.
 func (s *Session) PromptPendingLayouts() {
 	s.mu.Lock()

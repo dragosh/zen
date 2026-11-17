@@ -59,6 +59,36 @@ github.com/dragosh/zen (module; renamed to …/zenmd when the repo is)
 
 `internal/` stays for what no app should import (helpers, test rigs).
 
+### `engine/session` (E1, built)
+
+`engine/session` is the headless folder session. It imports no Wails, app or
+CLI package (a test enforces it).
+
+| Part | Where |
+|---|---|
+| `Session`: `New`, `Open`, `CancelOpen`, `Close`, `Workspace`, `Home`, `Page`, `Preview`, `Source`, `Save`, `CreatePage`, `Lint` | `session.go`, `opening.go`, `newpage.go`, `lint.go` |
+| Plugins and layouts: trust, storage, invoke, stream, cancel | `extplugins.go`, `layouts.go`, `stream.go` |
+| `Handler()`: `/_ws/`, `/_plugins/`, `/_layouts/`, `/_print/`; anything else is 404 | `assets.go`, `print.go` |
+| `Build`, `BuildOptions`, `SaveBuildDefaults`, `BuiltSite`; `WriteSite` is `zenmd build` | `build.go`, `buildui.go` |
+| `PrintDocument`, `Templates()` (list, plan and create a site, update), config file paths | `print.go`, `sitetemplates.go`, `config.go` |
+| Test helpers shared with apps: a folder tree, an event sink, a prompter | `sessiontest/` |
+
+An app gives the session two optional things: `Events` (the app forwards them
+to its frontend) and `Prompter` (the app implements it with native dialogs; a
+nil prompter never asks and never allows). `Options.Watch` turns live reload
+on, `Options.Runtime` is the static runtime that `Build` and `WriteSite` copy
+into a site.
+
+zen.md's `internal/app` keeps `Run`, windows, menus, the close handshake, the
+pickers, Finder and the App Store channel. Its `Zen` service is one-line
+delegations to the session, and the JSON types are aliases of the session's,
+so the frontend bindings keep their method names and payloads.
+
+A process may hold several sessions. Shared on purpose or by the packages the
+session builds on: the Vale process limit, the script plugin helper pool
+(closing a session retires the idle helpers of every session) and the storage
+file locks.
+
 ## Waves
 
 | Wave | Spec | What | Done when |

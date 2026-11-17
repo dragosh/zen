@@ -570,7 +570,7 @@ func (s *Session) reloadHeld(prompt, always bool) {
 	}
 }
 
-// promptPending asks about plugins that could not be asked about while the
+// PromptPending asks about plugins that could not be asked about while the
 // application was starting.
 func (s *Session) PromptPending() {
 	s.mu.Lock()

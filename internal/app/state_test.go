@@ -115,4 +115,3 @@ func TestOpenExternal(t *testing.T) {
 		t.Fatalf("opened: %v", *opened)
 	}
 }
-

@@ -3,7 +3,9 @@ package session_test
 import (
 	"context"
 	"path/filepath"
+	"sync"
 	"testing"
+	"testing/fstest"
 	"time"
 
 	"github.com/dragosh/zen/engine/session"
@@ -84,5 +86,58 @@ func TestCloseStopsWork(t *testing.T) {
 	}
 	if last == nil || !last.Done || last.Error != "cancelled" {
 		t.Errorf("the stream was not ended by Close: %+v", last)
+	}
+}
+
+// Two sessions in one process share nothing: separate folders, events, builds.
+func TestTwoSessions(t *testing.T) {
+	runtime := fstest.MapFS{
+		"static/zen.js":  {Data: []byte("/* js */")},
+		"static/zen.css": {Data: []byte("/* css */")},
+	}
+	a := sessiontest.Tree(t, map[string]string{"README.md": "# A\n", "a.md": "# AA\n"})
+	b := sessiontest.Tree(t, map[string]string{"README.md": "# B\n"})
+	evA, evB := &sessiontest.Sink{}, &sessiontest.Sink{}
+	sa := session.New(session.Options{ConfigDir: t.TempDir(), Events: evA, Runtime: runtime, Watch: true})
+	sb := session.New(session.Options{ConfigDir: t.TempDir(), Events: evB, Runtime: runtime, Watch: true})
+	t.Cleanup(sa.Close)
+	t.Cleanup(sb.Close)
+	if err := sa.Open(a); err != nil {
+		t.Fatal(err)
+	}
+	if err := sb.Open(b); err != nil {
+		t.Fatal(err)
+	}
+	if sa.Workspace().Tree[0].Title != "A" || sb.Workspace().Tree[0].Title != "B" {
+		t.Fatal("the sessions share a folder")
+	}
+	// Both build at once, each into its own output; one's cancel is not the other's.
+	var wg sync.WaitGroup
+	results := make([]session.BuildResult, 2)
+	errs := make([]error, 2)
+	for i, s := range []*session.Session{sa, sb} {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			results[i], errs[i] = s.Build(context.Background(), session.BuildOptions{Out: filepath.Join(t.TempDir(), "site"), Portable: true}, nil)
+		}()
+	}
+	wg.Wait()
+	for i := range errs {
+		if errs[i] != nil || results[i].Pages == 0 || results[i].Cancelled {
+			t.Errorf("build %d: %+v %v", i, results[i], errs[i])
+		}
+	}
+	sa.CancelBuild() // idle: nothing happens, to this or the other session
+	// Closing one leaves the other working.
+	sa.Close()
+	if _, err := sb.Page("README.md"); err != nil {
+		t.Errorf("the second session after closing the first: %v", err)
+	}
+	// Events went to their own sink.
+	for _, e := range evB.All() {
+		if p, ok := e.Data.(session.OpenProgress); ok && p.Name == filepath.Base(a) {
+			t.Errorf("session B received an event of A: %+v", p)
+		}
 	}
 }
