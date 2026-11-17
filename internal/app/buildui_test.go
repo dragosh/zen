@@ -336,8 +336,9 @@ func TestSameAsCLI(t *testing.T) {
 		cli  cli.Build
 		opt  BuildOptions
 	}{
-		{"portable", cli.Build{}, BuildOptions{Portable: true}},
-		{"hosted drafts", cli.Build{Hosted: true, Drafts: true}, BuildOptions{Drafts: true}},
+		{"portable", cli.Build{}, BuildOptions{Portable: true, Print: true}},
+		{"hosted drafts", cli.Build{Hosted: true, Drafts: true}, BuildOptions{Drafts: true, Print: true}},
+		{"no print", cli.Build{NoPrint: true}, BuildOptions{Portable: true}},
 	} {
 		cliOut := filepath.Join(t.TempDir(), "cli")
 		c.cli.Out = cliOut
@@ -538,5 +539,23 @@ func TestPickBuildFolder(t *testing.T) {
 	// Choosing does not open it as the workspace.
 	if w := b.z.Startup().Workspace; w == nil || w.Root != b.dir {
 		t.Errorf("workspace changed: %+v", w)
+	}
+}
+
+// The dialog can switch drafts off although .zen.yml has build.drafts: true.
+func TestDialogDraftsOverrideConfig(t *testing.T) {
+	dir := tree(t, map[string]string{
+		"README.md": "# Home\n",
+		"wip.md":    "---\ndraft: true\n---\n# WIP\n",
+		".zen.yml":  "version: 1\nbuild:\n  drafts: true\n",
+	})
+	out := filepath.Join(t.TempDir(), "site")
+	r := runBuild(t, dir, t.TempDir(), cli.Build{Out: out, NoDrafts: true})
+	if r.err != nil || r.has("wip.html") {
+		t.Fatalf("drafts off: %v %v", r.err, r.files(t))
+	}
+	r = runBuild(t, dir, t.TempDir(), cli.Build{Out: filepath.Join(t.TempDir(), "s2")})
+	if r.err != nil || !r.has("wip.html") {
+		t.Fatalf("config drafts on: %v %v", r.err, r.files(t))
 	}
 }

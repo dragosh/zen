@@ -17,15 +17,24 @@ zen build [folder] [-o dir] [--hosted] [--drafts] [--clean]
 | `--hosted` | for a web server only: scripts stay separate files loaded with `import()`, which browsers refuse from `file://` (each block then says so) |
 | `--portable` | the default, named explicitly (cannot be combined with `--hosted`) |
 | `--drafts` | include pages with `draft: true` |
+| `--no-print` | leave out `print.html`, the whole site as one printable page |
 | `--clean` | empty the output first (only an empty folder or an earlier build, marked `.zen-build`) |
 
 Exit codes: 0 built (warnings on stderr), 1 error, 2 usage.
+
+## In the app
+
+File › Build Website… (⇧⌘B) or Settings › Website builds the open folder with
+the same code: the options above, a progress bar with Cancel, the warnings by
+page, then Open in Browser and Show in Finder. "Save as folder defaults" writes
+the options to `.zen.yml` after showing the change.
 
 ## Output
 
 ```
 _site/
   index.html              home page (or a redirect to it)
+  print.html              the whole site as one document: cover, contents, every page
   README.html, a/b.html   one file per page, same paths
   img/…                   workspace files the pages use (/_ws/…)
   _zen/zen.css, zen.js    zen's page styles and the static runtime

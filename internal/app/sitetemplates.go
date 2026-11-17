@@ -179,17 +179,19 @@ func (z *Zen) CreateSite(id, dir string, values map[string]string) (Startup, err
 	if l.Dir != "" && insideDir(dir, l.Dir) {
 		return Startup{}, errors.New("choose a folder outside the templates folder")
 	}
-	res, err := sitetemplates.Create(t, dir, values)
-	if err != nil {
+	// Unsaved editors are asked first, as with Open Folder: nothing is
+	// written when one keeps its changes.
+	if z.windows != nil && !z.windows.closeEditorsWait() {
+		return Startup{}, errors.New("nothing was created: an editor window kept its unsaved changes")
+	}
+	if _, err := sitetemplates.Create(t, dir, values); err != nil {
 		return Startup{}, err
 	}
-	if z.windows != nil && !z.windows.closeEditorsWait() {
-		return Startup{}, fmt.Errorf("created %d files in %s, but did not open it: an editor window kept its unsaved changes", len(res.Files), filepath.Base(dir))
-	}
 	if err := z.state.open(dir); err != nil {
-		return Startup{}, z.state.cleanErr(".", err)
+		return Startup{}, openErr(z.state, err)
 	}
 	z.page = ""
+	z.setLaunchErr(nil)
 	return z.Startup(), nil
 }
 
@@ -198,6 +200,10 @@ func insideDir(p, dir string) bool {
 	rel, err := filepath.Rel(dir, p)
 	return err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator))
 }
+
+// TemplatesDir is the templates folder (templates.dir in config.yml, or the
+// default next to it), "" when there is none.
+func (z *Zen) TemplatesDir() string { return z.siteEnv().list().Dir }
 
 // RevealTemplates shows the templates folder in Finder, creating it (with the
 // built-in presets) when it is not there yet.

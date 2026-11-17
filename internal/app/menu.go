@@ -10,12 +10,21 @@ const EventSettings = "menu:settings"
 // menuActions are the callbacks app.go wires into the custom menu items, so
 // this file does not depend on Zen internals.
 type menuActions struct {
-	NewPage, OpenFolder, Settings func()
+	NewSite, NewPage, OpenFolder, Settings func()
+	BuildWebsite, PrintPage, PrintSite     func()
 }
 
 // forLabel returns the action of a custom (role-less) item, nil for others.
 func (a menuActions) forLabel(label string) func() {
 	switch label {
+	case labelNewSite:
+		return a.NewSite
+	case labelBuildWebsite:
+		return a.BuildWebsite
+	case labelPrintPage:
+		return a.PrintPage
+	case labelPrintSite:
+		return a.PrintSite
 	case labelNewPage:
 		return a.NewPage
 	case labelOpenFolder:
@@ -36,9 +45,13 @@ type menuItem struct {
 }
 
 const (
-	labelNewPage    = "New Page…"
-	labelOpenFolder = "Open Folder…"
-	labelSettings   = "Settings…"
+	labelNewSite      = "New Site from Template…"
+	labelBuildWebsite = "Build Website…"
+	labelPrintPage    = "Print Page…"
+	labelPrintSite    = "Print Site…"
+	labelNewPage      = "New Page…"
+	labelOpenFolder   = "Open Folder…"
+	labelSettings     = "Settings…"
 )
 
 var sep = menuItem{Separator: true}
@@ -58,8 +71,14 @@ func menuSpec(dev bool) []menuItem {
 			{Label: "Quit Zen", Accel: "CmdOrCtrl+Q", Role: "Quit"},
 		}},
 		{Label: "File", Children: []menuItem{
+			{Label: labelNewSite, Accel: "CmdOrCtrl+Shift+N"},
+			sep,
 			{Label: labelNewPage, Accel: "CmdOrCtrl+N"},
 			{Label: labelOpenFolder, Accel: "CmdOrCtrl+O"},
+			sep,
+			{Label: labelBuildWebsite, Accel: "CmdOrCtrl+Shift+B"},
+			{Label: labelPrintPage, Accel: "CmdOrCtrl+P"},
+			{Label: labelPrintSite, Accel: "CmdOrCtrl+Shift+P"},
 		}},
 		{Label: "Edit", Children: []menuItem{
 			{Label: "Undo", Accel: "CmdOrCtrl+Z", Role: "Undo"},
@@ -143,10 +162,14 @@ func settingsAction(win shower, sink EventSink) func() {
 }
 
 // newPageAction shows the main window and tells it to ask for the new page.
-func newPageAction(win shower, sink EventSink) func() {
+func newPageAction(win shower, sink EventSink) func() { return showAndEmit(win, sink, EventNewPage) }
+
+// showAndEmit shows and focuses the main window, then sends it event (the
+// menu items whose dialog lives in the main window).
+func showAndEmit(win shower, sink EventSink, event string) func() {
 	return func() {
 		win.Show()
 		win.Focus()
-		sink.Emit(EventNewPage, nil)
+		sink.Emit(event, nil)
 	}
 }

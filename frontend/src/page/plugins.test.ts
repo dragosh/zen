@@ -261,7 +261,7 @@ test("ctx.badge puts a label in the store for the window's lifetime", async () =
   expect(env.ctx.store.get().badges).toEqual({ "README.md": "x".repeat(12) });
 });
 
-test("⌘P prints the page (not in an editor window); other keys do not", async () => {
+test("the page leaves ⌘P to the print flow (print/page.ts)", async () => {
   const print = vi.fn();
   (window as unknown as { print: () => void }).print = print; // happy-dom has none
   env.ctx.store.set({ path: "README.md" });
@@ -269,17 +269,8 @@ test("⌘P prints the page (not in an editor window); other keys do not", async 
   await settle();
   const e = new KeyboardEvent("keydown", { key: "p", metaKey: true, cancelable: true, bubbles: true });
   document.dispatchEvent(e);
-  expect(e.defaultPrevented).toBe(true);
-  expect(print).toHaveBeenCalledTimes(1);
-  document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", ctrlKey: true, bubbles: true }));
-  expect(print).toHaveBeenCalledTimes(2);
-  document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", bubbles: true }));
-  document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", metaKey: true, shiftKey: true, bubbles: true }));
-  document.dispatchEvent(new KeyboardEvent("keydown", { key: "o", metaKey: true, bubbles: true }));
-  expect(print).toHaveBeenCalledTimes(2);
-  unmount!(); unmount = undefined;
-  document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", metaKey: true, bubbles: true }));
-  expect(print).toHaveBeenCalledTimes(2);
+  expect(e.defaultPrevented).toBe(false);
+  expect(print).not.toHaveBeenCalled();
 });
 
 test("layouts:changed renders the page again and mounts the new layout script", async () => {

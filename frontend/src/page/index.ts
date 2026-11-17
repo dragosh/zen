@@ -221,11 +221,7 @@ export const pageFeature: Feature = {
         e.preventDefault();
         openEditor();
       }
-      // File > Print (⌘P) prints through the menu in the app; this serves a browser.
-      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "p" && ctx.store.get().mode === "read") {
-        e.preventDefault();
-        doc.defaultView?.print();
-      }
+      // ⌘P is handled by the print flow (print/page.ts, installed by the shell).
     };
     doc.addEventListener("keydown", onKey);
 

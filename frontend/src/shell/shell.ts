@@ -7,6 +7,9 @@ import { button, el, logo } from "./dom";
 import { createHistory } from "./history";
 import { createLayout, type Layout } from "./layout";
 import { createOpening } from "./opening";
+import { registerBuildSite } from "./buildsite";
+import { installPagePrint } from "../print/page";
+import { mountPreview } from "../print/preview";
 import { openNewPage, type NewPageDialog } from "./newpage";
 import { openNewSite, type NewSiteDialog, type SiteApi, type SiteTemplate } from "./newsite";
 import { closeWindowKey, reloadKey } from "./keys";
@@ -21,12 +24,13 @@ export type ShellOptions = {
   search?: string;
 };
 
-export type WindowKind = { kind: "main" } | { kind: "editor"; path: string };
+export type WindowKind = { kind: "main" } | { kind: "editor"; path: string } | { kind: "print" };
 
-/** Which window this is: the main window, or the editor window for one page. */
+/** Which window this is: the main window, the editor window for one page, or Print Preview (ui/print). */
 export function windowKind(search: string): WindowKind {
   const q = new URLSearchParams(search);
   const path = q.get("path") ?? "";
+  if (q.get("window") === "print") return { kind: "print" };
   return q.get("window") === "editor" && path ? { kind: "editor", path } : { kind: "main" };
 }
 
@@ -183,7 +187,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
    * File › New Site from Template… (⇧⌘N) and the welcome cards. The api methods come from core/init;
    * an api that does not have them (an older one, a test) simply has no templates.
    */
-  const siteApi = (api as unknown as Partial<SiteApi>).siteTemplates ? (api as unknown as SiteApi) : null;
+  const siteApi: SiteApi | null = api;
   let newSite: NewSiteDialog | null = null;
   function showNewSite(preselect?: string): void {
     if (kind.kind !== "main" || !siteApi || newSite) return;
@@ -201,7 +205,10 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
    */
   function openSettings(): void {
     if (kind.kind !== "main" || !layout || settings) return;
-    settings = createSettingsView({ api, hasWorkspace: () => store.get().workspace !== null });
+    settings = createSettingsView({
+      api, hasWorkspace: () => store.get().workspace !== null,
+      build: api, openBuild: () => buildSite.open(), root: () => store.get().workspace?.root ?? "",
+    });
     layout.showView(settings.el);
     layout.setSettingsOpen(true);
     syncHistoryButtons();
@@ -326,7 +333,14 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     root.replaceChildren(view);
   }
 
+  let stopPreview: (() => void) | null = null;
   async function start(): Promise<void> {
+    if (kind.kind === "print") {
+      // Print Preview (ui/print) needs no folder view: it fetches the whole site as one document.
+      stopPreview?.();
+      stopPreview = mountPreview(root, api, doc);
+      return;
+    }
     let startup;
     try {
       startup = await api.startup();
@@ -408,6 +422,20 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   const offNewSite = siteApi ? siteApi.on("menu:new-site", () => showNewSite()) : () => {};
   // Zen › Settings… (⌘,) from any window: Go shows the main window first.
   const offSettings = api.on("menu:settings", openSettings);
+  // File › Build Website… (⇧⌘B) and Settings › Website (ui/static-build). Pages with unsaved text
+  // in an editor window are named in the dialog: the website uses the saved files.
+  const drafts = new Set<string>();
+  const offDrafts = api.on("page:draft", (d) => { if (d.content === null) drafts.delete(d.path); else drafts.add(d.path); });
+  const buildSite = registerBuildSite({
+    api, doc,
+    root: () => (kind.kind === "main" ? store.get().workspace?.root ?? "" : ""),
+    name: () => store.get().workspace?.name ?? "",
+    onOpenPage: (p) => navigate(p),
+    unsaved: () => Array.from(drafts),
+  });
+  // Print Page (⌘P, File › Print Page…) in the main and editor windows (ui/print).
+  const offPagePrint = kind.kind === "print" ? () => {} : installPagePrint(doc, api);
+
   // While a folder opens (the Open button, the menu, Open With, the launch folder): a loader with Cancel.
   const opening = createOpening(doc, { onCancel: () => void api.cancelOpen().catch((err) => console.error("zen: cancel failed", err)) });
   const offOpening = kind.kind === "main" ? api.on("workspace:opening", (p) => opening.update(p)) : () => {};
@@ -430,6 +458,10 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       offOpened();
       offOpening();
       opening.destroy();
+      offDrafts();
+      buildSite.destroy();
+      offPagePrint();
+      stopPreview?.();
       closeFrame();
       root.replaceChildren();
     },

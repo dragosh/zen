@@ -35,6 +35,10 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Added
 
+- Site templates: `zen init site --techdocs|--learning|--planner` and File › New Site from Template… (⇧⌘N, also on the welcome screen) start a folder from editable presets kept in your templates folder (technical docs after Diátaxis, a learning path, a planner). See docs/TEMPLATES.md.
+- Print Page (⌘P) and Print Site (⇧⌘P): the whole folder as one document with a cover and contents, through the print panel (Save as PDF); `zen build` writes `print.html` (`--no-print` to skip).
+- File › Build Website… (⇧⌘B) and Settings › Website: build the open folder as a static website from the app, with progress, warnings by page, and Open in Browser.
+
 - A loader while a folder opens: the folder's name, what zen is doing (reading the folder, indexing pages) with counts, and Cancel. Opening stops after `limits.openTimeout` seconds (default 30) and keeps the folder that was open. The folder given at launch now opens after the window shows.
 
 - `zen build`: export a folder as a static website that opens from disk or any web server (`--hosted` for a web-server-only build), rendered with the same plugins and layouts as the app.

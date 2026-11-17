@@ -263,7 +263,12 @@ func Run(opts Options) error {
 
 	// Menu: see menu.go.
 	a.Menu.Set(buildMenu(a, menuActions{
-		NewPage: newPageAction(win, sink),
+		NewSite:      showAndEmit(win, sink, EventNewSite),
+		BuildWebsite: showAndEmit(win, sink, EventBuildWebsite),
+		// Print Page goes to the window that has the focus (main or editor).
+		PrintPage: func() { _ = z.PrintPage() },
+		PrintSite: func() { _ = z.PrintSite() },
+		NewPage:   newPageAction(win, sink),
 		OpenFolder: func() {
 			go func() {
 				ws, err := z.PickFolder()

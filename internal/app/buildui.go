@@ -286,7 +286,7 @@ func (z *Zen) BuildWebsite(o BuildOptions) (BuildResult, error) {
 	}}
 	var stdout, stderr bytes.Buffer
 	start := time.Now()
-	err = buildSite(env, cli.Build{Dir: root, Out: o.Out, Portable: o.Portable, Hosted: !o.Portable, Drafts: o.Drafts, Clean: o.Clean}, &stdout, &stderr)
+	err = buildSite(env, cli.Build{Dir: root, Out: o.Out, Portable: o.Portable, Hosted: !o.Portable, Drafts: o.Drafts, NoDrafts: !o.Drafts, Clean: o.Clean, NoPrint: !o.Print}, &stdout, &stderr)
 	if err != nil {
 		return BuildResult{}, err
 	}

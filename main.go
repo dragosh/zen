@@ -28,7 +28,7 @@ func main() {
 	if sub, err := fs.Sub(dist, "frontend/dist"); err == nil {
 		app.StaticAssets = sub // zen build: the static page runtime (dist/static)
 	}
-	os.Exit(cli.Run(os.Args[1:], cwd, os.Stdout, os.Stderr, launch, app.BuildSite))
+	os.Exit(cli.Run(os.Args[1:], cwd, os.Stdout, os.Stderr, launch, app.BuildSite, app.InitSite))
 }
 
 func launch(l cli.Launch) error {

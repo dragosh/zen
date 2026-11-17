@@ -126,13 +126,14 @@ func buildSite(env buildEnv, b cli.Build, stdout, stderr io.Writer) error {
 	if b.Hosted {
 		portable = false
 	}
+	drafts := (bc.Drafts || b.Drafts) && !b.NoDrafts
 	var input site.Input = in
 	if env.Wrap != nil {
 		input = env.Wrap(in)
 	}
 	rep, err := site.Build(input, site.Options{
 		Out: filepath.Clean(out), SiteID: id, EditURL: bc.EditURL,
-		Drafts: b.Drafts || bc.Drafts, Portable: portable,
+		Drafts: drafts, Portable: portable, NoPrint: b.NoPrint,
 		Clean: b.Clean, Exclude: bc.Exclude,
 	})
 	if err != nil {
@@ -156,6 +157,9 @@ func buildSite(env buildEnv, b cli.Build, stdout, stderr io.Writer) error {
 		summary += fmt.Sprintf(" (%d warnings)", n)
 	}
 	fmt.Fprintln(stdout, summary)
+	if rep.Print != "" {
+		fmt.Fprintf(stdout, "Print version: %s\n", filepath.Join(shown, rep.Print))
+	}
 	if !portable {
 		fmt.Fprintln(stdout, "Hosted output: open it through a web server; browsers block its scripts from disk.")
 	}

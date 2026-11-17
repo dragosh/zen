@@ -3,12 +3,10 @@
 // pattern of newpage.ts. Also the Website section of Settings
 // (createWebsiteSection). All text through textContent.
 import "./buildsite.css";
+import type { BuildOptions, BuildProgress, BuildResult } from "../api";
 import { button, el } from "./dom";
 
-export type BuildOptions = { out: string; portable: boolean; drafts: boolean; clean: boolean; print: boolean };
-export type BuildWarning = { path: string; message: string };
-export type BuildResult = { out: string; pages: number; files: number; warnings: BuildWarning[]; millis: number; cancelled: boolean };
-export type BuildProgress = { done: number; total: number };
+export type { BuildOptions, BuildProgress, BuildResult, BuildWarning } from "../api";
 
 /** The services behind the dialog (internal/app/buildui.go); `on` is the event side of the api. */
 export interface BuildApi {

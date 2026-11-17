@@ -1,11 +1,14 @@
 // In-memory Api for development in a browser and for tests: a three-page
 // sample workspace, emit() to simulate Go events, and a record of every call.
-import type { Api, Crumb, Draft, LayoutInfo, LintResult, NavNode, OpenProgress, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
+import type { Api, BuildProgress, Crumb, Draft, SiteTemplate, LayoutInfo, LintResult, NavNode, OpenProgress, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
 
-type Method = "startup" | "pickFolder" | "cancelOpen" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig" | "createPage"
+type Method = "startup" | "pickFolder" | "cancelOpen"
+  | "siteTemplates" | "pickSiteFolder" | "createSite" | "revealTemplates" | "templatesDir"
+  | "buildOptions" | "buildWebsite" | "cancelBuild" | "saveBuildDefaults" | "pickBuildFolder" | "openBuiltSite" | "revealBuiltSite"
+  | "printPage" | "printSite" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig" | "createPage"
   | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys"
   | "layouts" | "layoutTrust" | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys";
-type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "layouts:changed": undefined; "menu:new-page": undefined; "menu:settings": undefined; "workspace:opening": OpenProgress };
+type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "layouts:changed": undefined; "menu:new-page": undefined; "menu:settings": undefined; "workspace:opening": OpenProgress; "menu:new-site": undefined; "menu:build-website": undefined; "build:progress": BuildProgress; "menu:print-page": undefined };
 
 /** A plugin as tests write it: the help and what it adds default to nothing. */
 export type PluginSeed = Omit<PluginInfo, "help" | "blocks" | "inlines" | "layouts" | "options"> & Partial<Pick<PluginInfo, "help" | "blocks" | "inlines" | "layouts" | "options">>;
@@ -45,7 +48,15 @@ export type FakeOptions = {
   plugins?: PluginSeed[];
   /** What layouts() lists. Default: none. */
   layouts?: LayoutSeed[];
+  /** What siteTemplates() lists. Default: the three built-in presets. */
+  templates?: SiteTemplate[];
 };
+
+const SAMPLE_TEMPLATES: SiteTemplate[] = [
+  { id: "techdocs", name: "Technical documentation", description: "Tutorials, how-to guides, reference and explanation (Diátaxis)", version: "1.0.0", ask: [{ key: "title", label: "Site title", default: "{{folder}}" }, { key: "author", label: "Author", default: "the team" }], builtin: true, update: "", error: "" },
+  { id: "learning", name: "Learning path", description: "A course with steps, a quiz and exercises", version: "1.0.0", ask: [{ key: "title", label: "Site title", default: "{{folder}}" }], builtin: true, update: "", error: "" },
+  { id: "planner", name: "Planner", description: "Roadmap, weekly plans, decisions and meeting notes", version: "1.0.0", ask: [{ key: "title", label: "Site title", default: "{{folder}}" }], builtin: true, update: "", error: "" },
+];
 
 type LintAnswer = LintResult | ((path: string, content: string) => LintResult);
 
@@ -163,6 +174,10 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     "menu:new-page": new Set(),
     "menu:settings": new Set(),
     "workspace:opening": new Set(),
+    "menu:new-site": new Set(),
+    "menu:build-website": new Set(),
+    "build:progress": new Set(),
+    "menu:print-page": new Set(),
   };
   let streamCount = 0;
   const failures = new Map<Method, Error>();
@@ -220,6 +235,24 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
       return api.pick;
     }),
     cancelOpen: () => call("cancelOpen", [], () => undefined),
+    siteTemplates: () => call("siteTemplates", [], () => (options.templates ?? SAMPLE_TEMPLATES).map((t) => ({ ...t, ask: t.ask.map((a) => ({ ...a })) }))),
+    pickSiteFolder: () => call("pickSiteFolder", [], () => "/Users/me/new-site"),
+    createSite: (id, dir, values) => call("createSite", [id, dir, values], () => {
+      const ws = sampleWorkspace();
+      tree = ws.tree;
+      return { workspace: ws, page: ws.home, mode: "read" as const };
+    }),
+    revealTemplates: () => call("revealTemplates", [], () => undefined),
+    templatesDir: () => call("templatesDir", [], () => "/Users/me/Library/Application Support/zen/templates"),
+    buildOptions: () => call("buildOptions", [], () => ({ out: "/Users/me/sample-docs/_site", portable: true, drafts: false, clean: false, print: true })),
+    buildWebsite: (o) => call("buildWebsite", [o], () => ({ out: o.out, pages: 3, files: 2, warnings: [], millis: 42, cancelled: false })),
+    cancelBuild: () => call("cancelBuild", [], () => undefined),
+    saveBuildDefaults: (o, confirm) => call("saveBuildDefaults", [o, confirm], () => "Nothing to change"),
+    pickBuildFolder: () => call("pickBuildFolder", [], () => ""),
+    openBuiltSite: (out) => call("openBuiltSite", [out], () => undefined),
+    revealBuiltSite: (out) => call("revealBuiltSite", [out], () => undefined),
+    printPage: () => call("printPage", [], () => undefined),
+    printSite: () => call("printSite", [], () => undefined),
     page: (path) => call("page", [path], () => render(path, need(path))),
     source: (path) => call("source", [path], () => need(path)),
     preview: (path, content) => call("preview", [path, content], () => render(path, content)),

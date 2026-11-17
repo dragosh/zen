@@ -421,3 +421,71 @@ h4.zen-plugin-help-title { font-size: 14px; }
 @media (prefers-reduced-motion: reduce) {
   .zen-opening-indeterminate .zen-opening-fill { animation: none; left: 0; width: 100%; opacity: 0.4; }
 }
+
+/* Welcome: Start from a template (core/init). */
+.zen-welcome { overflow: auto; }
+.zen-welcome-templates { width: min(720px, 100%); margin-top: var(--space-6); text-align: left; }
+.zen-welcome-templates { display: flex; flex-direction: column; align-items: center; }
+.zen-welcome-templates > h2 { margin: 0 0 var(--space-3); font: 600 13px var(--font-ui); color: var(--fg-muted); }
+.zen-welcome-templates > .zen-welcome-cards { align-self: stretch; }
+.zen-welcome-templates > button:last-child { margin-top: var(--space-3); }
+.zen-welcome-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-3); }
+.zen-welcome-card {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  padding: var(--space-3) var(--space-4); text-align: left;
+  border: 1px solid var(--rule); border-radius: var(--radius); background: var(--bg); color: var(--fg);
+  cursor: pointer;
+}
+.zen-welcome-card:hover { border-color: var(--fg-muted); background: var(--bg-subtle); }
+.zen-welcome-card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.zen-welcome-card-name { font: 600 15px/1.3 var(--font-body); }
+.zen-welcome .zen-welcome-card-hint {
+  margin: 0; color: var(--fg-muted); font: 12px/1.4 var(--font-ui);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* New Site dialog (core/init); the frame matches New Page. */
+.zen-newsite-backdrop {
+  position: fixed; inset: 0; z-index: 40;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 10vh 16px 16px;
+  background: color-mix(in srgb, var(--fg) 18%, transparent);
+}
+.zen-newsite {
+  width: min(560px, 100%); max-height: 80vh; overflow: auto;
+  padding: var(--space-4);
+  background: var(--bg); color: var(--fg);
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--fg) 18%, transparent);
+  font-family: var(--font-ui); font-size: 13px;
+}
+.zen-newsite-title { margin: 0 0 var(--space-3); font-size: 15px; font-weight: 600; }
+.zen-newsite-label { display: block; margin: var(--space-3) 0 var(--space-1); font-weight: 600; }
+.zen-newsite-templates { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-2); }
+.zen-newsite-template {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: var(--space-2) var(--space-3); text-align: left;
+  border: 1px solid var(--rule); border-radius: var(--radius); background: var(--bg); color: var(--fg);
+}
+.zen-newsite-template[aria-checked="true"] { border-color: var(--fg); background: var(--btn-bg); }
+.zen-newsite-template[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
+.zen-newsite-template:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.zen-newsite-template-name { font-weight: 600; }
+.zen-newsite-template-hint, .zen-newsite-template-error { color: var(--fg-muted); font-size: 12px; line-height: 1.35; }
+.zen-newsite-fields { display: grid; gap: var(--space-1); }
+.zen-newsite-field { display: grid; gap: var(--space-1); }
+.zen-newsite-input {
+  box-sizing: border-box; width: 100%; padding: 6px 8px;
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  background: var(--bg); color: var(--fg); font: 13px var(--font-ui);
+}
+.zen-newsite-input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.zen-newsite-folder { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1); min-width: 0; }
+.zen-newsite-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg-muted); font: 12px var(--font-mono); }
+.zen-newsite-hint, .zen-newsite-status { margin: var(--space-1) 0 0; color: var(--fg-muted); font-size: 12px; }
+.zen-newsite-empty { display: grid; gap: var(--space-2); justify-items: start; color: var(--fg-muted); }
+.zen-newsite-empty[hidden] { display: none; }
+.zen-newsite-error { min-height: 1.4em; margin: var(--space-2) 0 0; color: var(--lint-error, var(--fg)); white-space: pre-line; }
+.zen-newsite-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); }
+.zen-newsite-link { margin-right: auto; padding: 0; border: 0; background: none; color: var(--fg-muted); text-decoration: underline; cursor: pointer; font: inherit; }
+.zen-newsite-link:hover { color: var(--fg); }

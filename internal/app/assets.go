@@ -26,6 +26,8 @@ func (s *state) middleware(next http.Handler) http.Handler {
 			s.serveLayout(w, r, strings.TrimPrefix(p, "/_layouts/"))
 		case strings.HasPrefix(p, "/_plugins/"):
 			s.servePlugin(w, r, strings.TrimPrefix(p, "/_plugins/"))
+		case strings.HasPrefix(p, "/_print/"):
+			s.servePrint(w, r)
 		default:
 			w.Header().Set("Content-Security-Policy", frontendCSP)
 			next.ServeHTTP(w, r)

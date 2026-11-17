@@ -51,6 +51,17 @@ export type LayoutInfo = {
 };
 /** error: the folder given at launch did not open (workspace is then null). */
 export type Startup = { workspace: Workspace | null; page: string; mode: "read" | "edit"; error?: string };
+/** A site template (core/init): a folder of preset files in the templates folder. */
+export type SiteTemplate = {
+  id: string; name: string; description: string; version: string;
+  ask: { key: string; label: string; default: string }[];
+  builtin: boolean; update: string; error: string;
+};
+/** Build Website (ui/static-build). */
+export type BuildOptions = { out: string; portable: boolean; drafts: boolean; clean: boolean; print: boolean };
+export type BuildWarning = { path: string; message: string };
+export type BuildResult = { out: string; pages: number; files: number; warnings: BuildWarning[]; millis: number; cancelled: boolean };
+export type BuildProgress = { done: number; total: number };
 /** workspace:opening — progress while a folder opens; the last one has phase "done" or "failed". */
 export type OpenProgress = { name: string; phase: "reading" | "indexing" | "done" | "failed"; done: number; total: number };
 /** One Vale finding (ui/lint). line is 1-based; col and endCol are 1-based rune columns, endCol inclusive. */
@@ -76,6 +87,27 @@ export interface Api {
   pickFolder(): Promise<Workspace | null>; // native folder dialog; null also when the opening was cancelled
   /** Stops the folder that is opening; the one open before stays. */
   cancelOpen(): Promise<void>;
+  // Site templates (core/init)
+  siteTemplates(): Promise<SiteTemplate[]>;
+  /** The native folder panel with New Folder enabled; "" when cancelled. */
+  pickSiteFolder(): Promise<string>;
+  /** Creates the site in dir (nothing is overwritten) and opens it. */
+  createSite(id: string, dir: string, values: Record<string, string>): Promise<Startup>;
+  revealTemplates(): Promise<void>;
+  /** The templates folder, "" when there is none. */
+  templatesDir(): Promise<string>;
+  // Build Website (ui/static-build)
+  buildOptions(): Promise<BuildOptions>;
+  buildWebsite(o: BuildOptions): Promise<BuildResult>;
+  cancelBuild(): Promise<void>;
+  /** Without confirm: the preview text, nothing written. With it: writes .zen.yml. */
+  saveBuildDefaults(o: BuildOptions, confirm: boolean): Promise<string>;
+  pickBuildFolder(): Promise<string>;
+  openBuiltSite(out: string): Promise<void>;
+  revealBuiltSite(out: string): Promise<void>;
+  // Print (ui/print)
+  printPage(): Promise<void>;
+  printSite(): Promise<void>;
   page(path: string): Promise<Page>;
   source(path: string): Promise<string>;
   preview(path: string, content: string): Promise<Page>; // render unsaved text
@@ -147,6 +179,10 @@ export interface Api {
   /** Zen › Settings… (⌘,): show Settings in the main window. */
   on(event: "menu:settings", fn: () => void): () => void;
   on(event: "workspace:opening", fn: (p: OpenProgress) => void): () => void;
+  on(event: "menu:new-site", fn: () => void): () => void;
+  on(event: "menu:build-website", fn: () => void): () => void;
+  on(event: "build:progress", fn: (p: BuildProgress) => void): () => void;
+  on(event: "menu:print-page", fn: () => void): () => void;
 }
 
 /**

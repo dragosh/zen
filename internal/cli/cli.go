@@ -33,7 +33,9 @@ type Build struct {
 	Portable bool   // --portable: opens from disk (the default)
 	Hosted   bool   // --hosted: scripts as files, for a web server
 	Drafts   bool
+	NoDrafts bool // leave drafts out even when build.drafts is true (the app's dialog)
 	Clean    bool
+	NoPrint  bool // --no-print: no print.html
 }
 
 // Builder builds a static website. It writes the summary to stdout and one
@@ -85,6 +87,7 @@ Build options:
   --portable          output that also opens from disk (the default)
   --drafts            include pages with "draft: true"
   --clean             empty the output folder first (needs a .zen-build file)
+  --no-print          leave out print.html (the whole site as one page)
 `
 
 type usageError string
@@ -166,6 +169,8 @@ func runBuild(args []string, cwd string, stdout, stderr io.Writer, build Builder
 			b.Hosted = true
 		case flags && arg == "--drafts":
 			b.Drafts = true
+		case flags && arg == "--no-print":
+			b.NoPrint = true
 		case flags && arg == "--clean":
 			b.Clean = true
 		case flags && (arg == "-o" || arg == "--out"):

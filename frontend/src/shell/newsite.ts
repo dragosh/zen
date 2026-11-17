@@ -6,18 +6,16 @@
 // The api methods are declared here (SiteApi) until api/ lists them; the real
 // Api satisfies this type once it has siteTemplates, pickSiteFolder,
 // createSite, revealTemplates and the "menu:new-site" event.
-import type { Api, Startup } from "../api";
+import type { Api, SiteTemplate, Startup } from "../api";
 import { button, el } from "./dom";
 
 /** A site template as the Go service lists it. An invalid one has `error` set. */
-export type SiteTemplate = {
-  id: string; name: string; description: string; version: string;
-  ask: { key: string; label: string; default: string }[];
-  builtin: boolean; update: string; error: string;
-};
+export type { SiteTemplate } from "../api";
 
 export type SiteApi = Pick<Api, "on"> & {
   siteTemplates(): Promise<SiteTemplate[]>;
+  /** The templates folder, for the empty state (optional for older apis). */
+  templatesDir?(): Promise<string>;
   /** The native folder panel with New Folder enabled; "" when cancelled. */
   pickSiteFolder(): Promise<string>;
   /** Creates the site in dir (nothing is overwritten) and opens it. */
@@ -213,10 +211,9 @@ export function openNewSite(opts: NewSiteOptions): NewSiteDialog {
     status.remove();
     if (all.length === 0) {
       empty.hidden = false;
-      empty.replaceChildren(
-        el("p", "", "No templates in the templates folder."),
-        button("Reveal in Finder", () => void revealFolder()),
-      );
+      const msg = el("p", "", "No templates in the templates folder.");
+      empty.replaceChildren(msg, button("Reveal in Finder", () => void revealFolder()));
+      void opts.api.templatesDir?.().then((dir) => { if (dir) msg.textContent = `No templates in ${dir}.`; }, () => {});
       return;
     }
     group.hidden = false;

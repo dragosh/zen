@@ -192,7 +192,7 @@ func TestCreateSiteClosesEditors(t *testing.T) {
 	r.open(t, "a.md", "b.md")
 	target := filepath.Join(t.TempDir(), "new site")
 
-	// An editor keeps its unsaved changes: the site is created, but not opened.
+	// An editor keeps its unsaved changes: nothing is created or opened.
 	type result struct {
 		st  Startup
 		err error
@@ -203,11 +203,11 @@ func TestCreateSiteClosesEditors(t *testing.T) {
 	r.m.reply("editor:a.md", replyPending)
 	r.m.reply("editor:a.md", replyCancel)
 	res := <-done
-	if res.err == nil || !strings.Contains(res.err.Error(), "did not open") || !strings.Contains(res.err.Error(), "unsaved") {
+	if res.err == nil || !strings.Contains(res.err.Error(), "nothing was created") || !strings.Contains(res.err.Error(), "unsaved") {
 		t.Fatalf("cancelled: %+v", res)
 	}
-	if _, err := os.Stat(filepath.Join(target, "README.md")); err != nil {
-		t.Error("the site should exist even though it was not opened")
+	if _, err := os.Stat(filepath.Join(target, "README.md")); err == nil {
+		t.Error("the site was written although an editor kept its changes")
 	}
 	if z.Startup().Workspace.Name == filepath.Base(target) {
 		t.Error("the folder was opened although an editor said no")

@@ -47,8 +47,14 @@ func TestMenuSpecProduction(t *testing.T) {
 		"-",
 		"Quit Zen [CmdOrCtrl+Q]",
 		"# File",
+		"New Site from Template… [CmdOrCtrl+Shift+N]",
+		"-",
 		"New Page… [CmdOrCtrl+N]",
 		"Open Folder… [CmdOrCtrl+O]",
+		"-",
+		"Build Website… [CmdOrCtrl+Shift+B]",
+		"Print Page… [CmdOrCtrl+P]",
+		"Print Site… [CmdOrCtrl+Shift+P]",
 		"# Edit",
 		"Undo [CmdOrCtrl+Z]",
 		"Redo [CmdOrCtrl+Shift+Z]",
@@ -61,7 +67,7 @@ func TestMenuSpecProduction(t *testing.T) {
 		"Minimise [CmdOrCtrl+M]",
 		"Zoom",
 	})
-	banned := []string{"view", "services", "speech", "develop", "devtools", "developer", "reload", "full screen", "paste and match", "print", "close"}
+	banned := []string{"view", "services", "speech", "develop", "devtools", "developer", "reload", "full screen", "paste and match", "close"}
 	for _, line := range rows(menuSpec(false)) {
 		for _, b := range banned {
 			if strings.Contains(strings.ToLower(line), b) {
@@ -119,18 +125,22 @@ func TestMenuRolesAndCustomItems(t *testing.T) {
 func TestMenuActions(t *testing.T) {
 	var calls []string
 	act := menuActions{
-		NewPage:    func() { calls = append(calls, "new") },
-		OpenFolder: func() { calls = append(calls, "open") },
-		Settings:   func() { calls = append(calls, "settings") },
+		NewPage:      func() { calls = append(calls, "new") },
+		OpenFolder:   func() { calls = append(calls, "open") },
+		Settings:     func() { calls = append(calls, "settings") },
+		NewSite:      func() { calls = append(calls, "site") },
+		BuildWebsite: func() { calls = append(calls, "build") },
+		PrintPage:    func() { calls = append(calls, "print-page") },
+		PrintSite:    func() { calls = append(calls, "print-site") },
 	}
-	for _, label := range []string{"New Page…", "Open Folder…", "Settings…"} {
+	for _, label := range []string{"New Page…", "Open Folder…", "Settings…", "New Site from Template…", "Build Website…", "Print Page…", "Print Site…"} {
 		f := act.forLabel(label)
 		if f == nil {
 			t.Fatalf("no action for %s", label)
 		}
 		f()
 	}
-	if got := strings.Join(calls, ","); got != "new,open,settings" {
+	if got := strings.Join(calls, ","); got != "new,open,settings,site,build,print-page,print-site" {
 		t.Fatalf("calls = %s", got)
 	}
 	if act.forLabel("Quit Zen") != nil {

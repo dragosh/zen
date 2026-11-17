@@ -2,7 +2,7 @@
 // getApi() only inside the Wails webview.
 import { Events, Window } from "@wailsio/runtime";
 import { Zen } from "../../bindings/github.com/dragosh/zen/internal/app/index.js";
-import type { Alert, Api, Crumb, LayoutField, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
+import type { Alert, Api, BuildOptions, Crumb, LayoutField, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
 
 type Raw = Record<string, any> | null | undefined;
 
@@ -144,6 +144,10 @@ function payload(data: unknown): unknown {
   return Array.isArray(data) && data.length === 1 ? data[0] : data;
 }
 
+function buildOptions(o: Raw): BuildOptions {
+  return { out: String(o?.out ?? ""), portable: o?.portable !== false, drafts: o?.drafts === true, clean: o?.clean === true, print: o?.print !== false };
+}
+
 const api: Api = {
   async startup(): Promise<Startup> {
     const s = (await call(Zen.Startup())) as Raw;
@@ -156,6 +160,58 @@ const api: Api = {
   },
   async cancelOpen() {
     await call(Zen.CancelOpen());
+  },
+  async siteTemplates() {
+    const list = ((await call(Zen.SiteTemplates())) ?? []) as Raw[];
+    return list.map((t) => ({
+      id: String(t?.id ?? ""), name: String(t?.name ?? ""), description: String(t?.description ?? ""), version: String(t?.version ?? ""),
+      ask: (Array.isArray(t?.ask) ? t.ask : []).map((a: Raw) => ({ key: String(a?.key ?? ""), label: String(a?.label ?? ""), default: String(a?.default ?? "") })),
+      builtin: t?.builtin === true, update: String(t?.update ?? ""), error: String(t?.error ?? ""),
+    }));
+  },
+  async pickSiteFolder() {
+    return String((await call(Zen.PickSiteFolder())) ?? "");
+  },
+  async createSite(id, dir, values) {
+    const s = (await call(Zen.CreateSite(id, dir, values))) as Raw;
+    return { workspace: workspace(s?.workspace), page: s?.page ?? "", mode: s?.mode === "edit" ? "edit" : "read" };
+  },
+  async revealTemplates() {
+    await call(Zen.RevealTemplates());
+  },
+  async templatesDir() {
+    return String((await call(Zen.TemplatesDir())) ?? "");
+  },
+  async buildOptions() {
+    return buildOptions((await call(Zen.BuildOptions())) as Raw);
+  },
+  async buildWebsite(o) {
+    const r = (await call(Zen.BuildWebsite(o))) as Raw;
+    return {
+      out: String(r?.out ?? ""), pages: Number(r?.pages ?? 0), files: Number(r?.files ?? 0), millis: Number(r?.millis ?? 0), cancelled: r?.cancelled === true,
+      warnings: (Array.isArray(r?.warnings) ? r.warnings : []).map((w: Raw) => ({ path: String(w?.path ?? ""), message: String(w?.message ?? "") })),
+    };
+  },
+  async cancelBuild() {
+    await call(Zen.CancelBuild());
+  },
+  async saveBuildDefaults(o, confirm) {
+    return String((await call(Zen.SaveBuildDefaults(o, confirm))) ?? "");
+  },
+  async pickBuildFolder() {
+    return String((await call(Zen.PickBuildFolder())) ?? "");
+  },
+  async openBuiltSite(out) {
+    await call(Zen.OpenBuiltSite(out));
+  },
+  async revealBuiltSite(out) {
+    await call(Zen.RevealBuiltSite(out));
+  },
+  async printPage() {
+    await call(Zen.PrintPage());
+  },
+  async printSite() {
+    await call(Zen.PrintSite());
   },
   async page(path) {
     return page((await call(Zen.Page(path))) as Raw);
@@ -232,9 +288,18 @@ const api: Api = {
   async pluginCancel(callId) {
     await call(Zen.PluginCancel(callId));
   },
-  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "layouts:changed" | "menu:new-page" | "menu:settings" | "workspace:opening", fn: (p: any) => void): () => void {
+  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "layouts:changed" | "menu:new-page" | "menu:settings" | "workspace:opening" | "menu:new-site" | "menu:build-website" | "build:progress" | "menu:print-page", fn: (p: any) => void): () => void {
     if (event === "menu:new-page") return Events.On("menu:new-page", () => fn(undefined));
     if (event === "menu:settings") return Events.On("menu:settings", () => fn(undefined));
+    if (event === "menu:new-site") return Events.On("menu:new-site", () => fn(undefined));
+    if (event === "menu:build-website") return Events.On("menu:build-website", () => fn(undefined));
+    if (event === "menu:print-page") return Events.On("menu:print-page", () => fn(undefined));
+    if (event === "build:progress") {
+      return Events.On("build:progress", (e: { data: unknown }) => {
+        const d = payload(e.data) as { done?: unknown; total?: unknown } | null;
+        fn({ done: typeof d?.done === "number" ? d.done : 0, total: typeof d?.total === "number" ? d.total : 0 });
+      });
+    }
     if (event === "layouts:changed") return Events.On("layouts:changed", () => fn(undefined));
     if (event === "plugins:changed") return Events.On("plugins:changed", () => fn(undefined));
     if (event === "plugin:stream") {

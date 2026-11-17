@@ -84,7 +84,7 @@ func TestBuildSiteReport(t *testing.T) {
 	if r.err != nil {
 		t.Fatal(r.err)
 	}
-	if !regexp.MustCompile(`^Built 2 pages and 3 files into _site \(1 warning\)\n$`).MatchString(r.stdout) {
+	if !regexp.MustCompile(`^Built 2 pages and 3 files into _site \(1 warning\)\nPrint version: _site/print.html\n$`).MatchString(r.stdout) {
 		t.Errorf("summary %q", r.stdout)
 	}
 	if !strings.Contains(r.stderr, "a.md: ") || !strings.Contains(r.stderr, "nosuch") || strings.Count(r.stderr, "\n") != 1 {
@@ -102,7 +102,7 @@ func TestBuildSiteReport(t *testing.T) {
 	// Clean builds report no warnings in the summary.
 	clean := tree(t, map[string]string{"README.md": "# Home\n"})
 	r = runBuild(t, clean, cfg, cli.Build{})
-	if r.err != nil || r.stdout != "Built 1 pages and 2 files into _site\n" || r.stderr != "" {
+	if r.err != nil || r.stdout != "Built 1 pages and 2 files into _site\nPrint version: _site/print.html\n" || r.stderr != "" {
 		t.Errorf("clean build: %+v", r)
 	}
 	// An output outside the folder is named in full.

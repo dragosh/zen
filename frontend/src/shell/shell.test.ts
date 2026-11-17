@@ -560,7 +560,7 @@ test("welcome lists templates: a card for each (six at most), invalid ones left 
   document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
 });
 
-test("welcome shows no template section when there are none, when listing fails, or when the api has no templates", async () => {
+test("welcome shows no template section when there are none or when listing fails", async () => {
   let s = boot(withTemplates(createFakeApi(), []));
   await s.start();
   await tick();
@@ -569,12 +569,6 @@ test("welcome shows no template section when there are none, when listing fails,
   const failing = withTemplates(createFakeApi(), []);
   failing.siteTemplates = async () => { throw new Error("down"); };
   s = boot(failing);
-  await s.start();
-  await tick();
-  expect(root.querySelector(".zen-welcome")).not.toBeNull();
-  expect(root.querySelector(".zen-welcome-templates")).toBeNull();
-  s.destroy();
-  s = boot(createFakeApi());
   await s.start();
   await tick();
   expect(root.querySelector(".zen-welcome")).not.toBeNull();
