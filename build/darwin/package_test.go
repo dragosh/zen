@@ -79,8 +79,8 @@ func TestBundleLayout(t *testing.T) {
 	v := readVersion(t)
 	short := regexp.MustCompile(`^\d+\.\d+\.\d+`).FindString(v)
 	want := map[string]string{
-		"CFBundleName":               "Zen",
-		"CFBundleDisplayName":        "Zen",
+		"CFBundleName":               "zen.md",
+		"CFBundleDisplayName":        "zen.md",
 		"CFBundleExecutable":         "zen",
 		"CFBundleIdentifier":         bundleID,
 		"CFBundlePackageType":        "APPL",
@@ -181,8 +181,11 @@ func TestEntitlementsFile(t *testing.T) {
 	}
 }
 
-func TestSignature(t *testing.T) {
+func TestSignatureDevID(t *testing.T) {
 	requireBundle(t)
+	if channel() != "devid" {
+		t.Skip("the bundle was built for the App Store channel; see TestSignatureAppStore")
+	}
 	if out, err := exec.Command("codesign", "--verify", "--deep", "--strict", bundle).CombinedOutput(); err != nil {
 		t.Fatalf("codesign --verify: %v\n%s", err, out)
 	}
@@ -193,9 +196,28 @@ func TestSignature(t *testing.T) {
 	if got := entitlementKeys(t, string(out)); !sameSet(got, wantEntitlements) {
 		t.Errorf("signed entitlements = %v, want %v", got, wantEntitlements)
 	}
-	info, _ := exec.Command("codesign", "-dv", bundle).CombinedOutput()
+	info, _ := exec.Command("codesign", "-dvv", bundle).CombinedOutput()
 	if !strings.Contains(string(info), "Identifier="+bundleID) {
 		t.Errorf("signature identifier: %s", info)
+	}
+	if strings.Contains(string(out), "app-sandbox") {
+		t.Error("the Developer ID build must not be sandboxed")
+	}
+	if strings.Contains(string(info), "Authority=Developer ID Application") {
+		// A real identity: hardened runtime and a secure timestamp.
+		if !strings.Contains(string(info), "runtime") {
+			t.Errorf("Developer ID signature lacks the hardened runtime:\n%s", info)
+		}
+		if !strings.Contains(string(info), "Timestamp=") {
+			t.Errorf("Developer ID signature lacks a secure timestamp:\n%s", info)
+		}
+	} else {
+		t.Log("ad-hoc signature: hardened runtime and timestamp are checked with a Developer ID identity only")
+	}
+	for _, h := range helperFiles(t) {
+		if out, err := exec.Command("codesign", "--verify", "--strict", h).CombinedOutput(); err != nil {
+			t.Errorf("helper %s: %v\n%s", h, err, out)
+		}
 	}
 }
 

@@ -5,6 +5,11 @@
 //	go run ./build/darwin/resources -manifest resources.yml -arch arm64 -fetch
 //	go run ./build/darwin/resources -manifest resources.yml -arch arm64 -validate
 //
+// With -arch universal every entry is verified for both architectures
+// (arm64 and amd64; each needs a path and sha256) and the two binaries are
+// merged with lipo into one universal helper. -fetch and -validate then cover
+// both architectures.
+//
 // Every entry must name an existing file whose sha256 matches; otherwise the
 // command fails before copying anything. An empty list is valid.
 //
@@ -29,6 +34,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -90,21 +96,34 @@ const (
 
 func main() {
 	manifest := flag.String("manifest", "resources.yml", "manifest file")
-	arch := flag.String("arch", "arm64", "target architecture (arm64 or amd64)")
+	arch := flag.String("arch", "arm64", "target architecture (arm64, amd64 or universal)")
 	dest := flag.String("dest", "", "destination directory (Contents/Helpers)")
 	licenses := flag.String("licenses", "", "destination directory for license notices (Contents/Resources/licenses)")
 	fetch := flag.Bool("fetch", false, "download and verify helpers that have a fetch block")
 	validate := flag.Bool("validate", false, "only validate the manifest")
 	flag.Parse()
-	target := "darwin-" + *arch
+	targets := []string{"darwin-" + *arch}
+	if *arch == "universal" {
+		targets = []string{"darwin-arm64", "darwin-amd64"}
+	}
 	var err error
 	switch {
 	case *validate:
-		_, err = load(*manifest, target)
+		for _, t := range targets {
+			if _, err = load(*manifest, t); err != nil {
+				break
+			}
+		}
 	case *fetch:
-		err = fetchAll(*manifest, target)
+		for _, t := range targets {
+			if err = fetchAll(*manifest, t); err != nil {
+				break
+			}
+		}
+	case len(targets) == 2:
+		err = runUniversal(*manifest, targets, *dest, *licenses)
 	default:
-		err = run(*manifest, target, *dest, *licenses)
+		err = run(*manifest, targets[0], *dest, *licenses)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "resources: %v\n", err)
@@ -122,6 +141,11 @@ func run(manifest, target, dest, licenses string) error {
 	if err != nil {
 		return err
 	}
+	return install(files, dest, licenses)
+}
+
+// install copies verified helpers and their license notices.
+func install(files []file, dest, licenses string) error {
 	for _, f := range files {
 		if f.license == "" {
 			continue
@@ -151,6 +175,42 @@ func run(manifest, target, dest, licenses string) error {
 		}
 	}
 	return nil
+}
+
+// runUniversal verifies every helper for both targets, then merges the two
+// binaries of each with lipo into dest. Nothing is written when any check fails.
+func runUniversal(manifest string, targets []string, dest, licenses string) error {
+	if dest == "" {
+		return errors.New("-dest is required")
+	}
+	var sets [][]file
+	for _, t := range targets {
+		files, err := verify(manifest, t)
+		if err != nil {
+			return err
+		}
+		sets = append(sets, files)
+	}
+	// verify keeps the manifest order for every target.
+	stage, err := os.MkdirTemp("", "zen-universal")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(stage)
+	for i, f := range sets[0] {
+		args := []string{"-create", "-output", filepath.Join(stage, f.name)}
+		for _, set := range sets {
+			args = append(args, set[i].src)
+		}
+		if out, err := exec.Command("lipo", args...).CombinedOutput(); err != nil {
+			return fmt.Errorf("lipo %s: %v\n%s", f.name, err, out)
+		}
+	}
+	merged := make([]file, len(sets[0]))
+	for i, f := range sets[0] {
+		merged[i] = file{name: f.name, src: filepath.Join(stage, f.name), license: f.license}
+	}
+	return install(merged, dest, licenses)
 }
 
 // item is one manifest entry resolved for the target architecture.
