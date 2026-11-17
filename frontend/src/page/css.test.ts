@@ -39,13 +39,14 @@ test("print: no sidebar, header or panels, the article uses the whole page (core
 });
 
 const printCss = readFileSync(new URL("./print.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-/** The declarations of the first rule whose selector list contains `sel`, inside @media print of print.css. */
+/** The declarations of the rules whose selector list contains `sel`, inside @media print of print.css. */
 function printRule(sel: string): string {
   const media = printCss.slice(printCss.indexOf("@media print"));
-  for (const m of media.matchAll(/([^{}@]+)\{([^{}]*)\}/g)) {
-    if (m[1].split(",").some((x) => x.trim() === sel)) return m[2];
+  let out = "";
+  for (const m of Array.from(media.matchAll(/([^{}@]+)\{([^{}]*)\}/g))) {
+    if (m[1].split(",").some((x) => x.trim() === sel)) out += m[2];
   }
-  return "";
+  return out;
 }
 
 test("print rules (ui/print)", () => {
@@ -58,7 +59,7 @@ test("print rules (ui/print)", () => {
   expect(printRule("html, body".split(",")[0].trim()) + printRule("body")).toMatch(/background:\s*#fff/i);
   // No chrome and no controls.
   const hidden = printCss.slice(printCss.indexOf("@media print"));
-  for (const s of [".zen-sidebar", ".zen-top", ".zen-actions", ".zen-page-warnings", ".zen-site-side", ".zen-site-crumbs", ".zen-print-bar", ".zen-lint-wrap > .zen-lint-gutter", ".zen-editor-source", ".zen-editor-bar", ".zen-page button", ".course-nav", "[data-zen-action]"]) {
+  for (const s of [".zen-sidebar", ".zen-top", ".zen-actions", ".zen-page-warnings", ".zen-site-side", ".zen-site-crumbs", ".zen-print-bar", ".zen-lint-wrap", ".zen-editor-divider", ".zen-editor-source", ".zen-editor-bar", ".zen-page button", ".course-nav", "[data-zen-action]"]) {
     expect(hidden, s).toContain(s);
   }
   expect(printRule(".zen-page button")).toMatch(/display:\s*none/);

@@ -198,3 +198,9 @@ func (s *site) pageFirst() string {
 	}
 	return s.pages[s.order[0]].out
 }
+
+// jsonText is v as JSON text with <, > and & escaped (encoding/json does it).
+func jsonText(v any) (string, error) {
+	b, err := json.Marshal(v)
+	return string(b), err
+}

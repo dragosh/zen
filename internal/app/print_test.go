@@ -132,7 +132,7 @@ func TestPrintSiteTrust(t *testing.T) {
 	}
 
 	// Approved in the app: its output is in the document, as on the page.
-	z, _, _ = openWith(t, dir, cfg, true)
+	z, _, _ = openWith(t, dir, t.TempDir(), true)
 	body = printGet(z, "/_print/site", fromWindow).Body.String()
 	if !strings.Contains(body, "hello from the backend") {
 		t.Errorf("an allowed plugin is missing:\n%s", body)
