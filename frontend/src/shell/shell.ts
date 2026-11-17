@@ -348,7 +348,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   // Go closes the editor windows before it opens another folder.
   const offNewPage = api.on("menu:new-page", showNewPage);
   // Zen › Settings… (⌘,) from any window: Go shows the main window first.
-  const offSettings = onMenuSettings(api, openSettings);
+  const offSettings = api.on("menu:settings", openSettings);
   const offOpened = api.on("workspace:opened", (s) => {
     if (!destroyed && s.workspace && kind.kind === "main") showFrame(s.workspace, s.page);
   });
@@ -370,14 +370,3 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   };
 }
 
-/**
- * Subscribes to "menu:settings". The api's event union gains this name at
- * integration (app/menu); until then the call is typed loosely.
- */
-function onMenuSettings(api: Api, fn: () => void): () => void {
-  try {
-    return (api.on as (event: string, f: () => void) => () => void)("menu:settings", fn);
-  } catch {
-    return () => {}; // an api that does not know the event yet (see above)
-  }
-}

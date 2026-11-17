@@ -255,34 +255,18 @@ func Run(opts Options) error {
 		}()
 	})
 
-	// Menu: File > New Page (Cmd+N), Open Folder (Cmd+O).
-	menu := a.Menu.New()
-	menu.AddRole(application.AppMenu)
-	file := menu.AddSubmenu("File")
-	// The main window asks for the name and layout, then calls CreatePage.
-	file.Add("New Page…").SetAccelerator("CmdOrCtrl+N").OnClick(func(*application.Context) {
-		win.Show()
-		win.Focus()
-		sink.Emit(EventNewPage, nil)
-	})
-	file.Add("Open Folder…").SetAccelerator("CmdOrCtrl+O").OnClick(func(*application.Context) {
-		go func() {
-			if ws, err := z.PickFolder(); err == nil && ws != nil {
-				sink.Emit(EventWorkspaceOpened, z.Startup())
-			}
-		}()
-	})
-	// File > Print (Cmd+P): the main window's page prints through the web
-	// view's own window.print(); page.css has the @media print rules.
-	file.Add("Print…").SetAccelerator("CmdOrCtrl+P").OnClick(func(*application.Context) {
-		win.ExecJS("window.print()")
-	})
-	file.AddSeparator()
-	file.AddRole(application.CloseWindow)
-	menu.AddRole(application.EditMenu)
-	menu.AddRole(application.ViewMenu)
-	menu.AddRole(application.WindowMenu)
-	a.Menu.Set(menu)
+	// Menu: see menu.go.
+	a.Menu.Set(buildMenu(a, menuActions{
+		NewPage: newPageAction(win, sink),
+		OpenFolder: func() {
+			go func() {
+				if ws, err := z.PickFolder(); err == nil && ws != nil {
+					sink.Emit(EventWorkspaceOpened, z.Startup())
+				}
+			}()
+		},
+		Settings: settingsAction(win, sink),
+	}, devBuild))
 
 	return a.Run()
 }

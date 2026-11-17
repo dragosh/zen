@@ -11,3 +11,4 @@ frontend/bindings
 *.out
 build/linux/zen.desktop
 build/darwin/helpers/
+_site/

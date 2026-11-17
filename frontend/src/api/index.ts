@@ -139,6 +139,8 @@ export interface Api {
   on(event: "page:draft", fn: (d: Draft) => void): () => void;
   /** File › New Page… (⌘N) in the app menu: show the New Page dialog. */
   on(event: "menu:new-page", fn: () => void): () => void;
+  /** Zen › Settings… (⌘,): show Settings in the main window. */
+  on(event: "menu:settings", fn: () => void): () => void;
 }
 
 /**

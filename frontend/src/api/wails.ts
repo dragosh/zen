@@ -227,8 +227,9 @@ const api: Api = {
   async pluginCancel(callId) {
     await call(Zen.PluginCancel(callId));
   },
-  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "layouts:changed" | "menu:new-page", fn: (p: any) => void): () => void {
+  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "layouts:changed" | "menu:new-page" | "menu:settings", fn: (p: any) => void): () => void {
     if (event === "menu:new-page") return Events.On("menu:new-page", () => fn(undefined));
+    if (event === "menu:settings") return Events.On("menu:settings", () => fn(undefined));
     if (event === "layouts:changed") return Events.On("layouts:changed", () => fn(undefined));
     if (event === "plugins:changed") return Events.On("plugins:changed", () => fn(undefined));
     if (event === "plugin:stream") {

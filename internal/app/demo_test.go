@@ -101,7 +101,7 @@ func TestDemoFolder(t *testing.T) {
 	want := []string{
 		"getting-started/install.md", "getting-started/opening-folders.md", "reading/navigation.md",
 		"reading/frontmatter.md", "editing/editor.md", "editing/linting.md",
-		"plugins/index.md", "layouts/index.md", "configuration/settings.md", "reference/shortcuts.md", "reference/markdown.md", "blog/index.md",
+		"plugins/index.md", "layouts/index.md", "configuration/settings.md", "reference/shortcuts.md", "reference/markdown.md", "blog/index.md", "build/index.md",
 	}
 	if got := paths(tree[0].Children); strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("README children = %v", got)

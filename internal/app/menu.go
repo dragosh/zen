@@ -129,7 +129,7 @@ func buildMenu(a *application.App, act menuActions, dev bool) *application.Menu 
 
 // shower is the part of the main window the menu actions use.
 type shower interface {
-	Show()
+	Show() application.Window
 	Focus()
 }
 

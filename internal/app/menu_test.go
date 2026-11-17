@@ -4,8 +4,9 @@ import (
 	"os"
 	"strings"
 	"testing"
-)
 
+	"github.com/wailsapp/wails/v3/pkg/application"
+)
 
 // rows lists a menu bar as "Menu" headers followed by their items.
 func rows(items []menuItem) []string {
@@ -139,8 +140,8 @@ func TestMenuActions(t *testing.T) {
 
 type shownWindow struct{ log *[]string }
 
-func (w shownWindow) Show()  { *w.log = append(*w.log, "show") }
-func (w shownWindow) Focus() { *w.log = append(*w.log, "focus") }
+func (w shownWindow) Show() application.Window { *w.log = append(*w.log, "show"); return nil }
+func (w shownWindow) Focus()                   { *w.log = append(*w.log, "focus") }
 
 type recSink struct{ log *[]string }
 

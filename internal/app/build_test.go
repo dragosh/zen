@@ -422,7 +422,7 @@ func TestBuildConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	r = runBuild(t, dir, cfg, cli.Build{})
-	if r.err != nil || !r.has("wip.html") || !strings.Contains(strings.ReplaceAll(r.read(t, "README.html"), "&#39;", "'"), "script-src 'self' blob:") || !strings.Contains(r.stderr, "build.zzz") {
+	if r.err != nil || !r.has("wip.html") || !strings.Contains(strings.ReplaceAll(r.read(t, "README.html"), "&#39;", "'"), "script-src 'self' file: blob:") || !strings.Contains(r.stderr, "build.zzz") {
 		t.Errorf("config build section: %v %q", r.err, r.stderr)
 	}
 	// A wrong type is an error naming the key.
