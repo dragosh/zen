@@ -222,3 +222,17 @@ test("plugins:changed is an event like the others", () => {
   api.emit("plugins:changed", undefined);
   expect(n).toBe(1);
 });
+
+test("plugins: seeds may leave out the help and what a plugin adds; the list always carries them", async () => {
+  const api = createFakeApi({
+    plugins: [
+      { id: "a", version: "1.0.0", description: "", source: "builtin", status: "on", runs: [], problem: "", kind: "builtin" },
+      { id: "b", version: "1.0.0", description: "", source: "folder", status: "on", runs: [], problem: "", kind: "program", help: { summary: "S", snippets: [{ title: "T", markdown: "M" }] }, blocks: ["b"] },
+    ],
+  });
+  const [a, b] = await api.plugins();
+  expect(a.help).toEqual({ summary: "", snippets: [] });
+  expect([a.blocks, a.inlines, a.layouts, a.options]).toEqual([[], [], [], []]);
+  expect(b.help.snippets).toEqual([{ title: "T", markdown: "M" }]);
+  expect(b.blocks).toEqual(["b"]);
+});

@@ -308,3 +308,115 @@ test("no New Page dialog on the welcome screen", async () => {
   key("n");
   expect(document.querySelector(".zen-newpage-backdrop")).toBeNull();
 });
+
+// ---- Settings is a page in the main pane
+
+const esc = () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+const settingsPage = () => root.querySelector<HTMLElement>(".zen-settings-page");
+const cog = () => root.querySelector<HTMLButtonElement>(".zen-settings-button")!;
+const pageMain = () => root.querySelector<HTMLElement>("main.zen-main")!;
+
+test("the cog opens Settings in the main pane: the page is kept, the sidebar stays", async () => {
+  const s = boot(withWorkspace("README.md"));
+  await s.start();
+  expect(settingsPage()).toBeNull();
+  cog().click();
+  const view = settingsPage()!;
+  expect(view).not.toBeNull();
+  expect(view.hidden).toBe(false);
+  expect(root.querySelector(".zen-content")!.contains(view)).toBe(true);
+  expect(pageMain().hidden).toBe(true);
+  expect(root.querySelector<HTMLElement>("nav.zen-sidebar")!.hidden).toBe(false);
+  expect(cog().getAttribute("aria-expanded")).toBe("true");
+  expect(root.querySelector(".zen-settings-popover, [role=dialog]")).toBeNull();
+  expect(log).not.toContain("unmount page"); // the page you were reading stays mounted
+  expect(s.store.get().path).toBe("README.md");
+});
+
+test("the cog and ⌘, toggle Settings", async () => {
+  const s = boot(withWorkspace("README.md"));
+  await s.start();
+  key(",");
+  expect(settingsPage()!.hidden).toBe(false);
+  key(",");
+  expect(settingsPage()!.hidden).toBe(true);
+  expect(pageMain().hidden).toBe(false);
+  cog().click();
+  expect(settingsPage()!.hidden).toBe(false);
+  cog().click();
+  expect(settingsPage()!.hidden).toBe(true);
+  expect(cog().getAttribute("aria-expanded")).toBe("false");
+});
+
+test("Esc returns to the page; Esc elsewhere does nothing", async () => {
+  const s = boot(withWorkspace("README.md"));
+  await s.start();
+  const prevented = new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true });
+  document.dispatchEvent(prevented);
+  expect(prevented.defaultPrevented).toBe(false);
+  cog().click();
+  esc();
+  expect(settingsPage()!.hidden).toBe(true);
+  expect(pageMain().hidden).toBe(false);
+  expect(s.store.get().path).toBe("README.md");
+});
+
+test("Back (⌘[ and the Back button) returns to the page and does not touch the history", async () => {
+  const s = boot(withWorkspace("README.md"));
+  await s.start();
+  s.navigate("guides/install.md");
+  cog().click();
+  expect(button("Back")!.disabled).toBe(false);
+  key("[");
+  expect(settingsPage()!.hidden).toBe(true);
+  expect(s.store.get().path).toBe("guides/install.md");
+  cog().click();
+  button("Back")!.click();
+  expect(settingsPage()!.hidden).toBe(true);
+  expect(s.store.get().path).toBe("guides/install.md");
+  key("[");
+  expect(s.store.get().path).toBe("README.md"); // with Settings closed, Back goes back again
+});
+
+test("Back is available in Settings even at the start of the history, and goes disabled again after", async () => {
+  const s = boot(withWorkspace("README.md"));
+  await s.start();
+  expect(button("Back")!.disabled).toBe(true);
+  cog().click();
+  expect(button("Back")!.disabled).toBe(false);
+  esc();
+  expect(button("Back")!.disabled).toBe(true);
+});
+
+test("choosing a page in the sidebar (navigate) leaves Settings for that page", async () => {
+  const s = boot(withWorkspace("README.md"));
+  await s.start();
+  cog().click();
+  s.navigate("guides/usage.md");
+  expect(settingsPage()!.hidden).toBe(true);
+  expect(pageMain().hidden).toBe(false);
+  expect(s.store.get().path).toBe("guides/usage.md");
+});
+
+test("Settings is not available on the welcome screen, and a new folder closes it", async () => {
+  const api = withWorkspace("README.md");
+  const s = boot(api);
+  await s.start();
+  cog().click();
+  api.emit("workspace:opened", { workspace: sampleWorkspace(), page: "guides/install.md", mode: "read" });
+  expect(settingsPage()).toBeNull();
+  const w = boot(createFakeApi());
+  await w.start();
+  key(",");
+  expect(root.querySelector(".zen-settings-page")).toBeNull();
+});
+
+test("Settings shows the plugins and its sections", async () => {
+  const api = createFakeApi({ startup: { workspace: sampleWorkspace(), page: "README.md", mode: "read" } });
+  const s = boot(api);
+  await s.start();
+  cog().click();
+  await tick();
+  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Appearance", "Configuration files", "Plugins"]);
+  expect(api.callsTo("plugins")).toHaveLength(1);
+});

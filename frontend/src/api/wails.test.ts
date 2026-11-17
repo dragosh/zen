@@ -261,15 +261,26 @@ describe("wails api", () => {
   it("plugins: maps the list defensively and passes the other calls through", async () => {
     const api = (await import("./wails")).default;
     results.Plugins = [
-      { id: "note", version: "0.1.0", description: "Callouts", source: "folder", status: "undecided", runs: ["./note.sh"], problem: "", kind: "script" },
-      { id: "x", source: "elsewhere", status: "weird", runs: null, kind: "teapot" },
+      {
+        id: "note", version: "0.1.0", description: "Callouts", source: "folder", status: "undecided", runs: ["./note.sh"], problem: "", kind: "script",
+        help: { summary: "Boxes.", snippets: [{ title: "Basic", markdown: ":::note\nhi\n:::" }, null, { title: 5 }] },
+        blocks: ["note", 7], inlines: ["badge"], layouts: null,
+        options: [{ name: "icon", type: "bool", default: true, description: "Show an icon" }, { name: "x" }, null],
+      },
+      { id: "x", source: "elsewhere", status: "weird", runs: null, kind: "teapot", help: "nope", options: "nope" },
       { id: "core", source: "builtin", status: "on", runs: [] },
       null,
     ];
+    const none = { help: { summary: "", snippets: [] }, blocks: [], inlines: [], layouts: [], options: [] };
     expect(await api.plugins()).toEqual([
-      { id: "note", version: "0.1.0", description: "Callouts", source: "folder", status: "undecided", runs: ["./note.sh"], problem: "", kind: "script" },
-      { id: "x", version: "", description: "", source: "folder", status: "invalid", runs: [], problem: "", kind: "program" },
-      { id: "core", version: "", description: "", source: "builtin", status: "on", runs: [], problem: "", kind: "builtin" },
+      {
+        id: "note", version: "0.1.0", description: "Callouts", source: "folder", status: "undecided", runs: ["./note.sh"], problem: "", kind: "script",
+        help: { summary: "Boxes.", snippets: [{ title: "Basic", markdown: ":::note\nhi\n:::" }, { title: "", markdown: "" }, { title: "5", markdown: "" }] },
+        blocks: ["note", "7"], inlines: ["badge"], layouts: [],
+        options: [{ name: "icon", type: "bool", default: true, description: "Show an icon" }, { name: "x", type: "", default: null, description: "" }],
+      },
+      { id: "x", version: "", description: "", source: "folder", status: "invalid", runs: [], problem: "", kind: "program", ...none },
+      { id: "core", version: "", description: "", source: "builtin", status: "on", runs: [], problem: "", kind: "builtin", ...none },
     ]);
     results.Plugins = null;
     expect(await api.plugins()).toEqual([]);

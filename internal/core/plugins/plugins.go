@@ -25,6 +25,7 @@ type Manifest struct {
 	Layouts     []string          // page layouts it owns (frontmatter `layout:`)
 	Allow       []AllowRule       // extra sanitiser rules: element + attributes
 	Config      map[string]Option // option name -> type, default, description
+	Help        Help              // summary and snippets for Settings › Plugins
 }
 
 // Option describes one plugin option. Type is "string", "bool", "int", "map"

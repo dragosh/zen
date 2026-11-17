@@ -302,3 +302,56 @@ func TestStreamHookAndTimeouts(t *testing.T) {
 		t.Errorf("default stream timeout %v", p.streamTimeout())
 	}
 }
+
+func TestHelp(t *testing.T) {
+	base := t.TempDir()
+	head := "id: h\nversion: 1.0.0\napiVersion: 1\nblocks: [h]\n"
+	dir := writePlugin(t, base, "h", head+`help:
+  summary: Says hello.
+  snippets:
+    - title: Basic
+      markdown: |
+        :::h
+        hi
+        :::
+    - { title: Second, markdown: "second" }
+`, nil)
+	p, err := Load(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h := p.Manifest().Help
+	if h.Summary != "Says hello." || len(h.Snippets) != 2 || h.Snippets[0].Title != "Basic" ||
+		h.Snippets[0].Markdown != ":::h\nhi\n:::\n" || h.Snippets[1].Markdown != "second" {
+		t.Fatalf("help: %+v", h)
+	}
+	// Help is optional.
+	p, err = Load(writePlugin(t, t.TempDir(), "h", head, nil))
+	if err != nil || p.Manifest().Help.Summary != "" || len(p.Manifest().Help.Snippets) != 0 {
+		t.Fatalf("no help: %v %+v", err, p)
+	}
+
+	snip := func(n int) string {
+		var b strings.Builder
+		b.WriteString("help:\n  snippets:\n")
+		for i := 0; i < n; i++ {
+			b.WriteString("    - { title: t, markdown: m }\n")
+		}
+		return b.String()
+	}
+	cases := []struct{ name, yml, want string }{
+		{"summary too long", head + "help: { summary: " + strings.Repeat("a", 501) + " }\n", "summary"},
+		{"nine snippets", head + snip(9), "8"},
+		{"snippet too big", head + "help:\n  snippets:\n    - { title: t, markdown: " + strings.Repeat("a", 4097) + " }\n", "4 KB"},
+		{"unknown key", head + "help: { summary: x, colour: red }\n", "colour"},
+		{"unknown snippet key", head + "help:\n  snippets:\n    - { title: t, markdown: m, lang: go }\n", "lang"},
+		{"snippet without markdown", head + "help:\n  snippets:\n    - { title: t }\n", "markdown"},
+		{"help not a map", head + "help: hello\n", "help"},
+	}
+	for i, c := range cases {
+		_, err := Load(writePlugin(t, t.TempDir(), "h", c.yml, nil))
+		if err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%d %s: %v, want it to mention %q", i, c.name, err, c.want)
+		}
+	}
+}
