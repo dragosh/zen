@@ -7,7 +7,7 @@ argument-hint: <scope>/<feature> [short description]
 # /add-spec
 
 Arguments: `$ARGUMENTS` — `<scope>/<feature>` then an optional description.
-If missing, ask. Scopes: `cli`, `core`, `ui`, `plugins`, `app`, `packaging`.
+If missing, ask. Scopes: `engine`, `cli`, `core`, `ui`, `plugins`, `app`, `packaging` (see docs/ENGINE.md for what belongs to the engine).
 
 Always read first: `docs/PLAN.md`, `specs/README.md` (feature table, waves,
 **Rules for every feature agent**), and, as relevant, `docs/UI.md`,

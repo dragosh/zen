@@ -48,6 +48,8 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 12 | [core/init](core/init/spec.md) | site templates: `zen init site --techdocs|--learning|--planner`, editable presets in the templates folder, welcome cards, File › New Site from Template…; `internal/core/sitetemplates`, `internal/sitetemplates`, `internal/app/sitetemplates.go`, `frontend/src/shell/newsite.ts` | core/layouts, app/menu, ui/new-page | done |
 | 12 | [ui/print](ui/print/spec.md) | Print Page (⌘P) and Print Site (⇧⌘P, one document with cover and contents), `print.html` in builds; `internal/core/site/print.go`, `internal/app/print.go`, `frontend/src/print` | core/static-build, core/layouts, app/menu | done |
 | 12 | [ui/static-build](ui/static-build/spec.md) | File › Build Website… (⇧⌘B) and Settings › Website: build the open folder from the app with progress and results; `internal/app/buildui.go`, `frontend/src/shell/buildsite.ts` | core/static-build, app/menu | done |
+| 13 (E1) | [engine/cli-rename](engine/cli-rename/spec.md) | the command and executable become `zenmd` (`zen` alias until 0.4.0): `internal/cli`, `main.go`, Taskfiles, `installcli`, command examples in docs/demo/templates | cli/commands, core/static-build, core/init | specified |
+| 13 (E1) | [engine/session](engine/session/spec.md) | the headless folder session moves from `internal/app` to the public `engine/session`; the app becomes a thin Wails adapter, no visible change | waves 3–12 | specified |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 
