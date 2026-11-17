@@ -7,6 +7,7 @@ import { button, el, logo } from "./dom";
 import { createHistory } from "./history";
 import { createLayout, type Layout } from "./layout";
 import { openNewPage, type NewPageDialog } from "./newpage";
+import { openNewSite, type NewSiteDialog, type SiteApi, type SiteTemplate } from "./newsite";
 import { closeWindowKey, reloadKey } from "./keys";
 import { createSettingsView, type SettingsView } from "./settings";
 import { createStore } from "./store";
@@ -177,6 +178,21 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     });
   }
 
+  /**
+   * File › New Site from Template… (⇧⌘N) and the welcome cards. The api methods come from core/init;
+   * an api that does not have them (an older one, a test) simply has no templates.
+   */
+  const siteApi = (api as unknown as Partial<SiteApi>).siteTemplates ? (api as unknown as SiteApi) : null;
+  let newSite: NewSiteDialog | null = null;
+  function showNewSite(preselect?: string): void {
+    if (kind.kind !== "main" || !siteApi || newSite) return;
+    newSite = openNewSite({
+      api: siteApi, doc, preselect,
+      onCreated: (s) => { if (!destroyed && s.workspace) showFrame(s.workspace, s.page); },
+      onClose: () => { newSite = null; },
+    });
+  }
+
   let settings: SettingsView | null = null;
   /**
    * The cog at the bottom of the sidebar (and ⌘,) shows Settings in the main pane, in the place of
@@ -262,6 +278,38 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     );
     root.replaceChildren(view);
     doc.title = "zen";
+    void showTemplates(view);
+  }
+
+  /** The most cards the welcome screen shows; Show all… has the rest. */
+  const WELCOME_CARDS = 6;
+
+  /** "Start from a template": a card for each valid template, below Open a folder. */
+  async function showTemplates(view: HTMLElement): Promise<void> {
+    if (!siteApi) return;
+    let all: SiteTemplate[];
+    try {
+      all = (await siteApi.siteTemplates()).filter((t) => !t.error);
+    } catch (err) {
+      console.error("zen: listing the site templates failed", err);
+      return;
+    }
+    if (destroyed || !view.isConnected || all.length === 0) return;
+    const section = el("section", "zen-welcome-templates");
+    section.setAttribute("aria-labelledby", "zen-welcome-templates-title");
+    const heading = el("h2", "", "Start from a template");
+    heading.id = "zen-welcome-templates-title";
+    const grid = el("div", "zen-welcome-cards");
+    for (const t of all.slice(0, WELCOME_CARDS)) {
+      const card = el("button", "zen-welcome-card");
+      card.type = "button";
+      card.dataset.template = t.id;
+      card.append(el("span", "zen-welcome-card-name", t.name), el("span", "zen-welcome-card-hint", t.description));
+      card.addEventListener("click", () => showNewSite(t.id));
+      grid.append(card);
+    }
+    section.append(heading, grid, button("Show all…", () => showNewSite()));
+    view.append(section);
   }
 
   function showError(err: unknown): void {
@@ -327,6 +375,11 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       closeSettings();
       return;
     }
+    if ((e.metaKey || e.ctrlKey) && e.shiftKey && !e.altKey && (e.key === "n" || e.key === "N")) {
+      e.preventDefault();
+      showNewSite();
+      return;
+    }
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
     const inFrame = layout !== null;
     if (e.key === "o" || e.key === "O") void openFolder();
@@ -347,6 +400,8 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   });
   // Go closes the editor windows before it opens another folder.
   const offNewPage = api.on("menu:new-page", showNewPage);
+  // File › New Site from Template… works from the welcome screen and from an open folder.
+  const offNewSite = siteApi ? siteApi.on("menu:new-site", () => showNewSite()) : () => {};
   // Zen › Settings… (⌘,) from any window: Go shows the main window first.
   const offSettings = api.on("menu:settings", openSettings);
   const offOpened = api.on("workspace:opened", (s) => {
@@ -362,6 +417,8 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       doc.removeEventListener("keydown", onKey);
       offWorkspace();
       offNewPage();
+      offNewSite();
+      newSite?.close();
       offSettings();
       offOpened();
       closeFrame();

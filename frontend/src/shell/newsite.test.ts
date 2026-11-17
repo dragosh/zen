@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createFakeApi, sampleWorkspace } from "../api/fake";
-import type { Startup } from "../api";
+import type { Api, Startup } from "../api";
 import { openNewSite, type NewSiteDialog, type SiteApi, type SiteTemplate } from "./newsite";
 import { createShell, type Shell } from "./shell";
 
@@ -18,7 +18,11 @@ const TEMPLATES: SiteTemplate[] = [
 ];
 
 type Calls = { siteTemplates: unknown[][]; pickSiteFolder: unknown[][]; createSite: unknown[][]; revealTemplates: unknown[][] };
-type Rig = SiteApi & { calls: Calls; templates: SiteTemplate[]; folder: string; create: (id: string, dir: string, v: Record<string, string>) => Startup; emit(): void; fail: Partial<Record<keyof Calls, Error>>; hold?: Promise<void> };
+type Rig = SiteApi & {
+  site: Calls; templates: SiteTemplate[]; folder: string;
+  create: (id: string, dir: string, v: Record<string, string>) => Startup;
+  fireNewSite(): void; fail: Partial<Record<keyof Calls, Error>>; hold?: Promise<void>;
+};
 
 const STARTUP: Startup = { workspace: { root: "/tmp/Acme", name: "Acme", home: "README.md", tree: [] }, page: "README.md", mode: "read" };
 
@@ -26,14 +30,9 @@ const STARTUP: Startup = { workspace: { root: "/tmp/Acme", name: "Acme", home: "
 function rig(templates = TEMPLATES, startup?: Startup): Rig {
   const base = createFakeApi(startup ? { startup } : {});
   const listeners = new Set<() => void>();
-  const r = {
-    calls: { siteTemplates: [], pickSiteFolder: [], createSite: [], revealTemplates: [] } as Calls,
-    templates, folder: "/Users/me/Sites/Acme Docs", fail: {} as Rig["fail"],
-    create: () => STARTUP,
-    emit: () => { for (const f of Array.from(listeners)) f(); },
-  } as unknown as Rig;
+  const r = base as unknown as Rig;
   const track = async <T>(name: keyof Calls, args: unknown[], run: () => T): Promise<T> => {
-    r.calls[name].push(args);
+    r.site[name].push(args);
     const err = r.fail[name];
     if (err) { delete r.fail[name]; throw err; }
     if (name === "siteTemplates" && r.hold) await r.hold;
@@ -41,6 +40,10 @@ function rig(templates = TEMPLATES, startup?: Startup): Rig {
   };
   const origOn = base.on.bind(base) as (e: string, f: (x: never) => void) => () => void;
   Object.assign(base, {
+    site: { siteTemplates: [], pickSiteFolder: [], createSite: [], revealTemplates: [] } as Calls,
+    templates, folder: "/Users/me/Sites/Acme Docs", fail: {},
+    create: () => STARTUP,
+    fireNewSite: () => { for (const f of Array.from(listeners)) f(); },
     siteTemplates: () => track("siteTemplates", [], () => r.templates.map((t) => ({ ...t }))),
     pickSiteFolder: () => track("pickSiteFolder", [], () => r.folder),
     createSite: (id: string, dir: string, v: Record<string, string>) => track("createSite", [id, dir, v], () => r.create(id, dir, v)),
@@ -50,7 +53,7 @@ function rig(templates = TEMPLATES, startup?: Startup): Rig {
       return origOn(event, fn);
     },
   });
-  return Object.assign(base, r) as unknown as Rig;
+  return r;
 }
 
 const settle = async () => { for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0)); };
@@ -146,7 +149,7 @@ test("Create waits for a folder; the native panel picks it and the folder name f
   expect(o.field("title").value).toBe(""); // the default is the folder's name, not known yet
   o.btn("Choose folder…").click();
   await settle();
-  expect(api.calls.pickSiteFolder).toHaveLength(1);
+  expect(api.site.pickSiteFolder).toHaveLength(1);
   expect(o.q(".zen-newsite-path").textContent).toBe("/Users/me/Sites/Acme Docs");
   expect(create.disabled).toBe(false);
   expect(o.field("title").value).toBe("Acme Docs");
@@ -185,7 +188,7 @@ test("Create makes the site with the typed values, hands the result over and clo
   o.field("author").value = "Ana";
   o.q<HTMLFormElement>("form").requestSubmit();
   await settle();
-  expect(api.calls.createSite).toEqual([["techdocs", "/Users/me/Sites/Acme Docs", { title: "Acme Docs", author: "Ana" }]]);
+  expect(api.site.createSite).toEqual([["techdocs", "/Users/me/Sites/Acme Docs", { title: "Acme Docs", author: "Ana" }]]);
   expect(o.onCreated).toHaveBeenCalledWith(STARTUP);
   expect(o.onClose).toHaveBeenCalledTimes(1);
   expect(o.d.el.isConnected).toBe(false);
@@ -197,13 +200,13 @@ test("Create does nothing without a folder; Enter in a field creates", async () 
   await settle();
   o.q<HTMLFormElement>("form").requestSubmit();
   await settle();
-  expect(api.calls.createSite).toHaveLength(0);
+  expect(api.site.createSite).toHaveLength(0);
   o.btn("Choose folder…").click();
   await settle();
   o.field("title").dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true }));
   o.q<HTMLFormElement>("form").requestSubmit(); // what Enter in a text field does
   await settle();
-  expect(api.calls.createSite).toHaveLength(1);
+  expect(api.site.createSite).toHaveLength(1);
 });
 
 test("files in the way: the error lists them, the dialog stays open and the folder stays chosen", async () => {
@@ -248,12 +251,12 @@ test("no templates: says so and offers to reveal the folder", async () => {
   const api = rig([]);
   const o = open(api);
   await settle();
-  expect(o.d.textContent).toContain("No templates");
+  expect(o.d.el.textContent).toContain("No templates");
   expect(o.cards()).toHaveLength(0);
   expect((o.btn("Create") as HTMLButtonElement).disabled).toBe(true);
   o.btn("Reveal in Finder").click();
   await settle();
-  expect(api.calls.revealTemplates).toHaveLength(1);
+  expect(api.site.revealTemplates).toHaveLength(1);
 });
 
 test("only invalid templates: nothing can be chosen", async () => {
@@ -272,7 +275,7 @@ test("a failing list is an error, and Open templates folder reveals the folder",
   expect(o.q("[role=alert]").textContent).toContain("cannot read");
   o.btn("Open templates folder").click();
   await settle();
-  expect(api.calls.revealTemplates).toHaveLength(1);
+  expect(api.site.revealTemplates).toHaveLength(1);
   api.fail.revealTemplates = new Error("no finder");
   o.btn("Open templates folder").click();
   await settle();
@@ -304,7 +307,7 @@ test("Esc, Cancel and a click outside close it; Tab stays inside", async () => {
 test("text from templates is shown as text, never as markup", async () => {
   const o = open(rig([tpl("x", { name: "<img src=x onerror=alert(1)>", description: "<b>bold</b>" })]));
   await settle();
-  expect(o.d.querySelector("img, b")).toBeNull();
+  expect(o.d.el.querySelector("img, b")).toBeNull();
   expect(o.cards()[0].textContent).toContain("<img src=x onerror=alert(1)>");
 });
 
@@ -317,7 +320,7 @@ afterEach(() => { shell?.destroy(); shell = undefined; root?.remove(); });
 async function boot(api: Rig): Promise<Shell> {
   root = document.createElement("div");
   document.body.append(root);
-  shell = createShell(root, { api, features: [], search: "" });
+  shell = createShell(root, { api: api as unknown as Api, features: [], search: "" });
   await shell.start();
   await settle();
   return shell;
@@ -327,11 +330,11 @@ test("menu event: menu:new-site opens the dialog from the welcome screen and fro
   const api = rig(TEMPLATES);
   await boot(api);
   expect(root.querySelector(".zen-welcome")).not.toBeNull();
-  api.emit();
+  api.fireNewSite();
   await settle();
   expect(document.querySelector(".zen-newsite")).not.toBeNull();
   expect(document.querySelectorAll(".zen-newsite-template").length).toBe(4);
-  api.emit(); // a second event does not stack a second dialog
+  api.fireNewSite(); // a second event does not stack a second dialog
   expect(document.querySelectorAll(".zen-newsite")).toHaveLength(1);
   // Create opens the new site in the window.
   const choose = Array.from(document.querySelectorAll("button")).find((b) => b.textContent === "Choose folder…")!;
@@ -343,7 +346,7 @@ test("menu event: menu:new-site opens the dialog from the welcome screen and fro
   expect(root.querySelector(".zen-welcome")).toBeNull();
   expect(shell!.store.get().workspace?.root).toBe("/tmp/Acme");
   // And now, with a folder open, the same event opens it again.
-  api.emit();
+  api.fireNewSite();
   await settle();
   expect(document.querySelector(".zen-newsite")).not.toBeNull();
 });
@@ -351,7 +354,7 @@ test("menu event: menu:new-site opens the dialog from the welcome screen and fro
 test("menu event: with a folder open at startup", async () => {
   const api = rig(TEMPLATES, { workspace: sampleWorkspace(), page: "", mode: "read" });
   await boot(api);
-  api.emit();
+  api.fireNewSite();
   await settle();
   expect(document.querySelector(".zen-newsite")).not.toBeNull();
   // Esc closes it without touching the folder.

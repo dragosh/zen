@@ -113,7 +113,7 @@ func (z *Zen) openPath(path string) (Startup, error) {
 	code := cli.Run([]string{path}, "/", io.Discard, io.Discard, func(got cli.Launch) error {
 		l = got
 		return nil
-	}, nil)
+	}, nil, nil)
 	if code != 0 {
 		return Startup{}, errors.New("not a folder or markdown file")
 	}

@@ -478,15 +478,15 @@ const siteTpl = (id: string, over: Partial<SiteTpl> = {}): SiteTpl => ({ id, nam
 
 /** The fake api plus core/init's methods and event, which api/ gets when the lead merges it. */
 function withTemplates(api: FakeApi, templates: SiteTpl[]) {
-  const calls: unknown[][] = [];
+  const siteCalls: unknown[][] = [];
   const listeners = new Set<() => void>();
   const origOn = api.on.bind(api) as (e: string, f: (x: never) => void) => () => void;
   return Object.assign(api, {
-    calls,
+    siteCalls,
     emitNewSite: () => listeners.forEach((f) => f()),
-    siteTemplates: async () => { calls.push(["siteTemplates"]); return templates; },
+    siteTemplates: async () => { siteCalls.push(["siteTemplates"]); return templates; },
     pickSiteFolder: async () => "/tmp/x/Docs",
-    createSite: async (...a: unknown[]) => { calls.push(["createSite", ...a]); return { workspace: sampleWorkspace(), page: "README.md", mode: "read" as const }; },
+    createSite: async (...a: unknown[]) => { siteCalls.push(["createSite", ...a]); return { workspace: sampleWorkspace(), page: "README.md", mode: "read" as const }; },
     revealTemplates: async () => undefined,
     on: (event: string, fn: (x: never) => void) => {
       if (event === "menu:new-site") { listeners.add(fn as () => void); return () => listeners.delete(fn as () => void); }
@@ -563,7 +563,7 @@ test("creating a site from the welcome screen opens it", async () => {
   document.querySelector<HTMLFormElement>(".zen-newsite")!.requestSubmit();
   await tick();
   await tick();
-  expect(api.calls.find((c) => c[0] === "createSite")).toEqual(["createSite", "a", "/tmp/x/Docs", { title: "Docs" }]);
+  expect(api.siteCalls.find((c) => c[0] === "createSite")).toEqual(["createSite", "a", "/tmp/x/Docs", { title: "Docs" }]);
   expect(root.querySelector(".zen-welcome")).toBeNull();
   expect(s.store.get().workspace?.root).toBe("/sample-docs");
 });
