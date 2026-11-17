@@ -108,6 +108,8 @@ export interface Api {
   // Print (ui/print)
   printPage(): Promise<void>;
   printSite(): Promise<void>;
+  /** Opens the print panel for the calling window (window.print() does nothing in the macOS web view). */
+  printWindow(title: string): Promise<void>;
   page(path: string): Promise<Page>;
   source(path: string): Promise<string>;
   preview(path: string, content: string): Promise<Page>; // render unsaved text

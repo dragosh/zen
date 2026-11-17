@@ -15,7 +15,7 @@ var serviceMethods = []string{
 	"OpenBuiltSite", "OpenConfig", "OpenEditor", "OpenExternal", "Page", "PickBuildFolder",
 	"PickFolder", "PickSiteFolder", "PluginCancel", "PluginInvoke", "PluginStorageGet",
 	"PluginStorageKeys", "PluginStorageSet", "PluginStream", "PluginTrust", "Plugins", "Preview",
-	"PrintPage", "PrintSite", "RevealBuiltSite", "RevealTemplates", "Save", "SaveBuildDefaults",
+	"PrintPage", "PrintSite", "PrintWindow", "RevealBuiltSite", "RevealTemplates", "Save", "SaveBuildDefaults",
 	"SiteTemplates", "Source", "Startup", "TemplatesDir",
 }
 

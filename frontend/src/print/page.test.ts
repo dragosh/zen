@@ -126,3 +126,38 @@ test("a second request while one is waiting is ignored", async () => {
   await advance(200);
   expect(print).toHaveBeenCalledTimes(1);
 });
+
+test("in the app, printing goes through the native service with the page title, not window.print()", async () => {
+  article('<details><summary>s</summary>x</details>');
+  document.title = "Install — zen.md";
+  const printWindow = vi.fn(async () => {});
+  let menu: (() => void) | undefined;
+  const off = installPagePrint(document, { on: (_e, fn) => { menu = fn; return () => {}; }, printWindow }, { quiet: 0 });
+  vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  menu!();
+  await advance(200);
+  expect(printWindow).toHaveBeenCalledWith("Install — zen.md");
+  expect(print).not.toHaveBeenCalled();
+  // the page stays prepared while the sheet is up, and is put back on the next interaction
+  expect(document.querySelector("details")!.open).toBe(true);
+  document.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true }));
+  expect(document.querySelector("details")!.open).toBe(false);
+  off();
+});
+
+test("a failing native print puts the page back and lets the next request through", async () => {
+  article('<details><summary>s</summary>x</details>');
+  const printWindow = vi.fn(async () => { throw new Error("no window"); });
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  vi.spyOn(document, "hasFocus").mockReturnValue(true);
+  let menu: (() => void) | undefined;
+  const off = installPagePrint(document, { on: (_e, fn) => { menu = fn; return () => {}; }, printWindow }, { quiet: 0 });
+  menu!();
+  await advance(200);
+  expect(printWindow).toHaveBeenCalledTimes(1);
+  expect(document.querySelector("details")!.open).toBe(false);
+  menu!();
+  await advance(200);
+  expect(printWindow).toHaveBeenCalledTimes(2);
+  off();
+});

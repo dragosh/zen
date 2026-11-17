@@ -213,6 +213,9 @@ const api: Api = {
   async printSite() {
     await call(Zen.PrintSite());
   },
+  async printWindow(title) {
+    await call(Zen.PrintWindow(title));
+  },
   async page(path) {
     return page((await call(Zen.Page(path))) as Raw);
   },

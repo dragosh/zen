@@ -5,7 +5,7 @@ import type { Api, BuildProgress, Crumb, Draft, SiteTemplate, LayoutInfo, LintRe
 type Method = "startup" | "pickFolder" | "cancelOpen"
   | "siteTemplates" | "pickSiteFolder" | "createSite" | "revealTemplates" | "templatesDir"
   | "buildOptions" | "buildWebsite" | "cancelBuild" | "saveBuildDefaults" | "pickBuildFolder" | "openBuiltSite" | "revealBuiltSite"
-  | "printPage" | "printSite" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig" | "createPage"
+  | "printPage" | "printSite" | "printWindow" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig" | "createPage"
   | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys"
   | "layouts" | "layoutTrust" | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys";
 type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "layouts:changed": undefined; "menu:new-page": undefined; "menu:settings": undefined; "workspace:opening": OpenProgress; "menu:new-site": undefined; "menu:build-website": undefined; "build:progress": BuildProgress; "menu:print-page": undefined };
@@ -253,6 +253,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     revealBuiltSite: (out) => call("revealBuiltSite", [out], () => undefined),
     printPage: () => call("printPage", [], () => undefined),
     printSite: () => call("printSite", [], () => undefined),
+    printWindow: (title) => call("printWindow", [title], () => { (globalThis as { print?: () => void }).print?.(); }),
     page: (path) => call("page", [path], () => render(path, need(path))),
     source: (path) => call("source", [path], () => need(path)),
     preview: (path, content) => call("preview", [path, content], () => render(path, content)),

@@ -1,14 +1,21 @@
 // Print Page: ⌘P and File › Print Page… print the page that is shown, as it looks, through the print
 // panel. The shell calls installPagePrint once per window; the print flow waits for the page to be
-// ready (ready.ts), prepares it for paper, then calls window.print().
+// ready (ready.ts), prepares it for paper, then opens the print panel: in the app through the service
+// (printWindow; window.print() does nothing in the macOS web view), in a browser with window.print().
 import { whenReady, type ReadyOptions } from "./ready";
 
 /** The part of the service API this needs: the menu event of File › Print Page…. */
-export type PagePrintApi = { on(event: "menu:print-page", fn: () => void): () => void };
+export type PagePrintApi = {
+  on(event: "menu:print-page", fn: () => void): () => void;
+  /** The app's native print panel for the calling window (absent in a browser). */
+  printWindow?(title: string): Promise<void>;
+};
 
 export type PagePrintOptions = ReadyOptions & {
   /** What to print; default: the editor window's preview, else the article, else the body. */
   root?: HTMLElement;
+  /** Opens the print panel; default: window.print(). The app passes its native print. */
+  printer?(): Promise<void> | void;
 };
 
 function rootOf(doc: Document, given?: HTMLElement): HTMLElement {
@@ -36,14 +43,38 @@ export function prepareForPrint(root: HTMLElement): () => void {
   return () => { for (const d of opened) d.open = false; };
 }
 
+function once(fn: () => void): () => void {
+  let done = false;
+  return () => { if (!done) { done = true; fn(); } };
+}
+
 /** Waits for the page, prepares it and opens the print panel. Resolves with what was not ready in time. */
 export async function printPage(doc: Document, opts: PagePrintOptions = {}): Promise<{ late: string[] }> {
   const root = rootOf(doc, opts.root);
   const result = await whenReady(root, opts);
   const win = doc.defaultView;
-  const restore = prepareForPrint(root);
+  const restore = once(prepareForPrint(root));
   win?.addEventListener("afterprint", restore, { once: true });
-  win?.print();
+  if (opts.printer) {
+    // The native panel is a sheet that does not report back: put the page back on the next
+    // interaction after it, or after a minute at most.
+    try {
+      await opts.printer();
+    } catch (err) {
+      restore();
+      throw err;
+    }
+    const later = () => {
+      doc.removeEventListener("pointerdown", later, true);
+      doc.removeEventListener("keydown", later, true);
+      restore();
+    };
+    doc.addEventListener("pointerdown", later, true);
+    doc.addEventListener("keydown", later, true);
+    win?.setTimeout(later, 60_000);
+  } else {
+    win?.print();
+  }
   return result;
 }
 
@@ -57,7 +88,10 @@ export function installPagePrint(doc: Document, api: PagePrintApi, opts: PagePri
   const run = () => {
     if (busy) return;
     busy = true;
-    void printPage(doc, opts).finally(() => { busy = false; });
+    const printer = opts.printer ?? (api.printWindow ? () => api.printWindow!(doc.title) : undefined);
+    void printPage(doc, { ...opts, printer })
+      .catch((err) => console.error("zen: printing failed", err))
+      .finally(() => { busy = false; });
   };
   const onKey = (e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "p") {

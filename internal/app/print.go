@@ -1,8 +1,10 @@
 package app
 
 import (
+	"context"
 	"errors"
 	"net/url"
+	"strings"
 	"sync"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -30,6 +32,21 @@ func (z *Zen) PrintPage() error {
 		z.events.Emit(EventPrintPage, nil)
 	}
 	return nil
+}
+
+// PrintWindow opens the print panel for the window that calls it (Print
+// Page, Print Site), once the page has prepared itself for paper.
+// window.print() does nothing in the macOS web view, so the frontend calls
+// this instead. title becomes the job name (and the suggested PDF file name).
+func (z *Zen) PrintWindow(ctx context.Context, title string) error {
+	w, ok := ctx.Value(application.WindowKey).(application.Window)
+	if !ok || w == nil {
+		return errors.New("no window to print")
+	}
+	if title = strings.TrimSpace(title); title == "" {
+		title = Name
+	}
+	return nativePrint(w, title)
 }
 
 // PrintSite opens the Print Preview window for the whole folder, or focuses

@@ -15,7 +15,7 @@ export type PreviewApi = Pick<
   | "pluginStorageGet" | "pluginStorageSet" | "pluginStorageKeys"
   | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys"
   | "pluginInvoke" | "pluginStream" | "pluginCancel" | "openExternal" | "on"
->;
+> & Partial<Pick<Api, "printWindow">>;
 
 type FetchLike = (url: string, init?: { headers?: Record<string, string> }) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>;
 
@@ -198,7 +198,9 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
 
   async function print(): Promise<void> {
     if (!ready || stopped) return;
-    await printPage(doc, { root: paper, timeout: opts.timeout, quiet: opts.quiet });
+    const printer = api.printWindow ? () => api.printWindow!(doc.title) : undefined;
+    await printPage(doc, { root: paper, timeout: opts.timeout, quiet: opts.quiet, printer })
+      .catch((err) => console.error("zen: printing failed", err));
   }
 
   function close(): void {
