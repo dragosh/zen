@@ -12,13 +12,19 @@ const importModule = async (url: string): Promise<unknown> => {
   return modules.get(url);
 };
 const urlOf = (id: string) => `/_plugins/${id}/${id}.js?v=abc123abc123`;
+const layoutUrlOf = (id: string) => `/_layouts/${id}/${id}.js?v=abc123abc123`;
 let registered: string[] = [];
 /** Publishes plugin `id`'s script as a module with this default export and names it in the page's assets. */
 function register(id: string, handler: unknown): void {
   modules.set(urlOf(id), { default: handler });
-  if (!registered.includes(id)) registered.push(id);
+  if (!registered.includes(urlOf(id))) registered.push(urlOf(id));
 }
-const assets = () => ({ js: registered.map(urlOf), css: [] as string[] });
+/** The same for a layout: its script lives under /_layouts/<id>/ and binds to the layout wrapper. */
+function registerLayout(id: string, handler: unknown): void {
+  modules.set(layoutUrlOf(id), { default: handler });
+  if (!registered.includes(layoutUrlOf(id))) registered.push(layoutUrlOf(id));
+}
+const assets = () => ({ js: registered.slice(), css: [] as string[] });
 /** What the reader does after every render. */
 const mount = () => rt.mountAll(root, assets());
 
@@ -45,10 +51,14 @@ afterEach(() => { rt.destroy(); vi.restoreAllMocks(); });
 
 function wrapper(id: string, opts: { tag?: "div" | "span"; name?: string; attrs?: string; layout?: string; text?: string } = {}): HTMLElement {
   const w = document.createElement(opts.tag ?? "div");
-  w.setAttribute("data-zen-plugin", id);
+  if (opts.layout) {
+    w.setAttribute("data-zen-layout", opts.layout);
+    w.setAttribute("data-zen-layout-source", "builtin");
+  } else {
+    w.setAttribute("data-zen-plugin", id);
+  }
   if (opts.name) w.setAttribute("data-zen-name", opts.name);
   if (opts.attrs !== undefined) w.setAttribute("data-zen-attrs", opts.attrs);
-  if (opts.layout) w.setAttribute("data-zen-layout", opts.layout);
   w.textContent = opts.text ?? "content";
   root.append(w);
   return w;
@@ -73,18 +83,16 @@ test("mounts every wrapper of a registered plugin with its ctx", async () => {
   const id = fresh();
   const block = wrapper(id, { name: "quiz", attrs: "{\"id\":\"q1\",\"title\":\"Two words\"}" });
   const inline = wrapper(id, { tag: "span", name: "badge" });
-  const layout = wrapper(id, { layout: "slides", attrs: "{\"transition\":\"fade\"}" });
   const seen: { el: HTMLElement; ctx: PluginCtx }[] = [];
   register(id, { mount(el, ctx) { seen.push({ el, ctx }); } });
   expect(seen).toHaveLength(0); // nothing rendered yet
   await mount();
-  expect(seen.map((s) => s.el)).toEqual([block, inline, layout]);
-  expect(seen.map((s) => s.ctx.kind)).toEqual(["block", "inline", "layout"]);
-  expect(seen.map((s) => s.ctx.name)).toEqual(["quiz", "badge", "slides"]);
+  expect(seen.map((s) => s.el)).toEqual([block, inline]);
+  expect(seen.map((s) => s.ctx.kind)).toEqual(["block", "inline"]);
+  expect(seen.map((s) => s.ctx.name)).toEqual(["quiz", "badge"]);
   expect(seen[0].ctx.id).toBe(id);
   expect(seen[0].ctx.attrs).toEqual({ id: "q1", title: "Two words" });
   expect(seen[1].ctx.attrs).toEqual({});
-  expect(seen[2].ctx.attrs).toEqual({ transition: "fade" });
   expect(seen[0].ctx.page).toEqual({ path: "guides/a.md", title: "A" });
   seen[0].ctx.navigate("b.md", "part");
   seen[0].ctx.navigate("c.md");
@@ -164,7 +172,7 @@ test("a module without a default mount shows an error naming the plugin; others 
   const w2 = wrapper(bad2);
   const w3 = wrapper(good);
   modules.set(urlOf(bad), { mount() {} }); // named export, no default
-  registered.push(bad);
+  registered.push(urlOf(bad));
   register(bad2, { notMount: 1 });
   register(good, { mount(el) { el.textContent = "fine"; } });
   await mount();
@@ -178,7 +186,7 @@ test("a script that fails to load shows an error in its wrappers only", async ()
   vi.spyOn(console, "error").mockImplementation(() => {});
   const id = fresh();
   const w = wrapper(id);
-  registered.push(id); // no module behind the URL: import() rejects
+  registered.push(urlOf(id)); // no module behind the URL: import() rejects
   await mount();
   expect(w.querySelector(".zen-plugin-error")!.textContent).toContain(id);
   expect(w.querySelector(".zen-plugin-error")!.textContent).toContain("404");
@@ -187,7 +195,7 @@ test("a script that fails to load shows an error in its wrappers only", async ()
 test("a script with no wrapper on the page (diagram-like, no default) is quiet", async () => {
   const err = vi.spyOn(console, "error").mockImplementation(() => {});
   modules.set(urlOf("quiet"), { other: 1 });
-  registered.push("quiet");
+  registered.push(urlOf("quiet"));
   await mount();
   expect(err).not.toHaveBeenCalled();
   expect(root.querySelector(".zen-plugin-error")).toBeNull();
@@ -633,4 +641,138 @@ test("badge ignores a path that is not a string", async () => {
   (ctx.badge as (p: unknown, t: unknown) => void)(42, "x");
   (ctx.badge as (p: unknown, t: unknown) => void)("", "x");
   expect(calls).toEqual([]);
+});
+
+// ---- layouts: bound to the layout's own module, no backend
+
+test("a layout wrapper mounts the layout's module from /_layouts/<id>/ with a layout ctx", async () => {
+  const seen: { el: HTMLElement; ctx: Record<string, unknown> }[] = [];
+  registerLayout("post", { mount(el: HTMLElement, ctx: Record<string, unknown>) { seen.push({ el, ctx }); } });
+  const w = wrapper("post", { layout: "post", attrs: "{\"cover\":\"true\"}" });
+  await mount();
+  expect(seen.map((s) => s.el)).toEqual([w]);
+  const ctx = seen[0].ctx as unknown as PluginCtx;
+  expect(ctx.kind).toBe("layout");
+  expect(ctx.id).toBe("post");
+  expect(ctx.name).toBe("post");
+  expect(ctx.attrs).toEqual({ cover: "true" });
+  expect(ctx.page).toEqual({ path: "guides/a.md", title: "A" });
+  expect(Object.isFrozen(ctx)).toBe(true);
+});
+
+test("a layout ctx has no invoke and no stream", async () => {
+  const keys: string[][] = [];
+  registerLayout("post", { mount(_el: HTMLElement, ctx: object) { keys.push(Object.keys(ctx).sort()); } });
+  wrapper("post", { layout: "post" });
+  await mount();
+  expect(keys[0]).toEqual(["anchor", "attrs", "badge", "id", "kind", "name", "navigate", "onAnchor", "page", "storage"]);
+  expect(keys[0]).not.toContain("invoke");
+  expect(keys[0]).not.toContain("stream");
+  expect(api.callsTo("pluginInvoke")).toEqual([]);
+  expect(api.callsTo("pluginStream")).toEqual([]);
+});
+
+test("a layout ctx's storage goes to the layout services, not the plugin ones", async () => {
+  let ctx!: PluginCtx;
+  registerLayout("post", { mount(_el: HTMLElement, c: PluginCtx) { ctx = c; } });
+  wrapper("post", { layout: "post" });
+  await mount();
+  await ctx.storage.set("seen", { n: 2 });
+  expect(await ctx.storage.get("seen")).toEqual({ n: 2 });
+  expect(await ctx.storage.get("absent")).toBeNull();
+  await ctx.storage.set("seen-b", 1);
+  expect(await ctx.storage.keys("seen")).toEqual(["seen", "seen-b"]);
+  expect(await ctx.storage.keys()).toEqual(["seen", "seen-b"]);
+  expect(api.callsTo("layoutStorageSet")).toEqual([["post", "seen", "{\"n\":2}"], ["post", "seen-b", "1"]]);
+  expect(api.callsTo("layoutStorageGet")[0]).toEqual(["post", "seen"]);
+  expect(api.callsTo("layoutStorageKeys")).toEqual([["post", "seen"], ["post", ""]]);
+  expect(api.callsTo("pluginStorageSet")).toEqual([]);
+  expect(api.callsTo("pluginStorageGet")).toEqual([]);
+  expect(api.callsTo("pluginStorageKeys")).toEqual([]);
+  await expect(ctx.storage.set("x", undefined)).rejects.toThrow("JSON");
+});
+
+test("a plugin and a layout with the same id keep separate modules and storage", async () => {
+  const log: string[] = [];
+  register("same", { mount(_el: HTMLElement, c: PluginCtx) { log.push(`plugin:${c.kind}`); return c.storage.set("k", 1); } });
+  registerLayout("same", { mount(_el: HTMLElement, c: PluginCtx) { log.push(`layout:${c.kind}`); return c.storage.set("k", 2); } });
+  wrapper("same");
+  wrapper("same", { layout: "same" });
+  await mount();
+  await settle();
+  expect(log).toEqual(["plugin:block", "layout:layout"]);
+  expect(api.callsTo("pluginStorageSet")).toEqual([["same", "k", "1"]]);
+  expect(api.callsTo("layoutStorageSet")).toEqual([["same", "k", "2"]]);
+});
+
+test("a layout wrapper is not mounted by a plugin script of the same id, and a layout script does not mount plugin blocks", async () => {
+  const log: string[] = [];
+  register("only", { mount() { log.push("plugin"); } });
+  wrapper("only", { layout: "only" }); // no layout script registered
+  await mount();
+  expect(log).toEqual([]);
+  rt.reset();
+  root.replaceChildren();
+  registered = [];
+  modules.clear();
+  registerLayout("only", { mount() { log.push("layout"); } });
+  wrapper("only"); // a plugin block
+  await mount();
+  expect(log).toEqual([]);
+});
+
+test("layouts and blocks mount in document order and clean up in reverse", async () => {
+  const log: string[] = [];
+  register("quiz", { mount() { log.push("mount block"); return () => log.push("clean block"); } });
+  registerLayout("post", { mount() { log.push("mount layout"); return () => log.push("clean layout"); } });
+  const layout = wrapper("post", { layout: "post" });
+  const block = document.createElement("div");
+  block.setAttribute("data-zen-plugin", "quiz");
+  layout.append(block);
+  await mount();
+  expect(log).toEqual(["mount layout", "mount block"]);
+  rt.unmountAll();
+  expect(log).toEqual(["mount layout", "mount block", "clean block", "clean layout"]);
+});
+
+test("a layout whose script fails to load or has no mount shows an error in its wrapper", async () => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
+  const w = wrapper("gone", { layout: "gone" });
+  registered.push(layoutUrlOf("gone")); // named in the assets, 404 on import
+  const w2 = wrapper("empty", { layout: "empty" });
+  registerLayout("empty", {});
+  await mount();
+  expect(w.querySelector(".zen-plugin-error")!.textContent).toContain("could not be loaded");
+  expect(w2.querySelector(".zen-plugin-error")!.textContent).toContain("no default export");
+});
+
+test("a layout script URL is bound to the layout id it names; `..` URLs are ignored", async () => {
+  registerLayout("post", { mount() {} });
+  const evil = "/_layouts/post/../x/x.js?v=1";
+  modules.set(evil, { default: { mount() { throw new Error("must not load"); } } });
+  await rt.mountAll(root, { js: [layoutUrlOf("post"), evil, "/_other/post/a.js"], css: [] });
+  expect(imported).toEqual([layoutUrlOf("post")]);
+});
+
+test("plugins:changed drops layout modules too and asks the host to render again", async () => {
+  const log: string[] = [];
+  registerLayout("post", { mount() { log.push("mount"); return () => log.push("clean"); } });
+  wrapper("post", { layout: "post" });
+  await mount();
+  api.emit("layouts:changed", undefined);
+  expect(log).toEqual(["mount", "clean"]);
+  expect(refreshes).toBe(1);
+  await mount();
+  expect(imported.filter((u) => u === layoutUrlOf("post"))).toHaveLength(2);
+});
+
+test("layouts:changed removes layout stylesheets and keeps none of the old modules", async () => {
+  for (const href of ["/_layouts/post/post.css?v=1", "/_plugins/p/p.css?v=1"]) {
+    const l = document.createElement("link");
+    l.dataset.zenAsset = href;
+    document.head.append(l);
+  }
+  api.emit("layouts:changed", undefined);
+  expect(Array.from(document.head.querySelectorAll("link[data-zen-asset]")).map((l) => (l as HTMLElement).dataset.zenAsset)).toEqual([]);
+  document.head.replaceChildren();
 });

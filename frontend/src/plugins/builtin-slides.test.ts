@@ -1,13 +1,17 @@
 // @vitest-environment happy-dom
 // The built-in "slides" layout (internal/plugins/slides/assets/slides.js), loaded as the app loads it.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createFakeApi } from "../api/fake";
 import { installRuntime } from "./runtime";
 
-const ASSETS = join(dirname(fileURLToPath(import.meta.url)), "../../../internal/plugins/slides/assets");
+// The built-in layouts live in internal/layouts/ (they were plugins before core/layouts).
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+// Whichever of the two places has the script (a glob, so a missing one is no error).
+const scripts = import.meta.glob<unknown>("../../../internal/{layouts,plugins}/slides/assets/slides.js");
+const ASSETS = [join(ROOT, "internal/layouts/slides/assets"), join(ROOT, "internal/plugins/slides/assets")].find((d) => existsSync(d))!;
 
 let rt: ReturnType<typeof installRuntime>;
 /** The plugin script, an ES module with a default export; the runtime gets it through importModule. */
@@ -30,17 +34,16 @@ beforeEach(async () => {
     onAnchor: (fn) => { listeners.push(fn); return () => { listeners = listeners.filter((l) => l !== fn); }; },
   });
   root = document.body.appendChild(document.createElement("article"));
-  // @ts-ignore plain browser JavaScript outside src, no types
-  mod = await import("../../../internal/plugins/slides/assets/slides.js");
-  await rt.load({ js: ["/_plugins/slides/slides.js?v=test"], css: [] });
+  mod = await Object.values(scripts)[0]();
+  await rt.load({ js: ["/_layouts/slides/slides.js?v=test"], css: [] });
 });
 afterEach(() => rt.destroy());
 
 /** What zen renders for a page with `layout: slides`: the page HTML inside the layout wrapper. */
 function render(html: string, attrs?: Record<string, string>): HTMLElement {
   const w = document.createElement("div");
-  w.setAttribute("data-zen-plugin", "slides");
   w.setAttribute("data-zen-layout", "slides");
+  w.setAttribute("data-zen-layout-source", "builtin");
   if (attrs) w.setAttribute("data-zen-attrs", JSON.stringify(attrs));
   w.innerHTML = html; // test fixture only
   root.replaceChildren(w);

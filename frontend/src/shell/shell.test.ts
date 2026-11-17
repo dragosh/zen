@@ -32,7 +32,7 @@ const tick = () => new Promise((r) => setTimeout(r, 0));
 const button = (label: string) =>
   Array.from(root.querySelectorAll("button")).find((b) => b.textContent === label || b.getAttribute("aria-label") === label);
 const withWorkspace = (page = "", mode: "read" | "edit" = "read") =>
-  createFakeApi({ startup: { workspace: sampleWorkspace(), page, mode } });
+  createFakeApi({ startup: { workspace: sampleWorkspace(), page, mode }, layouts: [{ id: "course", version: "1.0.0", description: "Steps", source: "builtin", status: "on" }] });
 
 beforeEach(() => {
   localStorage.clear();
@@ -286,11 +286,13 @@ test("File › New Page (menu or ⌘N) asks, creates, shows and opens the editor
   expect(document.querySelector<HTMLInputElement>(".zen-newpage-name")!.value).toBe("guides/untitled");
   key("n"); // already open: not a second one
   expect(document.querySelectorAll(".zen-newpage-backdrop")).toHaveLength(1);
+  for (let i = 0; i < 5; i++) await tick();
   document.querySelector<HTMLElement>(".zen-newpage-layout[data-layout=course]")!.click();
   document.querySelector<HTMLFormElement>(".zen-newpage")!.requestSubmit();
   for (let i = 0; i < 5; i++) await tick();
   expect(dialog()).toBeNull();
-  expect(api.callsTo("createPage")).toEqual([["guides/untitled", "course"]]);
+  expect(api.callsTo("createPage")).toEqual([["guides/untitled", ""]]);
+  expect(await api.source("guides/untitled.md")).toBe("---\nlayout: course\n---\n# Title");
   expect(s.store.get().path).toBe("guides/untitled.md");
   expect(api.callsTo("openEditor")).toEqual([["guides/untitled.md"]]);
   key("n");
@@ -417,6 +419,6 @@ test("Settings shows the plugins and its sections", async () => {
   await s.start();
   cog().click();
   await tick();
-  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Appearance", "Configuration files", "Plugins"]);
+  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts"]);
   expect(api.callsTo("plugins")).toHaveLength(1);
 });

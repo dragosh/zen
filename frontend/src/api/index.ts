@@ -9,9 +9,11 @@ export type Page = {
   path: string; title: string; html: string;
   frontmatter: Record<string, unknown>; breadcrumb: Crumb[];
   assets: { css: string[]; js: string[] }; warnings: string[];
-  /** The layout a plugin took over this page with (frontmatter `layout:`), "" when none (ui/plugins). */
-  layout: string;
+  /** The layout the page is shown with (core/layouts): "article" when it has none; source "" for article. */
+  layout: PageLayoutRef;
 };
+export type LayoutSource = "builtin" | "folder" | "user";
+export type PageLayoutRef = { name: string; source: LayoutSource | "" };
 /** One built-in or external plugin as Settings lists it (core/extplugins). */
 export type PluginSnippet = { title: string; markdown: string };
 /** One option a plugin reads from the config or a page's frontmatter. */
@@ -32,6 +34,21 @@ export type PluginInfo = {
   blocks: string[]; inlines: string[]; layouts: string[];
   options: PluginOption[];
 };
+/** A frontmatter field a layout's template reads (core/layouts). */
+export type LayoutField = { name: string; type: string; description: string };
+/** One built-in or external layout as Settings and New Page list it (core/layouts). */
+export type LayoutInfo = {
+  id: string; version: string; description: string;
+  source: LayoutSource;
+  status: "on" | "off" | "blocked" | "undecided" | "invalid";
+  kind: "layout";
+  /** It has an HTML template / a page script (what it can do decides the trust prompt). */
+  hasTemplate: boolean; hasScript: boolean;
+  fields: LayoutField[]; options: PluginOption[];
+  help: { summary: string; snippets: PluginSnippet[] };
+  /** Why an invalid layout was rejected, "" otherwise. */
+  problem: string;
+};
 export type Startup = { workspace: Workspace | null; page: string; mode: "read" | "edit" };
 /** One Vale finding (ui/lint). line is 1-based; col and endCol are 1-based rune columns, endCol inclusive. */
 export type Alert = {
@@ -41,8 +58,8 @@ export type Alert = {
   /** Why the check flagged it ("" when Vale gives none) and an https link to read more (or ""). */
   description: string; link: string;
 };
-/** Templates offered by File › New Page: "" is a plain page. */
-export type PageLayout = "" | "slides" | "course";
+/** The layout id File › New Page passes: "" is a plain page. */
+export type PageLayout = string;
 
 /** An editor's unsaved text shared with other windows; content null = draft gone. */
 export type Draft = { path: string; content: string | null };
@@ -82,6 +99,15 @@ export interface Api {
   createPage(name: string, layout: PageLayout): Promise<string>;
   /** Every built-in and external plugin, for Settings › Plugins (ui/plugins). */
   plugins(): Promise<PluginInfo[]>;
+  /** Every built-in and external layout, for Settings › Layouts and File › New Page (core/layouts). */
+  layouts(): Promise<LayoutInfo[]>;
+  /** Records the user's Allow (true) or Block (false) for an external layout and reloads. */
+  layoutTrust(id: string, allow: boolean): Promise<void>;
+  /** A layout's stored value as JSON text; "null" when the key is absent. */
+  layoutStorageGet(id: string, key: string): Promise<string>;
+  layoutStorageSet(id: string, key: string, json: string): Promise<void>;
+  /** The storage keys of a layout that start with prefix ("" for all), sorted. */
+  layoutStorageKeys(id: string, prefix: string): Promise<string[]>;
   /** Records the user's Allow (true) or Block (false) for an external plugin and reloads. */
   pluginTrust(id: string, allow: boolean): Promise<void>;
   /** A plugin's stored value as JSON text; "null" when the key is absent. */
@@ -106,6 +132,8 @@ export interface Api {
   /** Chunks and the end of plugin streams, of every window (call ids are random; see plugins/runtime.ts). */
   /** The external plugin set or a trust decision changed (or a folder was opened): reload plugin scripts and styles. */
   on(event: "plugins:changed", fn: () => void): () => void;
+  /** The layout set or a layout trust decision changed: render the page again (core/layouts). */
+  on(event: "layouts:changed", fn: () => void): () => void;
   on(event: "plugin:stream", fn: (e: PluginStreamEvent) => void): () => void;
   /** Another window's unsaved text for a page (see draft); content null = draft gone. */
   on(event: "page:draft", fn: (d: Draft) => void): () => void;
@@ -162,8 +190,30 @@ function devOptions(): FakeOptions {
     });
     return { available: true, alerts };
   };
+  const layout = (id: string, source: "builtin" | "folder" | "user", status: LayoutInfo["status"], description: string, more: Partial<LayoutInfo> = {}): LayoutInfo => ({
+    id, version: "1.0.0", description, source, status, kind: "layout", hasTemplate: false, hasScript: false, problem: "", fields: [], options: [],
+    help: { summary: "", snippets: [] }, ...more,
+  });
+  const frontmatter = (id: string, extra = "") => `---\nlayout: ${id}\n${extra}---\n# Title\n\nText.`;
+  const layouts: LayoutInfo[] = [
+    layout("article", "builtin", "on", "The reading view: a single column.", { help: { summary: "The default look: a reading column.", snippets: [{ title: "A plain page", markdown: frontmatter("article") }] } }),
+    layout("docs", "builtin", "on", "Documentation: contents rail, Prev / Next.", { hasTemplate: true, help: { summary: "A docs page with an on-page contents rail.", snippets: [{ title: "A docs page", markdown: frontmatter("docs") }] } }),
+    layout("post", "builtin", "on", "A blog post with cover, date and author.", {
+      hasTemplate: true,
+      fields: [{ name: "date", type: "date", description: "Publication date" }, { name: "author", type: "string", description: "" }, { name: "cover", type: "image", description: "Workspace image shown on top" }, { name: "tags", type: "list", description: "" }],
+      options: [{ name: "toc", type: "bool", default: true, description: "Show an on-page contents list." }],
+      help: { summary: "Cover, title, byline and tags above the text.", snippets: [{ title: "A post", markdown: frontmatter("post", "date: 2026-11-17\nauthor: Ada\n") }] },
+    }),
+    layout("slides", "builtin", "on", "A presentation: --- starts the next slide.", { hasScript: true, help: { summary: "Turns a page into slides.", snippets: [{ title: "A deck", markdown: frontmatter("slides") }] } }),
+    layout("memo", "folder", "undecided", "A memo with to, from and date.", {
+      hasTemplate: true, fields: [{ name: "to", type: "string", description: "Recipient" }, { name: "from", type: "string", description: "" }, { name: "date", type: "date", description: "" }],
+      help: { summary: "A short memo.", snippets: [{ title: "A memo", markdown: frontmatter("memo", "to: Ann\nfrom: Bo\n") }] },
+    }),
+    layout("zine", "folder", "on", "Two columns and a big title.", { hasTemplate: true, hasScript: true }),
+  ];
   const noHelp = { help: { summary: "", snippets: [] }, blocks: [], inlines: [], layouts: [], options: [] };
   return {
+    layouts,
     plugins: [
       {
         id: "codeblock", version: "0.1.0", description: "Code blocks: syntax colours and Copy and Wrap buttons.", source: "builtin", status: "on", runs: [], problem: "", kind: "builtin",

@@ -174,14 +174,14 @@ test("plugin storage is kept in memory per plugin; invoke answers are settable",
   expect(JSON.parse(await api.pluginInvoke("quiz", "z.md", "1"))).toEqual({ page: "z.md" });
 });
 
-test("pages have no layout by default; decorate shapes what page() and preview() return", async () => {
+test("pages are article by default; decorate shapes what page() and preview() return", async () => {
   const api = createFakeApi();
-  expect((await api.page("README.md")).layout).toBe("");
-  api.decorate = (p) => ({ ...p, layout: "slides", html: `<div data-zen-plugin="slides" data-zen-layout="slides">${p.html}</div>` });
+  expect((await api.page("README.md")).layout).toEqual({ name: "article", source: "" });
+  api.decorate = (p) => ({ ...p, layout: { name: "slides", source: "builtin" }, html: `<div data-zen-layout="slides" data-zen-layout-source="builtin">${p.html}</div>` });
   const p = await api.page("README.md");
-  expect(p.layout).toBe("slides");
+  expect(p.layout).toEqual({ name: "slides", source: "builtin" });
   expect(p.html).toContain("data-zen-layout");
-  expect((await api.preview("README.md", "# X")).layout).toBe("slides");
+  expect((await api.preview("README.md", "# X")).layout.name).toBe("slides");
 });
 
 test("plugin streams: call ids, recorded calls, events through on(), cancel", async () => {
@@ -235,4 +235,50 @@ test("plugins: seeds may leave out the help and what a plugin adds; the list alw
   expect([a.blocks, a.inlines, a.layouts, a.options]).toEqual([[], [], [], []]);
   expect(b.help.snippets).toEqual([{ title: "T", markdown: "M" }]);
   expect(b.blocks).toEqual(["b"]);
+});
+
+test("layouts: seeds fill in the defaults; layoutTrust updates external ones only", async () => {
+  const api = createFakeApi({
+    layouts: [
+      { id: "article", version: "1.0.0", description: "Reading view", source: "builtin", status: "on" },
+      { id: "memo", version: "0.1.0", description: "A memo", source: "folder", status: "undecided", hasTemplate: true, fields: [{ name: "to", type: "string", description: "" }], help: { summary: "S", snippets: [{ title: "T", markdown: "M" }] } },
+    ],
+  });
+  const [a, m] = await api.layouts();
+  expect(a).toMatchObject({ kind: "layout", hasTemplate: false, hasScript: false, fields: [], options: [], problem: "", help: { summary: "", snippets: [] } });
+  expect(m.fields).toEqual([{ name: "to", type: "string", description: "" }]);
+  expect(m.help.snippets).toEqual([{ title: "T", markdown: "M" }]);
+  await api.layoutTrust("memo", true);
+  expect((await api.layouts())[1].status).toBe("on");
+  await api.layoutTrust("memo", false);
+  expect((await api.layouts())[1].status).toBe("blocked");
+  await expect(api.layoutTrust("article", false)).rejects.toThrow("not an external layout");
+  await expect(api.layoutTrust("nope", true)).rejects.toThrow();
+  expect(api.callsTo("layoutTrust")).toEqual([["memo", true], ["memo", false], ["article", false], ["nope", true]]);
+  api.layoutList[0].description = "changed"; // the list is copied on the way out
+  expect((await api.layouts())[0].description).toBe("changed");
+});
+
+test("layout storage is its own namespace, apart from plugin storage", async () => {
+  const api = createFakeApi();
+  expect(await api.layoutStorageGet("post", "k")).toBe("null");
+  await api.layoutStorageSet("post", "k", "{\"a\":1}");
+  await api.layoutStorageSet("post", "j", "2");
+  expect(await api.layoutStorageGet("post", "k")).toBe("{\"a\":1}");
+  expect(await api.pluginStorageGet("post", "k")).toBe("null");
+  expect(await api.layoutStorageKeys("post", "")).toEqual(["j", "k"]);
+  expect(await api.layoutStorageKeys("post", "k")).toEqual(["k"]);
+  expect(await api.layoutStorageKeys("other", "")).toEqual([]);
+  await expect(api.layoutStorageSet("post", "bad key", "1")).rejects.toThrow("invalid storage key");
+  await expect(api.layoutStorageSet("post", "k", "{")).rejects.toThrow("JSON");
+});
+
+test("layouts:changed is an event like the others", () => {
+  const api = createFakeApi();
+  let n = 0;
+  const off = api.on("layouts:changed", () => { n++; });
+  api.emit("layouts:changed", undefined);
+  off();
+  api.emit("layouts:changed", undefined);
+  expect(n).toBe(1);
 });

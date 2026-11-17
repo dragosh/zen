@@ -2,6 +2,10 @@
 // each plugin's script is an ES module loaded with import() from the page's
 // assets; its default export ({ mount }) is bound to that plugin's id, and
 // mounted and cleaned up on the [data-zen-plugin] wrappers of the page.
+// Layouts (core/layouts) work the same way with their own scripts from
+// /_layouts/<id>/, mounted on the [data-zen-layout] wrapper with a ctx that
+// has no invoke and no stream (layouts have no programs) and whose storage
+// goes to the layout services.
 import type { Api, PluginStreamEvent } from "../api";
 
 export type PluginCtx = {
@@ -23,7 +27,10 @@ export type PluginCtx = {
   /** Sets (or with null/"" clears) a short label (12 characters at most) after the page's title in the sidebar. */
   badge(path: string, text: string | null): void;
 };
+/** What a layout script gets: a plugin's ctx without the backend (no invoke, no stream). */
+export type LayoutCtx = Omit<PluginCtx, "invoke" | "stream" | "kind"> & { kind: "layout" };
 export type CleanUp = () => void;
+export type LayoutHandler = { mount(el: HTMLElement, ctx: LayoutCtx): void | CleanUp | Promise<void | CleanUp> };
 export type PluginHandler = { mount(el: HTMLElement, ctx: PluginCtx): void | CleanUp | Promise<void | CleanUp> };
 export type Runtime = {
   /**
@@ -84,11 +91,19 @@ function ensureGlobal(): void {
 }
 
 const PLUGIN_URL = /^\/_plugins\/([^/?#]+)\//;
+const LAYOUT_URL = /^\/_layouts\/([^/?#]+)\//;
 /** The plugin id a script URL belongs to ("" when it is not a /_plugins/ URL). */
 export function pluginOfUrl(url: string): string {
   const m = PLUGIN_URL.exec(url);
   return m ? decodeURIComponent(m[1]) : "";
 }
+/** The layout id a script URL belongs to ("" when it is not a /_layouts/ URL). */
+export function layoutOfUrl(url: string): string {
+  const m = LAYOUT_URL.exec(url);
+  return m ? decodeURIComponent(m[1]) : "";
+}
+/** Modules are bound per kind: a plugin and a layout may share an id. */
+const keyOf = (layout: boolean, id: string) => `${layout ? "layout" : "plugin"}:${id}`;
 
 /** What loading a plugin's scripts came to: its handler, or why there is none. */
 type Bound = { handler?: PluginHandler; error?: string; ready: Promise<void>; settled: boolean };
@@ -240,33 +255,35 @@ export function installRuntime(opts: Options): Runtime {
     return { done, cancel };
   }
 
-  function context(el: HTMLElement, id: string, m: Mounted): PluginCtx {
-    const layout = el.getAttribute("data-zen-layout");
-    const { path, title } = opts.page();
-    // Bound to this wrapper's plugin id: nothing here takes an id from the script.
+  /** Storage over the plugin services or, for a layout, the layout services; always bound to the wrapper's id. */
+  function storageFor(id: string, layout: boolean): PluginCtx["storage"] {
+    const get = (key: string) => (layout ? opts.api.layoutStorageGet(id, key) : opts.api.pluginStorageGet(id, key));
+    const put = (key: string, json: string) => (layout ? opts.api.layoutStorageSet(id, key, json) : opts.api.pluginStorageSet(id, key, json));
+    const list = (prefix: string) => (layout ? opts.api.layoutStorageKeys(id, prefix) : opts.api.pluginStorageKeys(id, prefix));
     return Object.freeze({
+      async get(key: string): Promise<unknown> {
+        const text = await get(String(key));
+        return text ? (JSON.parse(text) as unknown) ?? null : null;
+      },
+      async set(key: string, value: unknown): Promise<void> {
+        const text = JSON.stringify(value);
+        if (typeof text !== "string") throw new TypeError("zen: storage values must be JSON (not undefined or a function)");
+        await put(String(key), text);
+      },
+      keys: (prefix?: string) => list(prefix === undefined ? "" : String(prefix)),
+    });
+  }
+
+  function context(el: HTMLElement, id: string, m: Mounted): PluginCtx | LayoutCtx {
+    const layout = el.hasAttribute("data-zen-layout");
+    const { path, title } = opts.page();
+    // Bound to this wrapper's id: nothing here takes an id from the script.
+    const common = {
       id,
-      kind: layout ? "layout" : el.tagName === "SPAN" ? "inline" : "block",
-      name: el.getAttribute("data-zen-name") || layout || "",
+      name: el.getAttribute("data-zen-name") || el.getAttribute("data-zen-layout") || "",
       attrs: Object.freeze(parseAttrs(el.getAttribute("data-zen-attrs"))),
       page: Object.freeze({ path, title }),
-      storage: Object.freeze({
-        async get(key: string): Promise<unknown> {
-          const text = await opts.api.pluginStorageGet(id, String(key));
-          return text ? (JSON.parse(text) as unknown) ?? null : null;
-        },
-        async set(key: string, value: unknown): Promise<void> {
-          const text = JSON.stringify(value);
-          if (typeof text !== "string") throw new TypeError("zen: storage values must be JSON (not undefined or a function)");
-          await opts.api.pluginStorageSet(id, String(key), text);
-        },
-        keys: (prefix?: string) => opts.api.pluginStorageKeys(id, prefix === undefined ? "" : String(prefix)),
-      }),
-      async invoke(payload: unknown): Promise<unknown> {
-        const text = await opts.api.pluginInvoke(id, path, JSON.stringify(payload ?? null) ?? "null");
-        return text ? (JSON.parse(text) as unknown) : null;
-      },
-      stream: (payload: unknown, onChunk: (chunk: string) => void) => startStream(m, id, path, payload, onChunk),
+      storage: storageFor(id, layout),
       navigate: (path: string, anchor?: string) => opts.navigate(path, anchor),
       anchor: () => opts.anchor?.() ?? "",
       onAnchor(fn: (anchor: string) => void): () => void {
@@ -290,10 +307,21 @@ export function installRuntime(opts: Options): Runtime {
         const label = text === null || text === undefined ? "" : Array.from(String(text).trim()).slice(0, BADGE_MAX).join("");
         opts.badge?.(path, label === "" ? null : label);
       },
+    };
+    // Layouts have no programs: no invoke, no stream.
+    if (layout) return Object.freeze({ ...common, kind: "layout" as const }) as LayoutCtx;
+    return Object.freeze({
+      ...common,
+      kind: el.tagName === "SPAN" ? "inline" : "block",
+      async invoke(payload: unknown): Promise<unknown> {
+        const text = await opts.api.pluginInvoke(id, path, JSON.stringify(payload ?? null) ?? "null");
+        return text ? (JSON.parse(text) as unknown) : null;
+      },
+      stream: (payload: unknown, onChunk: (chunk: string) => void) => startStream(m, id, path, payload, onChunk),
     }) as PluginCtx;
   }
 
-  function mountOne(el: HTMLElement, id: string, handler: PluginHandler): void {
+  function mountOne(el: HTMLElement, id: string, handler: PluginHandler | LayoutHandler): void {
     const m: Mounted = { el, id, dead: false, streams: new Set(), offs: new Set() };
     mounted.push(m);
     const done = (result: unknown) => {
@@ -301,7 +329,7 @@ export function installRuntime(opts: Options): Runtime {
       if (m.dead) cleanUp(m);
     };
     try {
-      const result = handler.mount(el, context(el, id, m));
+      const result = (handler as PluginHandler).mount(el, context(el, id, m) as PluginCtx);
       if (result && typeof (result as PromiseLike<unknown>).then === "function") {
         (result as PromiseLike<unknown>).then(done, (err) => { if (!m.dead) fail(m, "mount", err); });
       } else {
@@ -318,7 +346,7 @@ export function installRuntime(opts: Options): Runtime {
   let epoch = 0;
   let bound = new Map<string, Bound>();
 
-  function bind(id: string, scripts: string[]): Bound {
+  function bind(scripts: string[]): Bound {
     const b: Bound = { ready: Promise.resolve(), settled: false };
     b.ready = Promise.all(scripts.map((url) => importModule(url).then((mod) => ({ mod }), (err: unknown) => ({ err }))))
       .then((results) => {
@@ -340,19 +368,21 @@ export function installRuntime(opts: Options): Runtime {
 
   /** Starts importing the scripts of assets that no module is bound for yet; returns what is still loading. */
   function loadScripts(assets: PluginAssets | undefined): Promise<unknown>[] {
-    const byId = new Map<string, string[]>();
+    const byKey = new Map<string, string[]>();
     for (const url of assets?.js ?? []) {
-      const id = pluginOfUrl(url);
-      if (id === "" || url.split(/[/?#]/).includes("..")) continue;
-      if (!byId.has(id)) byId.set(id, []);
-      byId.get(id)!.push(url);
+      const plugin = pluginOfUrl(url);
+      const layout = plugin === "" ? layoutOfUrl(url) : "";
+      if ((plugin === "" && layout === "") || url.split(/[/?#]/).includes("..")) continue;
+      const key = plugin !== "" ? keyOf(false, plugin) : keyOf(true, layout);
+      if (!byKey.has(key)) byKey.set(key, []);
+      byKey.get(key)!.push(url);
     }
     const waits: Promise<unknown>[] = [];
-    byId.forEach((scripts, id) => {
-      let b = bound.get(id);
+    byKey.forEach((scripts, key) => {
+      let b = bound.get(key);
       if (!b) {
-        b = bind(id, scripts);
-        bound.set(id, b);
+        b = bind(scripts);
+        bound.set(key, b);
       }
       if (!b.settled) waits.push(b.ready);
     });
@@ -373,13 +403,15 @@ export function installRuntime(opts: Options): Runtime {
     return Promise.all(waits).then(() => { if (gen === epoch) mountIn(); });
   }
 
-  /** Mounts the wrappers of every plugin with a bound script that are on the page and not mounted yet. */
+  /** Mounts the wrappers of every plugin and layout with a bound script that are on the page and not mounted yet. */
   function mountIn(): void {
     if (!root) return;
     const here = root;
-    for (const el of Array.from(here.querySelectorAll<HTMLElement>("[data-zen-plugin]"))) {
-      const id = el.getAttribute("data-zen-plugin") ?? "";
-      const b = bound.get(id);
+    for (const el of Array.from(here.querySelectorAll<HTMLElement>("[data-zen-plugin], [data-zen-layout]"))) {
+      // A layout wrapper is bound to the layout's module, whatever else it says.
+      const layout = el.hasAttribute("data-zen-layout");
+      const id = (layout ? el.getAttribute("data-zen-layout") : el.getAttribute("data-zen-plugin")) ?? "";
+      const b = bound.get(keyOf(layout, id));
       if (!b) continue;
       // An earlier mount (a layout, say) may have thrown this wrapper away; some are mounted already.
       if (!here.contains(el) || mounted.some((m) => m.el === el)) continue;
@@ -406,7 +438,8 @@ export function installRuntime(opts: Options): Runtime {
   function removeStylesheets(): void {
     const doc = root?.ownerDocument ?? document;
     for (const link of Array.from(doc.head.querySelectorAll<HTMLElement>("link[data-zen-asset]"))) {
-      if ((link.dataset.zenAsset ?? "").startsWith("/_plugins/")) link.remove();
+      const href = link.dataset.zenAsset ?? "";
+      if (href.startsWith("/_plugins/") || href.startsWith("/_layouts/")) link.remove();
     }
   }
 
@@ -418,7 +451,7 @@ export function installRuntime(opts: Options): Runtime {
   }
 
   // The plugin set or the folder changed: nothing loaded so far may keep running.
-  const offs = (["plugins:changed", "workspace:opened", "workspace:changed"] as const).map((ev) =>
+  const offs = (["plugins:changed", "layouts:changed", "workspace:opened", "workspace:changed"] as const).map((ev) =>
     opts.api.on(ev as "plugins:changed", () => {
       reset();
       opts.refresh?.();
