@@ -502,3 +502,100 @@ test("menu:settings opens Settings", async () => {
   shell = undefined;
   expect(handlers).toHaveLength(0);
 });
+
+// ---- the welcome screen: Start from a template (core/init)
+
+type SiteTpl = { id: string; name: string; description: string; version: string; ask: { key: string; label: string; default: string }[]; builtin: boolean; update: string; error: string };
+const siteTpl = (id: string, over: Partial<SiteTpl> = {}): SiteTpl => ({ id, name: `Name ${id}`, description: `About ${id}`, version: "1.0.0", ask: [{ key: "title", label: "Site title", default: "{{folder}}" }], builtin: true, update: "", error: "", ...over });
+
+/** The fake api plus core/init's methods and event, which api/ gets when the lead merges it. */
+function withTemplates(api: FakeApi, templates: SiteTpl[]) {
+  const siteCalls: unknown[][] = [];
+  const listeners = new Set<() => void>();
+  const origOn = api.on.bind(api) as (e: string, f: (x: never) => void) => () => void;
+  return Object.assign(api, {
+    siteCalls,
+    emitNewSite: () => listeners.forEach((f) => f()),
+    siteTemplates: async () => { siteCalls.push(["siteTemplates"]); return templates; },
+    pickSiteFolder: async () => "/tmp/x/Docs",
+    createSite: async (...a: unknown[]) => { siteCalls.push(["createSite", ...a]); return { workspace: sampleWorkspace(), page: "README.md", mode: "read" as const }; },
+    revealTemplates: async () => undefined,
+    on: (event: string, fn: (x: never) => void) => {
+      if (event === "menu:new-site") { listeners.add(fn as () => void); return () => listeners.delete(fn as () => void); }
+      return origOn(event, fn);
+    },
+  });
+}
+
+test("welcome lists templates: a card for each (six at most), invalid ones left out, and Show all…", async () => {
+  const many = ["a", "b", "c", "d", "e", "f", "g"].map((id) => siteTpl(id));
+  many.splice(2, 0, siteTpl("bad", { error: "broken" }));
+  const api = withTemplates(createFakeApi(), many);
+  const s = boot(api);
+  await s.start();
+  await tick();
+  await tick();
+  const section = root.querySelector(".zen-welcome-templates")!;
+  expect(section.querySelector("h2")?.textContent).toBe("Start from a template");
+  const cards = Array.from(section.querySelectorAll<HTMLButtonElement>(".zen-welcome-card"));
+  expect(cards.map((c) => c.dataset.template)).toEqual(["a", "b", "c", "d", "e", "f"]);
+  expect(cards[0].querySelector(".zen-welcome-card-name")?.textContent).toBe("Name a");
+  expect(cards[0].querySelector(".zen-welcome-card-hint")?.textContent).toBe("About a");
+  // Open a folder stays first.
+  expect(root.querySelector(".zen-welcome .primary")?.textContent).toBe("Open a folder");
+  expect(root.querySelector(".zen-welcome")!.innerHTML.indexOf("Open a folder")).toBeLessThan(root.querySelector(".zen-welcome")!.innerHTML.indexOf("Start from a template"));
+  // A card opens the New Site dialog with that template chosen.
+  cards[1].click();
+  await tick();
+  await tick();
+  expect(document.querySelector(".zen-newsite")).not.toBeNull();
+  expect(document.querySelector('.zen-newsite-template[aria-checked="true"]')?.getAttribute("data-template")).toBe("b");
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  // Show all… opens it with the first one chosen.
+  Array.from(section.querySelectorAll("button")).find((b) => b.textContent === "Show all…")!.click();
+  await tick();
+  await tick();
+  expect(document.querySelectorAll(".zen-newsite-template")).toHaveLength(8);
+  expect(document.querySelector('.zen-newsite-template[aria-checked="true"]')?.getAttribute("data-template")).toBe("a");
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+});
+
+test("welcome shows no template section when there are none, when listing fails, or when the api has no templates", async () => {
+  let s = boot(withTemplates(createFakeApi(), []));
+  await s.start();
+  await tick();
+  expect(root.querySelector(".zen-welcome-templates")).toBeNull();
+  s.destroy();
+  const failing = withTemplates(createFakeApi(), []);
+  failing.siteTemplates = async () => { throw new Error("down"); };
+  s = boot(failing);
+  await s.start();
+  await tick();
+  expect(root.querySelector(".zen-welcome")).not.toBeNull();
+  expect(root.querySelector(".zen-welcome-templates")).toBeNull();
+  s.destroy();
+  s = boot(createFakeApi());
+  await s.start();
+  await tick();
+  expect(root.querySelector(".zen-welcome")).not.toBeNull();
+  expect(root.querySelector(".zen-welcome-templates")).toBeNull();
+});
+
+test("creating a site from the welcome screen opens it", async () => {
+  const api = withTemplates(createFakeApi(), [siteTpl("a")]);
+  const s = boot(api);
+  await s.start();
+  await tick();
+  await tick();
+  root.querySelector<HTMLButtonElement>(".zen-welcome-card")!.click();
+  await tick();
+  await tick();
+  Array.from(document.querySelectorAll("button")).find((b) => b.textContent === "Choose folder…")!.click();
+  await tick();
+  document.querySelector<HTMLFormElement>(".zen-newsite")!.requestSubmit();
+  await tick();
+  await tick();
+  expect(api.siteCalls.find((c) => c[0] === "createSite")).toEqual(["createSite", "a", "/tmp/x/Docs", { title: "Docs" }]);
+  expect(root.querySelector(".zen-welcome")).toBeNull();
+  expect(s.store.get().workspace?.root).toBe("/sample-docs");
+});

@@ -1,0 +1,14 @@
+# Settings for this site. Edit freely: zen reads this file again when it changes.
+version: 1
+
+# Every page under paths/ is a course: one step at a time, with saved progress.
+layouts:
+  "README.md": landing
+  "paths/**": course
+
+plugins:
+  quiz: true
+  check: true
+
+build:
+  out: _site

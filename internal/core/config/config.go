@@ -45,8 +45,9 @@ type Config struct {
 	limits   Limits
 	layouts  LayoutDefaults
 
-	build    map[string]any // merged build: sections, checked by Build
-	buildErr error          // a build: key that is not a mapping
+	templates any            // the global templates: key, read by TemplatesDir
+	build     map[string]any // merged build: sections, checked by Build
+	buildErr  error          // a build: key that is not a mapping
 }
 
 // LayoutRule maps a path pattern (glob: * within a folder, ** across folders)
@@ -350,6 +351,12 @@ func (c *Config) loadFile(path string, global bool) {
 			c.layouts.Rules = append(rules, c.layouts.Rules...)
 		case "build":
 			c.mergeBuild(v)
+		case "templates":
+			if !global {
+				warn("templates can only be set in the global config")
+				continue
+			}
+			c.templates = v
 		case "limits":
 			if !global {
 				warn("limits can only be set in the global config")

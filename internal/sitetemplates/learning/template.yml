@@ -1,0 +1,9 @@
+id: learning
+name: Learning path
+description: Courses with steps, quizzes and checklists, and a glossary
+version: 1.0.0
+order: 20
+ask:
+  title: { label: Site title, default: "{{folder}}" }
+  author: { label: Author, default: "the team" }
+ignore: [".DS_Store"]

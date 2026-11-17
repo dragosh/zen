@@ -7,6 +7,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"reflect"
 	"strings"
 	"testing"
 )
@@ -19,10 +20,15 @@ type result struct {
 	l        Launch
 	built    bool
 	b        Build
+	inited   bool
+	i        Init
 }
 
 // builderErr is what the fake Builder returns.
 var builderErr error
+
+// initerErr is what the fake Initer returns.
+var initerErr error
 
 func run(t *testing.T, cwd string, launchErr error, args ...string) result {
 	t.Helper()
@@ -38,6 +44,13 @@ func run(t *testing.T, cwd string, launchErr error, args ...string) result {
 		fmt.Fprintln(stdout, "Built 1 pages and 0 files into out (1 warnings)")
 		fmt.Fprintln(stderr, "a.md: a warning")
 		return builderErr
+	}, func(i Init, stdout, stderr io.Writer) error {
+		r.inited = true
+		r.i = i
+		if i.List {
+			fmt.Fprintln(stdout, "techdocs  Technical documentation — Diátaxis")
+		}
+		return initerErr
 	})
 	r.stdout, r.stderr = out.String(), errOut.String()
 	return r
@@ -290,7 +303,108 @@ func TestBuildExitCodes(t *testing.T) {
 	}
 	// No Builder wired: a plain error, not a crash.
 	var out, errOut bytes.Buffer
-	if code := Run([]string{"build"}, ws, &out, &errOut, func(Launch) error { return nil }, nil); code != 1 || !strings.Contains(errOut.String(), "build") {
+	if code := Run([]string{"build"}, ws, &out, &errOut, func(Launch) error { return nil }, nil, nil); code != 1 || !strings.Contains(errOut.String(), "build") {
 		t.Errorf("nil builder: %d %q", code, errOut.String())
+	}
+}
+
+func TestInitCommand(t *testing.T) {
+	h := home(t)
+	initd := func(r result, want Init) {
+		t.Helper()
+		if r.code != 0 || !r.inited || r.launched || r.built || !reflect.DeepEqual(r.i, want) {
+			t.Fatalf("got %+v (code %d, stderr %q), want %+v", r.i, r.code, r.stderr, want)
+		}
+	}
+	vals := func(kv ...string) map[string]string {
+		m := map[string]string{}
+		for i := 0; i < len(kv); i += 2 {
+			m[kv[i]] = kv[i+1]
+		}
+		return m
+	}
+	// The folder defaults to the current folder; relative folders are made absolute.
+	initd(run(t, h, nil, "init", "site", "--techdocs"), Init{Dir: h, Template: "techdocs", Values: vals()})
+	initd(run(t, h, nil, "init", "site", "--learning", "my docs"), Init{Dir: filepath.Join(h, "my docs"), Template: "learning", Values: vals()})
+	initd(run(t, h, nil, "init", "site", "docs", "--planner"), Init{Dir: filepath.Join(h, "docs"), Template: "planner", Values: vals()})
+	initd(run(t, h, nil, "init", "site", "/abs/path", "--template", "mine"), Init{Dir: "/abs/path", Template: "mine", Values: vals()})
+	initd(run(t, h, nil, "init", "site", "--template=mine", "x"), Init{Dir: filepath.Join(h, "x"), Template: "mine", Values: vals()})
+	// --<id> works for any template name, including ones zen does not ship.
+	initd(run(t, h, nil, "init", "site", "--my-own-2", "x"), Init{Dir: filepath.Join(h, "x"), Template: "my-own-2", Values: vals()})
+	// Values: --title and --author, --set key=value; --title wins over --set title= in any order.
+	initd(run(t, h, nil, "init", "site", "--techdocs", "--title", "My docs", "--author=Ana", "--set", "team=Docs", "--set", "tagline=a=b"),
+		Init{Dir: h, Template: "techdocs", Values: vals("title", "My docs", "author", "Ana", "team", "Docs", "tagline", "a=b")})
+	initd(run(t, h, nil, "init", "site", "--techdocs", "--title", "A", "--set", "title=B"), Init{Dir: h, Template: "techdocs", Values: vals("title", "A")})
+	initd(run(t, h, nil, "init", "site", "--techdocs", "--set", "title=B", "--title=A"), Init{Dir: h, Template: "techdocs", Values: vals("title", "A")})
+	initd(run(t, h, nil, "init", "site", "--techdocs", "--set", "author=x", "--set", "author=y"), Init{Dir: h, Template: "techdocs", Values: vals("author", "y")})
+	// --list, --dir and --update need no "site".
+	initd(run(t, h, nil, "init", "--list"), Init{Dir: h, List: true, Values: vals()})
+	initd(run(t, h, nil, "init", "--dir"), Init{Dir: h, ShowDir: true, Values: vals()})
+	initd(run(t, h, nil, "init", "--update", "techdocs"), Init{Dir: h, Update: true, Template: "techdocs", Values: vals()})
+	initd(run(t, h, nil, "init", "--update=planner"), Init{Dir: h, Update: true, Template: "planner", Values: vals()})
+	// Without a template: the list is printed, exit 2.
+	r := run(t, h, nil, "init", "site")
+	if r.code != 2 || !r.i.List || !strings.Contains(r.stdout, "techdocs  Technical documentation") || !strings.Contains(r.stderr, "--techdocs") || r.launched {
+		t.Errorf("no template: %+v", r)
+	}
+	// "init" is a command only first; after -- it is a path.
+	if err := os.Mkdir(filepath.Join(h, "init"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	expect(t, run(t, h, nil, "--", "init"), Launch{Dir: filepath.Join(h, "init"), Mode: "read"})
+	// The usage text lists it.
+	r = run(t, h, nil, "--help")
+	if !strings.Contains(r.stdout, "zen init site") || !strings.Contains(r.stdout, "--techdocs") {
+		t.Errorf("usage lacks init:\n%s", r.stdout)
+	}
+	for _, line := range strings.Split(r.stdout, "\n") {
+		if len(line) > 80 {
+			t.Errorf("usage line too long: %q", line)
+		}
+	}
+}
+
+func TestInitExitCodes(t *testing.T) {
+	h := home(t)
+	// 0 and the Initer's own output.
+	r := run(t, h, nil, "init", "--list")
+	if r.code != 0 || !strings.Contains(r.stdout, "techdocs") {
+		t.Fatalf("list: %+v", r)
+	}
+	// 1: the Initer failed (clash, invalid template, unwritable folder).
+	initerErr = errors.New("files already exist: README.md")
+	defer func() { initerErr = nil }()
+	r = run(t, h, nil, "init", "site", "--techdocs")
+	if r.code != 1 || r.stderr != "zen: files already exist: README.md\n" || r.launched {
+		t.Fatalf("failure: %+v", r)
+	}
+	// 2: usage errors from the Initer, with the usage text.
+	initerErr = UsageError("no template \"nosuch\"")
+	r = run(t, h, nil, "init", "site", "--nosuch")
+	if r.code != 2 || !strings.Contains(r.stderr, "no template") || !strings.Contains(r.stderr, "Usage:") {
+		t.Fatalf("usage from initer: %+v", r)
+	}
+	initerErr = nil
+	// 2: usage errors found by the parser; the Initer is not called.
+	for _, a := range [][]string{
+		{"init"}, {"init", "page"}, {"init", "site", "--techdocs", "--learning"}, {"init", "site", "--template"}, {"init", "site", "--title"},
+		{"init", "site", "--set", "novalue"}, {"init", "site", "--set", "=x"}, {"init", "site", "--set"}, {"init", "site", "a", "b", "--techdocs"},
+		{"init", "site", "--update", "x"}, {"init", "--update"}, {"init", "--list", "x"}, {"init", "--dir", "--list"}, {"init", "site", "--Bad"},
+		{"init", "site", "--techdocs", "--template", "x"}, {"init", "site", "--techdocs", "-x"}, {"init", "--list", "--techdocs"},
+		{"init", "site", "--template", ""}, {"init", "--update", ""},
+	} {
+		r := run(t, h, nil, a...)
+		if r.code != 2 || r.inited || r.launched || r.stdout != "" || !strings.Contains(r.stderr, "Usage:") {
+			t.Fatalf("%v: %+v", a, r)
+		}
+	}
+	// -h anywhere after init prints the usage and exits 0.
+	if r := run(t, h, nil, "init", "site", "--help"); r.code != 0 || r.inited || !strings.Contains(r.stdout, "zen init site") {
+		t.Errorf("help: %+v", r)
+	}
+	// No Initer wired: a plain error, not a crash.
+	var out, errOut bytes.Buffer
+	if code := Run([]string{"init", "site", "--techdocs"}, h, &out, &errOut, func(Launch) error { return nil }, nil, nil); code != 1 || !strings.Contains(errOut.String(), "init") {
+		t.Errorf("nil initer: %d %q", code, errOut.String())
 	}
 }

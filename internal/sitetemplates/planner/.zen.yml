@@ -1,0 +1,12 @@
+# Settings for this plan. Edit freely: zen reads this file again when it changes.
+version: 1
+
+layouts:
+  "README.md": landing
+  "roadmap.md": wide
+
+plugins:
+  diagram: { theme: neutral }
+
+build:
+  out: _site

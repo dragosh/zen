@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 )
 
@@ -40,12 +41,31 @@ type Build struct {
 // written.
 type Builder func(Build, io.Writer, io.Writer) error
 
+// Init describes `zen init`: start a folder from a site template, or list and
+// update the templates. It never asks anything, so it works in scripts.
+type Init struct {
+	Dir, Template string            // absolute target folder; template id (or the id to update)
+	Values        map[string]string // --title, --author and --set key=value
+	List, Update  bool
+	ShowDir       bool
+}
+
+// Initer does what `zen init` asks. It writes its result to stdout and notes
+// to stderr. Return UsageError for a wrong request (exit 2) and any other
+// error for a failure (exit 1).
+type Initer func(Init, io.Writer, io.Writer) error
+
+// UsageError is an error that makes zen print the usage and exit with 2.
+func UsageError(msg string) error { return usageError(msg) }
+
 const usage = `zen - markdown reader and editor
 
 Usage:
   zen [path]          open a folder or markdown file (default: current folder)
   zen edit [path]     open in the editor; a new .md file is created on save
   zen build [folder]  build a static website; options below
+  zen init site [--techdocs|--learning|--planner] [folder]
+                      start a folder from a site template; options below
   zen help            show this help
   zen version         show the version
 
@@ -53,6 +73,11 @@ Options:
   -h, --help          show this help
   -v, --version       show the version
   --                  treat the following arguments as paths
+
+Init options:
+  --template <id>     the template (--<id> works too); none: list them
+  --title <text>      the site title; --author <text>; --set <key=value>
+  --list              list the templates; --update <id>; --dir
 
 Build options:
   -o, --out <dir>     output folder (default: _site in the folder)
@@ -67,7 +92,7 @@ type usageError string
 func (e usageError) Error() string { return string(e) }
 
 // Run executes the command line and returns the process exit code.
-func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher, build Builder) int {
+func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher, build Builder, initer Initer) int {
 	mode := "read"
 	var paths []string
 	flags, first := true, true
@@ -93,6 +118,8 @@ func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher, b
 			return 0
 		case flags && first && arg == "build":
 			return runBuild(args[i+1:], cwd, stdout, stderr, build)
+		case flags && first && arg == "init":
+			return runInit(args[i+1:], cwd, stdout, stderr, initer)
 		case flags && first && arg == "edit":
 			mode = "edit"
 		default:
@@ -184,6 +211,139 @@ func runBuild(args []string, cwd string, stdout, stderr io.Writer, build Builder
 	}
 	if err := build(b, stdout, stderr); err != nil {
 		return fail(stderr, err)
+	}
+	return 0
+}
+
+var initFlagRE = regexp.MustCompile(`^--[a-z][a-z0-9-]*$`)
+
+// runInit parses the arguments after `zen init` and calls the initer.
+func runInit(args []string, cwd string, stdout, stderr io.Writer, initer Initer) int {
+	in := Init{Values: map[string]string{}}
+	var paths []string
+	set := map[string]string{}
+	var title, author *string
+	site, flags, noTemplate := false, true, false
+	needs := func(i *int, name string) (string, error) {
+		if *i+1 >= len(args) || args[*i+1] == "" {
+			return "", usageError(name + " needs a value")
+		}
+		*i++
+		return args[*i], nil
+	}
+	var perr error
+	pickTemplate := func(id string) {
+		if in.Template != "" && perr == nil {
+			perr = usageError("more than one template given")
+		}
+		in.Template = id
+	}
+	for i := 0; i < len(args) && perr == nil; i++ {
+		arg := args[i]
+		name, val, hasVal := arg, "", false
+		if flags && strings.HasPrefix(arg, "--") {
+			name, val, hasVal = strings.Cut(arg, "=")
+		}
+		value := func() string {
+			if hasVal {
+				if val == "" {
+					perr = usageError(name + " needs a value")
+				}
+				return val
+			}
+			v, err := needs(&i, name)
+			if err != nil {
+				perr = err
+			}
+			return v
+		}
+		switch {
+		case flags && arg == "--":
+			flags = false
+		case flags && (arg == "-h" || arg == "--help"):
+			fmt.Fprint(stdout, usage)
+			return 0
+		case flags && name == "--list":
+			in.List = true
+		case flags && name == "--dir":
+			in.ShowDir = true
+		case flags && name == "--update":
+			in.Update = true
+			pickTemplate(value())
+			noTemplate = true
+		case flags && name == "--template":
+			pickTemplate(value())
+		case flags && name == "--title":
+			v := value()
+			title = &v
+		case flags && name == "--author":
+			v := value()
+			author = &v
+		case flags && name == "--set":
+			kv := value()
+			k, v, ok := strings.Cut(kv, "=")
+			if perr == nil && (!ok || k == "") {
+				perr = usageError("--set needs key=value, not " + kv)
+			}
+			set[k] = v
+		case flags && !hasVal && initFlagRE.MatchString(arg):
+			pickTemplate(arg[2:]) // --techdocs, --learning, --planner, --<id>
+		case flags && strings.HasPrefix(arg, "-") && arg != "-":
+			perr = usageError("unknown option " + arg)
+		case !site && len(paths) == 0 && arg == "site":
+			site = true
+		default:
+			paths = append(paths, arg)
+		}
+	}
+	modes := 0
+	for _, b := range []bool{in.List, in.ShowDir, in.Update} {
+		if b {
+			modes++
+		}
+	}
+	switch {
+	case perr != nil:
+		return fail(stderr, perr)
+	case modes > 1:
+		return fail(stderr, usageError("--list, --dir and --update cannot be used together"))
+	case modes == 1 && (site || len(paths) > 0 || len(set) > 0 || title != nil || author != nil || (in.Template != "" && !noTemplate)):
+		return fail(stderr, usageError("--list, --dir and --update take nothing else"))
+	case modes == 0 && !site:
+		return fail(stderr, usageError("zen init what? try: zen init site --techdocs"))
+	case len(paths) > 1:
+		return fail(stderr, usageError("more than one folder given"))
+	}
+	for k, v := range set {
+		in.Values[k] = v
+	}
+	if title != nil {
+		in.Values["title"] = *title
+	}
+	if author != nil {
+		in.Values["author"] = *author
+	}
+	in.Dir = cwd
+	if len(paths) == 1 {
+		in.Dir = paths[0]
+		if !filepath.IsAbs(in.Dir) {
+			in.Dir = filepath.Join(cwd, in.Dir)
+		}
+		in.Dir = filepath.Clean(in.Dir)
+	}
+	if initer == nil {
+		return fail(stderr, errors.New("zen init is not available in this build of zen"))
+	}
+	missing := modes == 0 && in.Template == ""
+	if missing {
+		in.List = true // no template: show the choices
+	}
+	if err := initer(in, stdout, stderr); err != nil {
+		return fail(stderr, err)
+	}
+	if missing {
+		fmt.Fprintln(stderr, "zen: choose a template, for example: zen init site --techdocs")
+		return 2
 	}
 	return 0
 }
