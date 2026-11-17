@@ -191,7 +191,7 @@ func Run(opts Options) error {
 	win := a.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:   mainWindowName,
 		Title:  Name,
-		Width:  1100,
+		Width:  1100, // the size it returns to when un-maximised
 		Height: 720,
 		URL:    "/",
 		// Element full screen, for the slides layout's full page (F).
@@ -207,6 +207,10 @@ func Run(opts Options) error {
 	a.Event.On(eventCloseCancel, replyHandler(windows, replyCancel))
 
 	a.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
+		// Fill the screen's usable area (not macOS full-screen mode). Done
+		// here because macOS ignores maximising a window that is not shown
+		// yet (StartState: WindowStateMaximised had no effect).
+		win.Maximise()
 		go func() {
 			z.state.promptPending() // plugins of the folder given on the command line
 			if err := z.openStartupEditor(opts.Mode); err != nil {
