@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- zen collects nothing and tracks nobody. The "required reason" API
+     categories below are the ones the binary imports (checked by
+     TestPrivacyManifest against `nm -u`):
+       FileTimestamp  C617.1  timestamps of files in the app container / user documents
+                      3B52.1  timestamps of files the user gave the app access to
+       SystemBootTime 35F9.1  measuring elapsed time inside the app (Go runtime clock)
+       UserDefaults   CA92.1  the app's own settings (windowing toolkit)
+     Disk space is not used, so it is not declared. -->
+<plist version="1.0">
+	<dict>
+		<key>NSPrivacyTracking</key>
+		<false/>
+		<key>NSPrivacyTrackingDomains</key>
+		<array/>
+		<key>NSPrivacyCollectedDataTypes</key>
+		<array/>
+		<key>NSPrivacyAccessedAPITypes</key>
+		<array>
+			<dict>
+				<key>NSPrivacyAccessedAPIType</key>
+				<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+				<key>NSPrivacyAccessedAPITypeReasons</key>
+				<array>
+					<string>C617.1</string>
+					<string>3B52.1</string>
+				</array>
+			</dict>
+			<dict>
+				<key>NSPrivacyAccessedAPIType</key>
+				<string>NSPrivacyAccessedAPICategorySystemBootTime</string>
+				<key>NSPrivacyAccessedAPITypeReasons</key>
+				<array>
+					<string>35F9.1</string>
+				</array>
+			</dict>
+			<dict>
+				<key>NSPrivacyAccessedAPIType</key>
+				<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+				<key>NSPrivacyAccessedAPITypeReasons</key>
+				<array>
+					<string>CA92.1</string>
+				</array>
+			</dict>
+		</array>
+	</dict>
+</plist>

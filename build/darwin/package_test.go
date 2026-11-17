@@ -79,8 +79,8 @@ func TestBundleLayout(t *testing.T) {
 	v := readVersion(t)
 	short := regexp.MustCompile(`^\d+\.\d+\.\d+`).FindString(v)
 	want := map[string]string{
-		"CFBundleName":               "Zen",
-		"CFBundleDisplayName":        "Zen",
+		"CFBundleName":               "zen.md",
+		"CFBundleDisplayName":        "zen.md",
 		"CFBundleExecutable":         "zen",
 		"CFBundleIdentifier":         bundleID,
 		"CFBundlePackageType":        "APPL",

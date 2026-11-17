@@ -199,8 +199,9 @@ func TestIconAssets(t *testing.T) {
 			t.Errorf("Taskfile.yml does not mention %s", s)
 		}
 	}
-	if !regexp.MustCompile(`(?s)actool.{0,2000}CHANNEL|CHANNEL.{0,2000}actool`).MatchString(tf) {
-		t.Error("the actool step must depend on the channel (fail for appstore, warn for devid)")
+	if i, j := strings.Index(tf, "  icon:assets:"), strings.Index(tf, "  fetch:helpers:"); i < 0 || j < i ||
+		!strings.Contains(tf[i:j], "actool") || !strings.Contains(tf[i:j], "CHANNEL") {
+		t.Error("the actool step (icon:assets) must depend on the channel (fail for appstore, warn for devid)")
 	}
 
 	// The bundle: icns always; Assets.car compiled from appicon.icon.
@@ -210,13 +211,11 @@ func TestIconAssets(t *testing.T) {
 	}
 	car := filepath.Join(bundle, "Contents/Resources/Assets.car")
 	if _, err := os.Stat(car); err != nil {
-		if _, lookErr := exec.LookPath("actool"); lookErr != nil {
-			if out, e := exec.Command("xcrun", "--find", "actool").CombinedOutput(); e != nil {
-				if channel() == "appstore" {
-					t.Errorf("no Assets.car and no actool (full Xcode needed): the App Store build must fail: %s", out)
-				}
-				t.Skip("no Assets.car: actool is not installed (full Xcode); a Developer ID build only warns")
+		if out, e := exec.Command("xcrun", "--find", "actool").CombinedOutput(); e != nil {
+			if channel() == "appstore" {
+				t.Errorf("no Assets.car and no actool (full Xcode needed): the App Store build must fail: %s", out)
 			}
+			t.Skip("no Assets.car: actool is not installed (full Xcode); a Developer ID build only warns")
 		}
 		t.Fatalf("Assets.car missing from the bundle although actool is available")
 	}
@@ -272,7 +271,7 @@ func TestInfoPlist(t *testing.T) {
 	if configValue(t, "bundleId") != bundleID {
 		t.Errorf("bundle id %q changed; the owner has not decided yet", configValue(t, "bundleId"))
 	}
-	if c := configValue(t, "copyright"); c != "© 2026 zen authors" {
+	if c := configValue(t, "copyright"); c != "© 2026 zen.md authors" {
 		t.Errorf("copyright placeholder = %q", c)
 	}
 	if configValue(t, "category") != "public.app-category.productivity" {
@@ -662,7 +661,7 @@ func TestTaskfileChannels(t *testing.T) {
 	for _, s := range []string{
 		"CHANNEL", "appstore", "package:appstore", "sign:appstore", "art:", "dmgart",
 		"embedded.provisionprofile", "productbuild", "INSTALLER_IDENTITY", "PROFILE", "TEAM_ID",
-		"check-channel.sh", "sign.sh", "./plist", "PrivacyInfo.xcprivacy",
+		"check-channel.sh", "sign.sh", "darwin/plist", "PrivacyInfo.xcprivacy",
 		// notarisation of the DMG
 		"notarytool", "stapler", "spctl -a -t open --context context:primary-signature",
 	} {

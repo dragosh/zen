@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | specified |
+| Status | in progress: build, signing, art, plist, privacy, universal, Go gate and folder-access code done; needs lead wiring (see report) and real identities / full Xcode to verify the signed App Store build |
 | Target version | 0.2.0 (Developer ID build) · 0.3.0 (first App Store submission) |
 | Branch | `feature/packaging-appstore` |
 | Wave | 12 |

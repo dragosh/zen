@@ -43,7 +43,7 @@
 		<key>CFBundleDevelopmentRegion</key>
 		<string>en</string>
 		<key>CFBundleDisplayName</key>
-		<string>Zen</string>
+		<string>{{PRODUCT_NAME}}</string>
 		<key>CFBundleExecutable</key>
 		<string>zen</string>
 		<key>CFBundleGetInfoString</key>
@@ -53,20 +53,24 @@
 		<key>CFBundleIconName</key>
 		<string>appicon</string>
 		<key>CFBundleIdentifier</key>
-		<string>io.github.dragosh.zen</string>
+		<string>{{BUNDLE_ID}}</string>
 		<key>CFBundleName</key>
-		<string>Zen</string>
+		<string>{{PRODUCT_NAME}}</string>
 		<key>CFBundlePackageType</key>
 		<string>APPL</string>
 		<key>CFBundleShortVersionString</key>
 		<string>{{SHORT_VERSION}}</string>
 		<key>CFBundleVersion</key>
 		<string>{{BUILD_NUMBER}}</string>
+		<key>ITSAppUsesNonExemptEncryption</key>
+		<false/>
+		<key>LSApplicationCategoryType</key>
+		<string>{{CATEGORY}}</string>
 		<key>LSMinimumSystemVersion</key>
 		<string>13.0</string>
 		<key>NSHighResolutionCapable</key>
 		<true/>
 		<key>NSHumanReadableCopyright</key>
-		<string>(c) 2026, zen authors</string>
+		<string>{{COPYRIGHT}}</string>
 	</dict>
 </plist>

@@ -13,8 +13,16 @@ vars:
   #   task package SIGN_IDENTITY="Developer ID Application: Name (TEAMID)"
   # which also enables the hardened runtime and a secure timestamp.
   SIGN_IDENTITY: '{{.SIGN_IDENTITY | default "-"}}'
-  ENTITLEMENTS: build/darwin/entitlements.plist
-  HELPER_ENTITLEMENTS: build/darwin/helper.entitlements.plist
+  # Release channel (specs/packaging/appstore/spec.md):
+  #   devid    (default) Developer ID: full feature set, not sandboxed, .dmg, notarised.
+  #   appstore Mac App Store: sandboxed, built with -tags appstore, .pkg for Transporter.
+  # Inputs come from the environment, never from the repository:
+  #   SIGN_IDENTITY, TEAM_ID, PROFILE (provisioning profile), INSTALLER_IDENTITY,
+  #   KEYCHAIN_PROFILE (notarytool); sign.sh embeds PROFILE as Contents/embedded.provisionprofile; ADHOC=1 makes a local, unsignable appstore dry run.
+  CHANNEL: '{{.CHANNEL | default "devid"}}'
+  CHANNEL_TAGS: '{{if eq .CHANNEL "appstore"}}appstore{{end}}'
+  # The product name shown to users comes from build/config.yml (info.productName).
+  # The bundle (bin/Zen.app) and the DMG name keep BUNDLE_NAME.
 
 tasks:
   build:
@@ -28,7 +36,7 @@ tasks:
           ARCH: '{{.ARCH}}'
           DEV: '{{.DEV}}'
           OUTPUT: '{{.OUTPUT}}'
-          EXTRA_TAGS: '{{.EXTRA_TAGS}}'
+          EXTRA_TAGS: '{{if .CHANNEL_TAGS}}{{if .EXTRA_TAGS}}{{.EXTRA_TAGS}},{{end}}{{.CHANNEL_TAGS}}{{else}}{{.EXTRA_TAGS}}{{end}}'
           OBFUSCATED: '{{.OBFUSCATED}}'
           GARBLE_ARGS: '{{.GARBLE_ARGS}}'
     vars:
@@ -126,26 +134,63 @@ tasks:
       - wails3 tool lipo -output "{{.BIN_DIR}}/{{.APP_NAME}}" -input "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" -input "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
       - rm -f "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
 
-  package:
-    summary: Packages the application into a `.app` bundle
-    deps:
-      - task: build
+  check:channel:
+    internal: true
+    summary: Fails early, with a clear message, when the inputs of CHANNEL are missing
     cmds:
+      - CHANNEL="{{.CHANNEL}}" ADHOC="{{.ADHOC}}" sh build/darwin/check-channel.sh "{{.STEP | default "sign"}}"
+
+  package:
+    summary: Packages the application into a `.app` bundle (CHANNEL=devid|appstore, host architecture)
+    cmds:
+      - task: check:channel
+      - task: build
       - task: create:app:bundle
 
   package:universal:
-    summary: Packages darwin universal binary (arm64 + amd64)
-    deps:
-      - task: build:universal
+    summary: Packages darwin universal binary (arm64 + amd64) with universal helpers
     cmds:
+      - task: check:channel
+      - task: build:universal
       - task: create:app:bundle
+        vars:
+          HELPER_ARCH: universal
 
   package:dmg:
-    summary: Packages the application into a styled `.dmg`
-    deps:
-      - task: package
+    summary: Packages the Developer ID build into a styled `.dmg`
+    preconditions:
+      - sh: test "{{.CHANNEL}}" = devid
+        msg: "A .dmg is the Developer ID package; the App Store build is a .pkg (task package:appstore)."
     cmds:
+      - task: package
       - task: create:dmg
+
+  package:appstore:
+    summary: Builds the sandboxed Mac App Store bundle and bin/Zen.pkg for Transporter (needs SIGN_IDENTITY, TEAM_ID, PROFILE, INSTALLER_IDENTITY, or ADHOC=1 for a dry run)
+    cmds:
+      # A child task process: CHANNEL on its command line reaches every task.
+      - '{{.TASK_EXE}} darwin:package:universal CHANNEL=appstore ADHOC="{{.ADHOC}}"'
+      - CHANNEL=appstore ADHOC="{{.ADHOC}}" sh build/darwin/check-channel.sh pkg
+      - task: appstore:pkg
+
+  appstore:pkg:
+    internal: true
+    summary: productbuild makes bin/Zen.pkg from the signed bundle (skipped for ADHOC=1)
+    cmds:
+      - |
+        if [ "{{.ADHOC}}" = "1" ]; then
+          echo "ADHOC=1: not building {{.BIN_DIR}}/{{.BUNDLE_NAME}}.pkg (an ad-hoc signed bundle cannot be uploaded)"
+        else
+          rm -f "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.pkg"
+          productbuild --component "{{.BUNDLE}}" /Applications --sign "{{.INSTALLER_IDENTITY}}" "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.pkg"
+          echo "Validate before upload: xcrun altool --validate-app -f {{.BIN_DIR}}/{{.BUNDLE_NAME}}.pkg -t macos (or open it in Transporter)."
+        fi
+
+  art:
+    summary: Regenerates the DMG art (dmg-background*.png, dmg-file-icon.icns) from build/appicon.svg and appicon.png
+    platforms: [darwin]
+    cmds:
+      - go run ./build/darwin/dmgart
 
   create:dmg:
     summary: Creates a configurable `.dmg` from the `.app` bundle
@@ -176,7 +221,7 @@ tasks:
         sh: sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*/\1/' "{{.ROOT_DIR}}/VERSION"
       BUILD_NUMBER:
         sh: git -C "{{.ROOT_DIR}}" rev-list --count HEAD 2>/dev/null || echo 1
-      HELPER_ARCH: '{{.ARCH | default ARCH}}'
+      HELPER_ARCH: '{{.HELPER_ARCH | default (.ARCH | default ARCH)}}'
     cmds:
       # A reused bundle can acquire Finder metadata in synced folders. Build a
       # fresh bundle so codesign never has to replace a contaminated signature.
@@ -190,14 +235,41 @@ tasks:
           ARCH: '{{.HELPER_ARCH}}'
       - go run ./build/darwin/resources -manifest resources.yml -arch "{{.HELPER_ARCH}}" -dest "{{.BUNDLE}}/Contents/Helpers" -licenses "{{.BUNDLE}}/Contents/Resources/licenses"
       - cp build/darwin/icons.icns "{{.BUNDLE}}/Contents/Resources"
-      - |
-        if [ -f build/darwin/Assets.car ]; then
-          cp build/darwin/Assets.car "{{.BUNDLE}}/Contents/Resources"
-        fi
+      - cp build/darwin/PrivacyInfo.xcprivacy "{{.BUNDLE}}/Contents/Resources/PrivacyInfo.xcprivacy"
+      - task: icon:assets
       - cp "{{.BIN_DIR}}/{{.APP_NAME}}" "{{.BUNDLE}}/Contents/MacOS/{{.APP_NAME}}"
-      - sed -e 's/{{"{{"}}SHORT_VERSION{{"}}"}}/{{.SHORT_VERSION}}/g' -e 's/{{"{{"}}BUILD_NUMBER{{"}}"}}/{{.BUILD_NUMBER}}/g' build/darwin/Info.plist > "{{.BUNDLE}}/Contents/Info.plist"
+      # Info.plist: version, build number, name, bundle id, copyright and category
+      # come from VERSION, git and build/config.yml.
+      - go run ./build/darwin/plist -config build/config.yml -template build/darwin/Info.plist -version "{{.SHORT_VERSION}}" -build "{{.BUILD_NUMBER}}" -out "{{.BUNDLE}}/Contents/Info.plist"
       - plutil -lint "{{.BUNDLE}}/Contents/Info.plist"
       - task: '{{if eq OS "darwin"}}codesign{{else}}codesign:skip{{end}}'
+
+  icon:assets:
+    summary: Puts the asset catalog (Assets.car with `appicon`, compiled from build/appicon.icon by actool) into the bundle
+    desc: |
+      The catalog needs `actool` (full Xcode 26 or later; the Command Line Tools do not have it).
+      Without it: CHANNEL=appstore fails (the store needs the catalog); CHANNEL=devid warns and the
+      bundle keeps icons.icns only (macOS 13-14 look).
+    internal: true
+    cmds:
+      - |
+        res="{{.BUNDLE}}/Contents/Resources"
+        if [ -f build/darwin/Assets.car ]; then
+          cp build/darwin/Assets.car "$res"
+        elif xcrun --find actool >/dev/null 2>&1; then
+          out="$(mktemp -d)"
+          xcrun actool build/appicon.icon --compile "$out" --output-format human-readable-text \
+            --output-partial-info-plist /dev/null --app-icon appicon --include-all-app-icons \
+            --enable-on-demand-resources NO --development-region en --target-device mac \
+            --minimum-deployment-target 13.0 --platform macosx
+          cp "$out/Assets.car" "$res/Assets.car"
+          rm -rf "$out"
+        elif [ "{{.CHANNEL}}" = "appstore" ]; then
+          echo "zen: CHANNEL=appstore needs Assets.car, and actool is not available (install full Xcode)." >&2
+          exit 1
+        else
+          echo "zen: warning: actool is not available (full Xcode); the bundle has icons.icns but no Assets.car." >&2
+        fi
 
   fetch:helpers:
     summary: Downloads the helpers in resources.yml for ARCH (default host) into build/darwin/helpers/<arch>/, checking tarball and binary sha256; skipped when the verified binary is already there
@@ -207,20 +279,10 @@ tasks:
       - go run ./build/darwin/resources -manifest resources.yml -arch "{{.HELPER_ARCH}}" -fetch
 
   codesign:
-    summary: Signs Zen.app with SIGN_IDENTITY (default ad-hoc) and the entitlements in build/darwin/entitlements.plist (none in the alpha; macOS only)
+    summary: Signs Zen.app for CHANNEL with SIGN_IDENTITY (default ad-hoc); see build/darwin/sign.sh (macOS only)
     internal: true
-    vars:
-      RUNTIME: '{{if ne .SIGN_IDENTITY "-"}}--options runtime --timestamp{{end}}'
     cmds:
-      - xattr -cr "{{.BUNDLE}}"
-      # Helpers first (inner to outer).
-      - |
-        for h in "{{.BUNDLE}}"/Contents/Helpers/*; do
-          [ -f "$h" ] || continue
-          codesign --force --sign "{{.SIGN_IDENTITY}}" {{.RUNTIME}} --entitlements "{{.HELPER_ENTITLEMENTS}}" "$h"
-        done
-      - codesign --force --sign "{{.SIGN_IDENTITY}}" {{.RUNTIME}} --entitlements "{{.ENTITLEMENTS}}" "{{.BUNDLE}}"
-      - codesign --verify --deep --strict "{{.BUNDLE}}"
+      - CHANNEL="{{.CHANNEL}}" SIGN_IDENTITY="{{.SIGN_IDENTITY}}" TEAM_ID="{{.TEAM_ID}}" PROFILE="{{.PROFILE}}" ADHOC="{{.ADHOC}}" sh build/darwin/sign.sh "{{.BUNDLE}}"
 
   codesign:skip:
     summary: Skips codesigning when cross-compiling
@@ -229,20 +291,20 @@ tasks:
       - 'echo "Skipping codesign (not available on {{OS}}). Sign the .app on macOS before distribution."'
 
   package:test:
-    summary: Packages Zen.app and runs the bundle tests against it
-    deps:
-      - task: package
+    summary: Packages Zen.app for CHANNEL and runs the bundle tests against it (ZEN_UNIVERSAL=1 with ARCH=universal)
     cmds:
-      - ZEN_REQUIRE_BUNDLE=1 go test -count=1 ./build/darwin
+      - task: '{{if eq .CHANNEL "appstore"}}package:universal{{else if eq .ARCH "universal"}}package:universal{{else}}package{{end}}'
+      - ZEN_CHANNEL="{{.CHANNEL}}" ZEN_ADHOC="{{.ADHOC}}" ZEN_UNIVERSAL="{{if or (eq .CHANNEL "appstore") (eq .ARCH "universal")}}1{{end}}" ZEN_REQUIRE_BUNDLE=1 go test -count=1 ./build/darwin
 
   icon:
-    summary: Regenerates build/appicon.png from build/appicon.svg (macOS QuickLook); `task package` then rebuilds icons.icns
+    summary: Regenerates build/appicon.png from build/appicon.svg (macOS QuickLook) and the DMG art; `task package` then rebuilds icons.icns
     platforms: [darwin]
     cmds:
       - rm -rf .task/appicon && mkdir -p .task/appicon
       - qlmanage -t -s 1024 -o .task/appicon build/appicon.svg >/dev/null
       - go run ./build/darwin/iconmask .task/appicon/appicon.svg.png build/appicon.png
       - rm -rf .task/appicon
+      - task: art
 
   install:cli:
     summary: Links INSTALL_DIR/zen (default /usr/local/bin) to the zen binary inside the installed Zen.app (APP_PATH, default /Applications/Zen.app)
@@ -284,12 +346,31 @@ tasks:
     cmds:
       - task: codesign
 
-  sign:notarize:
-    summary: Signs and notarizes the application bundle (beta; not used for the alpha)
+  sign:appstore:
+    summary: Re-signs Zen.app for the Mac App Store (sandbox entitlements, "Apple Distribution" identity, embedded profile)
     desc: |
-      Signs the .app bundle and submits it for notarization.
-      Uses signing identity and keychain profile from `wails3 setup`.
-    deps:
-      - task: package
+      task darwin:sign:appstore SIGN_IDENTITY="Apple Distribution: Name (TEAMID)" TEAM_ID=... PROFILE=path/to/zen.provisionprofile
     cmds:
-      - wails3 tool sign --input "{{.BUNDLE}}" --notarize {{.CLI_ARGS}}
+      - '{{.TASK_EXE}} darwin:sign CHANNEL=appstore ADHOC="{{.ADHOC}}"'
+
+  sign:notarize:
+    summary: Signs the Developer ID .dmg, notarises it with notarytool, staples it and checks it with spctl
+    desc: |
+      Needs SIGN_IDENTITY ("Developer ID Application: ...") for the bundle and
+      KEYCHAIN_PROFILE, a notarytool profile made once with
+      `xcrun notarytool store-credentials`. Nothing secret is in the repository.
+    vars:
+      DMG: '{{.BIN_DIR}}/{{.BUNDLE_NAME}}.dmg'
+    preconditions:
+      - sh: test "{{.CHANNEL}}" = devid
+        msg: "Notarisation is for the Developer ID build; the App Store build goes through Transporter."
+      - sh: test "{{.SIGN_IDENTITY}}" != "-"
+        msg: "Set SIGN_IDENTITY to your \"Developer ID Application: ...\" identity."
+      - sh: test -n "{{.KEYCHAIN_PROFILE}}"
+        msg: "Set KEYCHAIN_PROFILE to a notarytool keychain profile (xcrun notarytool store-credentials)."
+    cmds:
+      - task: package:dmg
+      - codesign --force --sign "{{.SIGN_IDENTITY}}" --timestamp "{{.DMG}}"
+      - xcrun notarytool submit "{{.DMG}}" --keychain-profile "{{.KEYCHAIN_PROFILE}}" --wait
+      - xcrun stapler staple "{{.DMG}}"
+      - spctl -a -t open --context context:primary-signature -v "{{.DMG}}"
