@@ -198,3 +198,42 @@ func TestUninstallOnlyOurs(t *testing.T) {
 		t.Errorf("uninstall of nothing: %d", code)
 	}
 }
+
+// Switching from a development link (bin/zenmd of a checkout, or the bin/zen
+// made before the rename) to the installed app needs no manual rm.
+func TestDevLinksAreOurs(t *testing.T) {
+	root := t.TempDir()
+	app := fakeApp(t, root)
+	checkout := filepath.Join(root, "src", "zen")
+	for _, p := range []string{filepath.Join(checkout, "bin", "zenmd"), filepath.Join(checkout, "bin", "zen")} {
+		if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(p, []byte("#!/bin/sh\n"), 0o755); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := os.MkdirAll(filepath.Join(checkout, "build", "darwin", "installcli"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(root, "local", "bin")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(checkout, "bin", "zenmd"), filepath.Join(dir, "zenmd")); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Symlink(filepath.Join(checkout, "bin", "zen"), filepath.Join(dir, "zen")); err != nil {
+		t.Fatal(err)
+	}
+	code, _, errOut := do(t, "-app", app, "-dir", dir)
+	if code != 0 || strings.Contains(strings.ToLower(errOut), "warning") {
+		t.Fatalf("code %d, stderr %q", code, errOut)
+	}
+	want := filepath.Join(app, "Contents", "MacOS", "zenmd")
+	for _, n := range []string{"zenmd", "zen"} {
+		if got := target(t, filepath.Join(dir, n)); got != want {
+			t.Errorf("%s -> %s, want %s", n, got, want)
+		}
+	}
+}

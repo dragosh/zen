@@ -4,9 +4,9 @@
 //	go run ./build/darwin/installcli -app /Applications/Zen.app -dir /usr/local/bin [-uninstall]
 //	go run ./build/darwin/installcli -exe bin/zenmd -dir ~/.local/bin   # a development build
 //
-// It only replaces or removes links that point into a Zen.app bundle (or, for
-// -exe, at that executable): a different tool called zen is left alone with a
-// warning.
+// It only replaces or removes links that point at zen.md: into a Zen.app
+// bundle, at any zenmd executable (a development build), or at the old bin/zen
+// of a zen checkout. A different tool called zen is left alone with a warning.
 package main
 
 import (
@@ -155,11 +155,22 @@ func (l linker) state(path string) linkState {
 	return foreign
 }
 
-// isZen reports whether p is an executable inside a Zen.app bundle, or the
-// development executable this run links (or its zen sibling).
+// isZen reports whether p is one of zen.md's executables: inside a Zen.app
+// bundle, the development executable this run links (or its zen sibling), any
+// executable named zenmd (a development build of a checkout; switching between
+// it and the app needs no manual rm), or the bin/zen of a zen checkout (the
+// development link made before the rename).
 func (l linker) isZen(p string) bool {
 	if l.dev && (p == l.target || p == filepath.Join(filepath.Dir(l.target), alias)) {
 		return true
+	}
+	if filepath.Base(p) == name {
+		return true
+	}
+	if dir := filepath.Dir(p); filepath.Base(p) == alias && filepath.Base(dir) == "bin" {
+		if _, err := os.Stat(filepath.Join(filepath.Dir(dir), "build", "darwin", "installcli")); err == nil {
+			return true
+		}
 	}
 	parts := strings.Split(p, string(filepath.Separator))
 	for i := 0; i+3 < len(parts); i++ {
