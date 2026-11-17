@@ -1,0 +1,10 @@
+id: wide
+version: 0.1.0
+description: Full pane width for tables, diagrams and dashboards
+template: layout.html
+css: [wide.css]
+help:
+  summary: Uses the whole width of the pane instead of the reading column. Good for wide tables, diagrams and dashboards. Tables fill the width and diagrams are not cropped.
+  snippets:
+    - title: A wide page
+      markdown: "---\ntitle: Wide table\nlayout: wide\n---\n# Wide table\n\n| Name | Role | Team | Notes |\n|---|---|---|---|\n| Ada | Lead | Core | Has the whole pane to spread out in |\n"

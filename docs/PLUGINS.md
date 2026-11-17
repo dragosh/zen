@@ -1,5 +1,9 @@
 # zen — plugin system
 
+A plugin is a *part* of a page. The look of the *whole* page is a **layout**, a
+separate concept with its own folder and settings: see [LAYOUTS.md](LAYOUTS.md).
+Plugins can no longer declare layouts.
+
 Plugin API version: **1** (`apiVersion: 1`). Implemented by
 `specs/core/plugins`; built-ins live in `internal/plugins/<id>`.
 
@@ -10,7 +14,7 @@ A plugin takes part in the Go render pipeline (see PLAN.md). It can:
 | Hook | Go interface | Use |
 |---|---|---|
 | source | `SourceHook` | rewrite markdown before parsing (includes, variables) |
-| block | `BlockHook` | render a named fenced or container block (diagram, slides, poll) |
+| block | `BlockHook` | render a named fenced or container block (diagram, poll) |
 | inline | `InlineHook` | render a named inline directive (badge, icon) |
 | html | `HTMLHook` | rewrite the final HTML before sanitising (table of contents) |
 | assets | `AssetProvider` | ship CSS/JS files served at `/_plugins/<id>/…` and loaded only on pages that use the plugin |
@@ -200,7 +204,6 @@ Unknown plugin ids and unknown options produce a warning in the page
 |---|---|---|---|
 | `codeblock` | alpha | none (HTML hook over every `pre > code`) | syntax colouring in Go (chroma, CSS classes only), plus Copy and Wrap buttons in each block |
 | `diagram` | alpha | `mermaid`, `diagram` | emits a placeholder; a vendored mermaid script renders it in the page |
-| `slides` | 0.2 | `slides` | splits a container on `---` into a slide deck |
 | `polls` | 0.2 | `poll` | renders a list as a poll |
 
 ## Writing your own plugin (external plugins)
@@ -257,7 +260,7 @@ has no `allow` rules, so it works with the base HTML policy.
 |---|---|
 | `version` | required, SemVer |
 | `description` | text for Settings and the trust prompt |
-| `blocks`, `inlines`, `layouts` | the names it owns (`[a-z][a-z0-9-]*`); `blocks` gives the `block` hook, `inlines` the `inline` hook |
+| `blocks`, `inlines` | the names it owns (`[a-z][a-z0-9-]*`); `blocks` gives the `block` hook, `inlines` the `inline` hook |
 | `hooks` | more hooks, any of `source`, `html`, `action` (and `block`/`inline` when the names are listed) |
 | `permissions` | `[]` or `["read"]`, nothing else exists |
 | `timeout` | a duration string such as `"500ms"`; default `"200ms"`, at most `"2s"` |
@@ -363,7 +366,7 @@ A plugin can have any mix of three parts:
 | Part | What it is | Use it for |
 |---|---|---|
 | **backend** | any program (script or binary) zen runs when a page renders | turning a block into HTML, calling a tool (`dot`, `bc`, `container`) |
-| **frontend** | JavaScript and CSS loaded on pages that use the plugin | interactive blocks, layouts, anything that reacts to clicks |
+| **frontend** | JavaScript and CSS loaded on pages that use the plugin | interactive blocks, anything that reacts to clicks |
 | **tool** | a backend whose command is an existing program on the Mac | no code at all: the block's text is its input, its output is shown |
 
 #### plugin.yml
@@ -377,7 +380,6 @@ default: true                 # on unless config switches it off (also when omit
 
 blocks: [note, warning]       # ```note fences and :::note containers
 inlines: [badge]              # :badge[text]{attrs}
-layouts: [slides]             # pages with frontmatter `layout: slides`
 
 options:                      # read from config / frontmatter `plugins.note.*`
   icon: { type: bool, default: true, description: Show an icon }
@@ -410,7 +412,7 @@ frontend:
 #### Help
 
 A plugin can describe itself. Settings › Plugins shows the help next to the
-plugin: the `summary`, what the plugin adds (its blocks, inlines, layouts and
+plugin: the `summary`, what the plugin adds (its blocks, inlines and
 options, which zen reads from the manifest), and every snippet with a Copy
 button. Built-in plugins also get a rendered preview of each snippet; external
 plugins show the snippet only. `help` is optional, and the same in `plugin.yml`
@@ -428,7 +430,7 @@ starts with frontmatter (a layout, or options for a page) is a whole page and
 gets no preview. Changing `help` changes the folder, so zen asks again before
 it uses the plugin (see Trust). The service call `Plugins()` returns the help
 as `help: {summary, snippets: [{title, markdown}]}` with `blocks`, `inlines`,
-`layouts` and `options: [{name, type, default, description}]`.
+and `options: [{name, type, default, description}]`.
 
 ### Backend: one program, plain input and output
 
@@ -515,7 +517,7 @@ backend: { command: ["bc", "-l"], hooks: [block], output: text }
 
 ### Frontend: an ES module with a default export
 
-Every block, inline or layout a plugin owns is wrapped by zen:
+Every block or inline a plugin owns is wrapped by zen:
 
 ```html
 <div data-zen-plugin="quiz" data-zen-name="quiz" data-zen-attrs='{"id":"q1"}'> … </div>
@@ -552,7 +554,7 @@ unmounts every plugin and mounts again from the current page (`plugins:changed`)
 
 | `ctx` | |
 |---|---|
-| `ctx.id`, `ctx.kind`, `ctx.name` | plugin id; `"block"`, `"inline"` or `"layout"`; the block name |
+| `ctx.id`, `ctx.kind`, `ctx.name` | plugin id; `"block"` or `"inline"`; the block name |
 | `ctx.attrs` | the `{key=value}` attributes |
 | `ctx.page` | `{ path, title }` |
 | `ctx.storage.get(key)` / `.set(key, value)` | JSON values kept per plugin and per folder, on this Mac (1 MB per plugin) |
@@ -576,12 +578,10 @@ Print: File › Print… (⌘P) prints the open page; zen hides the sidebar, hea
 and panels and uses the full page width. A plugin can add its own rules in an
 `@media print` block of its CSS (for instance one slide per sheet).
 
-### Layouts
+### Layouts are not plugins
 
-A plugin that lists `layouts: [slides]` takes over pages whose frontmatter
-says `layout: slides`. zen renders the page as usual and wraps it in
-`<div data-zen-plugin="…" data-zen-layout="slides">`; the plugin's frontend
-(`ctx.kind === "layout"`) rearranges it, e.g. one slide per `<hr>`.
+A `layouts:` key in `plugin.yml`, or in a Tengo `plugin` map, is an error that
+names the new place, `.zen/layouts/<id>/layout.yml`. See [LAYOUTS.md](LAYOUTS.md).
 
 ### Trust
 

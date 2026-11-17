@@ -27,7 +27,7 @@ type spec struct {
 var hookNames = []string{"block", "inline", "source", "html", "action"}
 
 var knownKeys = map[string]bool{
-	"version": true, "description": true, "default": true, "blocks": true, "inlines": true, "layouts": true,
+	"version": true, "description": true, "default": true, "blocks": true, "inlines": true,
 	"hooks": true, "permissions": true, "timeout": true, "css": true, "js": true, "stylesheets": true, "options": true, "help": true,
 }
 
@@ -35,7 +35,7 @@ var (
 	urlRE   = regexp.MustCompile(`(?i)url\(\s*(?:"([^"]*)"|'([^']*)'|([^)]*))\s*\)`)
 	cssBad  = regexp.MustCompile(`(?i)@import|https?:|javascript:|expression\s*\(|-moz-binding|behavior\s*:`)
 	semver  = plugins.ValidSemVer
-	nameLbl = map[string]string{"blocks": "block", "inlines": "inline", "layouts": "layout"}
+	nameLbl = map[string]string{"blocks": "block", "inlines": "inline"}
 )
 
 func stringList(m map[string]any, key string) ([]string, bool, error) {
@@ -92,6 +92,9 @@ func (p *Plugin) parse(id string, res *msg) error {
 	if m == nil {
 		return fmt.Errorf("plugin must be a map (plugin := {version: …}), not a %s", res.Type)
 	}
+	if _, ok := m["layouts"]; ok {
+		return fmt.Errorf("layouts moved: a plugin cannot declare layouts; put the layout in .zen/layouts/<id>/layout.yml (see docs/LAYOUTS.md)")
+	}
 	for k := range m {
 		if !knownKeys[k] {
 			return fmt.Errorf("unknown key %q in plugin", k)
@@ -122,7 +125,7 @@ func (p *Plugin) parse(id string, res *msg) error {
 	for _, l := range []struct {
 		key string
 		dst *[]string
-	}{{"blocks", &man.Blocks}, {"inlines", &man.Inlines}, {"layouts", &man.Layouts}} {
+	}{{"blocks", &man.Blocks}, {"inlines", &man.Inlines}} {
 		names, _, err := stringList(m, l.key)
 		if err != nil {
 			return err
@@ -257,7 +260,7 @@ func (p *Plugin) parse(id string, res *msg) error {
 			return err
 		}
 	}
-	if len(sp.hooks) == 0 && len(man.Layouts) == 0 && len(sp.js) == 0 {
+	if len(sp.hooks) == 0 && len(sp.js) == 0 {
 		return fmt.Errorf("the plugin declares nothing: list blocks, inlines or hooks")
 	}
 	p.man, p.spec = man, sp

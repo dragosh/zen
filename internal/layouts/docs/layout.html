@@ -1,0 +1,22 @@
+<div class="zl-docs">
+  <article class="zl-docs-body">
+    <div class="zl-docs-text">{{.Content}}</div>
+    <footer class="zl-docs-foot">
+      {{if .Option "edit"}}<p class="zl-docs-edit"><a data-zen-action="edit">Edit this page</a></p>{{end}}
+      {{if or .Prev .Next}}
+      <nav class="zl-docs-pager" aria-label="Previous and next pages">
+        {{with .Prev}}<a data-zen-link="internal" data-path="{{.Path}}" class="zl-prev"><small>Previous</small><span>{{.Title}}</span></a>{{end}}
+        {{with .Next}}<a data-zen-link="internal" data-path="{{.Path}}" class="zl-next"><small>Next</small><span>{{.Title}}</span></a>{{end}}
+      </nav>
+      {{end}}
+    </footer>
+  </article>
+  {{if .Option "toc"}}{{if .TOC}}
+  <aside class="zl-docs-toc" aria-label="On this page">
+    <p class="zl-docs-toc-title">On this page</p>
+    <ul>
+      {{range .TOC}}{{if le .Level 3}}<li class="zl-l{{.Level}}"><a href="#{{.ID}}">{{.Text}}</a></li>{{end}}{{end}}
+    </ul>
+  </aside>
+  {{end}}{{end}}
+</div>

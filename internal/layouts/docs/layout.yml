@@ -1,0 +1,17 @@
+id: docs
+version: 0.1.0
+description: Documentation page with a contents rail and previous and next links
+template: layout.html
+css: [docs.css]
+options:
+  toc:  { type: bool, default: true, description: Show the contents rail on the right }
+  edit: { type: bool, default: true, description: Show the Edit this page link }
+help:
+  summary: "A documentation page: the text in a reading column, an On this page rail (the second and third level headings) on the right, and Previous and Next links at the end that follow the sidebar order, with an Edit this page link. Options: toc and edit, both true by default."
+  snippets:
+    - title: A documentation page
+      markdown: "---\ntitle: Install\nlayout: docs\n---\n# Install\n\nIntro.\n\n## Download\n\nText.\n\n## Check\n\nMore text.\n"
+    - title: Every page of a folder (in .zen.yml)
+      markdown: "layout: docs\n"
+    - title: Without the rail
+      markdown: "---\nlayout: { name: docs, toc: false }\n---\n# A short page\n"

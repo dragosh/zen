@@ -2,6 +2,9 @@
 title: Zen in five slides
 layout: slides
 layoutOptions: { ratio: "16:9", transition: fade }
+nav:
+  parent: layouts/index.md
+  order: 6
 ---
 # Zen in five slides
 

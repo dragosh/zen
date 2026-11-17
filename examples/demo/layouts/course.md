@@ -2,6 +2,9 @@
 title: Getting started with zen
 layout: course
 layoutOptions: { id: getting-started }
+nav:
+  parent: layouts/index.md
+  order: 7
 ---
 # Getting started with zen
 
@@ -35,6 +38,6 @@ Press the Edit button to open the editor in its own window. Saved changes show u
 
 ## Add a plugin
 
-Plugins add blocks and layouts, such as diagrams. This page itself uses the course layout.
+Plugins add blocks, such as diagrams, and layouts change how a whole page looks. This page itself uses the course layout.
 
 You finished the course. Press Finish to mark it done, or Reset to start over.

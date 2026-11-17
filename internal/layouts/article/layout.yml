@@ -1,0 +1,8 @@
+id: article
+version: 0.1.0
+description: The reading view (the default)
+help:
+  summary: The default reading column, a narrow serif page. Every page without a layout of its own uses it, and it adds nothing around the page.
+  snippets:
+    - title: A plain page
+      markdown: "---\ntitle: My page\n---\n# My page\n\nText.\n"

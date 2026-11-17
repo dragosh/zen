@@ -1,0 +1,10 @@
+/* wide layout: no reading column. */
+[data-zen-layout="wide"] .zl-wide { padding: var(--space-6) var(--space-6) 96px; box-sizing: border-box; }
+[data-zen-layout="wide"] .zl-wide > :first-child { margin-top: 0; }
+[data-zen-layout="wide"] .zl-wide table { display: table; width: 100%; }
+[data-zen-layout="wide"] .zl-wide pre { max-width: none; }
+[data-zen-layout="wide"] .zl-wide img, [data-zen-layout="wide"] .zl-wide svg { max-width: 100%; height: auto; }
+@media (max-width: 600px) {
+  [data-zen-layout="wide"] .zl-wide { padding: var(--space-4) var(--space-4) 64px; }
+  [data-zen-layout="wide"] .zl-wide table { display: block; overflow-x: auto; }
+}

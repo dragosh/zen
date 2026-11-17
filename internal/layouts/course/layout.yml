@@ -1,0 +1,10 @@
+id: course
+version: 0.1.0
+description: Show a page as a step-by-step course
+css: [course.css]
+js: [course.js]
+help:
+  summary: "Shows a page as a step-by-step course. Each second-level heading is a step, and one step shows at a time. A check block holds a checklist that unlocks the next step. Progress is saved on this Mac. Option: id (the name progress is saved under)."
+  snippets:
+    - title: A course
+      markdown: "---\ntitle: Getting started\nlayout: course\nlayoutOptions: { id: getting-started }\n---\n# Getting started\n\nWork through the steps in order.\n\n## Open a folder\n\nChoose File, then Open Folder.\n\n:::check\n- [ ] I opened a folder\n- [ ] I can see its pages\n:::\n\n## Read a page\n\nClick a page in the sidebar.\n"

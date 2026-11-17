@@ -142,7 +142,7 @@ Leave out `{limit=5}` to list every page.
 | `out` | what the script assigns: a string or a `zen.html` result; for `action` any value, sent back as JSON. Without `out`, a block is empty and `source` and `html` leave the text alone |
 
 The `plugin` map takes these keys: `version` (required, SemVer), `description`,
-`blocks`, `inlines`, `layouts`, `hooks` (extra hooks: `source`, `html`,
+`blocks`, `inlines`, `hooks` (extra hooks: `source`, `html`,
 `action`), `permissions` (only `"read"`), `timeout` (a duration such as
 `"500ms"`, at most `"2s"`), `css`, `options` (as in `plugin.yml`), `default`
 and, in the folder form, `js` and `stylesheets` for the page. An unknown key is
@@ -192,7 +192,7 @@ A plugin can have any mix of these:
 |---|---|---|
 | **backend** | any program (a script or a binary) zen runs when a page renders | turning a block into HTML |
 | **tool** | a backend whose command is a program already on your Mac | no code at all: the block's text goes in, the output is shown |
-| **frontend** | JavaScript and CSS loaded on pages that use the plugin | blocks that react to clicks, layouts |
+| **frontend** | JavaScript and CSS loaded on pages that use the plugin | blocks that react to clicks |
 
 ## A backend in a shell script: `note`
 
@@ -413,7 +413,6 @@ default: true                 # on unless config switches it off
 
 blocks: [note, warning]       # ```note fences and :::note containers
 inlines: [badge]              # :badge[text]{attrs}
-layouts: [slides]             # pages with frontmatter `layout: slides`
 
 options:                      # read from config / frontmatter `plugins.note.*`
   icon: { type: bool, default: true, description: Show an icon }
@@ -487,7 +486,7 @@ styles and frames never reach the page.
 
 ## What a script receives
 
-zen wraps every block, inline or layout a plugin owns:
+zen wraps every block and inline a plugin owns:
 
 ```html
 <div data-zen-plugin="quiz" data-zen-name="quiz" data-zen-attrs='{"id":"q1"}'> … </div>
@@ -504,7 +503,7 @@ rendered again, so use it to stop timers and remove listeners.
 
 | `ctx` | |
 |---|---|
-| `ctx.id`, `ctx.kind`, `ctx.name` | plugin id; `"block"`, `"inline"` or `"layout"`; the block name |
+| `ctx.id`, `ctx.kind`, `ctx.name` | plugin id; `"block"` or `"inline"`; the block name |
 | `ctx.attrs` | the `{key=value}` attributes |
 | `ctx.page` | `{ path, title }` |
 | `ctx.storage.get(key)` / `.set(key, value)` | JSON values kept for each plugin and each folder, on this Mac (1 MB for a plugin) |
@@ -520,21 +519,13 @@ a plugin switched on for one page works there without extra code.
 An error in `mount` never breaks the page: it is shown in a box inside that
 one block.
 
-## Layouts
+## Layouts are not plugins
 
-A plugin that lists `layouts: [slides]` takes over pages whose frontmatter says:
-
-```yaml
----
-layout: slides
----
-```
-
-zen renders the page as usual and wraps all of it in
-`<div data-zen-plugin="…" data-zen-layout="slides">`. The reading column is
-dropped, so the plugin has the whole pane. Its script is called with
-`ctx.kind === "layout"` and rearranges the page, for example one slide for
-each `<hr>`.
+A plugin is a part of a page. The look of the whole page is a
+[layout](../layouts/index.md), which lives in its own folder,
+`.zen/layouts/`. A `plugin.yml` or a Tengo `plugin` map that lists `layouts` is
+refused with a message that points there. To make one, read
+[Writing your own layout](../layouts/writing-your-own-layout.md).
 
 ## Trust
 

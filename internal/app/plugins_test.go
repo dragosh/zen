@@ -218,8 +218,8 @@ func TestTrustPrompt(t *testing.T) {
 	if urlsOf(pg.Assets.JS) != "/_plugins/hello/hello.js" || urlsOf(pg.Assets.CSS) != "/_plugins/hello/hello.css" || !versioned(pg.Assets.JS, 12) {
 		t.Errorf("assets: %+v", pg.Assets)
 	}
-	if pg.Layout != "" {
-		t.Errorf("layout %q", pg.Layout)
+	if pg.Layout != (PageLayout{Name: "article", Source: "builtin"}) {
+		t.Errorf("layout %+v", pg.Layout)
 	}
 	if got := infoOf(t, z3, "hello"); got.Status != "on" || len(got.Runs) != 2 || got.Runs[0] != "./hello.sh" || got.Problem != "" {
 		t.Errorf("info: %+v", got)
@@ -345,15 +345,15 @@ func TestPluginsList(t *testing.T) {
 	var shape []map[string]any
 	json.Unmarshal(raw, &shape)
 	for _, it := range shape {
-		for _, k := range []string{"id", "version", "description", "source", "status", "runs", "problem", "kind", "help", "blocks", "inlines", "layouts", "options"} {
+		for _, k := range []string{"id", "version", "description", "source", "status", "runs", "problem", "kind", "help", "blocks", "inlines", "options"} {
 			if _, ok := it[k]; !ok {
 				t.Fatalf("JSON lacks %q: %s", k, raw)
 			}
 		}
-		if len(it) != 13 {
+		if len(it) != 12 {
 			t.Fatalf("JSON shape: %s", raw)
 		}
-		for _, k := range []string{"blocks", "inlines", "layouts", "options"} {
+		for _, k := range []string{"blocks", "inlines", "options"} {
 			if _, isList := it[k].([]any); !isList {
 				t.Fatalf("%s must be a list, never null: %s", k, raw)
 			}
@@ -598,32 +598,6 @@ func TestPluginInvoke(t *testing.T) {
 	z2, _, _ := openWith(t, dir2, t.TempDir(), false)
 	if _, err := z2.PluginInvoke("hello", "README.md", `1`); err == nil {
 		t.Error("untrusted plugin invoked")
-	}
-}
-
-func TestLayoutInPageJSON(t *testing.T) {
-	files := map[string]string{
-		"README.md":                    "---\nlayout: deck\n---\n# Deck\n",
-		"plain.md":                     "# Plain\n",
-		".zen/plugins/deck/plugin.yml": "id: deck\nversion: 1.0.0\napiVersion: 1\ndefault: true\nlayouts: [deck]\nfrontend: { js: [deck.js] }\n",
-		".zen/plugins/deck/deck.js":    "zen.register('deck', {});\n",
-	}
-	z, _, _ := openWith(t, pluginTree(t, files), t.TempDir(), true)
-	pg, err := z.Page("README.md")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pg.Layout != "deck" || !strings.Contains(pg.HTML, `data-zen-layout="deck"`) || urlsOf(pg.Assets.JS) != "/_plugins/deck/deck.js" {
-		t.Errorf("layout page: %+v", pg)
-	}
-	raw, _ := json.Marshal(pg)
-	if !strings.Contains(string(raw), `"layout":"deck"`) {
-		t.Errorf("JSON: %s", raw)
-	}
-	plain, _ := z.Page("plain.md")
-	raw, _ = json.Marshal(plain)
-	if !strings.Contains(string(raw), `"layout":""`) {
-		t.Errorf("JSON of a plain page: %s", raw)
 	}
 }
 

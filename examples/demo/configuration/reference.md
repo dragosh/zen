@@ -8,6 +8,11 @@ title: All settings
 ```yaml
 version: 1                      # file format version
 
+layout: docs                    # layout of every page that names none
+layouts:                        # layout by path, the first match wins
+  "blog/**": post
+  "talks/*.md": slides
+
 plugins:
   codeblock: true               # or { lineNumbers: true, wrap: true }
   diagram: { theme: neutral }   # neutral | default | dark
@@ -28,6 +33,8 @@ limits:                         # global config.yml only
 | `nav.order` | number | `nav: { order: 2 }` |
 | `nav.parent` | path or slug | `nav: { parent: guides/index.md }` |
 | `nav.hidden` | true / false | `nav: { hidden: true }` |
+| `layout` | layout name, or a mapping with the name and options | `layout: { name: post, reading: false }` |
+| `layoutOptions` | options of the layout | `layoutOptions: { ratio: "4:3" }` |
 | `plugins.<name>` | true / false / options | `plugins: { lint: false }` |
 
 ## Vale

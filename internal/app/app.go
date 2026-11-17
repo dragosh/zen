@@ -12,12 +12,11 @@ import (
 
 	"github.com/dragosh/zen/internal/core/config"
 	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zen/internal/plugins/check"
 	"github.com/dragosh/zen/internal/plugins/codeblock"
-	"github.com/dragosh/zen/internal/plugins/course"
 	"github.com/dragosh/zen/internal/plugins/diagram"
 	"github.com/dragosh/zen/internal/plugins/quiz"
 	"github.com/dragosh/zen/internal/plugins/sandbox"
-	"github.com/dragosh/zen/internal/plugins/slides"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -49,7 +48,7 @@ type Options struct {
 
 // registerPlugins registers the built-in plugins in order: codeblock, diagram.
 func registerPlugins(r *plugins.Registry) error {
-	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New(), slides.New(), course.New(), quiz.New(), sandbox.New()} {
+	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New(), check.New(), quiz.New(), sandbox.New()} {
 		if err := r.Register(p); err != nil {
 			return err
 		}
@@ -100,7 +99,7 @@ func (d *wailsDialogs) Ready() bool { return d.app != nil && d.win != nil }
 // ConfirmTrust is the prompt before plugins of a folder are used.
 func (d *wailsDialogs) ConfirmTrust(message string) bool {
 	answer := make(chan bool, 2)
-	dlg := d.app.Dialog.Question().SetTitle("Allow plugins?").SetMessage(message)
+	dlg := d.app.Dialog.Question().SetTitle("Allow?").SetMessage(message)
 	allow := dlg.AddButton("Allow").OnClick(func() { answer <- true })
 	block := dlg.AddButton("Block").OnClick(func() { answer <- false })
 	dlg.SetDefaultButton(block).SetCancelButton(block).AttachToWindow(d.win)
@@ -226,6 +225,7 @@ func Run(opts Options) error {
 			case <-time.After(time.Second):
 			}
 			z.state.promptPending() // plugins of the folder given on the command line
+			z.state.promptPendingLayouts()
 			if err := z.openStartupEditor(opts.Mode); err != nil {
 				a.Dialog.Warning().SetTitle("Could not edit").SetMessage(err.Error()).Show()
 			}

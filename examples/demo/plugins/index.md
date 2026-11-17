@@ -14,8 +14,7 @@ page can never inject scripts into it.
 | [diagram](diagram.md) | draws mermaid diagrams | yes |
 | [quiz](quiz.md) | questions with saved answers and scores | yes |
 | [sandbox](sandbox.md) | runs a code block in a container | yes, after setup |
-| [slides](../layouts/slides.md) | shows a page as a slide deck | yes |
-| [course](../layouts/course.md) | shows a page as steps with saved progress | yes |
+| `check` | a checklist block, used by the [course layout](../layouts/course.md) | yes |
 | `lint` | Vale flags (a switch, see [linting](../editing/linting.md)) | yes |
 
 Turn one off or set its options in frontmatter, `.zen.yml` or `config.yml`:
@@ -28,6 +27,9 @@ plugins:
 ```
 
 How plugins are written into markdown: [plugin syntax](directives.md).
+
+A plugin is a part of a page. The look of a whole page, such as slides or a
+blog post, is a [layout](../layouts/index.md).
 
 ## Your own plugins
 

@@ -1,0 +1,12 @@
+id: slides
+version: 0.1.0
+description: Show a page as slides
+css: [slides.css]
+js: [slides.js]
+help:
+  summary: "Shows a page as slides. A line with three dashes starts a new slide (without any, each top heading does). A paragraph that starts with Note: is a speaker note. Arrow keys move, O shows all slides, F shows the deck full page. Options: ratio (width:height, default 16:9) and transition (fade)."
+  snippets:
+    - title: A slide deck
+      markdown: "---\ntitle: My talk\nlayout: slides\n---\n# First slide\n\nA short opening.\n\nNote: Welcome everyone.\n\n---\n\n## Second slide\n\n- One point\n- Another point\n"
+    - title: Ratio and transition
+      markdown: "---\ntitle: My talk\nlayout: slides\nlayoutOptions: { ratio: \"4:3\", transition: fade }\n---\n# A slide\n\nratio is width:height (default 16:9); transition may be fade.\n"

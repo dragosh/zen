@@ -137,7 +137,7 @@ func TestKind(t *testing.T) {
 	if got := tinyPlugin(t).Kind(); got != "program" {
 		t.Errorf("backend plugin kind %q", got)
 	}
-	dir := writePlugin(t, t.TempDir(), "pg", "id: pg\nversion: 1.0.0\napiVersion: 1\nlayouts: [pg]\nfrontend: { js: [a.js] }\n", map[string]string{"a.js": "export default {}"})
+	dir := writePlugin(t, t.TempDir(), "pg", "id: pg\nversion: 1.0.0\napiVersion: 1\nblocks: [pg]\nfrontend: { js: [a.js] }\n", map[string]string{"a.js": "export default {}"})
 	p, err := Load(dir)
 	if err != nil {
 		t.Fatal(err)

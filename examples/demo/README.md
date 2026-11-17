@@ -25,5 +25,9 @@ zen
 - [Plugins](plugins/index.md): code colours, diagrams and how plugins are written.
   Make your own with a script or a few lines of JavaScript:
   [Writing your own plugin](plugins/writing-plugins.md).
+- [Layouts](layouts/index.md): the look of a whole page, such as docs, a blog post
+  or slides. Write your own with a little HTML and CSS:
+  [Writing your own layout](layouts/writing-your-own-layout.md).
 - [Settings](configuration/settings.md): the settings page and config files.
 - [Keyboard shortcuts](reference/shortcuts.md) and a [markdown showcase](reference/markdown.md).
+- A small [blog](blog/index.md) that picks its layout by path.

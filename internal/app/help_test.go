@@ -9,16 +9,15 @@ import (
 	"github.com/dragosh/zen/internal/core/config"
 	"github.com/dragosh/zen/internal/core/plugins"
 	"github.com/dragosh/zen/internal/core/render"
+	"github.com/dragosh/zen/internal/plugins/check"
 	"github.com/dragosh/zen/internal/plugins/codeblock"
-	"github.com/dragosh/zen/internal/plugins/course"
 	"github.com/dragosh/zen/internal/plugins/diagram"
 	"github.com/dragosh/zen/internal/plugins/quiz"
 	"github.com/dragosh/zen/internal/plugins/sandbox"
-	"github.com/dragosh/zen/internal/plugins/slides"
 )
 
 func builtins() []plugins.Plugin {
-	return []plugins.Plugin{codeblock.New(), diagram.New(), slides.New(), course.New(), quiz.New(), sandbox.New()}
+	return []plugins.Plugin{codeblock.New(), diagram.New(), check.New(), quiz.New(), sandbox.New()}
 }
 
 // Every built-in plugin documents itself: a summary and snippets that
@@ -92,7 +91,6 @@ func TestPluginsHelpAndAdds(t *testing.T) {
 		}
 		Blocks  []string
 		Inlines []string
-		Layouts []string
 		Options []struct {
 			Name, Type, Description string
 			Default                 any
@@ -113,7 +111,7 @@ func TestPluginsHelpAndAdds(t *testing.T) {
 		d.Options[0].Type != "string" || d.Options[0].Default != "neutral" || d.Options[0].Description == "" {
 		t.Errorf("diagram: %+v", d)
 	}
-	if c := shape[by["course"]]; strings.Join(c.Layouts, ",") != "course" || strings.Join(c.Blocks, ",") != "check" {
+	if c := shape[by["check"]]; strings.Join(c.Blocks, ",") != "check" {
 		t.Errorf("course: %+v", c)
 	}
 	cb := shape[by["codeblock"]]

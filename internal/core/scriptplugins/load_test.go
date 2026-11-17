@@ -23,7 +23,7 @@ func TestInvalidPluginMaps(t *testing.T) {
 		{"permissions not a list", `plugin := {version: "1.0.0", blocks: ["x"], permissions: "read"}`, "permissions"},
 		{"bad block name", `plugin := {version: "1.0.0", blocks: ["Bad Name"]}`, "block name"},
 		{"bad inline name", `plugin := {version: "1.0.0", inlines: ["1x"]}`, "inline name"},
-		{"bad layout name", `plugin := {version: "1.0.0", layouts: ["a_b"]}`, "layout name"},
+		{"layouts are not plugins", `plugin := {version: "1.0.0", blocks: ["x"], layouts: ["deck"]}`, ".zen/layouts/<id>/layout.yml"},
 		{"block twice", `plugin := {version: "1.0.0", blocks: ["x", "x"]}`, "twice"},
 		{"blocks not strings", `plugin := {version: "1.0.0", blocks: [1]}`, "blocks"},
 		{"unknown hook", `plugin := {version: "1.0.0", blocks: ["x"], hooks: ["stream"]}`, "hook"},

@@ -70,7 +70,7 @@ type rawManifest struct {
 	Default     *bool                `yaml:"default"` // on unless "default: false"
 	Blocks      []string             `yaml:"blocks"`
 	Inlines     []string             `yaml:"inlines"`
-	Layouts     []string             `yaml:"layouts"`
+	Layouts     any                  `yaml:"layouts"` // refused: layouts are not plugins (core/layouts)
 	Options     map[string]rawOption `yaml:"options"`
 	Allow       []rawAllow           `yaml:"allow"`
 	Help        any                  `yaml:"help"` // {summary, snippets: [{title, markdown}]}, checked by plugins.ParseHelp
@@ -231,6 +231,9 @@ func Load(dir string) (*Plugin, error) {
 	if !plugins.ValidSemVer(raw.Version) {
 		return nil, fmt.Errorf("version %q is not valid SemVer (such as 1.0.0)", raw.Version)
 	}
+	if raw.Layouts != nil {
+		return nil, errors.New("layouts moved: a plugin cannot declare layouts; put the layout in .zen/layouts/<id>/layout.yml (see docs/LAYOUTS.md)")
+	}
 	p := &Plugin{dir: real, hash: hash, guard: NewGuard(fp, func() (string, error) { return FolderFingerprint(real) })}
 	m := plugins.Manifest{
 		ID: raw.ID, Version: raw.Version, APIVersion: plugins.APIVersion,
@@ -240,7 +243,7 @@ func Load(dir string) (*Plugin, error) {
 		label string
 		names []string
 		dst   *[]string
-	}{{"block", raw.Blocks, &m.Blocks}, {"inline", raw.Inlines, &m.Inlines}, {"layout", raw.Layouts, &m.Layouts}} {
+	}{{"block", raw.Blocks, &m.Blocks}, {"inline", raw.Inlines, &m.Inlines}} {
 		seen := map[string]bool{}
 		for _, n := range list.names {
 			if !plugins.ValidName(n) {
