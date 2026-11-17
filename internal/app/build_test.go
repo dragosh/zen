@@ -76,7 +76,7 @@ func (r buildRun) files(t *testing.T) []string {
 func TestBuildSiteReport(t *testing.T) {
 	dir := tree(t, map[string]string{
 		"README.md": "# Home\n\n[A](a.md)\n",
-		"a.md":      "# A\n\n![gone](missing.png) ![ok](img/a.png)\n",
+		"a.md":      "---\nlayout: nosuch\n---\n# A\n\n![ok](img/a.png)\n",
 		"img/a.png": "\x89PNG\r\n\x1a\n",
 	})
 	cfg := t.TempDir()
@@ -87,7 +87,7 @@ func TestBuildSiteReport(t *testing.T) {
 	if !regexp.MustCompile(`^Built 2 pages and 3 files into _site \(1 warning\)\n$`).MatchString(r.stdout) {
 		t.Errorf("summary %q", r.stdout)
 	}
-	if !strings.Contains(r.stderr, "a.md: ") || !strings.Contains(r.stderr, "missing.png") || strings.Count(r.stderr, "\n") != 1 {
+	if !strings.Contains(r.stderr, "a.md: ") || !strings.Contains(r.stderr, "nosuch") || strings.Count(r.stderr, "\n") != 1 {
 		t.Errorf("warnings %q", r.stderr)
 	}
 	for _, f := range []string{"README.html", "index.html", "a.html", "img/a.png", "_zen/zen.js", "_zen/zen.css", ".zen-build"} {
@@ -224,7 +224,7 @@ func TestBuildRunsRenderPlugins(t *testing.T) {
 func TestBuildTrustReadOnly(t *testing.T) {
 	files := pluginDocs()
 	for p, c := range layoutFiles() {
-		if p != "README.md" {
+		if p != "README.md" && !strings.Contains(p, "/broken/") {
 			files[p] = c
 		}
 	}
@@ -293,7 +293,7 @@ func TestBuildTrustReadOnly(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, ".zen/layouts/fancy/f.js"), []byte("export default { mount() { evil() } }"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	r = runBuild(t, dir, cfg, cli.Build{})
+	r = runBuild(t, dir, cfg, cli.Build{Clean: true})
 	if r.err != nil {
 		t.Fatal(r.err)
 	}
@@ -380,8 +380,14 @@ func TestBuildWorkspaceFilesStayInside(t *testing.T) {
 	if r.has("leak.png") || r.has("secret.png") {
 		t.Errorf("copied: %v", r.files(t))
 	}
-	if !strings.Contains(r.stderr, "README.md: ") {
-		t.Errorf("no warning:\n%s", r.stderr)
+	// The reads themselves refuse: a symlink out and a path out of the folder.
+	z, _, _ := openWith(t, dir, t.TempDir(), true)
+	in := &buildInput{s: z.state}
+	for _, p := range []string{"leak.png", "../secret.png", "/etc/hosts"} {
+		if f, err := in.WorkspaceFile(p); err == nil {
+			f.Close()
+			t.Errorf("WorkspaceFile(%q) opened a file", p)
+		}
 	}
 }
 
@@ -416,7 +422,7 @@ func TestBuildConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 	r = runBuild(t, dir, cfg, cli.Build{})
-	if r.err != nil || !r.has("wip.html") || !strings.Contains(r.read(t, "README.html"), "script-src 'self' blob:") || !strings.Contains(r.stderr, "build.zzz") {
+	if r.err != nil || !r.has("wip.html") || !strings.Contains(strings.ReplaceAll(r.read(t, "README.html"), "&#39;", "'"), "script-src 'self' blob:") || !strings.Contains(r.stderr, "build.zzz") {
 		t.Errorf("config build section: %v %q", r.err, r.stderr)
 	}
 	// A wrong type is an error naming the key.

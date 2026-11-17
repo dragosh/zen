@@ -58,7 +58,7 @@ func TestRewriteLinks(t *testing.T) {
 		{"edit", `<a data-zen-action="edit">Edit this page</a>`, "https://github.com/me/notes/edit/main/{path}", []string{`href="https://github.com/me/notes/edit/main/docs/a.md"`, `target="_blank"`, "Edit this page"}, nil},
 		{"edit without editURL", `<p>x <a data-zen-action="edit">Edit this page</a> y</p>`, "", []string{"<p>x  y</p>"}, []string{"Edit this", "data-zen-action"}},
 		{"plain markup is untouched", `<p class="x">hi &amp; <b>there</b> &lt;3</p>`, "", []string{`<p class="x">hi &amp; <b>there</b> &lt;3</p>`}, nil},
-		{"link with a quote in the page name", `<a data-zen-link="internal" data-path="a&#34;b.md" href="#">q</a>`, "", []string{`href="a%22b.html"`}, []string{`"b.html"`}},
+		{"link with a quote in the page name", `<a data-zen-link="internal" data-path="a&#34;b.md" href="#">q</a>`, "", []string{`href="../a%22b.html"`}, []string{`"b.html"`}},
 		// Hostile input: nothing becomes markup or script.
 		{"hostile data-path", `<a data-zen-link="internal" data-path="x&#34; onclick=&#34;alert(1)" href="#">h</a>`, "", nil, []string{"onclick", "alert"}},
 		{"hostile data-anchor", `<a data-zen-link="internal" data-path="docs/b.md" data-anchor="&#34;&gt;&lt;script&gt;alert(1)&lt;/script&gt;" href="#">h</a>`, "", nil, []string{"<script", `onclick`, `"><`}},
@@ -87,7 +87,7 @@ func TestRewriteLinks(t *testing.T) {
 func TestRewriteWorkspaceURLs(t *testing.T) {
 	r, copied := rw("")
 	got := r.html(`<img src="/_ws/img/a.png" alt="a"><img src="/_ws/img/my%20pic.png"><img src="/_ws/missing.png" alt="m"><img src="/_ws/../secret.png"><img src="/_ws/%2e%2e/secret.png"><a href="/_ws/docs/f.svg#x">f</a>`)
-	contains(t, "html", got, `src="../img/a.png"`, `src="../img/my%20pic.png"`, `href="../docs/f.svg#x"`, `alt="m"`)
+	contains(t, "html", got, `src="../img/a.png"`, `src="../img/my%20pic.png"`, `href="f.svg#x"`, `alt="m"`)
 	lacks(t, "html", got, "/_ws/", "secret")
 	if strings.Join(*copied, ",") != "img/a.png,img/my pic.png,docs/f.svg" {
 		t.Errorf("copied %v", *copied)

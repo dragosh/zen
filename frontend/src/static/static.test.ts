@@ -171,7 +171,8 @@ test("navigate, anchor and onAnchor follow the static links; badge does nothing"
 });
 
 test("print links print the page", async () => {
-  const print = vi.spyOn(window, "print").mockImplementation(() => {});
+  const print = vi.fn();
+  (window as unknown as { print: () => void }).print = print;
   setup({ path: "a.md" }, `<a data-zen-action="print" href="#" role="button">Print</a>`);
   start(document);
   document.querySelector<HTMLElement>("[data-zen-action=print]")!.click();

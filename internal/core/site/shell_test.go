@@ -34,6 +34,9 @@ func TestSidebar(t *testing.T) {
 	last := -1
 	for _, title := range []string{">Home<", ">guide<", ">Alpha<", ">Beta<", ">Zed<", ">other<", ">Gamma<"} {
 		i := strings.Index(a, title)
+		if j := strings.Index(a, `<nav aria-label="Pages"`); j > 0 && i >= 0 {
+			i = strings.Index(a[j:], title) + j
+		}
 		if i < 0 || i < last {
 			t.Fatalf("%s missing or out of order in:\n%s", title, a)
 		}

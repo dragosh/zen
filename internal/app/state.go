@@ -124,6 +124,8 @@ type state struct {
 	navWarn map[string][]string // lower-cased path -> duplicate slug warnings
 	current string              // last page served
 
+	noWatch bool // open does not start a watcher (the static build)
+
 	watchMu sync.Mutex // serialises watcher start/stop
 	w       *watch.Watcher
 }
@@ -185,7 +187,7 @@ func (s *state) open(dir string) error {
 	s.reloadMu.Unlock()
 	s.emit(EventPluginsChanged, nil)
 	s.emit(EventLayoutsChanged, nil)
-	if ws == nil {
+	if ws == nil || s.noWatch {
 		return nil
 	}
 	w, err := watch.Start(ws.Root(), s.handle)
