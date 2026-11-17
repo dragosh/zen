@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, expect, test } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createFakeApi, sampleWorkspace, type FakeApi } from "../api/fake";
 import { createShell, windowKind, type Shell } from "./shell";
 import type { Ctx, Feature, Slots } from "./types";
@@ -134,4 +134,53 @@ test("the main window ignores the editor feature and startup mode", async () => 
   await s.start();
   expect(log).toEqual(["mount nav README.md", "mount page README.md"]);
   expect(s.store.get().mode).toBe("read");
+});
+
+// ---- ⌘W (app/menu): the window closes through the same guard as its close button
+
+function closeRequests(): { count: () => number; off: () => void } {
+  let n = 0;
+  const on = () => { n++; };
+  window.addEventListener("zen:close-window", on);
+  return { count: () => n, off: () => window.removeEventListener("zen:close-window", on) };
+}
+
+test("⌘W asks before closing a dirty editor: it requests a close, the editor's guard decides", async () => {
+  const s = boot(withWorkspace());
+  await s.start();
+  const closes = closeRequests();
+  const e = new KeyboardEvent("keydown", { key: "w", metaKey: true, bubbles: true, cancelable: true });
+  document.dispatchEvent(e);
+  expect(closes.count()).toBe(1);
+  expect(e.defaultPrevented).toBe(true);
+  closes.off();
+});
+
+test("⌘W also closes the main window; other W combos do not", async () => {
+  const s = boot(withWorkspace(), "");
+  await s.start();
+  const closes = closeRequests();
+  key("w");
+  expect(closes.count()).toBe(1);
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "w", metaKey: true, shiftKey: true, bubbles: true }));
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "w", bubbles: true }));
+  expect(closes.count()).toBe(1);
+  closes.off();
+});
+
+test("⌘R does nothing in production builds (the key is swallowed) and in dev is left alone", async () => {
+  const s = boot(withWorkspace(), "");
+  await s.start();
+  const press = () => {
+    const e = new KeyboardEvent("keydown", { key: "r", metaKey: true, bubbles: true, cancelable: true });
+    document.dispatchEvent(e);
+    return e.defaultPrevented;
+  };
+  expect(press()).toBe(false);
+  vi.stubEnv("PROD", true);
+  try {
+    expect(press()).toBe(true);
+  } finally {
+    vi.unstubAllEnvs();
+  }
 });

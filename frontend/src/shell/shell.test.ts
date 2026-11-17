@@ -447,3 +447,26 @@ test("Settings shows the plugins and its sections", async () => {
   expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts"]);
   expect(api.callsTo("plugins")).toHaveLength(1);
 });
+
+// ---- app/menu: Zen › Settings… (⌘,) works from any window
+
+test("menu:settings opens Settings", async () => {
+  const api = withWorkspace("README.md");
+  const handlers: Array<() => void> = [];
+  const realOn = api.on.bind(api) as (e: string, fn: (p?: unknown) => void) => () => void;
+  (api as { on: unknown }).on = (e: string, fn: () => void) => {
+    if (e === "menu:settings") { handlers.push(fn); return () => handlers.splice(handlers.indexOf(fn), 1); }
+    return realOn(e, fn);
+  };
+  const s = boot(api);
+  await s.start();
+  expect(handlers).toHaveLength(1);
+  expect(settingsPage()).toBeNull();
+  handlers[0]();
+  expect(settingsPage()).not.toBeNull();
+  handlers[0](); // already open: stays open
+  expect(settingsPage()).not.toBeNull();
+  s.destroy();
+  shell = undefined;
+  expect(handlers).toHaveLength(0);
+});
