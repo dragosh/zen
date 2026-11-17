@@ -31,7 +31,7 @@ test("loads, mounts, sets title and stores the page", async () => {
   mount();
   await tick();
   expect(article().querySelector("h1")?.textContent).toBe("Sample docs");
-  expect(document.title).toBe("Sample docs — zen");
+  expect(document.title).toBe("Sample docs — zen.md");
   expect(env.ctx.store.get().page?.path).toBe("README.md");
 
   env.ctx.navigate("b.md");

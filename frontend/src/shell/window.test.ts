@@ -72,7 +72,7 @@ test("an editor window mounts only the editor, under a header with the page titl
   expect(header.querySelector(".zen-editor-window-title")?.textContent).toBe("Install");
   expect(header.querySelector(".zen-actions")?.textContent).toBe("editor action");
   expect(root.querySelector('main [data-feature="editor"]')).not.toBeNull();
-  expect(document.title).toBe("Install — Edit — zen");
+  expect(document.title).toBe("Install — Edit — zen.md");
 });
 
 test("the title is plain text; unknown pages fall back to the file name", async () => {
@@ -98,7 +98,7 @@ test("workspace:changed renames, workspace:opened and navigation keys are ignore
   ws.tree[1].children[0].title = "Installing";
   api.emit("workspace:changed", ws);
   expect(root.querySelector(".zen-editor-window-title")?.textContent).toBe("Installing");
-  expect(document.title).toBe("Installing — Edit — zen");
+  expect(document.title).toBe("Installing — Edit — zen.md");
 
   api.emit("workspace:opened", { workspace: { ...sampleWorkspace(), name: "other" }, page: "README.md", mode: "read" });
   expect(s.store.get().path).toBe("guides/install.md");

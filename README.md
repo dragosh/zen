@@ -1,7 +1,8 @@
-# ⊹╰(⌣ʟ⌣)╯⊹ ☯ zen
+# ⊹╰(⌣ʟ⌣)╯⊹ ☯ zen.md
 
-`zen` is a desktop markdown reader and editor with live reload and a runtime
-plugin system, built on [Wails v3](https://v3.wails.io). macOS first.
+**zen.md** is a desktop markdown reader and editor with live reload and a runtime
+plugin system, built on [Wails v3](https://v3.wails.io). macOS first. Its
+command line tool is `zen`.
 
 - Plan and architecture: [docs/PLAN.md](docs/PLAN.md)
 - Feature specs, prompts and tests: [specs/](specs/README.md)

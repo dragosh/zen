@@ -51,7 +51,7 @@ test("shows welcome without workspace", async () => {
   const s = boot(createFakeApi());
   await s.start();
   expect(root.querySelector(".zen-welcome")).not.toBeNull();
-  expect(root.querySelector("h1")?.textContent).toBe("zen");
+  expect(root.querySelector("h1")?.textContent).toBe("zen.md");
   expect(button("Open a folder")?.classList.contains("primary")).toBe(true);
   expect(root.textContent).toContain("⌘O");
   expect(root.querySelector("nav")).toBeNull();

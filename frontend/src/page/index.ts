@@ -7,6 +7,7 @@ import { button, el } from "../shell/dom";
 import type { Ctx, Feature } from "../shell/types";
 import { loadAssets } from "./assets";
 import { handleLinkClick } from "./links";
+import { BRAND } from "../brand";
 
 export { handleLinkClick };
 
@@ -191,7 +192,7 @@ export const pageFeature: Feature = {
       void lint(path, mine);
       warningText.textContent = page.warnings.join("\n");
       warnings.hidden = page.warnings.length === 0;
-      doc.title = `${page.title} — zen`;
+      doc.title = `${page.title} — ${BRAND}`;
       ctx.store.set({ page });
       if (keepScroll) main.scrollTop = scroll;
       else scrollToAnchor(loadedAnchor, false);
@@ -247,7 +248,7 @@ export const pageFeature: Feature = {
       void lint(path, mine, content);
       warningText.textContent = page.warnings.join("\n");
       warnings.hidden = page.warnings.length === 0;
-      doc.title = `${page.title} — zen`;
+      doc.title = `${page.title} — ${BRAND}`;
       ctx.store.set({ page });
       main.scrollTop = scroll;
     }

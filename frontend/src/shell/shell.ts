@@ -7,6 +7,7 @@ import { button, el, logo } from "./dom";
 import { createHistory } from "./history";
 import { createLayout, type Layout } from "./layout";
 import { createOpening } from "./opening";
+import { BRAND } from "../brand";
 import { registerBuildSite } from "./buildsite";
 import { installPagePrint } from "../print/page";
 import { mountPreview } from "../print/preview";
@@ -238,7 +239,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
 
     layout = createLayout({ onBack: back, onForward: forward, onOpenFolder: () => void openFolder(), onSettings: () => toggleSettings() });
     root.replaceChildren(layout.el);
-    doc.title = `${workspace.name} — zen`;
+    doc.title = `${workspace.name} — ${BRAND}`;
     unmountNav = feature("nav")?.mount(layout.slots, ctx) ?? null;
     syncMain();
     unsubscribeStore = store.subscribe((st) => {
@@ -250,7 +251,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   function titleEditor(workspace: Workspace, path: string): void {
     const title = CONFIG_TITLES[path] || findTitle(workspace.tree, path) || path.split("/").pop() || path;
     if (editorTitle) editorTitle.textContent = title;
-    doc.title = `${title} — Edit — zen`;
+    doc.title = `${title} — Edit — ${BRAND}`;
   }
 
   /** The editor window: header (title + editor actions) over the editor. */
@@ -279,14 +280,14 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     status.setAttribute("role", "status");
     view.append(
       logo("zen-logo"),
-      el("h1", "", "zen"),
+      el("h1", "", BRAND),
       button("Open a folder", () => void openFolder(status), { className: "primary" }),
       el("p", "zen-hint", "⌘O"),
       status,
     );
     if (error) status.textContent = `Could not open the folder: ${error}`;
     root.replaceChildren(view);
-    doc.title = "zen";
+    doc.title = BRAND;
     void showTemplates(view);
   }
 
@@ -326,7 +327,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     const view = el("main", "zen-error");
     view.setAttribute("role", "alert");
     view.append(
-      el("h1", "", "zen could not start"),
+      el("h1", "", `${BRAND} could not start`),
       el("p", "zen-error-message", message(err)),
       button("Retry", () => void start(), { className: "primary" }),
     );

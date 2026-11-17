@@ -18,6 +18,8 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Changed
 
+- The app is now called **zen.md** (window titles, menus, About, welcome screen, README). The command line tool is still `zen`, and the settings folder and plugin APIs keep their names.
+
 - Opening a big folder is faster: the folder is walked once, and live reload starts watching in the background (~/Developer, 945 pages: 3 s → 0.6 s).
 
 - A slimmer menu bar: File has New Page and Open Folder; developer items (Reload, DevTools) are gone from release builds. ⌘W closes the focused window; ⌘, opens Settings from any window.

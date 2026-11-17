@@ -227,7 +227,7 @@ func TestDemoFolder(t *testing.T) {
 		t.Errorf("wordcount inline on the how-to: %v (want %d)\n%s", words, len(strings.Fields(string(src))), how.HTML)
 	}
 	list := regexp.MustCompile(`(?s)data-zen-plugin="wordcount" data-zen-name="pages"[^>]*><ul class="pages">(.*?)</ul>`).FindStringSubmatch(how.HTML)
-	if list == nil || strings.Count(list[1], "<li>") != 5 || !strings.Contains(list[1], "<li>zen user guide (README.md): ") || !strings.Contains(list[1], " words</li>") {
+	if list == nil || strings.Count(list[1], "<li>") != 5 || !strings.Contains(list[1], "<li>zen.md user guide (README.md): ") || !strings.Contains(list[1], " words</li>") {
 		t.Errorf("wordcount pages block did not list five pages: %v", list)
 	}
 	everyPage, err := z.Preview("plugins/directives.md", ":::pages\n:::\n")

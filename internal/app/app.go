@@ -22,8 +22,9 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
-// Name is the application and binary name.
-const Name = "zen"
+// Name is the product's name as people see it: window titles, the app menu.
+// The command and executable stay `zen`.
+const Name = "zen.md"
 
 // Close handshake with the frontend (ui/editor answers through api/wails.ts),
 // per window: the payload names the window, replies carry it as the sender.

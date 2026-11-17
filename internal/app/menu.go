@@ -60,15 +60,15 @@ var sep = menuItem{Separator: true}
 // Develop. Production builds have no Reload, DevTools, View, Services or Speech.
 func menuSpec(dev bool) []menuItem {
 	bar := []menuItem{
-		{Label: "Zen", Children: []menuItem{
-			{Label: "About Zen", Role: "About"},
+		{Label: Name, Children: []menuItem{
+			{Label: "About " + Name, Role: "About"},
 			{Label: labelSettings, Accel: "CmdOrCtrl+,"},
 			sep,
-			{Label: "Hide Zen", Accel: "CmdOrCtrl+H", Role: "Hide"},
+			{Label: "Hide " + Name, Accel: "CmdOrCtrl+H", Role: "Hide"},
 			{Label: "Hide Others", Accel: "CmdOrCtrl+OptionOrAlt+H", Role: "HideOthers"},
 			{Label: "Show All", Role: "UnHide"},
 			sep,
-			{Label: "Quit Zen", Accel: "CmdOrCtrl+Q", Role: "Quit"},
+			{Label: "Quit " + Name, Accel: "CmdOrCtrl+Q", Role: "Quit"},
 		}},
 		{Label: "File", Children: []menuItem{
 			{Label: labelNewSite, Accel: "CmdOrCtrl+Shift+N"},
