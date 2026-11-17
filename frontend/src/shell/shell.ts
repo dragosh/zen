@@ -7,7 +7,7 @@ import { button, el, logo } from "./dom";
 import { createHistory } from "./history";
 import { createLayout, type Layout } from "./layout";
 import { openNewPage, type NewPageDialog } from "./newpage";
-import { createSettings, type SettingsPanel } from "./settings";
+import { createSettingsView, type SettingsView } from "./settings";
 import { createStore } from "./store";
 import type { Ctx, Feature, Store } from "./types";
 
@@ -77,14 +77,22 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   const ctx: Ctx = { api, store, navigate };
 
   function navigate(path: string, anchor = ""): void {
+    closeSettings(); // choosing a page leaves Settings
     history.push({ path, anchor });
     store.set({ path, anchor });
   }
   function back(): void {
+    // In Settings, Back returns to the page you were reading; the history is not touched.
+    if (settings) return closeSettings();
     const entry = history.back();
     if (entry) store.set(entry);
   }
+  /** Back is available while Settings shows, even at the start of the history. */
+  function syncHistoryButtons(): void {
+    layout?.setHistoryState(history.canBack() || settings !== null, history.canForward());
+  }
   function forward(): void {
+    closeSettings();
     const entry = history.forward();
     if (entry) store.set(entry);
   }
@@ -94,7 +102,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     if (!layout) return;
     const { path } = store.get();
     const want = path === "" ? null : "page";
-    layout.setHistoryState(history.canBack(), history.canForward());
+    syncHistoryButtons();
     if (want === mainId && (want !== null || layout.slots.main.childNodes.length > 0)) return;
 
     unmountMain?.();
@@ -142,18 +150,32 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     });
   }
 
-  let settings: SettingsPanel | null = null;
-  /** The cog at the bottom of the sidebar (and ⌘,) toggles the settings panel. */
-  function toggleSettings(anchor?: HTMLButtonElement): void {
-    if (!layout) return;
-    if (!settings) {
-      const cog = anchor ?? layout.el.querySelector<HTMLButtonElement>(".zen-settings-button");
-      if (!cog) return;
-      settings = createSettings({ api, anchor: cog, hasWorkspace: () => store.get().workspace !== null });
-      // In the frame, not the sidebar: the sidebar clips anything wider than itself.
-      layout.el.append(settings.el);
-    }
-    settings.toggle();
+  let settings: SettingsView | null = null;
+  /**
+   * The cog at the bottom of the sidebar (and ⌘,) shows Settings in the main pane, in the place of
+   * the page (which stays mounted); the sidebar stays. Back, Esc, the cog and choosing a page leave it.
+   */
+  function openSettings(): void {
+    if (kind.kind !== "main" || !layout || settings) return;
+    settings = createSettingsView({ api, hasWorkspace: () => store.get().workspace !== null });
+    layout.showView(settings.el);
+    layout.setSettingsOpen(true);
+    syncHistoryButtons();
+    settings.show();
+  }
+  function closeSettings(): void {
+    if (!settings) return;
+    const inside = settings.el.contains(doc.activeElement);
+    settings.destroy();
+    settings = null;
+    layout?.showView(null);
+    layout?.setSettingsOpen(false);
+    syncHistoryButtons();
+    if (inside) layout?.el.querySelector<HTMLElement>(".zen-settings-button")?.focus();
+  }
+  function toggleSettings(): void {
+    if (settings) closeSettings();
+    else openSettings();
   }
 
   function showFrame(workspace: Workspace, page: string): void {
@@ -163,7 +185,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     const path = page || workspace.home;
     if (path) navigate(path);
 
-    layout = createLayout({ onBack: back, onForward: forward, onOpenFolder: () => void openFolder(), onSettings: (a) => toggleSettings(a) });
+    layout = createLayout({ onBack: back, onForward: forward, onOpenFolder: () => void openFolder(), onSettings: () => toggleSettings() });
     root.replaceChildren(layout.el);
     doc.title = `${workspace.name} — zen`;
     unmountNav = feature("nav")?.mount(layout.slots, ctx) ?? null;
@@ -255,6 +277,11 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
 
   const onKey = (e: KeyboardEvent) => {
     if (kind.kind !== "main") return; // an editor window has no folder or history
+    if (e.key === "Escape" && settings && !newPage && !e.defaultPrevented) {
+      e.preventDefault();
+      closeSettings();
+      return;
+    }
     if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
     const inFrame = layout !== null;
     if (e.key === "o" || e.key === "O") void openFolder();

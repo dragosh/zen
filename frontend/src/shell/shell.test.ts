@@ -323,7 +323,7 @@ test("the cog opens Settings in the main pane: the page is kept, the sidebar sta
   cog().click();
   const view = settingsPage()!;
   expect(view).not.toBeNull();
-  expect(view.hidden).toBe(false);
+  expect(view.isConnected).toBe(true);
   expect(root.querySelector(".zen-content")!.contains(view)).toBe(true);
   expect(pageMain().hidden).toBe(true);
   expect(root.querySelector<HTMLElement>("nav.zen-sidebar")!.hidden).toBe(false);
@@ -337,14 +337,14 @@ test("the cog and ⌘, toggle Settings", async () => {
   const s = boot(withWorkspace("README.md"));
   await s.start();
   key(",");
-  expect(settingsPage()!.hidden).toBe(false);
+  expect(settingsPage()).not.toBeNull();
   key(",");
-  expect(settingsPage()!.hidden).toBe(true);
+  expect(settingsPage()).toBeNull();
   expect(pageMain().hidden).toBe(false);
   cog().click();
-  expect(settingsPage()!.hidden).toBe(false);
+  expect(settingsPage()).not.toBeNull();
   cog().click();
-  expect(settingsPage()!.hidden).toBe(true);
+  expect(settingsPage()).toBeNull();
   expect(cog().getAttribute("aria-expanded")).toBe("false");
 });
 
@@ -356,7 +356,7 @@ test("Esc returns to the page; Esc elsewhere does nothing", async () => {
   expect(prevented.defaultPrevented).toBe(false);
   cog().click();
   esc();
-  expect(settingsPage()!.hidden).toBe(true);
+  expect(settingsPage()).toBeNull();
   expect(pageMain().hidden).toBe(false);
   expect(s.store.get().path).toBe("README.md");
 });
@@ -368,11 +368,11 @@ test("Back (⌘[ and the Back button) returns to the page and does not touch the
   cog().click();
   expect(button("Back")!.disabled).toBe(false);
   key("[");
-  expect(settingsPage()!.hidden).toBe(true);
+  expect(settingsPage()).toBeNull();
   expect(s.store.get().path).toBe("guides/install.md");
   cog().click();
   button("Back")!.click();
-  expect(settingsPage()!.hidden).toBe(true);
+  expect(settingsPage()).toBeNull();
   expect(s.store.get().path).toBe("guides/install.md");
   key("[");
   expect(s.store.get().path).toBe("README.md"); // with Settings closed, Back goes back again
@@ -393,7 +393,7 @@ test("choosing a page in the sidebar (navigate) leaves Settings for that page", 
   await s.start();
   cog().click();
   s.navigate("guides/usage.md");
-  expect(settingsPage()!.hidden).toBe(true);
+  expect(settingsPage()).toBeNull();
   expect(pageMain().hidden).toBe(false);
   expect(s.store.get().path).toBe("guides/usage.md");
 });

@@ -184,36 +184,48 @@
   color: var(--fg-muted);
 }
 
-/* Settings panel: opens upward from the cog at the bottom of the sidebar,
-   floating over the content when it is wider than the sidebar. */
-.zen-settings {
-  position: fixed;
-  left: 8px;
-  bottom: 48px;
-  z-index: 20;
-  width: min(320px, calc(100vw - 32px));
-  max-height: calc(100vh - 64px);
-  overflow-y: auto;
-  padding: var(--space-4);
+/* Settings page (shell/settings.ts, shell/pluginhelp.ts): in the main pane, a
+   section list on the left and the section on the right. Grayscale only. */
+.zen-settings-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
   background: var(--bg);
   color: var(--fg);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  box-shadow: 0 8px 24px color-mix(in srgb, var(--fg) 14%, transparent);
   font-family: var(--font-ui);
 }
-.zen-settings-title { margin: 0 0 var(--space-3); font: 600 15px var(--font-ui); }
+.zen-settings-sections {
+  flex: none;
+  width: 200px;
+  padding: var(--space-5) var(--space-3);
+  border-right: 1px solid var(--rule);
+  overflow-y: auto;
+}
+.zen-settings-title { margin: 0 var(--space-2) var(--space-4); font: 600 15px var(--font-ui); }
+.zen-settings-sections-list { display: flex; flex-direction: column; gap: 2px; }
+.zen-settings-section {
+  text-align: left;
+  background: none;
+  padding: 6px var(--space-2);
+  color: var(--fg-muted);
+}
+.zen-settings-section:hover { background: var(--btn-bg); color: var(--fg); }
+.zen-settings-section[aria-current="true"] { background: var(--btn-bg); color: var(--fg); font-weight: 600; }
+.zen-settings-body { flex: 1; min-width: 0; overflow-y: auto; padding: var(--space-5) var(--space-6); }
+.zen-settings-panel { max-width: 1000px; }
+.zen-settings-panel[data-section="plugins"] { max-width: none; }
+.zen-settings-heading { margin: 0 0 var(--space-4); font: 600 18px var(--font-ui); }
 .zen-settings-label {
-  margin: var(--space-4) 0 var(--space-2);
+  margin: 0 0 var(--space-2);
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--fg-muted);
 }
-.zen-settings-title + .zen-settings-label { margin-top: 0; }
 .zen-settings-segment {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
+  width: min(360px, 100%);
   padding: 2px;
   gap: 2px;
   background: var(--btn-bg);
@@ -226,6 +238,7 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-3);
+  max-width: 420px;
   padding: var(--space-2) 0;
 }
 .zen-settings-file + .zen-settings-file { border-top: 1px solid var(--rule); }
@@ -234,25 +247,102 @@
 .zen-settings-file-hint { color: var(--fg-muted); font-size: 12px; }
 .zen-settings-status { margin: var(--space-2) 0 0; min-height: 1em; color: var(--fg-muted); font-size: 12px; }
 .zen-settings-status:empty { display: none; }
-.zen-settings-plugin {
+
+/* Plugins: the list, and the help of the selected plugin beside it. */
+.zen-plugins { display: flex; align-items: flex-start; gap: var(--space-5); }
+.zen-plugins-side { flex: none; width: 320px; max-width: 42%; }
+.zen-settings-plugins { display: flex; flex-direction: column; border: 1px solid var(--rule); border-radius: var(--radius); }
+.zen-settings-plugin, .zen-settings-plugin-all {
   display: flex;
-  align-items: flex-start;
+  align-items: stretch;
   justify-content: space-between;
-  gap: var(--space-3);
-  padding: var(--space-2) 0;
+  gap: var(--space-2);
+  padding-right: var(--space-2);
 }
-.zen-settings-plugin + .zen-settings-plugin { border-top: 1px solid var(--rule); }
-.zen-settings-plugin-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; font-size: 12px; overflow-wrap: anywhere; }
-.zen-settings-plugin-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); }
+.zen-settings-plugin + .zen-settings-plugin, .zen-settings-plugin-all + .zen-settings-plugin { border-top: 1px solid var(--rule); }
+.zen-settings-plugin-select {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  text-align: left;
+  background: none;
+  padding: var(--space-2);
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.zen-settings-plugin-select:hover { background: var(--btn-bg); }
+.zen-settings-plugin-select[aria-current="true"] { background: var(--btn-bg); box-shadow: inset 2px 0 0 var(--fg); }
+.zen-settings-plugin-head, .zen-plugin-help-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--space-2); align-self: stretch; }
 .zen-settings-plugin-name { font-family: var(--font-mono); }
 .zen-settings-plugin-version, .zen-settings-plugin-hint, .zen-settings-plugin-runs { color: var(--fg-muted); }
-.zen-settings-plugin-state { margin-left: auto; font-weight: 600; }
+.zen-settings-plugin-kind {
+  padding: 0 6px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  color: var(--fg-muted);
+  font-size: 11px;
+}
+.zen-settings-plugin-meta { display: flex; gap: var(--space-2); align-self: stretch; }
+.zen-settings-plugin-state { white-space: nowrap; margin-left: auto; font-weight: 600; font-size: 12px; }
 .zen-settings-plugin[data-status="off"] .zen-settings-plugin-state,
 .zen-settings-plugin[data-status="on"] .zen-settings-plugin-state { font-weight: 400; color: var(--fg-muted); }
 .zen-settings-plugin-runs { font-family: var(--font-mono); font-size: 11px; }
-.zen-settings-plugin-problem { color: var(--fg); }
-.zen-settings-plugin-trust { flex: none; }
-.zen-settings-plugins-empty { margin: 0; color: var(--fg-muted); font-size: 12px; }
+.zen-settings-plugin-problem { color: var(--fg); font-size: 12px; }
+.zen-settings-plugin-trust { flex: none; align-self: center; }
+.zen-settings-plugins-empty { margin: 0; padding: var(--space-2); color: var(--fg-muted); font-size: 12px; }
+
+.zen-plugin-help { flex: 1; min-width: 0; font-size: 13px; line-height: 1.5; }
+.zen-plugin-help-title { margin: 0; font: 600 16px var(--font-mono); }
+h4.zen-plugin-help-title { font-size: 14px; }
+.zen-plugin-help-description { margin: var(--space-2) 0 0; color: var(--fg-muted); }
+.zen-plugin-help-summary { margin: var(--space-2) 0 var(--space-3); }
+.zen-plugin-help-runs, .zen-plugin-help-none { margin: var(--space-3) 0; color: var(--fg-muted); font-size: 12px; }
+.zen-plugin-section {
+  margin: var(--space-4) 0 var(--space-2);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--fg-muted);
+}
+.zen-plugin-names { display: grid; grid-template-columns: max-content 1fr; gap: 2px var(--space-3); margin: 0; }
+.zen-plugin-names dt { color: var(--fg-muted); }
+.zen-plugin-names dd { margin: 0; display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-2); }
+.zen-plugin-name, .zen-plugin-option-name { font-family: var(--font-mono); font-size: 12px; }
+.zen-plugin-option { padding: var(--space-2) 0; }
+.zen-plugin-option + .zen-plugin-option { border-top: 1px solid var(--rule); }
+.zen-plugin-option-line { display: flex; flex-wrap: wrap; gap: var(--space-1) var(--space-3); align-items: baseline; }
+.zen-plugin-option-type, .zen-plugin-option-default { color: var(--fg-muted); font-size: 12px; }
+.zen-plugin-option-text { margin: 2px 0 0; color: var(--fg-muted); font-size: 12px; }
+.zen-plugin-snippet { margin: 0 0 var(--space-4); }
+.zen-plugin-snippet-head { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); margin-bottom: var(--space-1); }
+.zen-plugin-snippet-title { margin: 0; font: 600 13px var(--font-ui); }
+.zen-plugin-snippet-code {
+  margin: 0;
+  padding: var(--space-3);
+  overflow-x: auto;
+  background: var(--bg-subtle);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  font: 12px/1.5 var(--font-mono);
+  white-space: pre;
+  user-select: text;
+}
+.zen-plugin-snippet-code code { font: inherit; }
+.zen-plugin-snippet-preview.zen-page {
+  max-width: none;
+  margin: var(--space-2) 0 0;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  font-size: 15px;
+  box-sizing: border-box;
+}
+.zen-plugin-all-item { padding: var(--space-4) 0; }
+.zen-plugin-all-item + .zen-plugin-all-item { border-top: 1px solid var(--rule); }
+.zen-plugin-all-item:first-of-type { padding-top: var(--space-2); }
 
 /* File › New Page… dialog (shell/newpage.ts) */
 .zen-newpage-backdrop {

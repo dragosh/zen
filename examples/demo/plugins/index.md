@@ -43,6 +43,7 @@ five in `.zen/plugins/`:
 | `callout` | tip and caution boxes | one Tengo file |
 | `wordcount` | the words of a page, and a list of every page | a Tengo file that reads the folder |
 
-zen asks before it uses them for the first time. The cog lists every plugin
-with an Allow or Block button. To make one, read
+zen asks before it uses them for the first time. The settings page (the cog)
+lists every plugin with an Allow or Block button, and shows help for each one,
+with snippets to copy into a page. To make one, read
 [Writing your own plugin](writing-plugins.md).

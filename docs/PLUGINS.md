@@ -35,7 +35,14 @@ type Manifest struct {
     Inlines     []string          // inline names it owns
     Allow       []AllowRule       // extra sanitiser rules: element + attributes
     Config      map[string]Option // option name -> type, default, description, scope
+    Help        Help              // summary and snippets shown in Settings › Plugins (see "Help")
 }
+
+type Help struct {
+    Summary  string    // at most 500 characters
+    Snippets []Snippet // at most 8
+}
+type Snippet struct{ Title, Markdown string } // Markdown at most 4 KB: how to use the plugin in a page
 
 type Plugin interface{ Manifest() Manifest }
 
@@ -257,6 +264,7 @@ has no `allow` rules, so it works with the base HTML policy.
 | `css` | inline CSS (at most 64 KB; no `@import`, no web addresses, `url()` only for `data:` images), served as `/_plugins/<id>/inline.css` and loaded on pages that use the plugin |
 | `options` | `{name: {type, default, description, scope}}` as in `plugin.yml`; they arrive in `config` |
 | `default` | `false` to start switched off |
+| `help` | `{summary: "…", snippets: [{title: "…", markdown: "…"}]}`, see "Help" below |
 | `js`, `stylesheets` | folder form only: page scripts (ES modules with a default export, as in "Frontend") and style sheets beside the script |
 
 **Globals.** Every call sees these; the script assigns `out`.
@@ -379,6 +387,15 @@ options:                      # read from config / frontmatter `plugins.note.*`
 allow:                        # extra HTML the sanitiser keeps for this plugin
   - { element: div, attrs: [class] }
 
+help:                         # shown in Settings › Plugins (optional, see "Help")
+  summary: Callout boxes, a note or a warning.
+  snippets:
+    - title: A note
+      markdown: |
+        :::note{title="Remember"}
+        Text.
+        :::
+
 backend:
   command: ["./note.sh"]      # relative to the plugin folder, or a program on PATH
   hooks: [block, inline]      # any of: source, block, inline, html, action, stream
@@ -389,6 +406,29 @@ frontend:
   js: [note.js]               # ES modules with a default export, loaded only on pages that use the plugin
   css: [note.css]
 ```
+
+#### Help
+
+A plugin can describe itself. Settings › Plugins shows the help next to the
+plugin: the `summary`, what the plugin adds (its blocks, inlines, layouts and
+options, which zen reads from the manifest), and every snippet with a Copy
+button. Built-in plugins also get a rendered preview of each snippet; external
+plugins show the snippet only. `help` is optional, and the same in `plugin.yml`
+and in the Tengo `plugin` map (`help: {summary: "…", snippets: [{title: "…",
+markdown: "…"}]}`):
+
+| Key | Rule |
+|---|---|
+| `summary` | text, at most 500 characters |
+| `snippets` | at most 8; each has a `title` and the `markdown` to copy, at most 4 KB |
+
+Any other key, or a snippet without a title or markdown, rejects the plugin.
+Write snippets a reader can paste into a page as they are. A snippet that
+starts with frontmatter (a layout, or options for a page) is a whole page and
+gets no preview. Changing `help` changes the folder, so zen asks again before
+it uses the plugin (see Trust). The service call `Plugins()` returns the help
+as `help: {summary, snippets: [{title, markdown}]}` with `blocks`, `inlines`,
+`layouts` and `options: [{name, type, default, description}]`.
 
 ### Backend: one program, plain input and output
 
@@ -568,8 +608,9 @@ too, so zen does not ask again until the plugin changes. Allowing a plugin
 also lets its page script use zen's functions (storage, `invoke`, `stream`,
 navigation), and its backend run **as you, with your files and network
 access**: zen does not sandbox it. Blocked plugins render as plain markdown
-with a note on the page. Settings (the cog) lists every plugin with
-Allow / Block.
+with a note on the page. Settings (the cog, or ⌘,) opens a page in the main
+window; its Plugins section lists every plugin with Allow / Block, and the help
+of the selected one beside the list.
 
 ## Security rules
 

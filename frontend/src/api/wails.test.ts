@@ -275,7 +275,7 @@ describe("wails api", () => {
     expect(await api.plugins()).toEqual([
       {
         id: "note", version: "0.1.0", description: "Callouts", source: "folder", status: "undecided", runs: ["./note.sh"], problem: "", kind: "script",
-        help: { summary: "Boxes.", snippets: [{ title: "Basic", markdown: ":::note\nhi\n:::" }, { title: "", markdown: "" }, { title: "5", markdown: "" }] },
+        help: { summary: "Boxes.", snippets: [{ title: "Basic", markdown: ":::note\nhi\n:::" }, { title: "5", markdown: "" }] },
         blocks: ["note", "7"], inlines: ["badge"], layouts: [],
         options: [{ name: "icon", type: "bool", default: true, description: "Show an icon" }, { name: "x", type: "", default: null, description: "" }],
       },

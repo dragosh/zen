@@ -19,8 +19,8 @@ It uses the `container` tool on your Mac (Apple's container platform), not Docke
    container image pull python:3.12-slim
    ```
 
-4. Name the image in your global config. Open the cog menu, choose the global
-   config file, and add:
+4. Name the image in your global config. Open the settings page (the cog), choose
+   Configuration files, open config.yml, and add:
 
    ```yaml
    plugins:
