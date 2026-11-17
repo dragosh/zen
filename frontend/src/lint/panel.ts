@@ -19,7 +19,7 @@ export type LintPanel = {
 let panelSeq = 0;
 
 export function renderPanel(onSelect: (alert: Alert, index: number) => void): LintPanel {
-  const wrap = el("span", "zen-lint");
+  const wrap = el("span", "zen-lint-widget"); // not "zen-lint": that is every flagged word
   const btn = el("button", "zen-lint-count ghost");
   btn.type = "button";
   btn.hidden = true;

@@ -19,8 +19,11 @@ const (
 	mainWindowName    = "main"
 	editorWindowName  = "editor:"          // + workspace-relative page path
 	eventCloseCancel  = "app:close-cancel" // frontend -> Go: the user cancelled
-	editorWidth       = 1000
+	editorWidth       = 1000               // without a main window to size against
 	editorHeight      = 720
+	editorScale       = 0.9 // editor windows are 90% of the main window
+	editorMinWidth    = 640
+	editorMinHeight   = 420
 	editorCascadeStep = 24
 )
 
@@ -45,6 +48,7 @@ type appWindow interface {
 	// Close asks the window to close; it runs the closing hook first.
 	Close()
 	Position() (int, int)
+	Size() (int, int)
 }
 
 // windowSpec describes a new editor window.
@@ -147,12 +151,13 @@ func (m *windowManager) openEditor(p, title string) error {
 		m.mu.Unlock()
 		return errors.New("windows are closing")
 	}
-	main, step := m.main, (len(m.editors)+1)*editorCascadeStep
+	main, step := m.main, len(m.editors)*editorCascadeStep
 	m.mu.Unlock()
 
-	x, y := 0, 0
+	x, y, width, height := editorCascadeStep, editorCascadeStep, editorWidth, editorHeight
 	if main != nil {
-		x, y = main.Position()
+		mx, my := main.Position()
+		x, y, width, height = editorFrame(mx, my)(main.Size())
 	}
 	if title == "" {
 		title = path.Base(p)
@@ -161,8 +166,8 @@ func (m *windowManager) openEditor(p, title string) error {
 		Name:   editorName(p),
 		Title:  title + " — Edit — " + Name,
 		URL:    "/?window=editor&path=" + url.QueryEscape(p),
-		Width:  editorWidth,
-		Height: editorHeight,
+		Width:  width,
+		Height: height,
 		X:      x + step,
 		Y:      y + step,
 	})
@@ -438,5 +443,18 @@ func replyHandler(m *windowManager, r closeReply) func(*application.CustomEvent)
 		if e.Sender != "" {
 			m.reply(e.Sender, r)
 		}
+	}
+}
+
+// editorFrame places an editor window at 90% of the main window's size,
+// centred over it (callers add the cascade step for further editors).
+func editorFrame(mx, my int) func(mw, mh int) (x, y, w, h int) {
+	return func(mw, mh int) (int, int, int, int) {
+		if mw <= 0 || mh <= 0 {
+			return mx + editorCascadeStep, my + editorCascadeStep, editorWidth, editorHeight
+		}
+		w := max(editorMinWidth, int(float64(mw)*editorScale))
+		h := max(editorMinHeight, int(float64(mh)*editorScale))
+		return mx + (mw-w)/2, my + (mh-h)/2, w, h
 	}
 }

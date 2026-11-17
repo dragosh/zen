@@ -31,3 +31,19 @@ test("marks are wavy squiggles coloured by severity, unlike link underlines", ()
 test("marks drop the browser's mark colours", () => {
   expect(body).toMatch(/mark\.zen-lint[^{]*\{[^}]*background:\s*(none|transparent)/);
 });
+
+test("no rule styles the bare .zen-lint class (it is on every flagged word)", () => {
+  // A selector ending in ".zen-lint" (not mark.zen-lint, not .zen-lint-*)
+  // would restyle flagged words: once it gave them the UI font and shifted
+  // the editor's text after them.
+  const selectors = Array.from(body.matchAll(/([^{}]+)\{/g)).flatMap((m) => m[1].split(","));
+  const bare = selectors.map((s) => s.trim()).filter((s) => /(^|[\s>+~])\.zen-lint(?![\w-])/.test(s));
+  expect(bare).toEqual([]);
+});
+
+test("flagged words never change font, size, weight or layout", () => {
+  const rule = (sel: string) => body.match(new RegExp(`(^|\\n)${sel.replace(/[.-]/g, "\\$&")}\\s*\\{([^}]*)\\}`))?.[2] ?? "";
+  for (const sel of ["mark.zen-lint", ".zen-lint-error", ".zen-lint-warning", ".zen-lint-suggestion"]) {
+    expect(rule(sel)).not.toMatch(/font(-family|-size|-weight|-style)?\s*:|display\s*:|padding|margin|letter-spacing|border(?!-radius)/);
+  }
+});

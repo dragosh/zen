@@ -16,6 +16,7 @@ type fakeWindow struct {
 	name    string
 	m       *windowManager
 	x, y    int
+	w, h    int
 	focused int
 	asked   int // Close calls
 	gone    bool
@@ -23,6 +24,7 @@ type fakeWindow struct {
 
 func (w *fakeWindow) Focus()               { w.focused++ }
 func (w *fakeWindow) Position() (int, int) { return w.x, w.y }
+func (w *fakeWindow) Size() (int, int)     { return w.w, w.h }
 func (w *fakeWindow) Close() {
 	w.asked++
 	if w.gone {
@@ -397,5 +399,36 @@ func waitAsked(t *testing.T, r *windowRig, n int) {
 			t.Fatalf("asked %d windows, want %d", got, n)
 		}
 		time.Sleep(time.Millisecond)
+	}
+}
+
+func TestEditorWindowIs90PercentOfTheMainWindow(t *testing.T) {
+	r := newWindowRig(t)
+	r.main.x, r.main.y, r.main.w, r.main.h = 0, 30, 1512, 919
+	if err := r.m.openEditor("a.md", "A"); err != nil {
+		t.Fatal(err)
+	}
+	if err := r.m.openEditor("b.md", "B"); err != nil {
+		t.Fatal(err)
+	}
+	first, second := r.specs[0], r.specs[1]
+	if first.Width != 1360 || first.Height != 827 {
+		t.Errorf("size = %dx%d, want 90%% of 1512x919 = 1360x827", first.Width, first.Height)
+	}
+	if first.X != 76 || first.Y != 76 { // centred: (1512-1360)/2, 30+(919-827)/2
+		t.Errorf("position = %d,%d, want centred at 76,76", first.X, first.Y)
+	}
+	if second.X != first.X+editorCascadeStep || second.Y != first.Y+editorCascadeStep || second.Width != first.Width {
+		t.Errorf("second editor = %+v, want the same size cascaded by %d", second, editorCascadeStep)
+	}
+
+	// A small main window still gives a usable editor.
+	r2 := newWindowRig(t)
+	r2.main.w, r2.main.h = 500, 300
+	if err := r2.m.openEditor("c.md", "C"); err != nil {
+		t.Fatal(err)
+	}
+	if s := r2.specs[0]; s.Width != editorMinWidth || s.Height != editorMinHeight {
+		t.Errorf("small main: %dx%d, want the %dx%d minimum", s.Width, s.Height, editorMinWidth, editorMinHeight)
 	}
 }

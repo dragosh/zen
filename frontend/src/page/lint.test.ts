@@ -110,7 +110,7 @@ test("unmount removes the count button", async () => {
   await settle();
   unmount!();
   unmount = undefined;
-  expect(env.slots.actions.querySelector(".zen-lint")).toBeNull();
+  expect(env.slots.actions.querySelector(".zen-lint-widget")).toBeNull();
 });
 
 test("follows an editor's unsaved draft live, keeping scroll, then returns to disk", async () => {

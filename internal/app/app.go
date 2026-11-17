@@ -6,6 +6,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -210,8 +211,20 @@ func Run(opts Options) error {
 		// Fill the screen's usable area (not macOS full-screen mode). Done
 		// here because macOS ignores maximising a window that is not shown
 		// yet (StartState: WindowStateMaximised had no effect).
+		// Editor windows are sized from the main window (90%), so the startup
+		// editor waits until maximising has finished (it is asynchronous), or
+		// one second at most.
+		maximised := make(chan struct{})
+		var once sync.Once
+		win.OnWindowEvent(events.Common.WindowMaximise, func(*application.WindowEvent) {
+			once.Do(func() { close(maximised) })
+		})
 		win.Maximise()
 		go func() {
+			select {
+			case <-maximised:
+			case <-time.After(time.Second):
+			}
 			z.state.promptPending() // plugins of the folder given on the command line
 			if err := z.openStartupEditor(opts.Mode); err != nil {
 				a.Dialog.Warning().SetTitle("Could not edit").SetMessage(err.Error()).Show()

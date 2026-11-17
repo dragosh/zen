@@ -44,7 +44,10 @@ mark.zen-lint-flash {
 }
 
 /* Count button and panel. */
-.zen-lint {
+/* The count button's wrapper. Never style plain ".zen-lint": that class is on
+   every flagged word (mark.zen-lint), which then took the UI font and
+   inline-flex, shifting the text after it. */
+.zen-lint-widget {
   position: relative;
   display: inline-flex;
   font-family: var(--font-ui);
