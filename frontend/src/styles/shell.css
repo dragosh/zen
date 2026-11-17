@@ -213,7 +213,7 @@
 .zen-settings-section[aria-current="true"] { background: var(--btn-bg); color: var(--fg); font-weight: 600; }
 .zen-settings-body { flex: 1; min-width: 0; overflow-y: auto; padding: var(--space-5) var(--space-6); }
 .zen-settings-panel { max-width: 1000px; }
-.zen-settings-panel[data-section="plugins"] { max-width: none; }
+.zen-settings-panel[data-section="plugins"], .zen-settings-panel[data-section="layouts"] { max-width: none; }
 .zen-settings-heading { margin: 0 0 var(--space-4); font: 600 18px var(--font-ui); }
 .zen-settings-label {
   margin: 0 0 var(--space-2);
@@ -346,6 +346,9 @@ h4.zen-plugin-help-title { font-size: 14px; }
   font-size: 15px;
   box-sizing: border-box;
 }
+/* A layout's static preview (Settings › Layouts): framed, not the whole pane. */
+.zen-plugin-snippet-preview.zen-page[data-layout] { padding: var(--space-3) var(--space-4); max-height: 360px; overflow: auto; }
+.zen-layout-fields { margin-bottom: var(--space-2); }
 .zen-plugin-all-item { padding: var(--space-4) 0; }
 .zen-plugin-all-item + .zen-plugin-all-item { border-top: 1px solid var(--rule); }
 .zen-plugin-all-item:first-of-type { padding-top: var(--space-2); }

@@ -1,12 +1,12 @@
-// Plugin stylesheets named by Page.assets: linked once per URL, only from /_plugins/.
+// Plugin and layout stylesheets named by Page.assets: linked once per URL, only from /_plugins/ and /_layouts/.
 // Plugin scripts are not injected: the runtime import()s them (plugins/runtime.ts).
 import type { Page } from "../api";
 
-const PREFIX = "/_plugins/";
+const PREFIXES = ["/_plugins/", "/_layouts/"];
 
-/** True for a same-origin path under /_plugins/ with no `..` segment. */
+/** True for a same-origin path under /_plugins/ or /_layouts/ with no `..` segment. */
 export function isPluginUrl(url: string): boolean {
-  return url.startsWith(PREFIX) && !url.split(/[/?#]/).includes("..") && !url.includes("\\");
+  return PREFIXES.some((p) => url.startsWith(p)) && !url.split(/[/?#]/).includes("..") && !url.includes("\\");
 }
 
 export function loadAssets(doc: Document, assets: Page["assets"]): void {

@@ -200,7 +200,7 @@ export function createPluginsSection(opts: { api: Api }): PluginsSection {
   const fmt = (v: unknown) => (typeof v === "string" ? (v === "" ? '""' : v) : JSON.stringify(v) ?? "");
 
   function adds(p: PluginInfo): HTMLElement | null {
-    const rows: [string, string[]][] = [["Blocks", p.blocks], ["Inlines", p.inlines], ["Layouts", p.layouts]];
+    const rows: [string, string[]][] = [["Blocks", p.blocks], ["Inlines", p.inlines]]; // layouts are their own section (Settings › Layouts)
     const shownRows = rows.filter(([, names]) => names.length > 0);
     if (shownRows.length === 0 && p.options.length === 0) return null;
     const box = el("div", "zen-plugin-adds");

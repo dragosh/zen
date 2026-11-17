@@ -1,10 +1,11 @@
 // The Settings page, shown in the main pane (the sidebar stays): a section
-// list on the left (Appearance, Configuration files, Plugins) and the section
+// list on the left (Appearance, Configuration files, Plugins, Layouts) and the section
 // on the right. Theme applies to this machine and all windows; the two config
 // files open in zen's own editor window; Plugins is shell/pluginhelp.ts.
 // All text through textContent.
 import type { Api } from "../api";
 import { button, el } from "./dom";
+import { createLayoutsSection } from "./layouthelp";
 import { createPluginsSection } from "./pluginhelp";
 import { setTheme, storedTheme, type Theme } from "./theme";
 
@@ -25,6 +26,7 @@ const SECTIONS = [
   { id: "appearance", label: "Appearance" },
   { id: "files", label: "Configuration files" },
   { id: "plugins", label: "Plugins" },
+  { id: "layouts", label: "Layouts" },
 ] as const;
 type SectionId = (typeof SECTIONS)[number]["id"];
 
@@ -151,6 +153,11 @@ export function createSettingsView(opts: { api: Api; hasWorkspace(): boolean }):
   const plugins = createPluginsSection({ api });
   panels.get("plugins")!.append(plugins.el);
 
+  // ---- Layouts
+
+  const layouts = createLayoutsSection({ api });
+  panels.get("layouts")!.append(layouts.el);
+
   choose("appearance");
   return {
     el: page,
@@ -159,10 +166,12 @@ export function createSettingsView(opts: { api: Api; hasWorkspace(): boolean }):
       local.b.disabled = !opts.hasWorkspace();
       status.textContent = "";
       void plugins.refresh();
+      void layouts.refresh();
       (tabs.find((t) => t.getAttribute("aria-current") === "true") ?? tabs[0]).focus();
     },
     destroy() {
       plugins.destroy();
+      layouts.destroy();
       page.remove();
     },
   };

@@ -9,6 +9,8 @@ import { installRuntime } from "./runtime";
 
 // The built-in layouts live in internal/layouts/ (they were plugins before core/layouts).
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+// Whichever of the two places has the script (a glob, so a missing one is no error).
+const scripts = import.meta.glob<unknown>("../../../internal/{layouts,plugins}/slides/assets/slides.js");
 const ASSETS = [join(ROOT, "internal/layouts/slides/assets"), join(ROOT, "internal/plugins/slides/assets")].find((d) => existsSync(d))!;
 
 let rt: ReturnType<typeof installRuntime>;
@@ -32,8 +34,7 @@ beforeEach(async () => {
     onAnchor: (fn) => { listeners.push(fn); return () => { listeners = listeners.filter((l) => l !== fn); }; },
   });
   root = document.body.appendChild(document.createElement("article"));
-  // @ts-ignore plain browser JavaScript outside src, no types
-  mod = await import(/* @vite-ignore */ join(ASSETS, "slides.js"));
+  mod = await Object.values(scripts)[0]();
   await rt.load({ js: ["/_layouts/slides/slides.js?v=test"], css: [] });
 });
 afterEach(() => rt.destroy());

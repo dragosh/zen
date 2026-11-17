@@ -2,7 +2,7 @@
 // getApi() only inside the Wails webview.
 import { Events, Window } from "@wailsio/runtime";
 import { Zen } from "../../bindings/github.com/dragosh/zen/internal/app/index.js";
-import type { Alert, Api, Crumb, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
+import type { Alert, Api, Crumb, LayoutField, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
 
 type Raw = Record<string, any> | null | undefined;
 
@@ -20,6 +20,16 @@ function workspace(w: Raw): Workspace | null {
   return { root: w.root ?? "", name: w.name ?? "", home: w.home ?? "", tree: nodes(w.tree) };
 }
 
+const LAYOUT_SOURCES = ["builtin", "folder", "user"] as const;
+
+/** {name, source}; a plain string (an older Go side) is a name; nothing is the article layout. */
+function pageLayout(v: unknown): Page["layout"] {
+  if (typeof v === "string") return { name: v || "article", source: "" };
+  const l = (v ?? {}) as Record<string, unknown>;
+  const source = (LAYOUT_SOURCES as readonly unknown[]).includes(l.source) ? (l.source as Page["layout"]["source"]) : "";
+  return { name: typeof l.name === "string" && l.name ? l.name : "article", source };
+}
+
 function page(p: Raw): Page {
   return {
     path: p?.path ?? "",
@@ -29,7 +39,7 @@ function page(p: Raw): Page {
     breadcrumb: ((p?.breadcrumb ?? []) as Crumb[]).map((c) => ({ title: c.title, path: c.path })),
     assets: { css: p?.assets?.css ?? [], js: p?.assets?.js ?? [] },
     warnings: p?.warnings ?? [],
-    layout: typeof p?.layout === "string" ? p.layout : "",
+    layout: pageLayout(p?.layout),
   };
 }
 
@@ -65,6 +75,28 @@ function pluginInfo(p: Record<string, any>): PluginInfo {
     inlines: strings(p.inlines),
     layouts: strings(p.layouts),
     options: options(p.options),
+  };
+}
+
+function fields(v: unknown): LayoutField[] {
+  return (Array.isArray(v) ? v : []).filter((x): x is Record<string, any> => Boolean(x) && typeof x === "object")
+    .map((x) => ({ name: String(x.name ?? ""), type: String(x.type ?? ""), description: String(x.description ?? "") }));
+}
+
+function layoutInfo(l: Record<string, any>): LayoutInfo {
+  return {
+    id: String(l.id ?? ""),
+    version: String(l.version ?? ""),
+    description: String(l.description ?? ""),
+    source: SOURCES.includes(l.source) ? l.source : "folder",
+    status: STATUSES.includes(l.status) ? l.status : "invalid",
+    kind: "layout",
+    hasTemplate: l.hasTemplate === true,
+    hasScript: l.hasScript === true,
+    problem: String(l.problem ?? ""),
+    fields: fields(l.fields),
+    options: options(l.options),
+    help: { summary: String(l.help?.summary ?? ""), snippets: snippets(l.help?.snippets) },
   };
 }
 
@@ -156,6 +188,23 @@ const api: Api = {
     const list = (await call(Zen.Plugins())) as Raw[] | null;
     return (list ?? []).filter((p): p is Record<string, any> => Boolean(p)).map(pluginInfo);
   },
+  async layouts() {
+    const list = (await call(Zen.Layouts())) as Raw[] | null;
+    return (list ?? []).filter((l): l is Record<string, any> => Boolean(l)).map(layoutInfo);
+  },
+  async layoutTrust(id, allow) {
+    await call(Zen.LayoutTrust(id, allow));
+  },
+  async layoutStorageGet(id, key) {
+    return (await call(Zen.LayoutStorageGet(id, key))) || "null";
+  },
+  async layoutStorageSet(id, key, json) {
+    await call(Zen.LayoutStorageSet(id, key, json));
+  },
+  async layoutStorageKeys(id, prefix) {
+    const list = (await call(Zen.LayoutStorageKeys(id, prefix))) as string[] | null;
+    return (list ?? []).map(String);
+  },
   async pluginTrust(id, allow) {
     await call(Zen.PluginTrust(id, allow));
   },
@@ -178,8 +227,9 @@ const api: Api = {
   async pluginCancel(callId) {
     await call(Zen.PluginCancel(callId));
   },
-  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "menu:new-page", fn: (p: any) => void): () => void {
+  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "layouts:changed" | "menu:new-page", fn: (p: any) => void): () => void {
     if (event === "menu:new-page") return Events.On("menu:new-page", () => fn(undefined));
+    if (event === "layouts:changed") return Events.On("layouts:changed", () => fn(undefined));
     if (event === "plugins:changed") return Events.On("plugins:changed", () => fn(undefined));
     if (event === "plugin:stream") {
       return Events.On("plugin:stream", (e: { data: unknown }) => {

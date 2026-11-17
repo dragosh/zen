@@ -304,8 +304,7 @@ test("help pane: summary, description, and what the plugin adds with option type
   expect(adds).toContain("note");
   expect(adds).toContain("Inlines");
   expect(adds).toContain("badge");
-  expect(adds).toContain("Layouts");
-  expect(adds).toContain("slides");
+  expect(adds).not.toContain("Layouts"); // layouts have their own section
   pick(s, "diagram").click();
   expect(helpPane(s).querySelector(".zen-plugin-adds")!.textContent).toContain("mermaid");
   expect(helpPane(s).querySelector(".zen-plugin-adds")!.textContent).not.toContain("Inlines");
@@ -565,7 +564,7 @@ test("layouts help: description, summary as text, fields table, options table, h
   expect(fields.map((f) => f.querySelector(".zen-layout-field-name")!.textContent)).toEqual(["date", "author"]);
   expect(fields[0].textContent).toContain("date");
   expect(fields[0].textContent).toContain("Publication date");
-  const opts = Array.from(h.querySelectorAll(".zen-plugin-option"));
+  const opts = Array.from(h.querySelectorAll(".zen-layout-options .zen-plugin-option"));
   expect(opts).toHaveLength(1);
   expect(opts[0].textContent).toContain("toc");
   expect(opts[0].textContent).toContain("bool");
@@ -585,6 +584,7 @@ test("layouts help: every snippet has Copy; built-in layouts get a static previe
   const writeText = vi.fn(async () => {});
   vi.stubGlobal("navigator", { clipboard: { writeText } });
   const { api, s } = await layouts();
+  const initial = api.callsTo("preview").length; // the first layout (article) is selected and previews its snippet
   lPick(s, "post").click();
   await settle();
   const snippets = Array.from(lHelp(s).querySelectorAll<HTMLElement>(".zen-plugin-snippet"));
@@ -594,7 +594,7 @@ test("layouts help: every snippet has Copy; built-in layouts get a static previe
   await settle();
   expect(writeText).toHaveBeenCalledWith("---\nlayout: post\ndate: 2026-11-17\n---\n# Title");
   expect(snippets[0].querySelector(".zen-plugin-copy")!.textContent).toBe("Copied");
-  expect(api.callsTo("preview").map((c) => c[1])).toEqual([
+  expect(api.callsTo("preview").slice(initial).map((c) => c[1])).toEqual([
     "---\nlayout: post\ndate: 2026-11-17\n---\n# Title", "---\nlayout: { name: post, cover: false }\n---\n# T",
   ]);
   expect(lHelp(s).querySelectorAll(".zen-plugin-snippet-preview")).toHaveLength(2);
@@ -609,9 +609,9 @@ test("layouts help: every snippet has Copy; built-in layouts get a static previe
 test("layouts: a failing preview leaves the snippet alone; a stale preview does not land in another layout's pane", async () => {
   const { api, s } = await layouts();
   api.failNext("preview", new Error("boom"));
-  lPick(s, "post").click();
+  lPick(s, "post").click(); // its first snippet's preview fails, the second still lands
   await settle();
-  expect(lHelp(s).querySelector(".zen-plugin-snippet-preview")).toBeNull();
+  expect(lHelp(s).querySelectorAll(".zen-plugin-snippet-preview")).toHaveLength(1);
   expect(lHelp(s).querySelectorAll(".zen-plugin-snippet")).toHaveLength(2);
   lPick(s, "slides").click();
   lPick(s, "memo").click();
@@ -619,7 +619,7 @@ test("layouts: a failing preview leaves the snippet alone; a stale preview does 
   expect(lHelp(s).querySelector(".zen-plugin-snippet-preview")).toBeNull();
 });
 
-test("layouts: the Plugins list no longer talks about layouts it adds", async () => {
+test("layouts: the Plugins help no longer lists layouts a plugin adds", async () => {
   const { s } = await plugins();
   expect(panel(s, "plugins").textContent).not.toContain("Layouts");
 });

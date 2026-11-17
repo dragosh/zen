@@ -25,10 +25,11 @@ export function mountPage(el: HTMLElement, page: Page): void {
 
 const LAYOUT_CLASS = "zen-layout-";
 
-/** A layout page (ui/plugins) is marked so page.css hands the whole pane to the plugin. */
-function setLayout(el: HTMLElement, layout: string): void {
+/** A page with a layout other than article (core/layouts) is marked so page.css hands the whole pane to it. */
+function setLayout(el: HTMLElement, ref: Page["layout"] | undefined): void {
+  const layout = ref?.name ?? "";
   for (const c of Array.from(el.classList)) if (c.startsWith(LAYOUT_CLASS)) el.classList.remove(c);
-  if (/^[a-z][a-z0-9-]*$/.test(layout ?? "")) {
+  if (layout !== "article" && /^[a-z][a-z0-9-]*$/.test(layout)) {
     el.dataset.layout = layout;
     el.classList.add(LAYOUT_CLASS + layout);
   } else {

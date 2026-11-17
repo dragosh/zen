@@ -103,7 +103,7 @@ describe("wails api", () => {
     expect((await api.page("a.md")).layout).toEqual({ name: "x", source: "" });
     results.Page = { ...page, layout: "slides" }; // an older Go side: a plain name
     expect((await api.page("a.md")).layout).toEqual({ name: "slides", source: "" });
-    calls.pop();
+    calls.splice(-3); // the extra Page calls above are not part of the list below
 
     results.Source = "# a";
     expect(await api.source("a.md")).toBe("# a");

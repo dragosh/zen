@@ -172,7 +172,7 @@ test("a module without a default mount shows an error naming the plugin; others 
   const w2 = wrapper(bad2);
   const w3 = wrapper(good);
   modules.set(urlOf(bad), { mount() {} }); // named export, no default
-  registered.push(bad);
+  registered.push(urlOf(bad));
   register(bad2, { notMount: 1 });
   register(good, { mount(el) { el.textContent = "fine"; } });
   await mount();
@@ -186,7 +186,7 @@ test("a script that fails to load shows an error in its wrappers only", async ()
   vi.spyOn(console, "error").mockImplementation(() => {});
   const id = fresh();
   const w = wrapper(id);
-  registered.push(id); // no module behind the URL: import() rejects
+  registered.push(urlOf(id)); // no module behind the URL: import() rejects
   await mount();
   expect(w.querySelector(".zen-plugin-error")!.textContent).toContain(id);
   expect(w.querySelector(".zen-plugin-error")!.textContent).toContain("404");
@@ -195,7 +195,7 @@ test("a script that fails to load shows an error in its wrappers only", async ()
 test("a script with no wrapper on the page (diagram-like, no default) is quiet", async () => {
   const err = vi.spyOn(console, "error").mockImplementation(() => {});
   modules.set(urlOf("quiet"), { other: 1 });
-  registered.push("quiet");
+  registered.push(urlOf("quiet"));
   await mount();
   expect(err).not.toHaveBeenCalled();
   expect(root.querySelector(".zen-plugin-error")).toBeNull();
@@ -711,7 +711,7 @@ test("a layout wrapper is not mounted by a plugin script of the same id, and a l
   wrapper("only", { layout: "only" }); // no layout script registered
   await mount();
   expect(log).toEqual([]);
-  rt.unmountAll();
+  rt.reset();
   root.replaceChildren();
   registered = [];
   modules.clear();

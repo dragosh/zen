@@ -9,6 +9,8 @@ import { installRuntime } from "./runtime";
 
 // The built-in layouts live in internal/layouts/ (they were plugins before core/layouts).
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+// Whichever of the two places has the script (a glob, so a missing one is no error).
+const scripts = import.meta.glob<unknown>("../../../internal/{layouts,plugins}/course/assets/course.js");
 const ASSETS = [join(ROOT, "internal/layouts/course/assets"), join(ROOT, "internal/plugins/course/assets")].find((d) => existsSync(d))!;
 const PATH = "demo/layouts/course.md";
 
@@ -30,8 +32,7 @@ beforeEach(async () => {
     badge: (p, t) => { badges.push([p, t]); },
   });
   root = document.body.appendChild(document.createElement("article"));
-  // @ts-ignore plain browser JavaScript outside src, no types
-  mod = await import(/* @vite-ignore */ join(ASSETS, "course.js"));
+  mod = await Object.values(scripts)[0]();
   await rt.load({ js: ["/_layouts/course/course.js?v=test"], css: [] });
 });
 afterEach(() => rt.destroy());
@@ -65,7 +66,7 @@ const boxes = (w: HTMLElement, step: number) => Array.from(steps(w)[step].queryS
 const next = async (w: HTMLElement) => { btn(w, "course-next").click(); await settle(); };
 const tick = async (b: HTMLInputElement) => { b.click(); await settle(); };
 const stored = (key: string) => {
-  const calls = api.callsTo("pluginStorageSet").filter((c) => c[1] === key);
+  const calls = api.callsTo("layoutStorageSet").filter((c) => c[1] === key);
   return calls.length ? JSON.parse(calls[calls.length - 1][2] as string) : undefined;
 };
 
@@ -106,7 +107,7 @@ test("Next marks the step done, moves on, and keeps progress and badge", async (
   const s = stored("intro");
   expect(s.step).toBe(1);
   expect(s.done).toEqual([0]);
-  expect(api.callsTo("pluginStorageSet").every((c) => c[0] === "course")).toBe(true);
+  expect(api.callsTo("layoutStorageSet").every((c) => c[0] === "course")).toBe(true);
 
   const [a, b] = boxes(w, 1);
   expect(btn(w, "course-next").disabled).toBe(true);
@@ -161,11 +162,11 @@ test("progress, ticks and the last open step come back after a re-render", async
 test("progress is kept under layoutOptions.id, else the page path", async () => {
   let w = await render(COURSE, { id: "intro" });
   await next(await (async () => { await tick(boxes(w, 0)[0]); return w; })());
-  expect(api.callsTo("pluginStorageGet")[0]).toEqual(["course", "intro"]);
+  expect(api.callsTo("layoutStorageGet")[0]).toEqual(["course", "intro"]);
   w = await render(COURSE, null);
   expect(open(w)).toBe(0); // a different key
   await tick(boxes(w, 0)[0]);
-  const keys = api.callsTo("pluginStorageSet").map((c) => c[1] as string);
+  const keys = api.callsTo("layoutStorageSet").map((c) => c[1] as string);
   expect(keys.at(-1)).toBe("demo-layouts-course.md");
   for (const k of keys) expect(k).toMatch(/^[A-Za-z0-9._-]{1,64}$/);
 });

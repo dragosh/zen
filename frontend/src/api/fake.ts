@@ -1,10 +1,11 @@
 // In-memory Api for development in a browser and for tests: a three-page
 // sample workspace, emit() to simulate Go events, and a record of every call.
-import type { Api, Crumb, Draft, LintResult, NavNode, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
+import type { Api, Crumb, Draft, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
 
 type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig" | "createPage"
-  | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys";
-type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "menu:new-page": undefined };
+  | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys"
+  | "layouts" | "layoutTrust" | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys";
+type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "layouts:changed": undefined; "menu:new-page": undefined };
 
 /** A plugin as tests write it: the help and what it adds default to nothing. */
 export type PluginSeed = Omit<PluginInfo, "help" | "blocks" | "inlines" | "layouts" | "options"> & Partial<Pick<PluginInfo, "help" | "blocks" | "inlines" | "layouts" | "options">>;
@@ -15,6 +16,18 @@ const plugin = (p: PluginSeed): PluginInfo => ({
   help: { summary: p.help?.summary ?? "", snippets: (p.help?.snippets ?? []).map((x) => ({ ...x })) },
   blocks: [...(p.blocks ?? [])], inlines: [...(p.inlines ?? [])], layouts: [...(p.layouts ?? [])],
   options: (p.options ?? []).map((o) => ({ ...o })),
+});
+
+/** A layout as tests write it: everything but who and what it is defaults. */
+export type LayoutSeed = Pick<LayoutInfo, "id" | "version" | "description" | "source" | "status"> & Partial<Omit<LayoutInfo, "kind">>;
+
+const layoutInfo = (l: LayoutSeed): LayoutInfo => ({
+  hasTemplate: false, hasScript: false, problem: "",
+  ...l,
+  kind: "layout",
+  fields: (l.fields ?? []).map((f) => ({ ...f })),
+  options: (l.options ?? []).map((o) => ({ ...o })),
+  help: { summary: l.help?.summary ?? "", snippets: (l.help?.snippets ?? []).map((x) => ({ ...x })) },
 });
 
 export type FakeOptions = {
@@ -30,6 +43,8 @@ export type FakeOptions = {
   devLint?: (path: string, content: string) => LintResult;
   /** What plugins() lists. Default: none. The help and what a plugin adds may be left out. */
   plugins?: PluginSeed[];
+  /** What layouts() lists. Default: none. */
+  layouts?: LayoutSeed[];
 };
 
 type LintAnswer = LintResult | ((path: string, content: string) => LintResult);
@@ -56,6 +71,8 @@ export type FakeApi = Api & {
   lintResult: LintAnswer;
   /** What plugins() lists (copies); pluginTrust() updates the status. Assignable. */
   pluginList: PluginInfo[];
+  /** What layouts() lists (copies); layoutTrust() updates the status. Assignable. */
+  layoutList: LayoutInfo[];
   /** What pluginInvoke() answers: a JSON value, or a function of the plugin id and the parsed payload. Default null. */
   invokeResult: unknown | ((id: string, payload: unknown, page: string) => unknown);
   /** Shapes every page() and preview() result, e.g. to add plugin wrappers or a layout. */
@@ -142,6 +159,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     "page:draft": new Set(),
     "plugin:stream": new Set(),
     "plugins:changed": new Set(),
+    "layouts:changed": new Set(),
     "menu:new-page": new Set(),
   };
   let streamCount = 0;
@@ -150,13 +168,15 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
 
   /** Plugin storage: plugin id -> key -> JSON text. */
   const storage = new Map<string, Map<string, string>>();
+  /** Layout storage: layout id -> key -> JSON text (apart from the plugins'). */
+  const layoutStorage = new Map<string, Map<string, string>>();
 
   const render = (path: string, content: string): Page => {
     const { title, html } = renderFake(path, content, (p) => p in sources);
     const page: Page = {
       path, title, html, frontmatter: {},
       breadcrumb: crumbs(tree, path) ?? [{ title, path }],
-      assets: { css: [], js: [] }, warnings: [], layout: "",
+      assets: { css: [], js: [] }, warnings: [], layout: { name: "article", source: "" },
     };
     return api.decorate ? api.decorate(page) : page;
   };
@@ -182,6 +202,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     broadcasts: [],
     lintResult: options.devLint ?? options.lint ?? { available: false, alerts: [] },
     pluginList: (options.plugins ?? []).map(plugin),
+    layoutList: (options.layouts ?? []).map(layoutInfo),
     invokeResult: null,
     callsTo: (method) => api.calls.filter((c) => c.method === method).map((c) => c.args),
     emit(event, payload) {
@@ -230,6 +251,25 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
       if (!p || p.source === "builtin") throw new Error(`plugin "${id}" is not an external plugin`);
       if (p.status !== "invalid") p.status = allow ? "on" : "blocked";
     }),
+    layouts: () => call("layouts", [], () => api.layoutList.map(layoutInfo)),
+    layoutTrust: (id, allow) => call("layoutTrust", [id, allow], () => {
+      const l = api.layoutList.find((x) => x.id === id);
+      if (!l || l.source === "builtin") throw new Error(`layout "${id}" is not an external layout`);
+      if (l.status !== "invalid") l.status = allow ? "on" : "blocked";
+    }),
+    layoutStorageGet: (id, key) => call("layoutStorageGet", [id, key], () => layoutStorage.get(id)?.get(key) ?? "null"),
+    layoutStorageSet: (id, key, json) => call("layoutStorageSet", [id, key, json], () => {
+      if (!STORAGE_KEY.test(key)) throw new Error(`invalid storage key "${key}"`);
+      try {
+        JSON.parse(json);
+      } catch {
+        throw new Error("value is not JSON");
+      }
+      if (!layoutStorage.has(id)) layoutStorage.set(id, new Map());
+      layoutStorage.get(id)!.set(key, json);
+    }),
+    layoutStorageKeys: (id, prefix) => call("layoutStorageKeys", [id, prefix], () =>
+      Array.from(layoutStorage.get(id)?.keys() ?? []).filter((k) => k.startsWith(prefix)).sort()),
     pluginStorageGet: (id, key) => call("pluginStorageGet", [id, key], () => storage.get(id)?.get(key) ?? "null"),
     pluginStorageSet: (id, key, json) => call("pluginStorageSet", [id, key, json], () => {
       if (!STORAGE_KEY.test(key)) throw new Error(`invalid storage key "${key}"`);
