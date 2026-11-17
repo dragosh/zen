@@ -71,12 +71,17 @@ type Options struct {
 	Drafts, Portable bool
 	Clean            bool
 	Exclude          []string
+	// NoPrint leaves print.html out (zen build --no-print).
+	NoPrint bool
 }
 
 // Report is what a build produced.
 type Report struct {
 	Pages, Files int
 	Warnings     []string // "path: message", sorted
+	// Print is the output path of the single printable document ("print.html"),
+	// "" when none was written. It is not counted in Files.
+	Print string
 }
 
 const (
@@ -321,7 +326,11 @@ func Build(in Input, o Options) (Report, error) {
 			return Report{}, err
 		}
 	}
-	rep := Report{Pages: len(s.order), Files: len(s.files)}
+	printed, err := s.writePrint()
+	if err != nil {
+		return Report{}, err
+	}
+	rep := Report{Pages: len(s.order), Files: len(s.files), Print: printed}
 	for w := range s.warns {
 		rep.Warnings = append(rep.Warnings, w)
 	}
