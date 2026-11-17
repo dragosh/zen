@@ -36,6 +36,7 @@ const withWorkspace = (page = "", mode: "read" | "edit" = "read") =>
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   root = document.createElement("div");
   document.body.append(root);
   log = [];
@@ -66,6 +67,30 @@ test("shows frame with workspace", async () => {
   expect(root.querySelector("main")).not.toBeNull();
   expect(s.store.get().workspace?.name).toBe("sample-docs");
   expect(s.store.get().path).toBe("guides/install.md");
+});
+
+test("a reload keeps the page you were reading (same folder only)", async () => {
+  const s1 = boot(withWorkspace());
+  await s1.start();
+  s1.navigate("guides/install.md", "steps");
+  s1.destroy();
+  // ⌘R: a new shell in the same window session, Go still says README.md
+  const s2 = boot(withWorkspace());
+  await s2.start();
+  expect(s2.store.get().path).toBe("guides/install.md");
+  expect(s2.store.get().anchor).toBe("steps");
+  s2.destroy();
+  // another folder ignores it
+  const other = { ...sampleWorkspace(), root: "/elsewhere" };
+  const s3 = boot(createFakeApi({ startup: { workspace: other, page: "", mode: "read" } }));
+  await s3.start();
+  expect(s3.store.get().path).toBe("README.md");
+  s3.destroy();
+  // a page that is gone falls back to the startup page
+  sessionStorage.setItem("zen.shell.last", JSON.stringify({ root: sampleWorkspace().root, path: "gone.md", anchor: "" }));
+  const s4 = boot(withWorkspace());
+  await s4.start();
+  expect(s4.store.get().path).toBe("README.md");
 });
 
 test("startup without a page goes to the workspace home", async () => {

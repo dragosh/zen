@@ -37,6 +37,7 @@ const key = (k: string) =>
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   root = document.createElement("div");
   document.body.append(root);
   log = [];

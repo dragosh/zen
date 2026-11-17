@@ -42,6 +42,32 @@ function findTitle(nodes: NavNode[], path: string): string {
   return "";
 }
 
+/**
+ * The page the main window shows, kept for this window's session so that a
+ * reload (⌘R) comes back to it instead of the page zen was started with.
+ */
+const LAST_KEY = "zen.shell.last";
+type Last = { root: string; path: string; anchor: string };
+
+function rememberPage(last: Last): void {
+  try {
+    sessionStorage.setItem(LAST_KEY, JSON.stringify(last));
+  } catch {
+    // no storage: a reload shows the startup page
+  }
+}
+
+/** The page to show again after a reload of this folder, if it still exists. */
+function lastPage(workspace: Workspace): { path: string; anchor: string } | null {
+  try {
+    const v = JSON.parse(sessionStorage.getItem(LAST_KEY) ?? "null") as Partial<Last> | null;
+    if (!v || v.root !== workspace.root || typeof v.path !== "string" || !findTitle(workspace.tree, v.path)) return null;
+    return { path: v.path, anchor: typeof v.anchor === "string" ? v.anchor : "" };
+  } catch {
+    return null;
+  }
+}
+
 export type Shell = {
   /** Calls api.startup() and shows the matching view. Also the Retry action. */
   start(): Promise<void>;
@@ -178,19 +204,22 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     else openSettings();
   }
 
-  function showFrame(workspace: Workspace, page: string): void {
+  function showFrame(workspace: Workspace, page: string, anchor = ""): void {
     closeFrame();
     history.reset();
     store.set({ workspace, path: "", anchor: "", mode: "read", page: undefined, dirty: false });
     const path = page || workspace.home;
-    if (path) navigate(path);
+    if (path) navigate(path, page ? anchor : "");
 
     layout = createLayout({ onBack: back, onForward: forward, onOpenFolder: () => void openFolder(), onSettings: () => toggleSettings() });
     root.replaceChildren(layout.el);
     doc.title = `${workspace.name} — zen`;
     unmountNav = feature("nav")?.mount(layout.slots, ctx) ?? null;
     syncMain();
-    unsubscribeStore = store.subscribe(syncMain);
+    unsubscribeStore = store.subscribe((st) => {
+      syncMain();
+      if (st.workspace && st.path) rememberPage({ root: st.workspace.root, path: st.path, anchor: st.anchor });
+    });
   }
 
   function titleEditor(workspace: Workspace, path: string): void {
@@ -258,7 +287,11 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     if (kind.kind === "editor") {
       if (startup.workspace) showEditor(startup.workspace, kind.path);
       else showError(new Error("No folder is open"));
-    } else if (startup.workspace) showFrame(startup.workspace, startup.page);
+    } else if (startup.workspace) {
+      const last = lastPage(startup.workspace);
+      if (last) showFrame(startup.workspace, last.path, last.anchor);
+      else showFrame(startup.workspace, startup.page);
+    }
     else showWelcome();
   }
 

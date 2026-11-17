@@ -19,7 +19,7 @@ async function boot(page = "README.md", mode: "read" | "edit" = "read") {
   await shell.start();
   await tick();
 }
-beforeEach(() => { localStorage.clear(); root = document.createElement("div"); document.body.append(root); });
+beforeEach(() => { localStorage.clear(); sessionStorage.clear(); root = document.createElement("div"); document.body.append(root); });
 afterEach(() => { shell?.destroy(); root.remove(); });
 
 test("shows the workspace name and tree; first-level nodes start expanded", async () => {
