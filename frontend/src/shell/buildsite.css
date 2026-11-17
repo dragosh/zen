@@ -1,0 +1,60 @@
+/* File › Build Website… dialog and Settings › Website (shell/buildsite.ts) */
+.zen-buildsite-backdrop {
+  position: fixed; inset: 0; z-index: 40;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 10vh 16px 16px;
+  background: color-mix(in srgb, var(--fg) 18%, transparent);
+}
+.zen-buildsite {
+  width: min(520px, 100%); max-height: 80vh; overflow: auto;
+  padding: var(--space-4);
+  background: var(--bg); color: var(--fg);
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--fg) 18%, transparent);
+  font-family: var(--font-ui); font-size: 13px;
+}
+.zen-buildsite-title { margin: 0 0 var(--space-3); font-size: 15px; font-weight: 600; }
+.zen-buildsite-folder { color: var(--fg-muted); font-weight: 400; }
+.zen-buildsite-label { display: block; margin: var(--space-3) 0 var(--space-1); font-weight: 600; }
+.zen-buildsite-label:first-child { margin-top: 0; }
+.zen-buildsite-row { display: flex; gap: var(--space-2); }
+.zen-buildsite-out {
+  flex: 1; min-width: 0; box-sizing: border-box; padding: 6px 8px;
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  background: var(--bg); color: var(--fg); font: 13px var(--font-mono);
+}
+.zen-buildsite-out:focus-visible, .zen-buildsite input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.zen-buildsite-opens { display: flex; flex-direction: column; gap: var(--space-2); }
+.zen-buildsite-choice { display: grid; grid-template-columns: auto 1fr; column-gap: var(--space-2); align-items: baseline; }
+.zen-buildsite-choice-name { font-weight: 600; }
+.zen-buildsite-hint { grid-column: 2; color: var(--fg-muted); font-size: 12px; line-height: 1.35; }
+.zen-buildsite-check { display: flex; gap: var(--space-2); align-items: center; margin-top: var(--space-2); }
+.zen-buildsite-options > .zen-buildsite-check:first-of-type { margin-top: var(--space-3); }
+.zen-buildsite-note { margin: var(--space-3) 0 0; color: var(--fg-muted); font-size: 12px; }
+.zen-buildsite-note:empty, .zen-buildsite-status:empty { display: none; }
+.zen-buildsite-progress { margin-top: var(--space-3); }
+.zen-buildsite-bar { height: 6px; border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; }
+.zen-buildsite-bar-fill { height: 100%; width: 0; background: var(--fg); transition: width 0.1s linear; }
+.zen-buildsite-progress-text { margin: var(--space-2) 0 0; color: var(--fg-muted); }
+.zen-buildsite-preview-box { margin-top: var(--space-3); }
+.zen-buildsite-preview { margin: 0 0 var(--space-2); padding: var(--space-2) var(--space-3); background: var(--bg-subtle); border-radius: var(--radius); font: 12px var(--font-mono); white-space: pre-wrap; }
+.zen-buildsite-preview-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }
+.zen-buildsite-summary { margin: 0 0 var(--space-3); font-weight: 600; }
+.zen-buildsite-warnings { margin: 0 0 var(--space-3); padding: 0; list-style: none; max-height: calc(8 * 3.2em); overflow: auto; border: 1px solid var(--rule); border-radius: var(--radius); }
+.zen-buildsite-warning + .zen-buildsite-warning { border-top: 1px solid var(--rule); }
+.zen-buildsite-warning > span, .zen-buildsite-warning-open { display: block; padding: var(--space-2) var(--space-3); }
+.zen-buildsite-warning-open { width: 100%; text-align: left; border: 0; background: transparent; }
+.zen-buildsite-warning-open:hover { background: var(--btn-bg); }
+.zen-buildsite-warning-open:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.zen-buildsite-warning-page { display: block; font-weight: 600; }
+.zen-buildsite-warning-text { display: block; color: var(--fg-muted); font-size: 12px; overflow-wrap: anywhere; }
+.zen-buildsite-error { min-height: 1.4em; margin: var(--space-2) 0 0; color: var(--lint-error, var(--fg)); }
+.zen-buildsite-status { margin: var(--space-2) 0 0; color: var(--fg-muted); }
+.zen-buildsite-actions, .zen-buildsite-actions-form { display: flex; justify-content: flex-end; align-items: center; gap: var(--space-2); margin-top: var(--space-2); }
+.zen-buildsite-spacer { flex: 1; }
+.zen-buildsite-actions-form { justify-content: flex-start; }
+.zen-buildsite-link { border: 0; background: transparent; padding: 0; text-decoration: underline; color: var(--fg-muted); }
+.zen-buildsite-link:disabled { opacity: 0.5; }
+.zen-settings-website { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
+.zen-settings-website p { margin: 0; }
+.zen-settings-build-last { color: var(--fg-muted); }

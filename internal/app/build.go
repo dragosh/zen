@@ -31,6 +31,9 @@ type buildEnv struct {
 	GlobalPath string            // global config file ("" for none); its folder holds trust, user plugins and layouts
 	Assets     fs.FS             // frontend/dist
 	Registry   *plugins.Registry // built-in plugins; nil for the app's own
+	// Wrap, when set, decorates the site input before the build reads it
+	// (ui/static-build counts pages for progress and cancels through it).
+	Wrap func(site.Input) site.Input
 }
 
 // BuildSite is `zen build`: it writes the static site of b.Dir and prints the
@@ -123,7 +126,11 @@ func buildSite(env buildEnv, b cli.Build, stdout, stderr io.Writer) error {
 	if b.Hosted {
 		portable = false
 	}
-	rep, err := site.Build(in, site.Options{
+	var input site.Input = in
+	if env.Wrap != nil {
+		input = env.Wrap(in)
+	}
+	rep, err := site.Build(input, site.Options{
 		Out: filepath.Clean(out), SiteID: id, EditURL: bc.EditURL,
 		Drafts: b.Drafts || bc.Drafts, Portable: portable,
 		Clean: b.Clean, Exclude: bc.Exclude,
