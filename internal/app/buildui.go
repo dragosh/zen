@@ -12,7 +12,6 @@ import (
 	"fmt"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -73,7 +72,7 @@ var (
 )
 
 // revealPath shows a folder in Finder; tests replace it.
-var revealPath = func(p string) error { return exec.Command("open", p).Run() }
+var revealPath = func(p string) error { return macOpen(p) }
 
 // runningBuild is the build in progress of one Zen. At most one runs at a time.
 type runningBuild struct{ cancelled atomic.Bool }

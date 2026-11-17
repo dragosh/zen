@@ -12,3 +12,5 @@ frontend/bindings
 build/linux/zen.desktop
 build/darwin/helpers/
 _site/
+*.provisionprofile
+bin/*.pkg

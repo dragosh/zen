@@ -30,6 +30,11 @@ tasks:
     cmds:
       - task: "{{.GOOS}}:package"
 
+  package:appstore:
+    summary: Builds the sandboxed Mac App Store bundle and .pkg (needs Xcode's actool, an identity and PROFILE; see docs/DISTRIBUTION.md)
+    cmds:
+      - task: darwin:package:appstore
+
   run:
     summary: Runs the application
     cmds:

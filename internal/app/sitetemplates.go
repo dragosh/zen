@@ -6,7 +6,6 @@ import (
 	"io"
 	"io/fs"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -25,7 +24,7 @@ const EventNewSite = "menu:new-site"
 var siteBuiltins fs.FS = presets.FS
 
 // revealInFinder shows a folder in Finder; tests replace it.
-var revealInFinder = func(dir string) error { return exec.Command("open", dir).Run() }
+var revealInFinder = func(dir string) error { return macOpen(dir) }
 
 // SiteTemplate is a site template as the frontend lists it (core/init).
 type SiteTemplate struct {

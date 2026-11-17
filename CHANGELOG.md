@@ -18,6 +18,8 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Changed
 
+- zen.md-branded DMG art (generated from the icon) and file icon; no Wails template art or comments left. Info.plist gains the product name, category, copyright and export-compliance keys, and the bundle ships a privacy manifest.
+
 - The app is now called **zen.md** (window titles, menus, About, welcome screen, README). The command line tool is still `zen`, and the settings folder and plugin APIs keep their names.
 
 - Opening a big folder is faster: the folder is walked once, and live reload starts watching in the background (~/Developer, 945 pages: 3 s → 0.6 s).
@@ -36,6 +38,8 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 - Settings is a page in the main window (cog or ⌘,; Esc or Back returns) with Appearance, Configuration files and Plugins sections, instead of a popover.
 
 ### Added
+
+- Two distribution channels: `task package` (Developer ID: signed, notarised `.dmg`, everything included) and `task package:appstore` (sandboxed Mac App Store `.pkg`, without program, tool and container plugins or the `zen` command). See docs/DISTRIBUTION.md; the App Store build still needs an Apple account and owner decisions.
 
 - Site templates: `zen init site --techdocs|--learning|--planner` and File › New Site from Template… (⇧⌘N, also on the welcome screen) start a folder from editable presets kept in your templates folder (technical docs after Diátaxis, a learning path, a planner). See docs/TEMPLATES.md.
 - Print Page (⌘P) and Print Site (⇧⌘P): the whole folder as one document with a cover and contents, through the print panel (Save as PDF); `zen build` writes `print.html` (`--no-print` to skip).

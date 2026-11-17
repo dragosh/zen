@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 
@@ -53,7 +52,7 @@ version: 1
 // openFile opens a file in the system's default text editor. It is only the
 // fallback when there are no editor windows (tests, headless use).
 var openFile = func(path string) error {
-	return exec.Command("open", "-t", path).Run()
+	return macOpen("-t", path)
 }
 
 // configFile returns the file and its first-use template for "global" or "workspace".
