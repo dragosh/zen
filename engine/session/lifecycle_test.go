@@ -26,19 +26,19 @@ func (w *waiter) Stream(c context.Context, _ plugins.Context, _ []byte, _ func([
 
 func TestOpenTwice(t *testing.T) {
 	a := sessiontest.Tree(t, map[string]string{"README.md": "# A\n"})
-	b := sessiontest.Tree(t, map[string]string{"index.md": "# B\n", "x.md": "# X\n"})
+	b := sessiontest.Tree(t, map[string]string{"README.md": "# B\n", "x.md": "# X\n"})
 	s := session.New(session.Options{ConfigDir: t.TempDir(), Watch: true})
 	t.Cleanup(s.Close)
 	if s.Workspace() != nil {
 		t.Fatal("a new session has a folder open")
 	}
 	for i := 0; i < 3; i++ {
-		for _, c := range []struct{ dir, home string }{{a, "README.md"}, {b, "index.md"}} {
+		for _, c := range []struct{ dir, home, title string }{{a, "README.md", "A"}, {b, "README.md", "B"}} {
 			if err := s.Open(c.dir); err != nil {
 				t.Fatal(err)
 			}
 			ws := s.Workspace()
-			if ws == nil || ws.Root != filepath.Clean(ws.Root) || ws.Home != c.home || s.Home() != c.home {
+			if ws == nil || ws.Root != filepath.Clean(ws.Root) || ws.Home != c.home || s.Home() != c.home || ws.Tree[0].Title != c.title {
 				t.Fatalf("workspace after opening %s: %+v", c.dir, ws)
 			}
 			if _, err := s.Page(c.home); err != nil {

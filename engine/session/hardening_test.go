@@ -1,4 +1,4 @@
-package app
+package session
 
 // Regression tests for docs/plugin-review-2026-11.md (app side).
 
@@ -13,7 +13,6 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/dragosh/zen/internal/cli"
 	"github.com/dragosh/zen/internal/core/plugins"
 )
 
@@ -73,14 +72,14 @@ func TestPluginsChangedEventAndVersionedAssets(t *testing.T) {
 		t.Fatalf("builtin page: %+v %v", pg.Assets, err)
 	}
 	for _, u := range append(pg.Assets.JS, pg.Assets.CSS...) {
-		if !strings.HasSuffix(u, "?v="+cli.Version) {
-			t.Errorf("built-in asset %q lacks ?v=%s", u, cli.Version)
+		if !strings.HasSuffix(u, "?v="+"dev") {
+			t.Errorf("built-in asset %q lacks ?v=%s", u, "dev")
 		}
 	}
 	// The query is ignored when serving.
 	for _, u := range []string{"/_plugins/codeblock/codeblock.js?v=other", "/_plugins/codeblock/codeblock.js"} {
 		rec := httptest.NewRecorder()
-		z2.state.middleware(http.NotFoundHandler()).ServeHTTP(rec, httptest.NewRequest("GET", u, nil))
+		z2.middleware(http.NotFoundHandler()).ServeHTTP(rec, httptest.NewRequest("GET", u, nil))
 		if rec.Code != 200 {
 			t.Errorf("%s: %d", u, rec.Code)
 		}
@@ -91,10 +90,10 @@ func TestPluginsChangedEventAndVersionedAssets(t *testing.T) {
 func TestAllowNeedsTheDialog(t *testing.T) {
 	dir := pluginTree(t, pluginDocs())
 	z, ev, dl := openWith(t, dir, t.TempDir(), false)
-	dl.asked = nil
+	dl.Asked = nil
 	ev.reset()
-	if err := z.PluginTrust("hello", true); err != nil || len(dl.asked) != 1 || !strings.Contains(dl.asked[0], "hello") {
-		t.Fatalf("declined: err=%v asked=%q", err, dl.asked)
+	if err := z.PluginTrust("hello", true); err != nil || len(dl.Asked) != 1 || !strings.Contains(dl.Asked[0], "hello") {
+		t.Fatalf("declined: err=%v asked=%q", err, dl.Asked)
 	}
 	if st := infoOf(t, z, "hello").Status; st == "on" {
 		t.Fatal("a declined dialog allowed the plugin")
@@ -102,17 +101,17 @@ func TestAllowNeedsTheDialog(t *testing.T) {
 	if hasEvent(ev, EventPluginsChanged) {
 		t.Error("a declined dialog changed the plugin set")
 	}
-	dl.confirm = true
+	dl.Allow = true
 	if err := z.PluginTrust("hello", true); err != nil || infoOf(t, z, "hello").Status != "on" {
 		t.Fatalf("confirmed: %v %+v", err, infoOf(t, z, "hello"))
 	}
 	// Blocking needs no dialog.
-	n := len(dl.asked)
-	if err := z.PluginTrust("hello", false); err != nil || len(dl.asked) != n || infoOf(t, z, "hello").Status != "blocked" {
-		t.Fatalf("block: %v asked %d", err, len(dl.asked)-n)
+	n := len(dl.Asked)
+	if err := z.PluginTrust("hello", false); err != nil || len(dl.Asked) != n || infoOf(t, z, "hello").Status != "blocked" {
+		t.Fatalf("block: %v asked %d", err, len(dl.Asked)-n)
 	}
 	// Without dialogs nothing can be allowed.
-	z.state.dialogs = nil
+	z.prompter = nil
 	if err := z.PluginTrust("hello", true); err == nil {
 		t.Error("allowed without a way to ask")
 	}
@@ -133,7 +132,7 @@ func (d *editingDialogs) Confirm(msg string) bool {
 
 func TestM2ChangeWhileTheDialogIsOpen(t *testing.T) {
 	dir := pluginTree(t, pluginDocs())
-	dl := &editingDialogs{fakeDialogs: fakeDialogs{confirm: true}}
+	dl := &editingDialogs{fakeDialogs: fakeDialogs{Allow: true}}
 	dl.edit = func() { write(t, dir, ".zen/plugins/hello/hello.sh", "#!/bin/sh\necho EVIL\n", 0o755) }
 	reg := plugins.NewRegistry()
 	z, err := newZen(zenOptions{Registry: reg, ConfigDir: t.TempDir(), Dir: dir, Events: &sink{}, Dialogs: dl, Open: func(string) error { return nil }})
@@ -157,7 +156,7 @@ func TestM2ChangeWhileTheDialogIsOpen(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(z2.close)
-	dl2.confirm = true
+	dl2.Allow = true
 	dl2.edit = func() { write(t, dir2, ".zen/plugins/hello/hello.sh", "#!/bin/sh\necho EVIL\n", 0o755) }
 	if err := z2.PluginTrust("hello", true); err == nil || infoOf(t, z2, "hello").Status == "on" {
 		t.Fatalf("allowed a plugin that changed during the dialog: %v", err)
@@ -175,7 +174,7 @@ func TestM1EditAfterApproval(t *testing.T) {
 	frontend := fstest.MapFS{"index.html": {Data: []byte("x")}}
 	get := func(p string) int {
 		rec := httptest.NewRecorder()
-		z.state.middleware(http.FileServerFS(frontend)).ServeHTTP(rec, httptest.NewRequest("GET", p, nil))
+		z.middleware(http.FileServerFS(frontend)).ServeHTTP(rec, httptest.NewRequest("GET", p, nil))
 		return rec.Code
 	}
 	if get("/_plugins/hello/hello.js") != 200 {
@@ -286,7 +285,7 @@ func TestL3FolderChangeCancelsRenders(t *testing.T) {
 	go func() { pg, _ := z.Page("README.md"); done <- pg }()
 	time.Sleep(300 * time.Millisecond)
 	start := time.Now()
-	if err := z.state.open(tree(t, map[string]string{"README.md": "# Other\n"})); err != nil {
+	if err := z.Open(tree(t, map[string]string{"README.md": "# Other\n"})); err != nil {
 		t.Fatal(err)
 	}
 	select {
@@ -330,7 +329,7 @@ func TestM6SwitchingOffStopsStreams(t *testing.T) {
 	}
 	<-act.started
 	write(t, dir, ".zen.yml", "plugins:\n  act: false\n", 0o644)
-	z.state.reloadConfig()
+	z.reloadConfig()
 	es := finish(t, ev, call)
 	if es[len(es)-1].Error != "cancelled" {
 		t.Fatalf("switched-off plugin kept streaming: %+v", es[len(es)-1])
@@ -398,7 +397,7 @@ func TestL1EmptyLinesAreLimitedAndBatched(t *testing.T) {
 // L4: concurrent trust changes leave a consistent plugin list.
 func TestL4ConcurrentTrustChanges(t *testing.T) {
 	z, _, dl := openWith(t, pluginTree(t, pluginDocs()), t.TempDir(), true)
-	dl.confirm = true
+	dl.Allow = true
 	var wg sync.WaitGroup
 	for i := 0; i < 6; i++ {
 		wg.Add(1)
@@ -442,12 +441,12 @@ func TestL5ApprovalIsPerFolder(t *testing.T) {
 	}
 	cfg := t.TempDir()
 	a, _, dla := openWith(t, mkFolder(), cfg, true)
-	if len(dla.asked) != 1 || infoOf(t, a, "hello").Status != "on" {
-		t.Fatalf("folder A: asked %d, %+v", len(dla.asked), infoOf(t, a, "hello"))
+	if len(dla.Asked) != 1 || infoOf(t, a, "hello").Status != "on" {
+		t.Fatalf("folder A: asked %d, %+v", len(dla.Asked), infoOf(t, a, "hello"))
 	}
 	b, _, dlb := openWith(t, mkFolder(), cfg, false)
-	if len(dlb.asked) != 1 || infoOf(t, b, "hello").Status == "on" {
-		t.Fatalf("folder B ran an approval of folder A: asked %d, %+v", len(dlb.asked), infoOf(t, b, "hello"))
+	if len(dlb.Asked) != 1 || infoOf(t, b, "hello").Status == "on" {
+		t.Fatalf("folder B ran an approval of folder A: asked %d, %+v", len(dlb.Asked), infoOf(t, b, "hello"))
 	}
 }
 
@@ -457,7 +456,7 @@ func TestL8CorruptStorage(t *testing.T) {
 	if err := z.PluginStorageSet("hello", "k", `1`); err != nil {
 		t.Fatal(err)
 	}
-	path, err := z.state.storagePath("hello")
+	path, err := z.storagePath("hello")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -486,7 +485,7 @@ func TestL9WorkspaceScriptsArePlainText(t *testing.T) {
 	z, _, _ := openWith(t, dir, t.TempDir(), true)
 	get := func(p string) *httptest.ResponseRecorder {
 		rec := httptest.NewRecorder()
-		z.state.middleware(http.NotFoundHandler()).ServeHTTP(rec, httptest.NewRequest("GET", p, nil))
+		z.middleware(http.NotFoundHandler()).ServeHTTP(rec, httptest.NewRequest("GET", p, nil))
 		return rec
 	}
 	for _, f := range []string{"x.js", "x.mjs", "x.html"} {

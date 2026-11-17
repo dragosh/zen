@@ -1,4 +1,4 @@
-package app
+package session
 
 import (
 	"encoding/json"
@@ -27,7 +27,7 @@ func layoutFiles() map[string]string {
 	}
 }
 
-func layoutOf(t *testing.T, z *Zen, id string) LayoutInfo {
+func layoutOf(t *testing.T, z *Session, id string) LayoutInfo {
 	t.Helper()
 	for _, l := range z.Layouts() {
 		if l.ID == id {
@@ -94,7 +94,7 @@ func TestLayoutTrustPromptAndUse(t *testing.T) {
 	dir := pluginTree(t, layoutFiles())
 	z, ev, dl := openWith(t, dir, cfg, true)
 	var prompt string
-	for _, m := range dl.asked {
+	for _, m := range dl.Asked {
 		if strings.Contains(m, "layout") {
 			prompt = m
 		}
@@ -102,7 +102,7 @@ func TestLayoutTrustPromptAndUse(t *testing.T) {
 	if !strings.Contains(prompt, "memo 0.1.0") || !strings.Contains(prompt, "changes how pages look; runs nothing") ||
 		!strings.Contains(prompt, "fancy 0.2.0") || !strings.Contains(prompt, "changes how pages look and runs a page script") ||
 		strings.Contains(prompt, "broken") {
-		t.Fatalf("prompt: %q", dl.asked)
+		t.Fatalf("prompt: %q", dl.Asked)
 	}
 	pg, err := z.Page("README.md")
 	if err != nil {
@@ -131,7 +131,7 @@ func TestLayoutTrustPromptAndUse(t *testing.T) {
 	}
 
 	// Assets: listed files only.
-	h := z.state.middleware(http.NotFoundHandler())
+	h := z.middleware(http.NotFoundHandler())
 	get := func(p string) *httptest.ResponseRecorder {
 		rec := httptest.NewRecorder()
 		h.ServeHTTP(rec, httptest.NewRequest("GET", p, nil))
@@ -184,7 +184,7 @@ func TestLayoutBlockedAndUndecided(t *testing.T) {
 	}
 	// A blocked layout's files are not served.
 	rec := httptest.NewRecorder()
-	z.state.middleware(http.NotFoundHandler()).ServeHTTP(rec, httptest.NewRequest("GET", "/_layouts/memo/memo.css", nil))
+	z.middleware(http.NotFoundHandler()).ServeHTTP(rec, httptest.NewRequest("GET", "/_layouts/memo/memo.css", nil))
 	if rec.Code != 404 {
 		t.Errorf("blocked layout css served: %d", rec.Code)
 	}
@@ -197,8 +197,8 @@ func TestLayoutBlockedAndUndecided(t *testing.T) {
 	if layoutOf(t, z2, "memo").Status == "on" {
 		t.Error("allowed although the dialog said no")
 	}
-	dl.confirm = true
-	ev2 := z2.state.events.(*sink)
+	dl.Allow = true
+	ev2 := z2.events.(*sink)
 	ev2.reset()
 	if err := z2.LayoutTrust("memo", true); err != nil {
 		t.Fatal(err)
@@ -230,13 +230,13 @@ func TestLayoutEditedAsksAgain(t *testing.T) {
 	if pg, _ := z.Page("README.md"); pg.Layout.Name != "memo" {
 		t.Fatalf("layout %+v", pg.Layout)
 	}
-	asked := len(dl.asked)
+	asked := len(dl.Asked)
 	time.Sleep(20 * time.Millisecond)
 	ev.reset()
 	if err := os.WriteFile(filepath.Join(dir, ".zen/layouts/memo/layout.html"), []byte("<section class=\"memo\">EDITED {{.Content}}</section>"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	dl.confirm = false
+	dl.Allow = false
 	// The page notices on the next render, never uses the changed layout, and
 	// the layouts reload.
 	pg, _ := z.Page("README.md")
@@ -255,7 +255,7 @@ func TestLayoutEditedAsksAgain(t *testing.T) {
 	}
 	_ = asked
 	// Allowing again shows the prompt and works with the new content.
-	dl.confirm = true
+	dl.Allow = true
 	if err := z.LayoutTrust("memo", true); err != nil {
 		t.Fatal(err)
 	}
@@ -385,7 +385,7 @@ func TestCourseStorageKeepsThePluginsFile(t *testing.T) {
 	cfg := t.TempDir()
 	dir := tree(t, map[string]string{"README.md": "# Home\n"})
 	z, _, _ := openWith(t, dir, cfg, true)
-	legacy := filepath.Join(z.state.dataDir(z.state.ws.Root(), "course"), "storage.json")
+	legacy := filepath.Join(z.dataDir(z.ws.Root(), "course"), "storage.json")
 	if err := os.MkdirAll(filepath.Dir(legacy), 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -421,8 +421,8 @@ func TestPluginsCannotDeclareLayouts(t *testing.T) {
 			t.Errorf("%s: %+v", id, p)
 		}
 	}
-	if len(dl.asked) != 0 {
-		t.Errorf("asked about invalid plugins: %q", dl.asked)
+	if len(dl.Asked) != 0 {
+		t.Errorf("asked about invalid plugins: %q", dl.Asked)
 	}
 }
 

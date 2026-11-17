@@ -1,4 +1,4 @@
-package app
+package session
 
 import (
 	"context"
@@ -11,19 +11,25 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dragosh/zen/internal/cli"
 	"github.com/dragosh/zen/internal/core/config"
 	"github.com/dragosh/zen/internal/core/extplugins"
 	"github.com/dragosh/zen/internal/core/index"
 	"github.com/dragosh/zen/internal/core/layouts"
 	"github.com/dragosh/zen/internal/core/plugins"
 	"github.com/dragosh/zen/internal/core/render"
+	"github.com/dragosh/zen/internal/core/scriptplugins"
 	"github.com/dragosh/zen/internal/core/watch"
 	"github.com/dragosh/zen/internal/core/workspace"
 	builtinlayouts "github.com/dragosh/zen/internal/layouts"
+	"github.com/dragosh/zen/internal/plugins/check"
+	"github.com/dragosh/zen/internal/plugins/codeblock"
+	"github.com/dragosh/zen/internal/plugins/diagram"
+	"github.com/dragosh/zen/internal/plugins/quiz"
+	"github.com/dragosh/zen/internal/plugins/sandbox"
+	sitepresets "github.com/dragosh/zen/internal/sitetemplates"
 )
 
-// Event names emitted to the frontend.
+// Event names the session emits.
 const (
 	EventWorkspaceChanged = "workspace:changed"
 	EventPageChanged      = "page:changed"
@@ -33,10 +39,27 @@ const (
 	EventPluginsChanged = "plugins:changed"
 )
 
-// EventSink delivers events to the frontend.
-type EventSink interface {
+// Events delivers the session's events (docs/PLAN.md "Service API"); the app
+// forwards them to its frontend. A session works without one.
+type Events interface {
 	Emit(name string, data any)
 }
+
+// Prompter asks the user a yes/no question: allow a plugin or a layout. A
+// session without one never asks and never decides anything.
+//
+// A prompter may also implement TrustPrompter (a dedicated trust dialog) and
+// Readier (cannot show anything yet, at start-up).
+type Prompter interface {
+	Confirm(message string) bool
+}
+
+// TrustPrompter is implemented by prompters that have a dedicated trust prompt.
+type TrustPrompter interface{ ConfirmTrust(message string) bool }
+
+// Readier is implemented by prompters that cannot show anything yet at
+// start-up (before the application window exists).
+type Readier interface{ Ready() bool }
 
 // NavNode, Workspace, Crumb, Page and Startup are the JSON shapes of
 // docs/PLAN.md "Service API".
@@ -94,17 +117,26 @@ type PageChanged struct {
 	Path string `json:"path"`
 }
 
-var errNoWorkspace = errors.New("no folder is open")
+// ErrNoWorkspace is returned by calls that need an open folder when there is none.
+var ErrNoWorkspace = errors.New("no folder is open")
 
-// state holds the open workspace and everything derived from it. All fields
+var errNoWorkspace = ErrNoWorkspace
+
+// Session holds the open folder and everything derived from it. All fields
 // below mu are swapped together.
-type state struct {
+type Session struct {
 	base       *plugins.Registry // built-in plugins
 	reg        *plugins.Registry // base plus the allowed plugins of the open folder (guarded by mu)
 	globalPath string
 	configDir  string // settings folder: user plugins, trust, plugin data; "" for none
-	events     EventSink
-	dialogs    Dialogs
+	events     Events
+	prompter   Prompter
+	version    string           // asset versioning of the built-ins
+	runtime    fs.FS            // the static runtime (frontend/dist) for Build and Print
+	presets    fs.FS            // the built-in site templates
+	now        func() time.Time // the clock of the print cover's date
+	buildMu    sync.Mutex
+	building   *runningBuild // the build in progress (buildui.go), guarded by buildMu
 	trust      *extplugins.Trust
 	lbase      *layouts.Registry // built-in layouts
 	lreg       *layouts.Registry // lbase plus the allowed layouts of the open folder (guarded by mu)
@@ -114,7 +146,7 @@ type state struct {
 	streams    streams           // running plugin streams (stream.go)
 	reloadMu   sync.Mutex        // serialises loading the external plugins (open, trust changes, plugin edits)
 	life       context.Context
-	stop       context.CancelFunc // ends every plugin call (the app quits)
+	stop       context.CancelFunc // ends every plugin call (the session closes)
 
 	mu      sync.Mutex
 	ws      *workspace.Workspace
@@ -142,28 +174,92 @@ type state struct {
 	indexErr  error                 // why that index stopped (guarded by mu)
 }
 
-func newState(reg *plugins.Registry, globalPath string, events EventSink) *state {
+// Options configures a Session; every field is optional.
+type Options struct {
+	GlobalPath string            // config.yml; "" for none
+	ConfigDir  string            // trust, plugin data, user plugins/layouts, templates; default: the folder of GlobalPath
+	Registry   *plugins.Registry // built-in plugins; nil = the default set
+	Layouts    *layouts.Registry // built-in layouts; nil = the default set
+	Events     Events            // may be nil
+	Prompter   Prompter          // may be nil: never asks
+	Runtime    fs.FS             // the static runtime (frontend/dist) for Build and Print
+	Presets    fs.FS             // the built-in site templates; nil = the default set
+	Watch      bool              // live reload: watch the open folder
+	Version    string            // asset versioning of the built-ins; "" = "dev"
+}
+
+// New creates a session with no folder open. Call Close when done.
+func New(o Options) *Session {
+	configDir := o.ConfigDir
+	if configDir == "" && o.GlobalPath != "" {
+		configDir = filepath.Dir(o.GlobalPath)
+	}
+	reg := o.Registry
 	if reg == nil {
-		reg = plugins.NewRegistry()
+		reg = DefaultPlugins()
+	}
+	version := o.Version
+	if version == "" {
+		version = "dev"
 	}
 	if reg.AssetVersion() == "" {
-		reg.SetAssetVersion(cli.Version) // built-in assets are versioned by the app version
+		reg.SetAssetVersion(version) // built-in assets are versioned by the app version
+	}
+	lbase := o.Layouts
+	if lbase == nil {
+		lbase = builtinlayouts.Registry(version)
+	}
+	presets := o.Presets
+	if presets == nil {
+		presets = sitepresets.FS
 	}
 	life, stop := context.WithCancel(context.Background())
-	lbase := builtinlayouts.Registry(cli.Version)
-	return &state{base: reg, reg: reg, lbase: lbase, lreg: lbase, globalPath: globalPath, events: events, trust: extplugins.LoadTrust(""), life: life, stop: stop}
+	s := &Session{
+		base: reg, reg: reg, lbase: lbase, lreg: lbase,
+		globalPath: o.GlobalPath, configDir: configDir,
+		events: o.Events, prompter: o.Prompter,
+		version: version, runtime: o.Runtime, presets: presets, now: time.Now,
+		trust: extplugins.LoadTrust(""), life: life, stop: stop,
+		noWatch: !o.Watch,
+	}
+	if configDir != "" {
+		s.trust = extplugins.LoadTrust(filepath.Join(configDir, "trusted-plugins.yml"))
+	}
+	return s
+}
+
+// DefaultPlugins is the built-in plugin set, in order: codeblock, diagram,
+// check, quiz, sandbox.
+func DefaultPlugins() *plugins.Registry {
+	r := plugins.NewRegistry()
+	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New(), check.New(), quiz.New(), sandbox.New()} {
+		if err := r.Register(p); err != nil {
+			panic(err) // the built-ins are fixed: a clash is a programming error
+		}
+	}
+	return r
+}
+
+// Close stops the watcher, every plugin call, the streams and the script
+// helpers. The session is not used afterwards.
+func (s *Session) Close() {
+	s.stopWatch()
+	s.stop()              // ends every plugin call
+	scriptplugins.Reset() // the script helpers go with them
+	s.streams.cancelAll()
+	s.streams.wait(3 * time.Second)
 }
 
 // emit sends an event unless there is nobody to send it to.
-func (s *state) emit(name string, data any) {
+func (s *Session) emit(name string, data any) {
 	if s.events != nil {
 		s.events.Emit(name, data)
 	}
 }
 
-// open replaces the workspace with dir ("" closes it) and starts watching.
-// It must not be called from the watch callback.
-func (s *state) stopWatch() {
+// stopWatch ends the watcher; a watcher still starting is dropped. It must
+// not be called from the watch callback.
+func (s *Session) stopWatch() {
 	s.watchMu.Lock()
 	defer s.watchMu.Unlock()
 	s.watchGen++ // a watcher still starting is dropped
@@ -175,7 +271,7 @@ func (s *state) stopWatch() {
 
 // rebuildLocked reloads config, renderer and index and reports whether the
 // tree changed.
-func (s *state) rebuildLocked() bool {
+func (s *Session) rebuildLocked() bool {
 	if s.ws == nil {
 		s.cfg, s.r, s.idx, s.tree, s.slugs, s.navWarn = nil, nil, nil, nil, nil, nil
 		return true
@@ -192,7 +288,7 @@ func (s *state) rebuildLocked() bool {
 }
 
 // reindexLocked rebuilds the index and reports whether the tree changed.
-func (s *state) reindexLocked() bool {
+func (s *Session) reindexLocked() bool {
 	files := s.ws.Opened() // the listing open made, once
 	var err error
 	if files == nil {
@@ -282,7 +378,7 @@ func (s *state) reindexLocked() bool {
 
 // indexStoppedLocked reports whether the index open is building was cancelled
 // or ran out of time; the reason is kept in indexErr.
-func (s *state) indexStoppedLocked() bool {
+func (s *Session) indexStoppedLocked() bool {
 	if s.indexErr != nil {
 		return true
 	}
@@ -294,7 +390,7 @@ func (s *state) indexStoppedLocked() bool {
 
 // siteOrNil is the layout site as a layouts.Site, nil (not a typed nil) when
 // there is none yet.
-func (s *state) siteOrNil() layouts.Site {
+func (s *Session) siteOrNil() layouts.Site {
 	if s.site == nil {
 		return nil
 	}
@@ -309,26 +405,35 @@ func navNodes(ns []index.Node) []NavNode {
 	return out
 }
 
-func (s *state) workspaceLocked() *Workspace {
+func (s *Session) workspaceLocked() *Workspace {
 	if s.ws == nil {
 		return nil
 	}
 	return &Workspace{Root: s.ws.Root(), Name: s.ws.Name(), Home: s.ws.Home(), Tree: s.tree}
 }
 
-func (s *state) workspace() *Workspace {
+// Workspace is the open folder with its sidebar tree; nil when none is open.
+func (s *Session) Workspace() *Workspace {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.workspaceLocked()
 }
 
-func (s *state) home() string {
+// Home is the page shown first in the open folder; "" when none is open.
+func (s *Session) Home() string {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.ws == nil {
 		return ""
 	}
 	return s.ws.Home()
+}
+
+// Current is the page last served by Page, "" when none was.
+func (s *Session) Current() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.current
 }
 
 // renderSnap is what a render needs from the state, taken under the lock so
@@ -342,7 +447,7 @@ type renderSnap struct {
 	crumbs   []Crumb
 }
 
-func (s *state) snapLocked(path string) renderSnap {
+func (s *Session) snapLocked(path string) renderSnap {
 	sn := renderSnap{r: s.r, root: s.ws.Root()}
 	if s.ext != nil {
 		sn.extWarns = append(sn.extWarns, s.ext.warns...)
@@ -391,7 +496,8 @@ func (sn renderSnap) render(path string, src []byte) (Page, error) {
 	return p, nil
 }
 
-func (s *state) page(path string) (Page, error) {
+// Page renders a workspace page.
+func (s *Session) Page(path string) (Page, error) {
 	if !isMarkdownPath(path) {
 		return Page{}, s.cleanErr(path, workspace.ErrNotMarkdown)
 	}
@@ -421,7 +527,18 @@ func (s *state) page(path string) (Page, error) {
 	return p, err
 }
 
-func (s *state) source(path string) (string, error) {
+// Source returns the markdown of a page, or the text of a settings file for
+// the editor (zen:config/global, zen:config/workspace).
+func (s *Session) Source(path string) (string, error) {
+	if which, ok := configWhich(path); ok {
+		return s.configSource(which)
+	}
+	return s.PageSource(path)
+}
+
+// PageSource returns the markdown of a page: a markdown file inside the
+// open folder.
+func (s *Session) PageSource(path string) (string, error) {
 	if !isMarkdownPath(path) {
 		return "", s.cleanErr(path, workspace.ErrNotMarkdown)
 	}
@@ -437,7 +554,8 @@ func (s *state) source(path string) (string, error) {
 	return string(src), nil
 }
 
-func (s *state) preview(path, content string) (Page, error) {
+// Preview renders unsaved text as if it were path.
+func (s *Session) Preview(path, content string) (Page, error) {
 	if !isMarkdownPath(path) {
 		return Page{}, s.cleanErr(path, workspace.ErrNotMarkdown)
 	}
@@ -456,7 +574,11 @@ func (s *state) preview(path, content string) (Page, error) {
 	return sn.render(path, []byte(content))
 }
 
-func (s *state) save(path, content string) error {
+// Save writes a page.
+func (s *Session) Save(path, content string) error {
+	if which, ok := configWhich(path); ok {
+		return s.saveConfig(which, content)
+	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.ws == nil {
@@ -466,7 +588,7 @@ func (s *state) save(path, content string) error {
 }
 
 // cleanErr turns an error into a message without absolute paths.
-func (s *state) cleanErr(rel string, err error) error {
+func (s *Session) cleanErr(rel string, err error) error {
 	root := ""
 	if s.ws != nil {
 		root = s.ws.Root()
@@ -510,7 +632,7 @@ func rootErr(err error) error {
 }
 
 // handle is the watch callback. It never stops the watcher.
-func (s *state) handle(evs []watch.Event) {
+func (s *Session) handle(evs []watch.Event) {
 	s.mu.Lock()
 	if s.ws == nil {
 		s.mu.Unlock()
@@ -549,10 +671,10 @@ func (s *state) handle(evs []watch.Event) {
 	s.mu.Unlock()
 
 	if ws != nil {
-		s.events.Emit(EventWorkspaceChanged, ws)
+		s.emit(EventWorkspaceChanged, ws)
 	}
 	for _, p := range pages {
-		s.events.Emit(EventPageChanged, PageChanged{Path: p})
+		s.emit(EventPageChanged, PageChanged{Path: p})
 	}
 	if cfg {
 		s.reconcileStreams() // a plugin may have been switched off
@@ -561,7 +683,7 @@ func (s *state) handle(evs []watch.Event) {
 
 // reloadConfig re-reads the config files after one was saved in the editor
 // and re-renders: the tree may change (plugins) and the page always may.
-func (s *state) reloadConfig() {
+func (s *Session) reloadConfig() {
 	s.mu.Lock()
 	if s.ws == nil {
 		s.mu.Unlock()
@@ -575,10 +697,10 @@ func (s *state) reloadConfig() {
 	current := s.current
 	s.mu.Unlock()
 	if ws != nil {
-		s.events.Emit(EventWorkspaceChanged, ws)
+		s.emit(EventWorkspaceChanged, ws)
 	}
 	if current != "" {
-		s.events.Emit(EventPageChanged, PageChanged{Path: current})
+		s.emit(EventPageChanged, PageChanged{Path: current})
 	}
 	s.reconcileStreams()
 }

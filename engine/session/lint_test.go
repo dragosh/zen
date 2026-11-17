@@ -1,4 +1,4 @@
-package app
+package session
 
 import (
 	"context"
@@ -189,7 +189,7 @@ func TestLintErrors(t *testing.T) {
 	withLinter(t, f)
 	dir := tree(t, lintDocs)
 	z, _, _, _ := newTestZen(t, dir, "", "read")
-	root := z.state.workspace().Root
+	root := z.Workspace().Root
 	f.err = errors.New("lint: vale: exit status 2: " + root + "/.vale.ini: bad")
 	_, err := z.Lint("README.md", "")
 	if err == nil || strings.Contains(err.Error(), root) {

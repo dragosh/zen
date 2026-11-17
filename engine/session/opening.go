@@ -1,4 +1,4 @@
-package app
+package session
 
 import (
 	"context"
@@ -52,7 +52,7 @@ const asyncWatchFrom = 2000
 const progressEvery = 100 * time.Millisecond
 
 type openProgress struct {
-	s     *state
+	s     *Session
 	name  string
 	mu    sync.Mutex
 	last  time.Time
@@ -77,8 +77,8 @@ func (p *openProgress) end(phase string) {
 	p.s.emit(EventWorkspaceOpening, OpenProgress{Name: p.name, Phase: phase})
 }
 
-// cancelOpen stops the open in progress, if any; the previous folder stays.
-func (s *state) cancelOpen() {
+// CancelOpen stops the open in progress, if any; the previous folder stays.
+func (s *Session) CancelOpen() {
 	s.openMu.Lock()
 	defer s.openMu.Unlock()
 	if s.openCancel != nil {
@@ -86,9 +86,20 @@ func (s *state) cancelOpen() {
 	}
 }
 
-func (s *state) timeoutOf(l config.Limits) time.Duration {
-	if s.openTimeout > 0 {
-		return s.openTimeout
+// SetOpenTimeout overrides limits.openTimeout for the opens that follow; 0
+// goes back to the config's value. For tests and embedders.
+func (s *Session) SetOpenTimeout(d time.Duration) {
+	s.openMu.Lock()
+	s.openTimeout = d
+	s.openMu.Unlock()
+}
+
+func (s *Session) timeoutOf(l config.Limits) time.Duration {
+	s.openMu.Lock()
+	override := s.openTimeout
+	s.openMu.Unlock()
+	if override > 0 {
+		return override
 	}
 	secs := l.OpenTimeout
 	if secs <= 0 {
@@ -97,12 +108,12 @@ func (s *state) timeoutOf(l config.Limits) time.Duration {
 	return time.Duration(secs) * time.Second
 }
 
-// open opens dir ("" closes the folder). It reports progress as
+// Open opens dir ("" closes the folder). It reports progress as
 // workspace:opening events, stops when CancelOpen is called or when reading
 // or indexing takes longer than limits.openTimeout (the time spent in a trust
 // prompt does not count), and then leaves the folder that was open before as
 // it was. A newer open cancels an older one.
-func (s *state) open(dir string) error {
+func (s *Session) Open(dir string) error {
 	l := config.Load(s.globalPath, "").Limits() // global only: a folder cannot raise its own limits
 	parent, cancel := context.WithCancel(context.Background())
 	s.openMu.Lock()
@@ -144,7 +155,7 @@ func (s *state) open(dir string) error {
 	return err
 }
 
-func (s *state) openIn(parent context.Context, dir string, l config.Limits, timeout time.Duration, p *openProgress) error {
+func (s *Session) openIn(parent context.Context, dir string, l config.Limits, timeout time.Duration, p *openProgress) error {
 	var ws *workspace.Workspace
 	if dir != "" {
 		ctx, stop := context.WithTimeout(parent, timeout)
@@ -224,12 +235,12 @@ type openSnapshot struct {
 	navWarn map[string][]string
 }
 
-func (s *state) snapshotLocked() *openSnapshot {
+func (s *Session) snapshotLocked() *openSnapshot {
 	return &openSnapshot{ws: s.ws, current: s.current, idx: s.idx, ext: s.ext, reg: s.reg, lay: s.lay, lreg: s.lreg, site: s.site,
 		cfg: s.cfg, r: s.r, tree: s.tree, slugs: s.slugs, navWarn: s.navWarn}
 }
 
-func (s *state) restoreLocked(p openSnapshot) {
+func (s *Session) restoreLocked(p openSnapshot) {
 	s.ws, s.current, s.idx = p.ws, p.current, p.idx
 	s.ext, s.lay, s.site = p.ext, p.lay, p.site
 	s.cfg, s.r, s.tree, s.slugs, s.navWarn = p.cfg, p.r, p.tree, p.slugs, p.navWarn
@@ -238,7 +249,7 @@ func (s *state) restoreLocked(p openSnapshot) {
 
 // startWatch starts watching root, in the background when async; a stop or a
 // newer start before it is ready drops it.
-func (s *state) startWatch(root string, async bool) {
+func (s *Session) startWatch(root string, async bool) {
 	s.watchMu.Lock()
 	s.watchGen++
 	gen := s.watchGen
@@ -261,4 +272,13 @@ func (s *state) startWatch(root string, async bool) {
 		return
 	}
 	start()
+}
+
+// OpenError is the message for an open that failed, without absolute paths.
+func (s *Session) OpenError(err error) error {
+	var te *OpenTimeoutError
+	if errors.Is(err, ErrOpenCancelled) || errors.As(err, &te) {
+		return err // no paths in these
+	}
+	return s.cleanErr(".", err)
 }

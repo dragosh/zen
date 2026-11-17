@@ -17,6 +17,7 @@ import (
 	"testing/fstest"
 	"time"
 
+	"github.com/dragosh/zen/engine/session"
 	"github.com/dragosh/zen/internal/cli"
 	"github.com/dragosh/zen/internal/core/lint"
 	"github.com/dragosh/zen/internal/core/plugins"
@@ -120,7 +121,7 @@ func TestUnwritableTemplatesDir(t *testing.T) {
 	// And they work.
 	var out, errOut bytes.Buffer
 	target := filepath.Join(t.TempDir(), "docs")
-	if err := initSite(env, cli.Init{Dir: target, Template: "planner", Values: map[string]string{}}, &out, &errOut); err != nil {
+	if err := initSite(env.api(), cli.Init{Dir: target, Template: "planner", Values: map[string]string{}}, &out, &errOut); err != nil {
 		t.Fatal(err)
 	}
 	if !strings.Contains(errOut.String(), "cannot be written to") || !strings.Contains(out.String(), "Created 8 files") {
@@ -170,7 +171,7 @@ func TestCreateSite(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(busy, "mine.md"), []byte("# Mine\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := z.state.open(busy); err != nil {
+	if err := z.s.Open(busy); err != nil {
 		t.Fatal(err)
 	}
 	if st, err := z.CreateSite("planner", busy, nil); err != nil || !sameDir(st.Workspace.Root, busy) {
@@ -256,7 +257,7 @@ func TestInitSite(t *testing.T) {
 		if i.Values == nil {
 			i.Values = map[string]string{}
 		}
-		err := initSite(env, i, &out, &errOut)
+		err := initSite(env.api(), i, &out, &errOut)
 		return out.String(), errOut.String(), err
 	}
 	cwd, _ := os.Getwd()
@@ -298,7 +299,7 @@ func TestInitSite(t *testing.T) {
 	}
 	var o, e bytes.Buffer
 	code := cli.Run([]string{"init", "site", "--nosuch", t.TempDir()}, cwd, &o, &e, func(cli.Launch) error { return nil }, nil,
-		func(i cli.Init, so, se io.Writer) error { return initSite(env, i, so, se) })
+		func(i cli.Init, so, se io.Writer) error { return initSite(env.api(), i, so, se) })
 	if code != 2 || !strings.Contains(e.String(), "Usage:") {
 		t.Errorf("unknown template through the CLI: %d %q", code, e.String())
 	}
@@ -396,16 +397,24 @@ func TestPresets(t *testing.T) {
 			}
 
 			// It opens, and every page renders with no warning and no broken link.
-			reg := plugins.NewRegistry()
-			if err := registerPlugins(reg); err != nil {
-				t.Fatal(err)
-			}
-			z, err := newZen(zenOptions{Registry: reg, ConfigDir: t.TempDir(), Dir: target, Events: &sink{}, Dialogs: &fakeDialogs{}})
+			z, err := newZen(zenOptions{Registry: session.DefaultPlugins(), ConfigDir: t.TempDir(), Dir: target, Events: &sink{}, Dialogs: &fakeDialogs{}})
 			if err != nil {
 				t.Fatal(err)
 			}
 			t.Cleanup(z.close)
-			files, _ := z.state.ws.Files()
+			var files []string
+			_ = filepath.WalkDir(target, func(p string, d fs.DirEntry, err error) error {
+				if err != nil {
+					return nil
+				}
+				if d.IsDir() && strings.HasPrefix(d.Name(), ".") && p != target {
+					return filepath.SkipDir
+				}
+				if rel, err := filepath.Rel(target, p); err == nil && !d.IsDir() && strings.HasSuffix(p, ".md") {
+					files = append(files, filepath.ToSlash(rel))
+				}
+				return nil
+			})
 			if len(files) != len(presetFiles(id, date))-1 { // the .zen.yml is not a page
 				t.Errorf("pages: %v", files)
 			}
@@ -429,7 +438,8 @@ func TestPresets(t *testing.T) {
 			if n := strings.Count(home.HTML, `class="zl-card"`); n != cards[id] {
 				t.Errorf("home has %d cards, want %d", n, cards[id])
 			}
-			if other := z.state.tree[len(z.state.tree)-1]; other.Title == "Other pages" {
+			if tr := z.s.Workspace().Tree; tr[len(tr)-1].Title == "Other pages" {
+				other := tr[len(tr)-1]
 				t.Errorf("pages nothing links to: %+v", other.Children)
 			}
 			switch id {
@@ -451,7 +461,7 @@ func TestPresets(t *testing.T) {
 			// It builds with no warnings.
 			cfg2 := t.TempDir()
 			var out, errOut bytes.Buffer
-			err = buildSite(buildEnv{GlobalPath: filepath.Join(cfg2, "config.yml"), Assets: stubAssets()}, cli.Build{Dir: target}, &out, &errOut)
+			err = session.WriteSite(session.SiteEnv{GlobalPath: filepath.Join(cfg2, "config.yml"), Runtime: stubAssets()}, session.SiteOptions{Dir: target}, &out, &errOut)
 			if err != nil || errOut.String() != "" || !strings.HasPrefix(out.String(), "Built ") || strings.Contains(out.String(), "warning") {
 				t.Errorf("build: %v\nstdout %q\nstderr %q", err, out.String(), errOut.String())
 			}

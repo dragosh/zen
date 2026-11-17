@@ -1,4 +1,4 @@
-package app
+package session
 
 import (
 	"bytes"
@@ -92,13 +92,6 @@ const (
 	maxKeyLen    = 64
 )
 
-// trustAsker is implemented by dialogs that have a dedicated trust prompt.
-type trustAsker interface{ ConfirmTrust(message string) bool }
-
-// readyDialogs is implemented by dialogs that cannot show anything yet at
-// start-up (before the application window exists).
-type readyDialogs interface{ Ready() bool }
-
 // extPlugin is what the app needs of an external plugin of any kind: a
 // folder plugin (extplugins) or a script plugin (scriptplugins).
 type extPlugin interface {
@@ -147,7 +140,7 @@ func (e *extState) undecided() bool {
 }
 
 // cloneBase returns a registry holding the built-in plugins.
-func (s *state) cloneBase() *plugins.Registry {
+func (s *Session) cloneBase() *plugins.Registry {
 	r := plugins.NewRegistry()
 	r.SetAssetVersion(s.base.AssetVersion())
 	for _, p := range s.base.Plugins() {
@@ -162,28 +155,28 @@ func folderKey(root string) string {
 }
 
 // dataDir is the per-folder, per-plugin folder under the settings folder.
-func (s *state) dataDir(root, id string) string {
+func (s *Session) dataDir(root, id string) string {
 	if s.configDir == "" {
 		return ""
 	}
 	return filepath.Join(s.configDir, "data", folderKey(root), id)
 }
 
-func (s *state) canAsk() bool {
-	if s.dialogs == nil {
+func (s *Session) canAsk() bool {
+	if s.prompter == nil {
 		return false
 	}
-	if r, ok := s.dialogs.(readyDialogs); ok {
+	if r, ok := s.prompter.(Readier); ok {
 		return r.Ready()
 	}
 	return true
 }
 
-func (s *state) ask(msg string) bool {
-	if t, ok := s.dialogs.(trustAsker); ok {
+func (s *Session) ask(msg string) bool {
+	if t, ok := s.prompter.(TrustPrompter); ok {
 		return t.ConfirmTrust(msg)
 	}
-	return s.dialogs.Confirm(msg)
+	return s.prompter.Confirm(msg)
 }
 
 func tilde(p string) string {
@@ -261,7 +254,7 @@ func scopeOf(root string, c candidate) string {
 // loadExternal discovers the external plugins of the folder at root, asks
 // the user about new ones (when prompt is set and the dialogs can show it),
 // and builds the registry. Nothing external runs here.
-func (s *state) loadExternal(root string, prompt bool) *extState {
+func (s *Session) loadExternal(root string, prompt bool) *extState {
 	e := &extState{root: root, active: map[string]extPlugin{}}
 	var cancel context.CancelFunc
 	e.ctx, cancel = context.WithCancel(s.life)
@@ -440,9 +433,7 @@ func invalidInfo(id, source, kind, problem string) PluginInfo {
 }
 
 // Plugins lists the built-in and external plugins for Settings › Plugins.
-func (z *Zen) Plugins() []PluginInfo { return z.state.pluginList() }
-
-func (s *state) pluginList() []PluginInfo {
+func (s *Session) Plugins() []PluginInfo {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	enabled := func(id string, def bool) bool {
@@ -488,9 +479,7 @@ func (s *state) pluginList() []PluginInfo {
 // Block dialog first and records Allow only when the user confirms there
 // (nothing a page script does can allow a plugin); declining changes nothing.
 // Blocking needs no dialog.
-func (z *Zen) PluginTrust(id string, allow bool) error { return z.state.pluginTrust(id, allow) }
-
-func (s *state) pluginTrust(id string, allow bool) error {
+func (s *Session) PluginTrust(id string, allow bool) error {
 	s.reloadMu.Lock()
 	defer s.reloadMu.Unlock()
 	s.mu.Lock()
@@ -527,7 +516,7 @@ func (s *state) pluginTrust(id string, allow bool) error {
 
 // pluginFilesChanged is called when a plugin that was allowed is found
 // changed on disk: it is loaded again, and asks again.
-func (s *state) pluginFilesChanged(was *extState) {
+func (s *Session) pluginFilesChanged(was *extState) {
 	s.reloadMu.Lock()
 	defer s.reloadMu.Unlock()
 	s.mu.Lock()
@@ -541,14 +530,14 @@ func (s *state) pluginFilesChanged(was *extState) {
 
 // reloadExternal rebuilds the registry (asking about undecided plugins when
 // prompt is set), re-renders and tells the frontend. Reloads are serialised.
-func (s *state) reloadExternal(prompt, always bool) {
+func (s *Session) reloadExternal(prompt, always bool) {
 	s.reloadMu.Lock()
 	defer s.reloadMu.Unlock()
 	s.reloadHeld(prompt, always)
 }
 
 // reloadHeld is reloadExternal for callers that hold reloadMu.
-func (s *state) reloadHeld(prompt, always bool) {
+func (s *Session) reloadHeld(prompt, always bool) {
 	s.mu.Lock()
 	ws := s.ws
 	s.mu.Unlock()
@@ -583,7 +572,7 @@ func (s *state) reloadHeld(prompt, always bool) {
 
 // promptPending asks about plugins that could not be asked about while the
 // application was starting.
-func (s *state) promptPending() {
+func (s *Session) PromptPending() {
 	s.mu.Lock()
 	need := s.ext != nil && s.ext.undecided()
 	s.mu.Unlock()
@@ -605,7 +594,7 @@ type target struct {
 // page). Built-in plugins must be switched on; external ones only when needOn
 // (invoke and stream), storage stays reachable for an allowed plugin that is
 // switched off. An empty page means no page: the folder's settings.
-func (s *state) target(id, page string, needOn bool) (target, error) {
+func (s *Session) target(id, page string, needOn bool) (target, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.ws == nil || s.ext == nil {
@@ -684,7 +673,7 @@ func validKey(k string) error {
 	return nil
 }
 
-func (s *state) storagePath(id string) (string, error) {
+func (s *Session) storagePath(id string) (string, error) {
 	t, err := s.target(id, "", false)
 	if err != nil {
 		return "", err
@@ -719,9 +708,7 @@ func readStore(path string) (map[string]json.RawMessage, error) {
 
 // PluginStorageGet returns the JSON text stored under key by an external
 // plugin, "null" when there is none.
-func (z *Zen) PluginStorageGet(id, key string) (string, error) { return z.state.storageGet(id, key) }
-
-func (s *state) storageGet(id, key string) (string, error) {
+func (s *Session) PluginStorageGet(id, key string) (string, error) {
 	if err := validKey(key); err != nil {
 		return "", err
 	}
@@ -749,11 +736,7 @@ func getAt(path, key string) (string, error) {
 
 // PluginStorageSet stores a JSON value for an external plugin (1 MB per
 // plugin and folder, written atomically).
-func (z *Zen) PluginStorageSet(id, key, value string) error {
-	return z.state.storageSet(id, key, value)
-}
-
-func (s *state) storageSet(id, key, value string) error {
+func (s *Session) PluginStorageSet(id, key, value string) error {
 	if err := validKey(key); err != nil {
 		return err
 	}
@@ -801,13 +784,15 @@ func setAt(path, key, value string) error {
 // pluginStore is the storage a script plugin reaches as zen.storage: the same
 // store, file and limits as ctx.storage.
 type pluginStore struct {
-	s  *state
+	s  *Session
 	id string
 }
 
-func (p pluginStore) Get(key string) (string, error)       { return p.s.storageGet(p.id, key) }
-func (p pluginStore) Set(key, value string) error          { return p.s.storageSet(p.id, key, value) }
-func (p pluginStore) Keys(prefix string) ([]string, error) { return p.s.storageKeys(p.id, prefix) }
+func (p pluginStore) Get(key string) (string, error) { return p.s.PluginStorageGet(p.id, key) }
+func (p pluginStore) Set(key, value string) error    { return p.s.PluginStorageSet(p.id, key, value) }
+func (p pluginStore) Keys(prefix string) ([]string, error) {
+	return p.s.PluginStorageKeys(p.id, prefix)
+}
 
 // PluginInvoke runs a plugin's action hook (a built-in ActionHook, or an
 // external backend with ZEN_HOOK=action) with a JSON payload and returns the
@@ -815,11 +800,11 @@ func (p pluginStore) Keys(prefix string) ([]string, error) { return p.s.storageK
 //
 // page is the workspace path of the page the block is on: its frontmatter
 // decides whether the plugin is on and its options, and it is ZEN_PAGE.
-func (z *Zen) PluginInvoke(id, page, payload string) (string, error) {
+func (s *Session) PluginInvoke(id, page, payload string) (string, error) {
 	if !json.Valid([]byte(payload)) {
 		return "", errors.New("the payload is not valid JSON")
 	}
-	t, err := z.state.target(id, page, true)
+	t, err := s.target(id, page, true)
 	if err != nil {
 		return "", err
 	}
@@ -843,11 +828,7 @@ func (z *Zen) PluginInvoke(id, page, payload string) (string, error) {
 
 // PluginStorageKeys lists the plugin's storage keys that start with prefix
 // ("" for all), sorted.
-func (z *Zen) PluginStorageKeys(id, prefix string) ([]string, error) {
-	return z.state.storageKeys(id, prefix)
-}
-
-func (s *state) storageKeys(id, prefix string) ([]string, error) {
+func (s *Session) PluginStorageKeys(id, prefix string) ([]string, error) {
 	if prefix != "" {
 		if err := validKey(prefix); err != nil {
 			return nil, err

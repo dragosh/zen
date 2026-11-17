@@ -1,4 +1,4 @@
-package app
+package session
 
 import (
 	"errors"
@@ -13,10 +13,6 @@ import (
 	"github.com/dragosh/zen/internal/core/layouts"
 )
 
-// EventNewPage asks the main window to show the New Page dialog (File > New
-// Page…, Cmd+N). No payload.
-const EventNewPage = "menu:new-page"
-
 // errPageExists is returned by CreatePage when the file is already there.
 var errPageExists = errors.New("a page with that name already exists")
 
@@ -25,16 +21,16 @@ var errPageExists = errors.New("a page with that name already exists")
 // first help snippet is the starting text) and returns its workspace path. ".md" is
 // added when name has no extension; missing folders are created inside the
 // workspace. An existing file is never overwritten.
-func (z *Zen) CreatePage(name, layout string) (string, error) {
+func (s *Session) CreatePage(name, layout string) (string, error) {
 	rel, err := newPagePath(name)
 	if err != nil {
 		return "", err
 	}
-	text, ok := z.state.newPageText(layout, titleOf(rel))
+	text, ok := s.newPageText(layout, titleOf(rel))
 	if !ok {
 		return "", fmt.Errorf("unknown layout %q", layout)
 	}
-	return rel, z.state.create(rel, text)
+	return rel, s.create(rel, text)
 }
 
 // newPagePath cleans a page name typed by the user into a workspace path.
@@ -81,7 +77,7 @@ func titleOf(rel string) string {
 
 // newPageText is the starting text of a new page in layout; false when the
 // folder has no such layout.
-func (s *state) newPageText(layout, title string) (string, bool) {
+func (s *Session) newPageText(layout, title string) (string, bool) {
 	if layout == "" || layout == "article" {
 		return pageTemplate("", title), true
 	}
@@ -185,7 +181,7 @@ func yamlString(s string) string {
 }
 
 // create writes a new page, refusing to replace an existing file.
-func (s *state) create(rel, content string) error {
+func (s *Session) create(rel, content string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.ws == nil {

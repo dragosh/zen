@@ -1,8 +1,7 @@
-package app
+package session
 
 import (
 	"io/fs"
-	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
@@ -34,8 +33,7 @@ func TestAssetMiddleware(t *testing.T) {
 		t.Fatal(err)
 	}
 	defer z.close()
-	frontend := fstest.MapFS{"index.html": {Data: []byte("<html>app</html>")}}
-	h := z.state.middleware(http.FileServerFS(frontend))
+	h := z.Handler()
 
 	get := func(path string) *httptest.ResponseRecorder {
 		rec := httptest.NewRecorder()
@@ -63,25 +61,15 @@ func TestAssetMiddleware(t *testing.T) {
 	if r.Code != 200 || r.Body.String() != "console.log(1)" || !strings.Contains(r.Header().Get("Content-Type"), "javascript") || r.Header().Get("X-Content-Type-Options") != "nosniff" {
 		t.Fatalf("plugin js: %d %v", r.Code, r.Header())
 	}
-	r = get("/")
-	if r.Code != 200 || !strings.Contains(r.Body.String(), "app") {
+	if r = get("/"); r.Code != 404 { // the app's own pages are not the session's
 		t.Fatalf("frontend: %d", r.Code)
-	}
-	csp := r.Header().Get("Content-Security-Policy")
-	for _, want := range []string{"default-src 'self'", "script-src 'self'", "style-src 'self'", "img-src 'self' https:"} {
-		if !strings.Contains(csp, want) {
-			t.Fatalf("csp %q lacks %q", csp, want)
-		}
-	}
-	if strings.Contains(csp, "unsafe-eval") || strings.Contains(csp, "script-src 'self' 'unsafe-inline'") {
-		t.Fatalf("csp too loose: %q", csp)
 	}
 
 	// Without a workspace /_ws is 404.
 	z2, _ := newZen(zenOptions{Registry: reg, Events: &sink{}, Dialogs: &fakeDialogs{}, Open: func(string) error { return nil }})
 	defer z2.close()
 	rec := httptest.NewRecorder()
-	z2.state.middleware(http.FileServerFS(frontend)).ServeHTTP(rec, httptest.NewRequest("GET", "/_ws/img/a.png", nil))
+	z2.Handler().ServeHTTP(rec, httptest.NewRequest("GET", "/_ws/img/a.png", nil))
 	if rec.Code != 404 {
 		t.Fatalf("no workspace: %d", rec.Code)
 	}
@@ -92,10 +80,9 @@ func TestAssetMiddleware(t *testing.T) {
 func TestExternalPluginAssets(t *testing.T) {
 	dir := pluginTree(t, pluginDocs())
 	cfg := t.TempDir()
-	frontend := fstest.MapFS{"index.html": {Data: []byte("<html>app</html>")}}
-	get := func(z *Zen, path string) *httptest.ResponseRecorder {
+	get := func(z *Session, path string) *httptest.ResponseRecorder {
 		rec := httptest.NewRecorder()
-		z.state.middleware(http.FileServerFS(frontend)).ServeHTTP(rec, httptest.NewRequest("GET", path, nil))
+		z.Handler().ServeHTTP(rec, httptest.NewRequest("GET", path, nil))
 		return rec
 	}
 
@@ -103,7 +90,7 @@ func TestExternalPluginAssets(t *testing.T) {
 	if r := get(blocked, "/_plugins/hello/hello.js"); r.Code == 200 {
 		t.Fatal("asset of a plugin that is not allowed was served")
 	}
-	bdl.confirm = true // the user confirms in the Allow dialog
+	bdl.Allow = true // the user confirms in the Allow dialog
 	if err := blocked.PluginTrust("hello", true); err != nil {
 		t.Fatal(err)
 	}

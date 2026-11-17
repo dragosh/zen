@@ -360,7 +360,7 @@ func (z *Zen) OpenEditor(p string) error {
 	if p == "" || p != path.Clean(p) || path.IsAbs(p) || strings.HasPrefix(p, "../") {
 		return errors.New(p + ": not a page in this folder")
 	}
-	if _, err := z.state.source(p); err != nil { // markdown, inside the workspace, readable
+	if _, err := z.s.PageSource(p); err != nil { // markdown, inside the workspace, readable
 		return err
 	}
 	if z.windows == nil {
@@ -371,7 +371,7 @@ func (z *Zen) OpenEditor(p string) error {
 
 // pageTitle is the page's title in the navigation tree, "" when absent.
 func (z *Zen) pageTitle(p string) string {
-	ws := z.state.workspace()
+	ws := z.s.Workspace()
 	if ws == nil {
 		return ""
 	}

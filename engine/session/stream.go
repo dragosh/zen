@@ -1,4 +1,4 @@
-package app
+package session
 
 import (
 	"context"
@@ -62,18 +62,10 @@ func newCallID() (string, error) {
 	return hex.EncodeToString(b[:]), nil
 }
 
-// PluginStream starts the plugin's stream hook with a JSON payload and
-// returns the id of the call. Output arrives as EventPluginStream events.
-//
-// page is the workspace path of the page the block is on (see PluginInvoke).
-func (z *Zen) PluginStream(id, page, payload string) (string, error) {
-	return z.state.startStream(id, page, payload)
-}
-
 // PluginCancel cancels a running stream; it ends with error "cancelled". A
 // finished or unknown call is not an error.
-func (z *Zen) PluginCancel(call string) error {
-	z.state.streams.cancel(call)
+func (s *Session) PluginCancel(call string) error {
+	s.streams.cancel(call)
 	return nil
 }
 
@@ -100,7 +92,7 @@ func (st *streams) cancelPlugin(id string) {
 
 // reconcileStreams cancels the streams whose plugin is no longer allowed, or
 // no longer switched on for the page it was started for.
-func (s *state) reconcileStreams() {
+func (s *Session) reconcileStreams() {
 	type run struct{ call, plugin, page string }
 	st := &s.streams
 	st.mu.Lock()
@@ -136,7 +128,11 @@ func (st *streams) wait(d time.Duration) {
 	}
 }
 
-func (s *state) startStream(id, page, payload string) (string, error) {
+// PluginStream starts the plugin's stream hook with a JSON payload and
+// returns the id of the call. Output arrives as EventPluginStream events.
+//
+// page is the workspace path of the page the block is on (see PluginInvoke).
+func (s *Session) PluginStream(id, page, payload string) (string, error) {
 	if !json.Valid([]byte(payload)) {
 		return "", errors.New("the payload is not valid JSON")
 	}

@@ -16,7 +16,6 @@ func TestNoGUIImports(t *testing.T) {
 		for _, banned := range []string{
 			"github.com/wailsapp/",
 			"github.com/dragosh/zen/internal/app",
-			"github.com/dragosh/zen/internal/cli",
 		} {
 			if strings.HasPrefix(pkg, banned) {
 				t.Errorf("engine/session depends on %s", pkg)

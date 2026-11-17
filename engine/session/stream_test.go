@@ -1,4 +1,4 @@
-package app
+package session
 
 import (
 	"context"
@@ -80,7 +80,7 @@ func (a *actor) Stream(c context.Context, ctx plugins.Context, payload []byte, e
 
 // openActing opens dir with the built-ins plus extra, a global config.yml
 // in cfgDir, and returns the service.
-func openActing(t *testing.T, dir, cfgDir string, extra ...plugins.Plugin) (*Zen, *sink) {
+func openActing(t *testing.T, dir, cfgDir string, extra ...plugins.Plugin) (*Session, *sink) {
 	t.Helper()
 	reg := plugins.NewRegistry()
 	for _, p := range append([]plugins.Plugin{codeblock.New(), diagram.New()}, extra...) {
@@ -91,7 +91,7 @@ func openActing(t *testing.T, dir, cfgDir string, extra ...plugins.Plugin) (*Zen
 	ev := &sink{}
 	z, err := newZen(zenOptions{
 		Registry: reg, ConfigDir: cfgDir, GlobalPath: filepath.Join(cfgDir, "config.yml"),
-		Dir: dir, Events: ev, Dialogs: &fakeDialogs{confirm: true}, Open: func(string) error { return nil },
+		Dir: dir, Events: ev, Dialogs: &fakeDialogs{Allow: true}, Open: func(string) error { return nil },
 	})
 	if err != nil {
 		t.Fatal(err)
@@ -335,7 +335,7 @@ func TestStreamsEndWhenTheFolderChangesOrTheAppQuits(t *testing.T) {
 		t.Fatal(err)
 	}
 	<-act.started
-	if err := z.state.open(pluginTree(t, map[string]string{"README.md": "# Other\n"})); err != nil {
+	if err := z.Open(pluginTree(t, map[string]string{"README.md": "# Other\n"})); err != nil {
 		t.Fatal(err)
 	}
 	es := finish(t, ev, call)

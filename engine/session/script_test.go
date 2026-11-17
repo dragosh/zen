@@ -1,4 +1,4 @@
-package app
+package session
 
 import (
 	"encoding/json"
@@ -57,10 +57,10 @@ func TestScriptPluginsAreDiscoveredAskedAboutAndRendered(t *testing.T) {
 	z, ev, dl := openWith(t, dir, cfg, true)
 
 	// Always asked, once, and truthfully.
-	if len(dl.asked) != 1 {
-		t.Fatalf("asked %d times: %q", len(dl.asked), dl.asked)
+	if len(dl.Asked) != 1 {
+		t.Fatalf("asked %d times: %q", len(dl.Asked), dl.Asked)
 	}
-	q := dl.asked[0]
+	q := dl.Asked[0]
 	for _, want := range []string{
 		"shout 0.2.0", "lister 1.0.0", filepath.Join(".zen", "plugins", "shout.tengo"), filepath.Join(".zen", "plugins", "lister"),
 		"renders blocks inside zen; cannot read files, run programs or use the network",
@@ -109,38 +109,38 @@ func TestScriptPluginsAreDiscoveredAskedAboutAndRendered(t *testing.T) {
 	// The inline CSS is served from the app's own origin, as CSS.
 	frontend := fstest.MapFS{"index.html": {Data: []byte("x")}}
 	rec := httptest.NewRecorder()
-	z.state.middleware(http.FileServerFS(frontend)).ServeHTTP(rec, httptest.NewRequest("GET", "/_plugins/shout/inline.css", nil))
+	z.middleware(http.FileServerFS(frontend)).ServeHTTP(rec, httptest.NewRequest("GET", "/_plugins/shout/inline.css", nil))
 	if rec.Code != 200 || !strings.Contains(rec.Body.String(), "font-weight: bold") || !strings.HasPrefix(rec.Header().Get("Content-Type"), "text/css") {
 		t.Errorf("inline.css: %d %q %q", rec.Code, rec.Header().Get("Content-Type"), rec.Body.String())
 	}
 
 	// Remembered: no second prompt; an unrelated folder never asks.
 	_, _, dl2 := openWith(t, dir, cfg, false)
-	if len(dl2.asked) != 0 {
-		t.Errorf("asked again: %q", dl2.asked)
+	if len(dl2.Asked) != 0 {
+		t.Errorf("asked again: %q", dl2.Asked)
 	}
 }
 
 func TestScriptPluginsOnlyScriptsHeader(t *testing.T) {
 	dir := pluginTree(t, scriptDocs())
 	_, _, dl := openWith(t, dir, t.TempDir(), true)
-	if len(dl.asked) != 1 || !strings.Contains(dl.asked[0], "Script plugins run inside zen") {
-		t.Fatalf("prompt: %q", dl.asked)
+	if len(dl.Asked) != 1 || !strings.Contains(dl.Asked[0], "Script plugins run inside zen") {
+		t.Fatalf("prompt: %q", dl.Asked)
 	}
 	// One script plugin: "Allow this plugin?".
 	dir2 := pluginTree(t, map[string]string{"README.md": "# H\n", ".zen/plugins/one.tengo": `plugin := {version: "1.0.0", blocks: ["one"]}`})
 	_, _, dl2 := openWith(t, dir2, t.TempDir(), true)
-	if len(dl2.asked) != 1 || !strings.HasPrefix(dl2.asked[0], "Allow this plugin?") || !strings.Contains(dl2.asked[0], "cannot read files, run programs or use the network") {
-		t.Fatalf("single prompt: %q", dl2.asked)
+	if len(dl2.Asked) != 1 || !strings.HasPrefix(dl2.Asked[0], "Allow this plugin?") || !strings.Contains(dl2.Asked[0], "cannot read files, run programs or use the network") {
+		t.Fatalf("single prompt: %q", dl2.Asked)
 	}
 	// Mixed with a program plugin the prompt keeps the program warning.
 	files := pluginDocs()
 	files[".zen/plugins/one.tengo"] = `plugin := {version: "1.0.0", blocks: ["one"]}`
 	_, _, dl3 := openWith(t, pluginTree(t, files), t.TempDir(), true)
-	if len(dl3.asked) != 1 || !strings.Contains(dl3.asked[0], "runs programs and scripts on your Mac") || !strings.Contains(dl3.asked[0], "./hello.sh") || !strings.Contains(dl3.asked[0], "cannot read files") {
-		t.Fatalf("mixed prompt: %q", dl3.asked)
+	if len(dl3.Asked) != 1 || !strings.Contains(dl3.Asked[0], "runs programs and scripts on your Mac") || !strings.Contains(dl3.Asked[0], "./hello.sh") || !strings.Contains(dl3.Asked[0], "cannot read files") {
+		t.Fatalf("mixed prompt: %q", dl3.Asked)
 	}
-	if got := infoOf(t, func() *Zen { z, _, _ := openWith(t, pluginTree(t, files), t.TempDir(), true); return z }(), "hello"); got.Kind != "program" {
+	if got := infoOf(t, func() *Session { z, _, _ := openWith(t, pluginTree(t, files), t.TempDir(), true); return z }(), "hello"); got.Kind != "program" {
 		t.Errorf("hello: %+v", got)
 	}
 }
@@ -148,8 +148,8 @@ func TestScriptPluginsOnlyScriptsHeader(t *testing.T) {
 func TestDeclinedScriptPluginsRenderAsPlainMarkdown(t *testing.T) {
 	dir := pluginTree(t, scriptDocs())
 	z, _, dl := openWith(t, dir, t.TempDir(), false)
-	if len(dl.asked) != 1 {
-		t.Fatal(dl.asked)
+	if len(dl.Asked) != 1 {
+		t.Fatal(dl.Asked)
 	}
 	pg, err := z.Page("README.md")
 	if err != nil {
@@ -168,7 +168,7 @@ func TestDeclinedScriptPluginsRenderAsPlainMarkdown(t *testing.T) {
 		t.Error("a blocked script plugin was invoked")
 	}
 	// Allowing it from Settings asks again and then it runs.
-	dl.confirm = true
+	dl.Allow = true
 	if err := z.PluginTrust("shout", true); err != nil {
 		t.Fatal(err)
 	}
@@ -215,7 +215,7 @@ func TestEditingAScriptPluginAsksAgain(t *testing.T) {
 			}
 			if form == "single" {
 				rec := httptest.NewRecorder()
-				z.state.middleware(http.FileServerFS(fstest.MapFS{})).ServeHTTP(rec, httptest.NewRequest("GET", "/_plugins/shout/inline.css", nil))
+				z.middleware(http.FileServerFS(fstest.MapFS{})).ServeHTTP(rec, httptest.NewRequest("GET", "/_plugins/shout/inline.css", nil))
 				if rec.Code == 200 {
 					t.Error("css of a changed plugin was served")
 				}
@@ -232,8 +232,8 @@ func TestScriptPluginErrorsAreWarningsNotFailures(t *testing.T) {
 	files["slow.md"] = "# Slow\n\n:::slow\nx\n:::\n\nafter the block\n"
 	dir := pluginTree(t, files)
 	z, _, dl := openWith(t, dir, t.TempDir(), true)
-	if len(dl.asked) != 1 || strings.Contains(dl.asked[0], "broken") || strings.Contains(dl.asked[0], "bad-os") {
-		t.Fatalf("prompt: %q", dl.asked)
+	if len(dl.Asked) != 1 || strings.Contains(dl.Asked[0], "broken") || strings.Contains(dl.Asked[0], "bad-os") {
+		t.Fatalf("prompt: %q", dl.Asked)
 	}
 	for _, id := range []string{"broken", "bad-os"} {
 		got := infoOf(t, z, id)
@@ -359,8 +359,8 @@ func TestScriptPluginsInTheUserFolderApplyEverywhere(t *testing.T) {
 if hook == "block" { out = zen.html("div", {class: "mine"}, body) }`), 0o644)
 	dirA := pluginTree(t, map[string]string{"README.md": "# A\n\n:::mine\nfrom A\n:::\n"})
 	z, _, dl := openWith(t, dirA, cfg, true)
-	if len(dl.asked) != 1 {
-		t.Fatalf("asked %q", dl.asked)
+	if len(dl.Asked) != 1 {
+		t.Fatalf("asked %q", dl.Asked)
 	}
 	if got := infoOf(t, z, "mine"); got.Source != "user" || got.Kind != "script" || got.Status != "on" {
 		t.Errorf("mine: %+v", got)
@@ -397,7 +397,7 @@ func TestScriptHelpersEndWithTheFolderAndOnClose(t *testing.T) {
 	}
 	// Another folder: the previous folder's helpers go.
 	other := pluginTree(t, map[string]string{"README.md": "# plain\n"})
-	if err := z.state.open(other); err != nil {
+	if err := z.Open(other); err != nil {
 		t.Fatalf("open: %v", err)
 	}
 	if n := scriptplugins.HelperCount(); n != 0 {

@@ -1,4 +1,4 @@
-package app
+package session
 
 import (
 	"encoding/json"
@@ -67,7 +67,7 @@ func pluginTree(t *testing.T, files map[string]string) string {
 
 // openWith opens dir like the app does, with the built-in plugins, a private
 // settings folder and dialogs that answer the trust prompt with confirm.
-func openWith(t *testing.T, dir, cfgDir string, confirm bool) (*Zen, *sink, *fakeDialogs) {
+func openWith(t *testing.T, dir, cfgDir string, confirm bool) (*Session, *sink, *fakeDialogs) {
 	t.Helper()
 	reg := plugins.NewRegistry()
 	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New()} {
@@ -75,7 +75,7 @@ func openWith(t *testing.T, dir, cfgDir string, confirm bool) (*Zen, *sink, *fak
 			t.Fatal(err)
 		}
 	}
-	ev, dl := &sink{}, &fakeDialogs{confirm: confirm}
+	ev, dl := &sink{}, &fakeDialogs{Allow: confirm}
 	z, err := newZen(zenOptions{Registry: reg, ConfigDir: cfgDir, Dir: dir, Events: ev, Dialogs: dl, Open: func(string) error { return nil }})
 	if err != nil {
 		t.Fatal(err)
@@ -86,7 +86,7 @@ func openWith(t *testing.T, dir, cfgDir string, confirm bool) (*Zen, *sink, *fak
 
 func exists(path string) bool { _, err := os.Stat(path); return err == nil }
 
-func infoOf(t *testing.T, z *Zen, id string) PluginInfo {
+func infoOf(t *testing.T, z *Session, id string) PluginInfo {
 	t.Helper()
 	for _, p := range z.Plugins() {
 		if p.ID == id {
@@ -147,12 +147,12 @@ func TestTrustPrompt(t *testing.T) {
 
 	// First open: asked once, naming the plugin, where it lives, what it runs.
 	z, _, dl := openWith(t, dir, cfg, false)
-	if len(dl.asked) != 1 {
-		t.Fatalf("asked %d times: %q", len(dl.asked), dl.asked)
+	if len(dl.Asked) != 1 {
+		t.Fatalf("asked %d times: %q", len(dl.Asked), dl.Asked)
 	}
 	for _, want := range []string{"hello", filepath.Join(".zen", "plugins", "hello"), "./hello.sh", "scripts in the page"} {
-		if !strings.Contains(dl.asked[0], want) {
-			t.Errorf("prompt lacks %q: %q", want, dl.asked[0])
+		if !strings.Contains(dl.Asked[0], want) {
+			t.Errorf("prompt lacks %q: %q", want, dl.Asked[0])
 		}
 	}
 	// Declined: nothing runs, the page is plain markdown with a note.
@@ -185,8 +185,8 @@ func TestTrustPrompt(t *testing.T) {
 
 	// Second open: the answer is remembered.
 	z2, _, dl2 := openWith(t, dir, cfg, true)
-	if len(dl2.asked) != 0 {
-		t.Fatalf("asked again: %q", dl2.asked)
+	if len(dl2.Asked) != 0 {
+		t.Fatalf("asked again: %q", dl2.Asked)
 	}
 	if pg, _ := z2.Page("README.md"); !hasWarning(pg, notAllowed) || exists(ran) {
 		t.Fatal("block not remembered")
@@ -196,14 +196,14 @@ func TestTrustPrompt(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, ".zen", "plugins", "hello", "hello.css"), []byte(".hello{color:red}\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	ask := &askingDialogs{fakeDialogs: fakeDialogs{confirm: true}, marker: ran}
+	ask := &askingDialogs{fakeDialogs: fakeDialogs{Allow: true}, marker: ran}
 	z3, err := newZen(zenOptions{Registry: plugins.NewRegistry(), ConfigDir: cfg, Dir: dir, Events: &sink{}, Dialogs: ask})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(z3.close)
-	if len(ask.asked) != 1 || ask.ranBefore {
-		t.Fatalf("asked %d times, ran before the answer: %v", len(ask.asked), ask.ranBefore)
+	if len(ask.Asked) != 1 || ask.ranBefore {
+		t.Fatalf("asked %d times, ran before the answer: %v", len(ask.Asked), ask.ranBefore)
 	}
 	pg, err = z3.Page("README.md")
 	if err != nil {
@@ -227,21 +227,20 @@ func TestTrustPrompt(t *testing.T) {
 
 	// Allowed and unchanged: silent from now on.
 	_, _, dl4 := openWith(t, dir, cfg, false)
-	if len(dl4.asked) != 0 {
-		t.Fatalf("asked again after allow: %q", dl4.asked)
+	if len(dl4.Asked) != 0 {
+		t.Fatalf("asked again after allow: %q", dl4.Asked)
 	}
 	// A folder without plugins never asks.
 	_, _, dl5 := openWith(t, tree(t, docs), cfg, false)
-	if len(dl5.asked) != 0 {
-		t.Fatalf("asked without plugins: %q", dl5.asked)
+	if len(dl5.Asked) != 0 {
+		t.Fatalf("asked without plugins: %q", dl5.Asked)
 	}
 }
 
 func TestOpeningAFolderRunsNothingUntrusted(t *testing.T) {
 	dir := pluginTree(t, pluginDocs())
 	z, _, dl := openWith(t, dir, t.TempDir(), false)
-	dl.folder = dir
-	if _, err := z.PickFolder(); err != nil { // open it again through the dialog
+	if err := z.Open(dir); err != nil { // open it again
 		t.Fatal(err)
 	}
 	for _, p := range []string{"README.md", "other.md"} {
@@ -255,21 +254,19 @@ func TestOpeningAFolderRunsNothingUntrusted(t *testing.T) {
 	if exists(filepath.Join(dir, "ran.txt")) {
 		t.Fatal("backend ran without approval")
 	}
-	if len(dl.asked) != 1 {
-		t.Fatalf("asked %d times", len(dl.asked))
+	if len(dl.Asked) != 1 {
+		t.Fatalf("asked %d times", len(dl.Asked))
 	}
 }
 
-func TestPickFolderAsksForTrust(t *testing.T) {
+func TestOpenAsksForTrust(t *testing.T) {
 	dir := pluginTree(t, pluginDocs())
 	z, _, dl := openWith(t, tree(t, docs), t.TempDir(), true)
-	dl.folder = dir
-	ws, err := z.PickFolder()
-	if err != nil || ws == nil {
-		t.Fatalf("pick: %v %v", ws, err)
+	if err := z.Open(dir); err != nil {
+		t.Fatalf("open: %v", err)
 	}
-	if len(dl.asked) != 1 {
-		t.Fatalf("asked %d times", len(dl.asked))
+	if len(dl.Asked) != 1 {
+		t.Fatalf("asked %d times", len(dl.Asked))
 	}
 	if pg, _ := z.Page("README.md"); !strings.Contains(pg.HTML, "hello from the backend") {
 		t.Errorf("plugin not active after allowing: %s", pg.HTML)
@@ -283,7 +280,7 @@ func TestPluginTrustService(t *testing.T) {
 		t.Fatal(err)
 	}
 	ev.reset()
-	dl.confirm = true
+	dl.Allow = true
 	if err := z.PluginTrust("hello", true); err != nil {
 		t.Fatal(err)
 	}
@@ -337,8 +334,8 @@ func TestPluginsList(t *testing.T) {
 		os.WriteFile(full, []byte(c), 0o644)
 	}
 	z, _, dl := openWith(t, dir, cfg, true)
-	if len(dl.asked) != 1 || !strings.Contains(dl.asked[0], "mine") || strings.Contains(dl.asked[0], "broken") || strings.Contains(dl.asked[0], "thief") {
-		t.Fatalf("prompt: %q", dl.asked)
+	if len(dl.Asked) != 1 || !strings.Contains(dl.Asked[0], "mine") || strings.Contains(dl.Asked[0], "broken") || strings.Contains(dl.Asked[0], "thief") {
+		t.Fatalf("prompt: %q", dl.Asked)
 	}
 	list := z.Plugins()
 	raw, _ := json.Marshal(list)

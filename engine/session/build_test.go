@@ -1,4 +1,4 @@
-package app
+package session
 
 import (
 	"bytes"
@@ -11,7 +11,6 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/dragosh/zen/internal/cli"
 	"github.com/dragosh/zen/internal/core/plugins"
 )
 
@@ -29,15 +28,15 @@ type buildRun struct {
 }
 
 // runBuild builds dir with a private settings folder cfg.
-func runBuild(t *testing.T, dir, cfg string, b cli.Build, edit ...func(*buildEnv)) buildRun {
+func runBuild(t *testing.T, dir, cfg string, b SiteOptions, edit ...func(*SiteEnv)) buildRun {
 	t.Helper()
-	env := buildEnv{GlobalPath: filepath.Join(cfg, "config.yml"), Assets: stubAssets()}
+	env := SiteEnv{GlobalPath: filepath.Join(cfg, "config.yml"), Runtime: stubAssets()}
 	for _, e := range edit {
 		e(&env)
 	}
 	b.Dir = dir
 	var stdout, stderr bytes.Buffer
-	err := buildSite(env, b, &stdout, &stderr)
+	err := WriteSite(env, b, &stdout, &stderr)
 	out := b.Out
 	if out == "" {
 		out = filepath.Join(dir, "_site")
@@ -80,7 +79,7 @@ func TestBuildSiteReport(t *testing.T) {
 		"img/a.png": "\x89PNG\r\n\x1a\n",
 	})
 	cfg := t.TempDir()
-	r := runBuild(t, dir, cfg, cli.Build{})
+	r := runBuild(t, dir, cfg, SiteOptions{})
 	if r.err != nil {
 		t.Fatal(r.err)
 	}
@@ -101,32 +100,32 @@ func TestBuildSiteReport(t *testing.T) {
 	}
 	// Clean builds report no warnings in the summary.
 	clean := tree(t, map[string]string{"README.md": "# Home\n"})
-	r = runBuild(t, clean, cfg, cli.Build{})
+	r = runBuild(t, clean, cfg, SiteOptions{})
 	if r.err != nil || r.stdout != "Built 1 pages and 2 files into _site\nPrint version: _site/print.html\n" || r.stderr != "" {
 		t.Errorf("clean build: %+v", r)
 	}
 	// An output outside the folder is named in full.
 	other := filepath.Join(t.TempDir(), "site")
-	r = runBuild(t, clean, cfg, cli.Build{Out: other})
+	r = runBuild(t, clean, cfg, SiteOptions{Out: other})
 	if r.err != nil || !strings.Contains(r.stdout, "into "+other) {
 		t.Errorf("outside output: %+v", r)
 	}
 
 	// Errors: the output may not be the folder, and the runtime must exist.
-	if r := runBuild(t, clean, cfg, cli.Build{Out: clean}); r.err == nil {
+	if r := runBuild(t, clean, cfg, SiteOptions{Out: clean}); r.err == nil {
 		t.Error("output = folder accepted")
 	}
-	if r := runBuild(t, clean, cfg, cli.Build{}, func(e *buildEnv) { e.Assets = fstest.MapFS{} }); r.err == nil || !strings.Contains(r.err.Error(), "runtime") {
+	if r := runBuild(t, clean, cfg, SiteOptions{}, func(e *SiteEnv) { e.Runtime = fstest.MapFS{} }); r.err == nil || !strings.Contains(r.err.Error(), "runtime") {
 		t.Errorf("missing runtime: %v", r.err)
 	}
-	if r := runBuild(t, filepath.Join(clean, "nope"), cfg, cli.Build{}); r.err == nil {
+	if r := runBuild(t, filepath.Join(clean, "nope"), cfg, SiteOptions{}); r.err == nil {
 		t.Error("missing folder accepted")
 	}
 	// The limits of the global config apply, like when the app opens the folder.
 	if err := os.WriteFile(filepath.Join(cfg, "config.yml"), []byte("version: 1\nlimits:\n  files: 1\n"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	if r := runBuild(t, dir, cfg, cli.Build{}); r.err == nil || !strings.Contains(r.err.Error(), "markdown") {
+	if r := runBuild(t, dir, cfg, SiteOptions{}); r.err == nil || !strings.Contains(r.err.Error(), "markdown") {
 		t.Errorf("file limit: %v", r.err)
 	}
 }
@@ -139,7 +138,7 @@ func TestBuildMatchesApp(t *testing.T) {
 	dir := tree(t, files)
 	cfg := t.TempDir()
 	z, _, _ := openWith(t, dir, cfg, true)
-	r := runBuild(t, dir, cfg, cli.Build{}, func(e *buildEnv) { e.Registry = z.state.base })
+	r := runBuild(t, dir, cfg, SiteOptions{}, func(e *SiteEnv) { e.Registry = z.base })
 	if r.err != nil {
 		t.Fatal(r.err)
 	}
@@ -189,7 +188,7 @@ func TestBuildRunsRenderPlugins(t *testing.T) {
 	if err := os.Remove(filepath.Join(dir, "ran.txt")); err != nil && !os.IsNotExist(err) {
 		t.Fatal(err)
 	}
-	r := runBuild(t, dir, cfg, cli.Build{Hosted: true})
+	r := runBuild(t, dir, cfg, SiteOptions{Hosted: true})
 	if r.err != nil {
 		t.Fatal(r.err)
 	}
@@ -237,7 +236,7 @@ func TestBuildTrustReadOnly(t *testing.T) {
 	trustFile := filepath.Join(cfg, "trusted-plugins.yml")
 
 	// Nothing decided yet: left out, with a warning each, and nothing written.
-	r := runBuild(t, dir, cfg, cli.Build{Hosted: true})
+	r := runBuild(t, dir, cfg, SiteOptions{Hosted: true})
 	if r.err != nil {
 		t.Fatal(r.err)
 	}
@@ -275,7 +274,7 @@ func TestBuildTrustReadOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = os.Remove(filepath.Join(dir, "ran.txt"))
-	r = runBuild(t, dir, cfg, cli.Build{Hosted: true})
+	r = runBuild(t, dir, cfg, SiteOptions{Hosted: true})
 	if r.err != nil || r.stderr != "" {
 		t.Fatalf("%v %q", r.err, r.stderr)
 	}
@@ -293,7 +292,7 @@ func TestBuildTrustReadOnly(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, ".zen/layouts/fancy/f.js"), []byte("export default { mount() { evil() } }"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	r = runBuild(t, dir, cfg, cli.Build{Clean: true, Hosted: true})
+	r = runBuild(t, dir, cfg, SiteOptions{Clean: true, Hosted: true})
 	if r.err != nil {
 		t.Fatal(r.err)
 	}
@@ -338,7 +337,7 @@ func TestBuildNoUserOptions(t *testing.T) {
 	if err := reg.Register(optPlugin{}); err != nil {
 		t.Fatal(err)
 	}
-	r := runBuild(t, dir, cfg, cli.Build{}, func(e *buildEnv) { e.Registry = reg })
+	r := runBuild(t, dir, cfg, SiteOptions{}, func(e *SiteEnv) { e.Registry = reg })
 	if r.err != nil {
 		t.Fatal(r.err)
 	}
@@ -368,7 +367,7 @@ func TestBuildWorkspaceFilesStayInside(t *testing.T) {
 	if err := os.Symlink(filepath.Join(outside, "secret.png"), filepath.Join(dir, "leak.png")); err != nil {
 		t.Fatal(err)
 	}
-	r := runBuild(t, dir, t.TempDir(), cli.Build{})
+	r := runBuild(t, dir, t.TempDir(), SiteOptions{})
 	if r.err != nil {
 		t.Fatal(r.err)
 	}
@@ -382,7 +381,7 @@ func TestBuildWorkspaceFilesStayInside(t *testing.T) {
 	}
 	// The reads themselves refuse: a symlink out and a path out of the folder.
 	z, _, _ := openWith(t, dir, t.TempDir(), true)
-	in := &buildInput{s: z.state}
+	in := &buildInput{s: z}
 	for _, p := range []string{"leak.png", "../secret.png", "/etc/hosts"} {
 		if f, err := in.WorkspaceFile(p); err == nil {
 			f.Close()
@@ -400,7 +399,7 @@ func TestBuildConfig(t *testing.T) {
 		".zen.yml":    "version: 1\nbuild:\n  out: public\n  id: my-notes\n  editURL: https://github.com/me/notes/edit/main/{path}\n  exclude: [\"secret/**\"]\n",
 	})
 	cfg := t.TempDir()
-	r := runBuild(t, dir, cfg, cli.Build{})
+	r := runBuild(t, dir, cfg, SiteOptions{})
 	if r.err != nil {
 		t.Fatal(r.err)
 	}
@@ -419,13 +418,13 @@ func TestBuildConfig(t *testing.T) {
 	if !strings.Contains(r.stdout, "Built") || strings.Contains(r.stdout, "web server") {
 		t.Errorf("portable summary: %q", r.stdout)
 	}
-	if h := runBuild(t, dir, cfg, cli.Build{Out: filepath.Join(t.TempDir(), "h"), Hosted: true}); h.err != nil ||
+	if h := runBuild(t, dir, cfg, SiteOptions{Out: filepath.Join(t.TempDir(), "h"), Hosted: true}); h.err != nil ||
 		strings.Contains(csp(h), "blob:") || !strings.Contains(h.stdout, "open it through a web server") {
 		t.Errorf("--hosted: %v %q", h.err, h.stdout)
 	}
 	// Flags win: --drafts brings the draft back; -o beats build.out.
 	flagOut := filepath.Join(t.TempDir(), "flag")
-	r = runBuild(t, dir, cfg, cli.Build{Out: flagOut, Drafts: true})
+	r = runBuild(t, dir, cfg, SiteOptions{Out: flagOut, Drafts: true})
 	if r.err != nil || !r.has("wip.html") {
 		t.Fatalf("drafts: %v %v", r.err, r.files(t))
 	}
@@ -433,7 +432,7 @@ func TestBuildConfig(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, ".zen.yml"), []byte("version: 1\nbuild:\n  drafts: true\n  portable: true\n  zzz: 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	r = runBuild(t, dir, cfg, cli.Build{})
+	r = runBuild(t, dir, cfg, SiteOptions{})
 	if r.err != nil || !r.has("wip.html") || !strings.Contains(strings.ReplaceAll(r.read(t, "README.html"), "&#39;", "'"), "script-src 'self' file: blob:") || !strings.Contains(r.stderr, "build.zzz") {
 		t.Errorf("config build section: %v %q", r.err, r.stderr)
 	}
@@ -441,7 +440,7 @@ func TestBuildConfig(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, ".zen.yml"), []byte("version: 1\nbuild:\n  drafts: soon\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if r := runBuild(t, dir, cfg, cli.Build{}); r.err == nil || !strings.Contains(r.err.Error(), "build.drafts") {
+	if r := runBuild(t, dir, cfg, SiteOptions{}); r.err == nil || !strings.Contains(r.err.Error(), "build.drafts") {
 		t.Errorf("wrong type: %v", r.err)
 	}
 }
@@ -456,7 +455,7 @@ func TestBuildDemo(t *testing.T) {
 
 	for _, portable := range []bool{false, true} {
 		out := filepath.Join(t.TempDir(), "site")
-		r := runBuild(t, demo, cfg, cli.Build{Out: out, Portable: portable, Hosted: !portable})
+		r := runBuild(t, demo, cfg, SiteOptions{Out: out, Portable: portable, Hosted: !portable})
 		if r.err != nil {
 			t.Fatalf("portable=%v: %v", portable, r.err)
 		}
@@ -480,17 +479,16 @@ func TestBuildDemo(t *testing.T) {
 		}
 	}
 	// Without approval the same folder still builds: warnings, not errors.
-	r := runBuild(t, demo, t.TempDir(), cli.Build{Out: filepath.Join(t.TempDir(), "site")})
+	r := runBuild(t, demo, t.TempDir(), SiteOptions{Out: filepath.Join(t.TempDir(), "site")})
 	if r.err != nil || !strings.Contains(r.stderr, "allow it in the zen app first") {
 		t.Errorf("unapproved demo: %v\n%s", r.err, r.stderr)
 	}
 }
 
-func TestBuildSiteWithoutBuilder(t *testing.T) {
-	// BuildSite (the one main.go wires) fails cleanly when no runtime was set.
-	StaticAssets = nil
-	err := BuildSite(cli.Build{Dir: t.TempDir()}, &bytes.Buffer{}, &bytes.Buffer{})
+func TestBuildSiteWithoutRuntime(t *testing.T) {
+	// A build without a static runtime fails cleanly.
+	err := WriteSite(SiteEnv{}, SiteOptions{Dir: t.TempDir()}, &bytes.Buffer{}, &bytes.Buffer{})
 	if err == nil || !strings.Contains(err.Error(), "runtime") {
-		t.Errorf("BuildSite: %v", err)
+		t.Errorf("WriteSite: %v", err)
 	}
 }

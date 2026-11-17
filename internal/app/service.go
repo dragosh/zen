@@ -3,16 +3,14 @@ package app
 import (
 	"errors"
 	"io"
+	"net/http"
 	"net/url"
-	"path/filepath"
 	"strings"
 	"sync"
-	"time"
 
+	"github.com/dragosh/zen/engine/session"
 	"github.com/dragosh/zen/internal/cli"
-	"github.com/dragosh/zen/internal/core/extplugins"
 	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/core/scriptplugins"
 )
 
 // Dialogs are the native dialogs the service needs.
@@ -38,9 +36,12 @@ type zenOptions struct {
 	DeferOpen bool
 }
 
-// Zen is the service bound to the frontend (docs/PLAN.md "Service API").
+// Zen is the service bound to the frontend (docs/PLAN.md "Service API"). It is
+// a thin layer over the headless session of engine/session: bindings,
+// dialogs, windows and the launch state.
 type Zen struct {
-	state   *state
+	s       *session.Session
+	events  EventSink // the same sink as the session's, for the events of the app itself
 	page    string
 	mode    string
 	dialogs Dialogs
@@ -66,17 +67,22 @@ func (z *Zen) setLaunchErr(err error) {
 }
 
 func newZen(o zenOptions) (*Zen, error) {
-	configDir := o.ConfigDir
-	if configDir == "" && o.GlobalPath != "" {
-		configDir = filepath.Dir(o.GlobalPath)
+	so := session.Options{
+		GlobalPath: o.GlobalPath,
+		ConfigDir:  o.ConfigDir,
+		Registry:   o.Registry,
+		Events:     o.Events,
+		Runtime:    staticRuntime{},
+		Presets:    siteBuiltins,
+		Watch:      true,
+		Version:    cli.Version,
 	}
-	st := newState(o.Registry, o.GlobalPath, o.Events)
-	st.configDir, st.dialogs = configDir, o.Dialogs
-	if configDir != "" {
-		st.trust = extplugins.LoadTrust(filepath.Join(configDir, "trusted-plugins.yml"))
+	if o.Dialogs != nil {
+		so.Prompter = o.Dialogs
 	}
 	z := &Zen{
-		state:   st,
+		s:       session.New(so),
+		events:  o.Events,
 		page:    o.Page,
 		mode:    o.Mode,
 		dialogs: o.Dialogs,
@@ -89,19 +95,35 @@ func newZen(o zenOptions) (*Zen, error) {
 		z.initialDir = o.Dir
 		return z, nil
 	}
-	if err := z.state.open(o.Dir); err != nil {
+	if err := z.s.Open(o.Dir); err != nil {
+		z.s.Close()
 		return nil, err
 	}
 	return z, nil
 }
 
-func (z *Zen) close() {
-	z.state.stopWatch()
-	z.state.stop()        // ends every plugin call
-	scriptplugins.Reset() // the script helpers go with them
-	z.state.streams.cancelAll()
-	z.state.streams.wait(3 * time.Second)
+func (z *Zen) close() { z.s.Close() }
+
+// middleware serves the session's routes (the open folder's files, plugin
+// and layout assets, the print document) and sends everything else to next
+// with the frontend's content security policy.
+func (z *Zen) middleware(next http.Handler) http.Handler {
+	h := z.s.Handler()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for _, prefix := range session.Routes {
+			if strings.HasPrefix(r.URL.Path, prefix) {
+				h.ServeHTTP(w, r)
+				return
+			}
+		}
+		w.Header().Set("Content-Security-Policy", frontendCSP)
+		next.ServeHTTP(w, r)
+	})
 }
+
+// frontendCSP is sent with everything that is not a workspace or plugin file.
+const frontendCSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
+	"img-src 'self' https:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
 
 // Startup returns the workspace, the page to show first and the mode.
 func (z *Zen) Startup() Startup {
@@ -109,10 +131,10 @@ func (z *Zen) Startup() Startup {
 	if err := z.launchErr(); err != nil {
 		return Startup{Mode: z.mode, Error: err.Error()}
 	}
-	ws := z.state.workspace()
+	ws := z.s.Workspace()
 	page := z.page
 	if page == "" || ws == nil {
-		page = z.state.home()
+		page = z.s.Home()
 	}
 	return Startup{Workspace: ws, Page: page, Mode: z.mode}
 }
@@ -125,23 +147,11 @@ func (z *Zen) openInitial() {
 			return
 		}
 		// Cancelled means a newer open (Open Folder, Open With) replaced it.
-		if err := z.state.open(z.initialDir); err != nil && !errors.Is(err, ErrOpenCancelled) {
-			z.setLaunchErr(openErr(z.state, err))
+		if err := z.s.Open(z.initialDir); err != nil && !errors.Is(err, ErrOpenCancelled) {
+			z.setLaunchErr(z.s.OpenError(err))
 		}
 	})
 }
-
-// openErr is the message for an open that failed, without absolute paths.
-func openErr(s *state, err error) error {
-	var te *OpenTimeoutError
-	if errors.Is(err, ErrOpenCancelled) || errors.As(err, &te) {
-		return err // no paths in these
-	}
-	return s.cleanErr(".", err)
-}
-
-// CancelOpen stops the folder that is opening; the one open before stays.
-func (z *Zen) CancelOpen() { z.state.cancelOpen() }
 
 // PickFolder shows the folder dialog and opens the chosen folder; null on
 // cancel, also when the opening itself was cancelled (CancelOpen).
@@ -150,20 +160,16 @@ func (z *Zen) PickFolder() (*Workspace, error) {
 	if err != nil || dir == "" {
 		return nil, err
 	}
-	if err := z.state.open(dir); err != nil {
+	if err := z.s.Open(dir); err != nil {
 		if errors.Is(err, ErrOpenCancelled) {
 			return nil, nil
 		}
-		return nil, openErr(z.state, err)
+		return nil, z.s.OpenError(err)
 	}
 	z.setLaunchErr(nil) // a folder is open now
 	z.page = ""
-	return z.state.workspace(), nil
+	return z.s.Workspace(), nil
 }
-
-// EventWorkspaceOpened tells the frontend to show a different workspace,
-// payload Startup. Sent after Finder "Open With" and File > Open Folder.
-const EventWorkspaceOpened = "workspace:opened"
 
 // openPath opens a folder or markdown file handed over by macOS (Open With,
 // `open -a Zen <path>`), using the same rules as the zen command line, and
@@ -177,34 +183,12 @@ func (z *Zen) openPath(path string) (Startup, error) {
 	if code != 0 {
 		return Startup{}, errors.New("not a folder or markdown file")
 	}
-	if err := z.state.open(l.Dir); err != nil {
-		return Startup{}, openErr(z.state, err)
+	if err := z.s.Open(l.Dir); err != nil {
+		return Startup{}, z.s.OpenError(err)
 	}
 	z.setLaunchErr(nil)
 	z.page = l.Page
 	return z.Startup(), nil
-}
-
-// Page renders a workspace page.
-func (z *Zen) Page(path string) (Page, error) { return z.state.page(path) }
-
-// Source returns the markdown of a page.
-func (z *Zen) Source(path string) (string, error) {
-	if which, ok := configWhich(path); ok {
-		return z.configSource(which)
-	}
-	return z.state.source(path)
-}
-
-// Preview renders unsaved text as if it were path.
-func (z *Zen) Preview(path, content string) (Page, error) { return z.state.preview(path, content) }
-
-// Save writes a page.
-func (z *Zen) Save(path, content string) error {
-	if which, ok := configWhich(path); ok {
-		return z.saveConfig(which, content)
-	}
-	return z.state.save(path, content)
 }
 
 // OpenExternal asks, then opens an http, https or mailto URL in the browser.
@@ -228,11 +212,99 @@ func (z *Zen) OpenExternal(rawURL string) bool {
 	return z.open(rawURL) == nil
 }
 
+// What follows is one line each: the service's methods that the session
+// implements. Names and payloads are the frontend's contract.
+
+// CancelOpen stops the folder that is opening; the one open before stays.
+func (z *Zen) CancelOpen() { z.s.CancelOpen() }
+
+// Page renders a workspace page.
+func (z *Zen) Page(path string) (Page, error) { return z.s.Page(path) }
+
+// Source returns the markdown of a page, or of a settings file.
+func (z *Zen) Source(path string) (string, error) { return z.s.Source(path) }
+
+// Preview renders unsaved text as if it were path.
+func (z *Zen) Preview(path, content string) (Page, error) { return z.s.Preview(path, content) }
+
+// Save writes a page, or a settings file.
+func (z *Zen) Save(path, content string) error { return z.s.Save(path, content) }
+
 // Lint returns Vale's alerts for a page: content, or the file on disk when
-// content is "". Unavailable without vale or with `lint: false` (ui/lint).
-func (z *Zen) Lint(path, content string) (LintResult, error) {
-	if _, ok := configWhich(path); ok {
-		return lintOff(), nil // settings files are not prose
-	}
-	return z.state.lint(currentLinter(), path, content)
+// content is "". Unavailable without vale or with `lint: false`.
+func (z *Zen) Lint(path, content string) (LintResult, error) { return z.s.Lint(path, content) }
+
+// CreatePage creates a markdown page from the template of layout and returns
+// its workspace path; an existing file is never overwritten.
+func (z *Zen) CreatePage(name, layout string) (string, error) { return z.s.CreatePage(name, layout) }
+
+// Plugins lists the built-in and external plugins for Settings › Plugins.
+func (z *Zen) Plugins() []PluginInfo { return z.s.Plugins() }
+
+// PluginTrust records the user's decision about an external plugin; allowing
+// asks first.
+func (z *Zen) PluginTrust(id string, allow bool) error { return z.s.PluginTrust(id, allow) }
+
+// PluginStorageGet returns the JSON text stored under key by an external
+// plugin, "null" when there is none.
+func (z *Zen) PluginStorageGet(id, key string) (string, error) { return z.s.PluginStorageGet(id, key) }
+
+// PluginStorageSet stores a JSON value for an external plugin.
+func (z *Zen) PluginStorageSet(id, key, value string) error {
+	return z.s.PluginStorageSet(id, key, value)
+}
+
+// PluginStorageKeys lists the plugin's storage keys that start with prefix.
+func (z *Zen) PluginStorageKeys(id, prefix string) ([]string, error) {
+	return z.s.PluginStorageKeys(id, prefix)
+}
+
+// PluginInvoke runs a plugin's action hook with a JSON payload.
+func (z *Zen) PluginInvoke(id, page, payload string) (string, error) {
+	return z.s.PluginInvoke(id, page, payload)
+}
+
+// PluginStream starts a plugin's stream hook and returns the id of the call.
+func (z *Zen) PluginStream(id, page, payload string) (string, error) {
+	return z.s.PluginStream(id, page, payload)
+}
+
+// PluginCancel cancels a running stream; a finished or unknown call is not an
+// error.
+func (z *Zen) PluginCancel(call string) error { return z.s.PluginCancel(call) }
+
+// Layouts lists the built-in, folder and user layouts for Settings › Layouts.
+func (z *Zen) Layouts() []LayoutInfo { return z.s.Layouts() }
+
+// LayoutTrust records the user's decision about a folder or user layout;
+// allowing asks first.
+func (z *Zen) LayoutTrust(id string, allow bool) error { return z.s.LayoutTrust(id, allow) }
+
+// LayoutStorageGet returns the JSON text stored under key by a layout.
+func (z *Zen) LayoutStorageGet(id, key string) (string, error) { return z.s.LayoutStorageGet(id, key) }
+
+// LayoutStorageSet stores a JSON value for a layout.
+func (z *Zen) LayoutStorageSet(id, key, value string) error {
+	return z.s.LayoutStorageSet(id, key, value)
+}
+
+// LayoutStorageKeys lists the layout's storage keys that start with prefix.
+func (z *Zen) LayoutStorageKeys(id, prefix string) ([]string, error) {
+	return z.s.LayoutStorageKeys(id, prefix)
+}
+
+// BuildOptions returns the form's starting values for the open folder.
+func (z *Zen) BuildOptions() (BuildOptions, error) { return z.s.BuildOptions() }
+
+// BuildWebsite builds the open folder like `zen build`; build:progress events
+// report each page.
+func (z *Zen) BuildWebsite(o BuildOptions) (BuildResult, error) { return z.s.BuildWebsite(o) }
+
+// CancelBuild stops the running build after the current page.
+func (z *Zen) CancelBuild() { z.s.CancelBuild() }
+
+// SaveBuildDefaults writes the options into the build: section of the
+// folder's .zen.yml; without confirm it only returns the preview text.
+func (z *Zen) SaveBuildDefaults(o BuildOptions, confirm bool) (string, error) {
+	return z.s.SaveBuildDefaults(o, confirm)
 }

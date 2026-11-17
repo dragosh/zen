@@ -11,13 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/dragosh/zen/engine/session"
 	"github.com/dragosh/zen/internal/core/config"
-	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/plugins/check"
-	"github.com/dragosh/zen/internal/plugins/codeblock"
-	"github.com/dragosh/zen/internal/plugins/diagram"
-	"github.com/dragosh/zen/internal/plugins/quiz"
-	"github.com/dragosh/zen/internal/plugins/sandbox"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -46,16 +41,6 @@ type Options struct {
 	Page string
 	// Mode is "read" or "edit".
 	Mode string
-}
-
-// registerPlugins registers the built-in plugins in order: codeblock, diagram.
-func registerPlugins(r *plugins.Registry) error {
-	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New(), check.New(), quiz.New(), sandbox.New()} {
-		if err := r.Register(p); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 // appSink emits to the running application; events before start are dropped.
@@ -140,10 +125,7 @@ func launchArg(path string, args []string) bool {
 
 // Run starts the GUI and blocks until the application exits.
 func Run(opts Options) error {
-	reg := plugins.NewRegistry()
-	if err := registerPlugins(reg); err != nil {
-		return err
-	}
+	reg := session.DefaultPlugins()
 	globalPath, _ := config.GlobalPath()
 	configDir := ""
 	if globalPath != "" {
@@ -171,7 +153,7 @@ func Run(opts Options) error {
 		Description: "Markdown reader and editor",
 		Assets: application.AssetOptions{
 			Handler:    application.AssetFileServerFS(opts.Assets),
-			Middleware: z.state.middleware,
+			Middleware: z.middleware,
 		},
 		Services: []application.Service{application.NewService(z)},
 		Mac: application.MacOptions{
@@ -227,9 +209,9 @@ func Run(opts Options) error {
 			case <-maximised:
 			case <-time.After(time.Second):
 			}
-			z.openInitial()         // the folder given on the command line (Startup may have done it)
-			z.state.promptPending() // plugins of the folder given on the command line
-			z.state.promptPendingLayouts()
+			z.openInitial()     // the folder given on the command line (Startup may have done it)
+			z.s.PromptPending() // plugins of the folder given on the command line
+			z.s.PromptPendingLayouts()
 			if err := z.openStartupEditor(opts.Mode); err != nil {
 				a.Dialog.Warning().SetTitle("Could not edit").SetMessage(err.Error()).Show()
 			}

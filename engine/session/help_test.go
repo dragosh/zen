@@ -1,4 +1,4 @@
-package app
+package session
 
 import (
 	"encoding/json"
@@ -76,7 +76,7 @@ func TestPluginsHelpAndAdds(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	z, err := newZen(zenOptions{Registry: reg, ConfigDir: t.TempDir(), Dir: demo, Events: &sink{}, Dialogs: &fakeDialogs{confirm: true}})
+	z, err := newZen(zenOptions{Registry: reg, ConfigDir: t.TempDir(), Dir: demo, Events: &sink{}, Dialogs: &fakeDialogs{Allow: true}})
 	if err != nil {
 		t.Fatal(err)
 	}

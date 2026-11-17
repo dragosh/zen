@@ -1,4 +1,4 @@
-package app
+package session
 
 import (
 	"context"
@@ -13,7 +13,7 @@ import (
 	"github.com/dragosh/zen/internal/core/workspace"
 )
 
-// LintAlert and LintResult are the JSON shapes of Zen.Lint (ui/lint).
+// LintAlert and LintResult are the JSON shapes of Lint (ui/lint).
 type LintAlert struct {
 	Line     int    `json:"line"`
 	Col      int    `json:"col"`
@@ -77,10 +77,19 @@ func setLinter(l textLinter) (restore func()) {
 
 func lintOff() LintResult { return LintResult{Alerts: []LintAlert{}} }
 
+// Lint returns Vale's alerts for a page: content, or the file on disk when
+// content is "". Unavailable without vale or with `lint: false`.
+func (s *Session) Lint(path, content string) (LintResult, error) {
+	if _, ok := configWhich(path); ok {
+		return lintOff(), nil // settings files are not prose
+	}
+	return s.lint(currentLinter(), path, content)
+}
+
 // lint checks path (a workspace markdown page) and lints content, or the
 // file on disk when content is "". Without vale, or with the `lint` plugin
 // switch off for the page, the result is unavailable.
-func (s *state) lint(l textLinter, path, content string) (LintResult, error) {
+func (s *Session) lint(l textLinter, path, content string) (LintResult, error) {
 	if l == nil {
 		return lintOff(), nil
 	}

@@ -1,4 +1,4 @@
-package app
+package session
 
 import (
 	"os"
@@ -32,27 +32,27 @@ func TestDemoFolder(t *testing.T) {
 	}
 	// The demo ships external plugins (.zen/plugins): allow them through the
 	// trust prompt, with a private settings folder.
-	dialogs := &fakeDialogs{confirm: true}
+	dialogs := &fakeDialogs{Allow: true}
 	z, err := newZen(zenOptions{Registry: reg, ConfigDir: t.TempDir(), Dir: demo, Events: &sink{}, Dialogs: dialogs})
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(z.close)
 	// One prompt for the plugins and one for the layout of the folder.
-	if len(dialogs.asked) != 2 || !strings.Contains(dialogs.asked[1], "memo") || !strings.Contains(dialogs.asked[1], "changes how pages look; runs nothing") ||
-		strings.Contains(dialogs.asked[1], "page script") {
-		t.Fatalf("layout prompt: %q", dialogs.asked)
+	if len(dialogs.Asked) != 2 || !strings.Contains(dialogs.Asked[1], "memo") || !strings.Contains(dialogs.Asked[1], "changes how pages look; runs nothing") ||
+		strings.Contains(dialogs.Asked[1], "page script") {
+		t.Fatalf("layout prompt: %q", dialogs.Asked)
 	}
 	if got := layoutOf(t, z, "memo"); got.Status != "on" || got.Source != "folder" || !got.HasTemplate || len(got.Fields) != 3 {
 		t.Errorf("demo layout memo: %+v", got)
 	}
-	if len(dialogs.asked) != 2 || !strings.Contains(dialogs.asked[0], "note") || !strings.Contains(dialogs.asked[0], "./note.sh") ||
-		!strings.Contains(dialogs.asked[0], "calc") || !strings.Contains(dialogs.asked[0], "bc -l") ||
-		!strings.Contains(dialogs.asked[0], "progress") || !strings.Contains(dialogs.asked[0], "scripts in the page") ||
-		!strings.Contains(dialogs.asked[0], "callout") || !strings.Contains(dialogs.asked[0], "wordcount") ||
-		!strings.Contains(dialogs.asked[0], "renders blocks inside zen; cannot read files, run programs or use the network") ||
-		!strings.Contains(dialogs.asked[0], "reads files in this folder") {
-		t.Fatalf("trust prompt: %q", dialogs.asked)
+	if len(dialogs.Asked) != 2 || !strings.Contains(dialogs.Asked[0], "note") || !strings.Contains(dialogs.Asked[0], "./note.sh") ||
+		!strings.Contains(dialogs.Asked[0], "calc") || !strings.Contains(dialogs.Asked[0], "bc -l") ||
+		!strings.Contains(dialogs.Asked[0], "progress") || !strings.Contains(dialogs.Asked[0], "scripts in the page") ||
+		!strings.Contains(dialogs.Asked[0], "callout") || !strings.Contains(dialogs.Asked[0], "wordcount") ||
+		!strings.Contains(dialogs.Asked[0], "renders blocks inside zen; cannot read files, run programs or use the network") ||
+		!strings.Contains(dialogs.Asked[0], "reads files in this folder") {
+		t.Fatalf("trust prompt: %q", dialogs.Asked)
 	}
 	for id, kind := range map[string]string{"note": "program", "calc": "program", "progress": "page", "callout": "script", "wordcount": "script"} {
 		if got := infoOf(t, z, id); got.Status != "on" || got.Source != "folder" || got.Kind != kind {
@@ -121,7 +121,7 @@ func TestDemoFolder(t *testing.T) {
 		}
 	}
 
-	files, _ := z.state.ws.Files()
+	files, _ := z.ws.Files()
 	for _, p := range files {
 		pg, err := z.Page(p)
 		if err != nil {
@@ -217,7 +217,7 @@ func TestDemoFolder(t *testing.T) {
 	if css, _ := os.ReadFile(filepath.Join(demo, ".zen", "plugins", "callout.tengo")); strings.Contains(string(css), "callout strong") {
 		t.Error("callout.tengo styles every <strong> in a callout")
 	}
-	src, _ := z.state.ws.Read("plugins/writing-plugins.md")
+	src, _ := z.ws.Read("plugins/writing-plugins.md")
 	if !strings.Contains(string(src), "The simplest plugin: one Tengo file") ||
 		strings.Index(string(src), "The simplest plugin: one Tengo file") > strings.Index(string(src), "A backend in a shell script") {
 		t.Error("the Tengo section must come first, before the program section")

@@ -1,4 +1,4 @@
-package app
+package session
 
 import (
 	"encoding/json"
@@ -151,7 +151,7 @@ func layoutTrustPrompt(root string, cands []layoutCand) string {
 // loadLayouts discovers the layouts of the folder at root and the user's own,
 // asks about new ones (when prompt is set and the dialogs can show it) and
 // builds the registry. Nothing here runs a layout script.
-func (s *state) loadLayouts(root string, prompt bool) *layoutState {
+func (s *Session) loadLayouts(root string, prompt bool) *layoutState {
 	ls := &layoutState{root: root, reg: s.lbase.Clone()}
 	if root == "" {
 		return ls
@@ -239,9 +239,7 @@ func (s *state) loadLayouts(root string, prompt bool) *layoutState {
 }
 
 // Layouts lists the built-in, folder and user layouts for Settings › Layouts.
-func (z *Zen) Layouts() []LayoutInfo { return z.state.layoutList() }
-
-func (s *state) layoutList() []LayoutInfo {
+func (s *Session) Layouts() []LayoutInfo {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	out := []LayoutInfo{}
@@ -268,9 +266,7 @@ func (s *state) layoutList() []LayoutInfo {
 // reloads the layouts of the open folder. Allowing shows the native Allow /
 // Block dialog first and records Allow only when the user confirms there;
 // declining changes nothing. Blocking needs no dialog.
-func (z *Zen) LayoutTrust(id string, allow bool) error { return z.state.layoutTrust(id, allow) }
-
-func (s *state) layoutTrust(id string, allow bool) error {
+func (s *Session) LayoutTrust(id string, allow bool) error {
 	s.reloadMu.Lock()
 	defer s.reloadMu.Unlock()
 	s.mu.Lock()
@@ -304,7 +300,7 @@ func (s *state) layoutTrust(id string, allow bool) error {
 
 // layoutFilesChanged is called when an allowed layout is found changed on
 // disk: the layouts are loaded again, and ask again.
-func (s *state) layoutFilesChanged(was *layoutState) {
+func (s *Session) layoutFilesChanged(was *layoutState) {
 	s.reloadMu.Lock()
 	defer s.reloadMu.Unlock()
 	s.mu.Lock()
@@ -319,7 +315,7 @@ func (s *state) layoutFilesChanged(was *layoutState) {
 // reloadLayoutsHeld rebuilds the layout registry (asking about undecided
 // layouts when prompt is set), re-renders and tells the frontend. The caller
 // holds reloadMu.
-func (s *state) reloadLayoutsHeld(prompt bool) {
+func (s *Session) reloadLayoutsHeld(prompt bool) {
 	s.mu.Lock()
 	ws := s.ws
 	s.mu.Unlock()
@@ -348,7 +344,7 @@ func (s *state) reloadLayoutsHeld(prompt bool) {
 
 // promptPendingLayouts asks about layouts that could not be asked about while
 // the application was starting.
-func (s *state) promptPendingLayouts() {
+func (s *Session) PromptPendingLayouts() {
 	s.mu.Lock()
 	need := s.lay != nil && s.lay.undecided()
 	s.mu.Unlock()
@@ -365,7 +361,7 @@ func (s *state) promptPendingLayouts() {
 // the layouts of the app and the folder's allowed layouts only. The course
 // layout keeps using the file of the course plugin it replaces, so progress
 // saved before survives.
-func (s *state) layoutStoragePath(id string) (string, error) {
+func (s *Session) layoutStoragePath(id string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.ws == nil || s.lay == nil {
@@ -391,11 +387,11 @@ func (s *state) layoutStoragePath(id string) (string, error) {
 
 // LayoutStorageGet returns the JSON text stored under key by a layout, "null"
 // when there is none.
-func (z *Zen) LayoutStorageGet(id, key string) (string, error) {
+func (s *Session) LayoutStorageGet(id, key string) (string, error) {
 	if err := validKey(key); err != nil {
 		return "", err
 	}
-	path, err := z.state.layoutStoragePath(id)
+	path, err := s.layoutStoragePath(id)
 	if err != nil {
 		return "", err
 	}
@@ -404,14 +400,14 @@ func (z *Zen) LayoutStorageGet(id, key string) (string, error) {
 
 // LayoutStorageSet stores a JSON value for a layout (1 MB per layout and
 // folder, written atomically).
-func (z *Zen) LayoutStorageSet(id, key, value string) error {
+func (s *Session) LayoutStorageSet(id, key, value string) error {
 	if err := validKey(key); err != nil {
 		return err
 	}
 	if !json.Valid([]byte(value)) {
 		return errors.New("the value is not valid JSON")
 	}
-	path, err := z.state.layoutStoragePath(id)
+	path, err := s.layoutStoragePath(id)
 	if err != nil {
 		return err
 	}
@@ -420,13 +416,13 @@ func (z *Zen) LayoutStorageSet(id, key, value string) error {
 
 // LayoutStorageKeys lists the layout's storage keys that start with prefix
 // ("" for all), sorted.
-func (z *Zen) LayoutStorageKeys(id, prefix string) ([]string, error) {
+func (s *Session) LayoutStorageKeys(id, prefix string) ([]string, error) {
 	if prefix != "" {
 		if err := validKey(prefix); err != nil {
 			return nil, err
 		}
 	}
-	path, err := z.state.layoutStoragePath(id)
+	path, err := s.layoutStoragePath(id)
 	if err != nil {
 		return nil, err
 	}

@@ -1,4 +1,4 @@
-package app
+package session
 
 import (
 	"io"
@@ -10,13 +10,14 @@ import (
 	"strings"
 )
 
-// frontendCSP is sent with everything that is not a workspace or plugin file.
-const frontendCSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
-	"img-src 'self' https:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
+// Routes are the URL prefixes Handler serves.
+var Routes = []string{"/_ws/", "/_plugins/", "/_layouts/", "/_print/"}
 
-// middleware serves /_ws/<path> from the workspace and /_plugins/<id>/<file>
-// from plugin asset file systems; everything else goes to next.
-func (s *state) middleware(next http.Handler) http.Handler {
+// Handler serves /_ws/<path> from the open folder, /_plugins/<id>/<file> and
+// /_layouts/<id>/<file> from the asset file systems of plugins and layouts,
+// and /_print/site, the print document. Everything else is 404: the app's own
+// pages are not the session's.
+func (s *Session) Handler() http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		p := r.URL.Path
 		switch {
@@ -29,8 +30,7 @@ func (s *state) middleware(next http.Handler) http.Handler {
 		case strings.HasPrefix(p, "/_print/"):
 			s.servePrint(w, r)
 		default:
-			w.Header().Set("Content-Security-Policy", frontendCSP)
-			next.ServeHTTP(w, r)
+			http.NotFound(w, r)
 		}
 	})
 }
@@ -69,7 +69,7 @@ func setFileHeaders(w http.ResponseWriter, name string, workspace bool) {
 	h.Set("Content-Security-Policy", "sandbox")
 }
 
-func (s *state) serveWorkspace(w http.ResponseWriter, r *http.Request, rel string) {
+func (s *Session) serveWorkspace(w http.ResponseWriter, r *http.Request, rel string) {
 	s.mu.Lock()
 	ws := s.ws
 	s.mu.Unlock()
@@ -92,7 +92,7 @@ func (s *state) serveWorkspace(w http.ResponseWriter, r *http.Request, rel strin
 	http.ServeContent(w, r, "", fi.ModTime(), f)
 }
 
-func (s *state) servePlugin(w http.ResponseWriter, r *http.Request, rest string) {
+func (s *Session) servePlugin(w http.ResponseWriter, r *http.Request, rest string) {
 	s.mu.Lock()
 	reg := s.reg
 	s.mu.Unlock()
@@ -106,7 +106,7 @@ func (s *state) servePlugin(w http.ResponseWriter, r *http.Request, rest string)
 
 // serveLayout serves /_layouts/<id>/<file>: the css and js files a layout
 // lists, nothing else.
-func (s *state) serveLayout(w http.ResponseWriter, r *http.Request, rest string) {
+func (s *Session) serveLayout(w http.ResponseWriter, r *http.Request, rest string) {
 	s.mu.Lock()
 	reg := s.lreg
 	s.mu.Unlock()
