@@ -111,9 +111,21 @@ func buildSite(env buildEnv, b cli.Build, stdout, stderr io.Writer) error {
 	if id == "" {
 		id = filepath.Base(root)
 	}
+	// Portable output opens from disk and from any web server, so it is the
+	// default; --hosted (or build.portable: false) loads scripts as files.
+	portable := true
+	if bc.Portable != nil {
+		portable = *bc.Portable
+	}
+	if b.Portable {
+		portable = true
+	}
+	if b.Hosted {
+		portable = false
+	}
 	rep, err := site.Build(in, site.Options{
 		Out: filepath.Clean(out), SiteID: id, EditURL: bc.EditURL,
-		Drafts: b.Drafts || bc.Drafts, Portable: b.Portable || bc.Portable,
+		Drafts: b.Drafts || bc.Drafts, Portable: portable,
 		Clean: b.Clean, Exclude: bc.Exclude,
 	})
 	if err != nil {
@@ -137,6 +149,9 @@ func buildSite(env buildEnv, b cli.Build, stdout, stderr io.Writer) error {
 		summary += fmt.Sprintf(" (%d warnings)", n)
 	}
 	fmt.Fprintln(stdout, summary)
+	if !portable {
+		fmt.Fprintln(stdout, "Hosted output: open it through a web server; browsers block its scripts from disk.")
+	}
 	return nil
 }
 

@@ -29,7 +29,8 @@ type Launcher func(Launch) error
 type Build struct {
 	Dir      string // absolute folder
 	Out      string // absolute output folder; "" = from config / default
-	Portable bool
+	Portable bool   // --portable: opens from disk (the default)
+	Hosted   bool   // --hosted: scripts as files, for a web server
 	Drafts   bool
 	Clean    bool
 }
@@ -55,7 +56,8 @@ Options:
 
 Build options:
   -o, --out <dir>     output folder (default: _site in the folder)
-  --portable          output that opens from disk (file://)
+  --hosted            output for a web server (does not open from disk)
+  --portable          output that also opens from disk (the default)
   --drafts            include pages with "draft: true"
   --clean             empty the output folder first (needs a .zen-build file)
 `
@@ -133,6 +135,8 @@ func runBuild(args []string, cwd string, stdout, stderr io.Writer, build Builder
 			return 0
 		case flags && arg == "--portable":
 			b.Portable = true
+		case flags && arg == "--hosted":
+			b.Hosted = true
 		case flags && arg == "--drafts":
 			b.Drafts = true
 		case flags && arg == "--clean":
@@ -151,6 +155,9 @@ func runBuild(args []string, cwd string, stdout, stderr io.Writer, build Builder
 		default:
 			paths = append(paths, arg)
 		}
+	}
+	if b.Portable && b.Hosted {
+		return fail(stderr, usageError("--portable and --hosted cannot be used together"))
 	}
 	if hasOut && out == "" {
 		return fail(stderr, usageError("-o needs a folder"))

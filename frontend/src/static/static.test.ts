@@ -20,6 +20,7 @@ beforeEach(() => {
   document.body.replaceChildren();
   staticHooks.importModule = undefined;
   staticHooks.navigate = undefined;
+  staticHooks.protocol = undefined;
 });
 afterEach(() => { vi.restoreAllMocks(); });
 
@@ -220,4 +221,16 @@ test("start does nothing on a page without data", () => {
   expect(() => start(document)).not.toThrow();
   document.body.innerHTML = `<script type="application/json" id="zen-page">{not json</script>`;
   expect(() => start(document)).not.toThrow();
+});
+
+test("hosted output opened from disk says why its scripts do not run, without trying to load them", async () => {
+  const { HOSTED_FROM_DISK } = await import("./static");
+  const loaded: string[] = [];
+  staticHooks.protocol = "file:";
+  staticHooks.importModule = async (u) => { loaded.push(u); return { default: { mount() {} } }; };
+  setup({ path: "a.md", root: "", assets: { css: [], js: ["/_plugins/n/n.js"] } }, `<div data-zen-plugin="n" data-zen-name="n">x</div>`);
+  start(document);
+  await settle();
+  expect(loaded).toEqual([]);
+  expect(document.querySelector(".zen-plugin-error")?.textContent).toContain(HOSTED_FROM_DISK);
 });

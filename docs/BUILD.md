@@ -7,13 +7,15 @@ written as plain HTML with its assets next to it. Spec:
 [examples/demo/build/index.md](../examples/demo/build/index.md).
 
 ```sh
-zen build [folder] [-o dir] [--portable] [--drafts] [--clean]
+zen build [folder] [-o dir] [--hosted] [--drafts] [--clean]
 ```
 
 | Option | Meaning |
 |---|---|
 | `-o`, `--out` | output folder (default `build.out`, else `<folder>/_site`) |
-| `--portable` | works from `file://`: scripts are embedded in each page and loaded as Blob modules |
+| *(default)* | portable: opens from disk (`file://`) and from any web server. Scripts are embedded in each page and loaded as Blob modules |
+| `--hosted` | for a web server only: scripts stay separate files loaded with `import()`, which browsers refuse from `file://` (each block then says so) |
+| `--portable` | the default, named explicitly (cannot be combined with `--hosted`) |
 | `--drafts` | include pages with `draft: true` |
 | `--clean` | empty the output first (only an empty folder or an earlier build, marked `.zen-build`) |
 
@@ -47,7 +49,7 @@ the same input gives the same bytes.
 ## Security
 
 Every page has a CSP meta tag:
-- `default-src 'self'`, with `script-src 'self'` (portable mode adds `file: blob:`);
+- `default-src 'self'`, with `script-src 'self'` (portable output, the default, adds `file: blob:`);
 - `object-src 'none'`;
 - `base-uri 'none'`.
 
@@ -64,7 +66,7 @@ build:
   id: my-notes          # storage namespace for readers; default: folder name
   editURL: https://github.com/me/notes/edit/main/{path}   # the docs layout's "Edit this page"
   drafts: false
-  portable: false
+  portable: true        # false = --hosted
   exclude: ["private/**"]
 ```
 

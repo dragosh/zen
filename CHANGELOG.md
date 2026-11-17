@@ -33,7 +33,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Added
 
-- `zen build`: export a folder as a static website (hosted, or `--portable` for file://), rendered with the same plugins and layouts as the app.
+- `zen build`: export a folder as a static website that opens from disk or any web server (`--hosted` for a web-server-only build), rendered with the same plugins and layouts as the app.
 - Layouts are their own concept, separate from plugins: `.zen/layouts/<id>/layout.yml` with an HTML template (Go `html/template`), CSS and an optional script; folder defaults and path patterns in `.zen.yml`; Settings › Layouts and the New Page picker list them. New built-in layouts `docs`, `post`, `landing`, `wide`, `handout` (slides and course unchanged). Demo: a `memo` folder layout and a `blog/` folder using `layouts: "blog/**": post`. See docs/LAYOUTS.md.
 - Plugin help: Settings › Plugins shows help for each plugin next to the list (summary, what it adds, snippets with a Copy button, a preview for built-ins) and an "All plugins" cheat sheet. Plugins add it with a `help:` key in `plugin.yml` or the Tengo `plugin` map; all built-in and demo plugins have it.
 - Script plugins: a single `.tengo` file is a plugin (blocks, inlines, layouts, actions), with a `zen` module for HTML, nested markdown, storage and, with permission, reading the folder. Scripts run in a helper process with time, allocation and memory limits, so a broken script can never crash zen. Samples: `callout.tengo`, `wordcount/plugin.tengo`.

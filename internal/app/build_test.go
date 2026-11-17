@@ -189,7 +189,7 @@ func TestBuildRunsRenderPlugins(t *testing.T) {
 	if err := os.Remove(filepath.Join(dir, "ran.txt")); err != nil && !os.IsNotExist(err) {
 		t.Fatal(err)
 	}
-	r := runBuild(t, dir, cfg, cli.Build{})
+	r := runBuild(t, dir, cfg, cli.Build{Hosted: true})
 	if r.err != nil {
 		t.Fatal(r.err)
 	}
@@ -237,7 +237,7 @@ func TestBuildTrustReadOnly(t *testing.T) {
 	trustFile := filepath.Join(cfg, "trusted-plugins.yml")
 
 	// Nothing decided yet: left out, with a warning each, and nothing written.
-	r := runBuild(t, dir, cfg, cli.Build{})
+	r := runBuild(t, dir, cfg, cli.Build{Hosted: true})
 	if r.err != nil {
 		t.Fatal(r.err)
 	}
@@ -275,7 +275,7 @@ func TestBuildTrustReadOnly(t *testing.T) {
 		t.Fatal(err)
 	}
 	_ = os.Remove(filepath.Join(dir, "ran.txt"))
-	r = runBuild(t, dir, cfg, cli.Build{})
+	r = runBuild(t, dir, cfg, cli.Build{Hosted: true})
 	if r.err != nil || r.stderr != "" {
 		t.Fatalf("%v %q", r.err, r.stderr)
 	}
@@ -293,7 +293,7 @@ func TestBuildTrustReadOnly(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(dir, ".zen/layouts/fancy/f.js"), []byte("export default { mount() { evil() } }"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	r = runBuild(t, dir, cfg, cli.Build{Clean: true})
+	r = runBuild(t, dir, cfg, cli.Build{Clean: true, Hosted: true})
 	if r.err != nil {
 		t.Fatal(r.err)
 	}
@@ -411,6 +411,18 @@ func TestBuildConfig(t *testing.T) {
 	if !strings.Contains(r.read(t, "docs.html"), `href="https://github.com/me/notes/edit/main/docs.md"`) {
 		t.Errorf("edit link: %s", r.read(t, "docs.html"))
 	}
+	// Portable is the default; build.portable: false or --hosted loads scripts as files.
+	csp := func(r buildRun) string { return strings.ReplaceAll(r.read(t, "README.html"), "&#39;", "'") }
+	if !strings.Contains(csp(r), "script-src 'self' file: blob:") {
+		t.Errorf("default build is not portable")
+	}
+	if !strings.Contains(r.stdout, "Built") || strings.Contains(r.stdout, "web server") {
+		t.Errorf("portable summary: %q", r.stdout)
+	}
+	if h := runBuild(t, dir, cfg, cli.Build{Out: filepath.Join(t.TempDir(), "h"), Hosted: true}); h.err != nil ||
+		strings.Contains(csp(h), "blob:") || !strings.Contains(h.stdout, "open it through a web server") {
+		t.Errorf("--hosted: %v %q", h.err, h.stdout)
+	}
 	// Flags win: --drafts brings the draft back; -o beats build.out.
 	flagOut := filepath.Join(t.TempDir(), "flag")
 	r = runBuild(t, dir, cfg, cli.Build{Out: flagOut, Drafts: true})
@@ -444,7 +456,7 @@ func TestBuildDemo(t *testing.T) {
 
 	for _, portable := range []bool{false, true} {
 		out := filepath.Join(t.TempDir(), "site")
-		r := runBuild(t, demo, cfg, cli.Build{Out: out, Portable: portable})
+		r := runBuild(t, demo, cfg, cli.Build{Out: out, Portable: portable, Hosted: !portable})
 		if r.err != nil {
 			t.Fatalf("portable=%v: %v", portable, r.err)
 		}

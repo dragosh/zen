@@ -10,7 +10,7 @@ static host.
 
 ```sh
 zen build                       # writes _site next to your pages
-zen build -o public --portable  # opens from disk, even zipped
+zen build -o public --hosted    # for a web server only
 ```
 
 ## What you get
@@ -37,9 +37,14 @@ click, shows its usual error box on the website: *runs in the zen app only*.
 
 ## Opening from disk
 
-With `--portable`, every page carries the scripts it needs, so the folder works
-when opened from disk. Scripts that import other files are left out, with a
-warning. Single-file scripts work.
+By default every page carries the scripts it needs, so the folder works when
+you double-click `index.html`, even zipped and moved, and on any web server.
+Scripts that import other files are left out, with a warning. Single-file
+scripts work.
+
+`--hosted` keeps the scripts as separate files instead. The pages are smaller,
+but browsers refuse to run those scripts from disk: open a hosted site through
+a web server.
 
 ## Settings
 
@@ -49,6 +54,6 @@ build:
   id: my-notes
   editURL: https://github.com/me/notes/edit/main/{path}
   drafts: false
-  portable: false
+  portable: true   # false = like --hosted
   exclude: ["private/**"]
 ```

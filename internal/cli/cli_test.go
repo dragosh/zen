@@ -243,6 +243,7 @@ func TestBuildCommand(t *testing.T) {
 	built(run(t, h, nil, "build", "plain/b.md"), Build{Dir: filepath.Join(h, "plain")})
 	// Flags in any order; -o is relative to cwd.
 	built(run(t, h, nil, "build", "-o", "out", "--portable", "--drafts", "--clean", "ws"), Build{Dir: ws, Out: filepath.Join(h, "out"), Portable: true, Drafts: true, Clean: true})
+	built(run(t, h, nil, "build", "--hosted", "ws"), Build{Dir: ws, Hosted: true})
 	built(run(t, h, nil, "build", "ws", "--clean", "-o=site"), Build{Dir: ws, Out: filepath.Join(h, "site"), Clean: true})
 	built(run(t, h, nil, "build", "--out", "/tmp/zen-out", "--drafts"), Build{Dir: h, Out: "/tmp/zen-out", Drafts: true})
 	built(run(t, h, nil, "build", "--out=rel", "--", "ws"), Build{Dir: ws, Out: filepath.Join(h, "rel")})
@@ -253,7 +254,7 @@ func TestBuildCommand(t *testing.T) {
 	expect(t, run(t, h, nil, "--", "build"), Launch{Dir: filepath.Join(h, "build"), Mode: "read"})
 	// The usage text lists it.
 	r := run(t, h, nil, "--help")
-	if !strings.Contains(r.stdout, "zen build [folder]") || !strings.Contains(r.stdout, "--portable") {
+	if !strings.Contains(r.stdout, "zen build [folder]") || !strings.Contains(r.stdout, "--portable") || !strings.Contains(r.stdout, "--hosted") {
 		t.Errorf("usage lacks build:\n%s", r.stdout)
 	}
 }
@@ -280,6 +281,7 @@ func TestBuildExitCodes(t *testing.T) {
 	// 2: usage errors, and nothing was built.
 	for _, a := range [][]string{
 		{"build", "-o"}, {"build", "--out"}, {"build", "--nope"}, {"build", "ws", "ws"}, {"build", "missing"}, {"build", "c.txt"}, {"build", "-o", ""},
+		{"build", "--portable", "--hosted"},
 	} {
 		r := run(t, h, nil, a...)
 		if r.code != 2 || r.built || r.launched || r.stdout != "" || !strings.Contains(r.stderr, "Usage:") {

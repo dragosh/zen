@@ -49,7 +49,7 @@ double click.
 16. Vale linting, the editor, Settings and trust prompts are not part of the output.
 
 ### Portable mode
-17. `--portable` (or `build.portable: true`) makes the output work from `file://`: no `import()` of files. Each page carries the scripts it needs as text in `<script type="application/json" data-zen-module="<plugin|layout>:<id>">` elements, and the static runtime loads them through `Blob` URLs. Links stay relative, so the folder can be zipped and moved.
+17. Portable is the **default** (changed after the first real use: a hosted build opened from Finder showed CORS errors in every block). `--hosted` (or `build.portable: false`) gives the module-loading output for web servers; opened from disk, each block then says it needs a web server instead of trying to load. `--portable` names the default and cannot be combined with `--hosted`. Portable output works from `file://`: no `import()` of files. Each page carries the scripts it needs as text in `<script type="application/json" data-zen-module="<plugin|layout>:<id>">` elements, and the static runtime loads them through `Blob` URLs. Links stay relative, so the folder can be zipped and moved.
 18. In portable mode a plugin or layout script that has its own `import` of another file is left out with a warning ("uses imports; not supported in portable mode"). Single-file modules, the norm for zen plugins, work.
 
 ### Configuration

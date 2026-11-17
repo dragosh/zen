@@ -42,14 +42,14 @@ build:
   portable: true
   exclude: ["private/**", "scratch.md"]
 `)
-	want := Build{Out: "_site", ID: "my-notes", EditURL: "https://github.com/me/notes/edit/main/{path}", Drafts: true, Portable: true, Exclude: []string{"private/**", "scratch.md"}}
+	want := Build{Out: "_site", ID: "my-notes", EditURL: "https://github.com/me/notes/edit/main/{path}", Drafts: true, Portable: ptr(true), Exclude: []string{"private/**", "scratch.md"}}
 	if err != nil || len(warns) != 0 || !reflect.DeepEqual(b, want) {
 		t.Errorf("all keys: %+v %v %v", b, warns, err)
 	}
 
 	// The folder wins key by key over the global file; the rest comes from global.
 	b, _, err = buildOf(t, "build:\n  out: global-out\n  id: g\n  drafts: true\n  exclude: [\"a/**\"]\n", "build:\n  out: _site\n  portable: true\n  exclude: [\"b/**\"]\n")
-	want = Build{Out: "_site", ID: "g", Drafts: true, Portable: true, Exclude: []string{"b/**"}}
+	want = Build{Out: "_site", ID: "g", Drafts: true, Portable: ptr(true), Exclude: []string{"b/**"}}
 	if err != nil || !reflect.DeepEqual(b, want) {
 		t.Errorf("layers: %+v %v", b, err)
 	}
@@ -85,5 +85,16 @@ build:
 	// An id that could escape its namespace.
 	if _, _, err := buildOf(t, "", "build:\n  id: \"a b/c\"\n"); err == nil || !strings.Contains(err.Error(), "build.id") {
 		t.Errorf("bad id: %v", err)
+	}
+}
+
+func ptr(b bool) *bool { return &b }
+
+func TestBuildPortableUnset(t *testing.T) {
+	if b, _, err := buildOf(t, "", "build:\n  out: x\n"); err != nil || b.Portable != nil {
+		t.Errorf("portable not set: %v %v", b.Portable, err)
+	}
+	if b, _, err := buildOf(t, "", "build:\n  portable: false\n"); err != nil || b.Portable == nil || *b.Portable {
+		t.Errorf("portable: false: %v %v", b.Portable, err)
 	}
 }

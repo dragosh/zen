@@ -14,7 +14,7 @@ type Build struct {
 	ID       string   // storage namespace for readers; "" = the folder name
 	EditURL  string   // link of the docs layout's Edit action; {path} is the page's path
 	Drafts   bool     // include pages with draft: true
-	Portable bool     // output that opens from file://
+	Portable *bool    // output that opens from file:// (nil = the default, true)
 	Exclude  []string // globs of pages left out, on top of the app's excludes
 }
 
@@ -86,7 +86,10 @@ func (c *Config) Build() (Build, []string, error) {
 		case "drafts":
 			err = flag(k, &b.Drafts)
 		case "portable":
-			err = flag(k, &b.Portable)
+			var p bool
+			if err = flag(k, &p); err == nil {
+				b.Portable = &p
+			}
 		case "exclude":
 			list, ok := c.build[k].([]any)
 			if !ok {

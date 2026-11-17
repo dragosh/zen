@@ -90,7 +90,10 @@ export function staticApi(siteId: string, store?: Storage): StaticApi {
 }
 
 /** Test seams: replace import() and the page navigation. */
-export const staticHooks: { importModule?: (url: string) => Promise<unknown>; navigate?: (url: string) => void } = {};
+export const staticHooks: { importModule?: (url: string) => Promise<unknown>; navigate?: (url: string) => void; protocol?: string } = {};
+
+/** Shown in each block when a --hosted site is opened from disk, where browsers refuse to load its scripts. */
+export const HOSTED_FROM_DISK = "this site was built with --hosted for a web server; open it through one, or build it again without --hosted to open it from disk";
 
 type PageData = { path: string; siteId: string; root: string; assets: { css: string[]; js: string[] }; portable: boolean };
 
@@ -159,6 +162,7 @@ export function start(doc: Document = document): void {
         URL.revokeObjectURL?.(blobUrl);
       }
     }
+    if ((staticHooks.protocol ?? win.location.protocol) === "file:") throw new Error(HOSTED_FROM_DISK);
     const href = new URL(`${page.root}_zen/${kind}s/${escapePath(id)}/${escapePath(file)}`, doc.baseURI).href;
     return load(href);
   };
