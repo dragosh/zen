@@ -250,7 +250,12 @@
 
 /* Plugins: the list, and the help of the selected plugin beside it. */
 .zen-plugins { display: flex; align-items: flex-start; gap: var(--space-5); }
-.zen-plugins-side { flex: none; width: 320px; max-width: 42%; }
+.zen-plugins-side { flex: none; width: 320px; min-width: 260px; max-width: 42%; }
+/* Narrow panes: the list above the help instead of a squeezed column. */
+@media (max-width: 900px) {
+  .zen-plugins { flex-direction: column; align-items: stretch; }
+  .zen-plugins-side { width: auto; max-width: none; }
+}
 .zen-settings-plugins { display: flex; flex-direction: column; border: 1px solid var(--rule); border-radius: var(--radius); }
 .zen-settings-plugin, .zen-settings-plugin-all {
   display: flex;
@@ -285,7 +290,8 @@
   color: var(--fg-muted);
   font-size: 11px;
 }
-.zen-settings-plugin-meta { display: flex; gap: var(--space-2); align-self: stretch; }
+.zen-settings-plugin-meta { display: flex; flex-wrap: wrap; gap: 0 var(--space-2); align-self: stretch; }
+.zen-settings-plugin-hint, .zen-settings-plugin-kind { white-space: nowrap; overflow-wrap: normal; }
 .zen-settings-plugin-state { white-space: nowrap; margin-left: auto; font-weight: 600; font-size: 12px; }
 .zen-settings-plugin[data-status="off"] .zen-settings-plugin-state,
 .zen-settings-plugin[data-status="on"] .zen-settings-plugin-state { font-weight: 400; color: var(--fg-muted); }
