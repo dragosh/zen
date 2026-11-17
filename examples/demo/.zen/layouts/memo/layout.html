@@ -1,0 +1,12 @@
+<section class="memo">
+  <header class="memo-head">
+    <p class="memo-label">Memo</p>
+    <dl>
+      <dt>To</dt><dd>{{.Field "to"}}</dd>
+      <dt>From</dt><dd>{{.Field "from"}}</dd>
+      <dt>Date</dt><dd>{{date (.Field "date")}}</dd>
+      <dt>Subject</dt><dd>{{.Title}}</dd>
+    </dl>
+  </header>
+  <div class="memo-body">{{.Content}}</div>
+</section>

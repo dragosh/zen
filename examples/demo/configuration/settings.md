@@ -20,12 +20,20 @@ list of sections is on the left:
 ### Help for each plugin
 
 Next to the list of plugins, the page shows help for the plugin you select:
-what it does, what it adds (blocks, inlines, layouts and options with their
+what it does, what it adds (blocks, inlines and options with their
 types and defaults) and snippets that show how to use it in a page. Each
 snippet has a **Copy** button, and a built-in plugin also shows how the snippet
 looks. Use the arrow keys to move in the list and <kbd>Enter</kbd> to select.
 **All plugins**, at the top of the list, shows the main snippet of every
 plugin on one page, as a cheat sheet.
+
+### Layouts
+
+The **Layouts** section next to Plugins works the same way for
+[layouts](../layouts/index.md): the built-in ones, the ones in the folder's
+`.zen/layouts/` and your own. It shows what each layout reads from a page, its
+options and snippets, and an Allow or Block button for the ones that are not
+built in.
 
 A missing file is created from a template with every setting commented out,
 so opening it changes nothing. zen checks the YAML when you save: a mistake is

@@ -38,7 +38,15 @@ func TestDemoFolder(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(z.close)
-	if len(dialogs.asked) != 1 || !strings.Contains(dialogs.asked[0], "note") || !strings.Contains(dialogs.asked[0], "./note.sh") ||
+	// One prompt for the plugins and one for the layout of the folder.
+	if len(dialogs.asked) != 2 || !strings.Contains(dialogs.asked[1], "memo") || !strings.Contains(dialogs.asked[1], "changes how pages look; runs nothing") ||
+		strings.Contains(dialogs.asked[1], "page script") {
+		t.Fatalf("layout prompt: %q", dialogs.asked)
+	}
+	if got := layoutOf(t, z, "memo"); got.Status != "on" || got.Source != "folder" || !got.HasTemplate || len(got.Fields) != 3 {
+		t.Errorf("demo layout memo: %+v", got)
+	}
+	if len(dialogs.asked) != 2 || !strings.Contains(dialogs.asked[0], "note") || !strings.Contains(dialogs.asked[0], "./note.sh") ||
 		!strings.Contains(dialogs.asked[0], "calc") || !strings.Contains(dialogs.asked[0], "bc -l") ||
 		!strings.Contains(dialogs.asked[0], "progress") || !strings.Contains(dialogs.asked[0], "scripts in the page") ||
 		!strings.Contains(dialogs.asked[0], "callout") || !strings.Contains(dialogs.asked[0], "wordcount") ||
@@ -93,14 +101,20 @@ func TestDemoFolder(t *testing.T) {
 	want := []string{
 		"getting-started/install.md", "getting-started/opening-folders.md", "reading/navigation.md",
 		"reading/frontmatter.md", "editing/editor.md", "editing/linting.md",
-		"plugins/index.md", "configuration/settings.md", "reference/shortcuts.md", "reference/markdown.md",
+		"plugins/index.md", "layouts/index.md", "configuration/settings.md", "reference/shortcuts.md", "reference/markdown.md", "blog/index.md",
 	}
 	if got := paths(tree[0].Children); strings.Join(got, ",") != strings.Join(want, ",") {
 		t.Errorf("README children = %v", got)
 	}
 	for _, n := range tree[0].Children {
-		if n.Path == "plugins/index.md" && strings.Join(paths(n.Children), ",") != "plugins/writing-plugins.md,plugins/codeblock.md,plugins/diagram.md,plugins/quiz.md,plugins/sandbox.md,layouts/slides.md,layouts/course.md,plugins/directives.md" {
+		if n.Path == "plugins/index.md" && strings.Join(paths(n.Children), ",") != "plugins/writing-plugins.md,plugins/codeblock.md,plugins/diagram.md,plugins/quiz.md,plugins/sandbox.md,plugins/directives.md" {
 			t.Errorf("Plugins children = %v", paths(n.Children))
+		}
+		if n.Path == "layouts/index.md" && strings.Join(paths(n.Children), ",") != "layouts/docs.md,layouts/post.md,layouts/landing.md,layouts/wide.md,layouts/handout.md,layouts/slides.md,layouts/course.md,layouts/writing-your-own-layout.md,layouts/memo.md" {
+			t.Errorf("Layouts children = %v", paths(n.Children))
+		}
+		if n.Path == "blog/index.md" && strings.Join(paths(n.Children), ",") != "blog/hello-zen.md,blog/writing-with-layouts.md" {
+			t.Errorf("Blog children = %v", paths(n.Children))
 		}
 		if n.Path == "configuration/settings.md" && strings.Join(paths(n.Children), ",") != "configuration/reference.md" {
 			t.Errorf("Settings children = %v", paths(n.Children))
@@ -121,6 +135,28 @@ func TestDemoFolder(t *testing.T) {
 		if want := map[bool]int{true: 1, false: 0}[p == "reading/navigation.md"]; broken != want {
 			t.Errorf("%s: %d broken links, want %d", p, broken, want)
 		}
+	}
+	// Every layout of the guide shows up on its page.
+	for path, want := range map[string]string{
+		"layouts/index.md": "landing", "layouts/docs.md": "docs", "layouts/post.md": "post", "layouts/landing.md": "docs", "layouts/wide.md": "wide",
+		"layouts/handout.md": "handout", "layouts/slides.md": "slides", "layouts/course.md": "course", "layouts/memo.md": "memo",
+		"blog/index.md": "landing", "blog/hello-zen.md": "post", "blog/writing-with-layouts.md": "post", "README.md": "article",
+	} {
+		if pg, _ := z.Page(path); pg.Layout.Name != want {
+			t.Errorf("%s: layout %+v, want %s", path, pg.Layout, want)
+		}
+	}
+	idx, _ := z.Page("layouts/index.md")
+	if strings.Count(idx.HTML, `class="zl-card"`) != 9 || !strings.Contains(idx.HTML, `class="zl-hero-cover" src="/_ws/images/zen-mark.svg"`) {
+		t.Errorf("layouts index cards or cover: %s", idx.HTML)
+	}
+	memo, _ := z.Page("layouts/memo.md")
+	if !strings.Contains(memo.HTML, "<dt>To</dt><dd>The whole team</dd>") || !strings.Contains(memo.HTML, "17 November 2026") || urlsOf(memo.Assets.CSS) != "/_layouts/memo/memo.css" {
+		t.Errorf("memo: %s %+v", memo.HTML, memo.Assets)
+	}
+	post, _ := z.Page("blog/hello-zen.md")
+	if !strings.Contains(post.HTML, `<time datetime="2026-11-10">10 November 2026</time>`) || !strings.Contains(post.HTML, `data-path="blog/writing-with-layouts.md"`) {
+		t.Errorf("post: %s", post.HTML)
 	}
 	// The slug link on the navigation page resolves to the install page.
 	nav, _ := z.Page("reading/navigation.md")

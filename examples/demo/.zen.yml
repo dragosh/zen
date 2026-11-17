@@ -2,6 +2,10 @@
 # overridden by a page's frontmatter. Open from the cog > .zen.yml.
 version: 1
 
+# Layouts by path, the first match wins. A page's own layout beats these.
+layouts:
+  "blog/**": post
+
 plugins:
   codeblock: true
   diagram: { theme: neutral }

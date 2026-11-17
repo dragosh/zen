@@ -1,0 +1,14 @@
+id: memo
+version: 0.1.0
+description: A short memo with a to, from and date block
+template: layout.html
+css: [memo.css]
+fields:
+  to:   { type: string, description: Who the memo is for }
+  from: { type: string, description: Who wrote it }
+  date: { type: date, description: The date of the memo }
+help:
+  summary: "A short memo: a header with To, From and Date, then the text. Frontmatter fields: to, from and date."
+  snippets:
+    - title: A memo
+      markdown: "---\ntitle: Office move\nlayout: memo\nto: The whole team\nfrom: Ada\ndate: 2026-11-17\n---\n# Office move\n\nWe move on Monday.\n"
