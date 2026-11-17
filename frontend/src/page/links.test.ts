@@ -66,3 +66,11 @@ test("javascript: links are never opened or followed", async () => {
   expect(e.defaultPrevented).toBe(true);
   expect(env.api.calls).toEqual([]);
 });
+
+test("a layout's Edit this page link opens the editor for the current page", async () => {
+  const { env, e } = click(`<a data-zen-action="edit">Edit this page</a>`);
+  expect(e.defaultPrevented).toBe(true);
+  await tick();
+  expect(env.api.callsTo("openEditor")).toEqual([["README.md"]]);
+  expect(env.navigations).toEqual([]);
+});

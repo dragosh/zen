@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | specified |
+| Status | done |
 | Target version | 0.2.0 |
 | Branch | `feature/core-layouts` |
 | Depends on | core/script-plugins, core/plugin-hardening |

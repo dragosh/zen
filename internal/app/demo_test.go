@@ -192,6 +192,11 @@ func TestDemoFolder(t *testing.T) {
 	if !strings.Contains(strings.Join(how.Assets.JS, ","), "/_plugins/progress/progress.js") {
 		t.Errorf("progress script not offered: %+v", how.Assets)
 	}
+	// The docs layout's "Edit this page" link survives sanitising (the page
+	// side opens the editor for it).
+	if docs, err := z.Page("layouts/docs.md"); err != nil || !strings.Contains(docs.HTML, `data-zen-action="edit"`) {
+		t.Errorf("docs layout edit link missing: %v", err)
+	}
 	// The Tengo samples: callout (one file, inline CSS, zen.markdown) and
 	// wordcount (folder form, read permission, zen.pages and zen.read).
 	if !strings.Contains(how.HTML, `data-zen-plugin="callout" data-zen-name="tip"`) || !strings.Contains(how.HTML, `<div class="callout tip">`) {

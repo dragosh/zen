@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
-// The built-in "slides" layout (internal/plugins/slides/assets/slides.js), loaded as the app loads it.
-import { existsSync, readFileSync } from "node:fs";
+// The built-in "slides" layout (internal/layouts/slides/slides.js), loaded as the app loads it.
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
@@ -10,8 +10,8 @@ import { installRuntime } from "./runtime";
 // The built-in layouts live in internal/layouts/ (they were plugins before core/layouts).
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
 // Whichever of the two places has the script (a glob, so a missing one is no error).
-const scripts = import.meta.glob<unknown>("../../../internal/{layouts,plugins}/slides/assets/slides.js");
-const ASSETS = [join(ROOT, "internal/layouts/slides/assets"), join(ROOT, "internal/plugins/slides/assets")].find((d) => existsSync(d))!;
+const scripts = import.meta.glob<unknown>("../../../internal/layouts/slides/slides.js");
+const ASSETS = join(ROOT, "internal/layouts/slides");
 
 let rt: ReturnType<typeof installRuntime>;
 /** The plugin script, an ES module with a default export; the runtime gets it through importModule. */
