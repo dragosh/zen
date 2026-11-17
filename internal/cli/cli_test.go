@@ -3,6 +3,8 @@ package cli
 import (
 	"bytes"
 	"errors"
+	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -15,7 +17,12 @@ type result struct {
 	stderr   string
 	launched bool
 	l        Launch
+	built    bool
+	b        Build
 }
+
+// builderErr is what the fake Builder returns.
+var builderErr error
 
 func run(t *testing.T, cwd string, launchErr error, args ...string) result {
 	t.Helper()
@@ -25,6 +32,12 @@ func run(t *testing.T, cwd string, launchErr error, args ...string) result {
 		r.launched = true
 		r.l = l
 		return launchErr
+	}, func(b Build, stdout, stderr io.Writer) error {
+		r.built = true
+		r.b = b
+		fmt.Fprintln(stdout, "Built 1 pages and 0 files into out (1 warnings)")
+		fmt.Fprintln(stderr, "a.md: a warning")
+		return builderErr
 	})
 	r.stdout, r.stderr = out.String(), errOut.String()
 	return r
@@ -205,4 +218,77 @@ func TestFinderLaunchShowsWelcome(t *testing.T) {
 	// Any other cwd opens the cwd.
 	r = run(t, d, nil)
 	expect(t, r, Launch{Dir: d, Mode: "read"})
+}
+
+func TestBuildCommand(t *testing.T) {
+	h := home(t)
+	ws := filepath.Join(h, "ws")
+	write(t, filepath.Join(ws, ".zen.yml"))
+	write(t, filepath.Join(ws, "docs", "a.md"))
+	write(t, filepath.Join(h, "plain", "b.md"))
+
+	built := func(r result, want Build) {
+		t.Helper()
+		if r.code != 0 || !r.built || r.launched || r.b != want {
+			t.Fatalf("got %+v, want build %+v", r, want)
+		}
+	}
+	// Defaults: the current folder.
+	built(run(t, ws, nil, "build"), Build{Dir: ws})
+	// A folder, relative to cwd or absolute.
+	built(run(t, h, nil, "build", "ws"), Build{Dir: ws})
+	built(run(t, h, nil, "build", ws), Build{Dir: ws})
+	// A markdown file means its folder, as zen [path] resolves it.
+	built(run(t, h, nil, "build", "ws/docs/a.md"), Build{Dir: ws})
+	built(run(t, h, nil, "build", "plain/b.md"), Build{Dir: filepath.Join(h, "plain")})
+	// Flags in any order; -o is relative to cwd.
+	built(run(t, h, nil, "build", "-o", "out", "--portable", "--drafts", "--clean", "ws"), Build{Dir: ws, Out: filepath.Join(h, "out"), Portable: true, Drafts: true, Clean: true})
+	built(run(t, h, nil, "build", "ws", "--clean", "-o=site"), Build{Dir: ws, Out: filepath.Join(h, "site"), Clean: true})
+	built(run(t, h, nil, "build", "--out", "/tmp/zen-out", "--drafts"), Build{Dir: h, Out: "/tmp/zen-out", Drafts: true})
+	built(run(t, h, nil, "build", "--out=rel", "--", "ws"), Build{Dir: ws, Out: filepath.Join(h, "rel")})
+	// "build" is a command only first; after -- it is a path.
+	if err := os.Mkdir(filepath.Join(h, "build"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	expect(t, run(t, h, nil, "--", "build"), Launch{Dir: filepath.Join(h, "build"), Mode: "read"})
+	// The usage text lists it.
+	r := run(t, h, nil, "--help")
+	if !strings.Contains(r.stdout, "zen build [folder]") || !strings.Contains(r.stdout, "--portable") {
+		t.Errorf("usage lacks build:\n%s", r.stdout)
+	}
+}
+
+func TestBuildExitCodes(t *testing.T) {
+	h := home(t)
+	write(t, filepath.Join(h, "ws", "a.md"))
+	write(t, filepath.Join(h, "c.txt"))
+	ws := filepath.Join(h, "ws")
+
+	// 0: built; the summary is on stdout and the warnings on stderr, untouched by the CLI.
+	r := run(t, ws, nil, "build")
+	if r.code != 0 || r.stdout != "Built 1 pages and 0 files into out (1 warnings)\n" || r.stderr != "a.md: a warning\n" {
+		t.Fatalf("success: %+v", r)
+	}
+	// 1: the build failed.
+	builderErr = errors.New("output folder is not empty")
+	defer func() { builderErr = nil }()
+	r = run(t, ws, nil, "build")
+	if r.code != 1 || !strings.Contains(r.stderr, "zen: output folder is not empty") || !strings.Contains(r.stderr, "a.md: a warning") {
+		t.Fatalf("failure: %+v", r)
+	}
+	builderErr = nil
+	// 2: usage errors, and nothing was built.
+	for _, a := range [][]string{
+		{"build", "-o"}, {"build", "--out"}, {"build", "--nope"}, {"build", "ws", "ws"}, {"build", "missing"}, {"build", "c.txt"}, {"build", "-o", ""},
+	} {
+		r := run(t, h, nil, a...)
+		if r.code != 2 || r.built || r.launched || r.stdout != "" || !strings.Contains(r.stderr, "Usage:") {
+			t.Fatalf("%v: %+v", a, r)
+		}
+	}
+	// No Builder wired: a plain error, not a crash.
+	var out, errOut bytes.Buffer
+	if code := Run([]string{"build"}, ws, &out, &errOut, func(Launch) error { return nil }, nil); code != 1 || !strings.Contains(errOut.String(), "build") {
+		t.Errorf("nil builder: %d %q", code, errOut.String())
+	}
 }

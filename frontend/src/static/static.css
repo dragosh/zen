@@ -1,0 +1,91 @@
+/* The page CSS of a built site: zen's tokens, base and page styles, plus the shell
+   (sidebar, breadcrumb, skip link). Black and white, light and dark by prefers-color-scheme. */
+@import "../styles/tokens.css";
+@import "../styles/base.css";
+@import "../page/page.css";
+
+/* The site scrolls as a document (the app's panes scroll themselves). */
+html { height: auto; }
+body.zen-site { height: auto; overflow: auto; font: 13px/1.4 var(--font-ui); }
+
+.zen-skip {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 10;
+  padding: var(--space-2) var(--space-3);
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-fg);
+  border-radius: var(--radius);
+}
+.zen-skip:focus { left: var(--space-2); top: var(--space-2); }
+
+.zen-site-frame {
+  display: grid;
+  grid-template-columns: 17rem minmax(0, 1fr);
+  min-height: 100vh;
+}
+.zen-site-frame > .zen-site-body:only-child { grid-column: 1 / -1; }
+.zen-site-side {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  max-height: 100vh;
+  overflow: auto;
+  padding: var(--space-3) var(--space-2);
+  border-right: 1px solid var(--rule);
+  font-family: var(--font-ui);
+}
+.zen-site-body { min-width: 0; display: flex; flex-direction: column; }
+.zen-site-body main { flex: 1; }
+
+.zen-site-menu > summary {
+  cursor: pointer;
+  padding: var(--space-2) var(--space-3);
+  font-weight: 600;
+  border-radius: var(--radius);
+}
+.zen-site-menu > summary:hover { background: var(--bg-subtle); }
+
+.zen-site-nav ul { list-style: none; margin: 0; padding: 0; }
+.zen-site-nav ul ul { padding-left: var(--space-4); }
+.zen-site-nav li { margin: 0; }
+.zen-site-nav a, .zen-site-nav li > span, .zen-site-nav summary {
+  display: block;
+  padding: 3px var(--space-2);
+  border-radius: var(--radius);
+  color: var(--fg);
+  text-decoration: none;
+}
+.zen-site-nav summary { cursor: pointer; color: var(--fg-muted); }
+.zen-site-nav summary > a { display: inline; padding: 0; color: var(--fg); }
+.zen-site-nav a:hover, .zen-site-nav summary:hover { background: var(--bg-subtle); }
+.zen-site-nav a[aria-current="page"] { background: var(--btn-bg); font-weight: 600; }
+
+.zen-site-crumbs { padding: var(--space-3) var(--space-6) 0; font-family: var(--font-ui); color: var(--fg-muted); }
+.zen-site-crumbs ol { display: flex; flex-wrap: wrap; gap: var(--space-1); list-style: none; margin: 0; padding: 0; }
+.zen-site-crumbs li + li::before { content: "/"; margin-right: var(--space-1); }
+.zen-site-crumbs a { color: var(--fg-muted); }
+.zen-site-crumbs a:hover { color: var(--fg); }
+
+/* Wide screens: the sidebar is always open, with no toggle. Where the browser cannot force a
+   closed <details> open (no ::details-content), the toggle stays and works without JavaScript. */
+@media (min-width: 720px) {
+  @supports selector(::details-content) {
+    .zen-site-menu > summary { display: none; }
+    .zen-site-menu::details-content { content-visibility: visible; display: block; }
+  }
+}
+/* Narrow: one column, the sidebar behind "Contents". */
+@media (max-width: 719px) {
+  .zen-site-frame { grid-template-columns: minmax(0, 1fr); }
+  .zen-site-side { position: static; max-height: none; border-right: 0; border-bottom: 1px solid var(--rule); }
+  .zen-site-crumbs { padding-left: var(--space-4); padding-right: var(--space-4); }
+  .zen-page { padding-left: var(--space-4); padding-right: var(--space-4); }
+}
+
+@media print {
+  .zen-site-side, .zen-site-crumbs, .zen-skip { display: none !important; }
+  .zen-site-frame { display: block; }
+  body.zen-site { overflow: visible; }
+}

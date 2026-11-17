@@ -91,15 +91,10 @@ func (s *state) serveWorkspace(w http.ResponseWriter, r *http.Request, rel strin
 }
 
 func (s *state) servePlugin(w http.ResponseWriter, r *http.Request, rest string) {
-	id, file, ok := strings.Cut(rest, "/")
-	if !ok || id == "" || !fs.ValidPath(file) || file == "." {
-		http.NotFound(w, r)
-		return
-	}
 	s.mu.Lock()
 	reg := s.reg
 	s.mu.Unlock()
-	fsys, ok := reg.AssetFS(id)
+	fsys, file, ok := assetOf(reg, rest)
 	if !ok {
 		http.NotFound(w, r)
 		return
@@ -110,11 +105,6 @@ func (s *state) servePlugin(w http.ResponseWriter, r *http.Request, rest string)
 // serveLayout serves /_layouts/<id>/<file>: the css and js files a layout
 // lists, nothing else.
 func (s *state) serveLayout(w http.ResponseWriter, r *http.Request, rest string) {
-	id, file, ok := strings.Cut(rest, "/")
-	if !ok || id == "" || !fs.ValidPath(file) || file == "." {
-		http.NotFound(w, r)
-		return
-	}
 	s.mu.Lock()
 	reg := s.lreg
 	s.mu.Unlock()
@@ -122,12 +112,33 @@ func (s *state) serveLayout(w http.ResponseWriter, r *http.Request, rest string)
 		http.NotFound(w, r)
 		return
 	}
-	fsys, ok := reg.AssetFS(id)
+	fsys, file, ok := assetOf(reg, rest)
 	if !ok {
 		http.NotFound(w, r)
 		return
 	}
 	serveFromFS(w, r, fsys, file)
+}
+
+// assetFSer is the plugin and the layout registry: both hand out the files a
+// plugin or layout lists.
+type assetFSer interface {
+	AssetFS(id string) (fs.FS, bool)
+}
+
+// assetOf resolves "<id>/<file>" (the rest of /_plugins/ and /_layouts/ URLs)
+// to the file system of the plugin or layout and a clean file name. The
+// static build uses it too, so the app and a built site serve the same files.
+func assetOf(reg assetFSer, rest string) (fs.FS, string, bool) {
+	id, file, ok := strings.Cut(rest, "/")
+	if !ok || id == "" || !fs.ValidPath(file) || file == "." {
+		return nil, "", false
+	}
+	fsys, ok := reg.AssetFS(id)
+	if !ok {
+		return nil, "", false
+	}
+	return fsys, file, true
 }
 
 func serveFromFS(w http.ResponseWriter, r *http.Request, fsys fs.FS, file string) {
