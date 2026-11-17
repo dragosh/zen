@@ -34,7 +34,7 @@
 			</dict>
 		</array>
 		<key>CFBundleExecutable</key>
-		<string>zen</string>
+		<string>zenmd</string>
 		<key>CFBundleGetInfoString</key>
 		<string>Markdown reader and editor</string>
 		<key>CFBundleIconFile</key>

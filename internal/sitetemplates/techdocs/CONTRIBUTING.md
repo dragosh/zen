@@ -20,7 +20,7 @@ If one page tries to do two of these, split it and link the halves.
 1. Create a markdown file in the right folder. Use lower case and dashes in the name, such as `how-to/rotate-a-key.md`.
 2. Start it with a single `#` heading. That heading becomes the title in the sidebar.
 3. Link to it from the `index.md` of the same folder. zen builds the sidebar from links, so a page nobody links to ends up under "Other pages".
-4. Run `zen build` and open the result to check the page and its links.
+4. Run `zenmd build` and open the result to check the page and its links.
 
 ## Style
 

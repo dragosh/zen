@@ -3,14 +3,14 @@ title: Build a website
 nav:
   title: Build a website
 ---
-`zen build` turns this folder into a static website: one HTML page for each
+`zenmd build` turns this folder into a static website: one HTML page for each
 markdown page, the sidebar and breadcrumb written into every page, and the
 images and plugin files it uses copied next to it. Put the result on any
 static host.
 
 ```sh
-zen build                       # writes _site next to your pages
-zen build -o public --hosted    # for a web server only
+zenmd build                       # writes _site next to your pages
+zenmd build -o public --hosted    # for a web server only
 ```
 
 ## What you get

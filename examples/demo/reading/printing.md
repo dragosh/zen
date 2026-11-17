@@ -48,5 +48,5 @@ Up to 500 pages fit in one document; for more, print a section.
 
 ## Print from a built site
 
-`zen build` also writes `print.html`, the same single document, so a built
+`zenmd build` also writes `print.html`, the same single document, so a built
 site can be printed from any browser. Leave it out with `--no-print`.

@@ -63,14 +63,14 @@ func plist(t *testing.T, key string) string {
 func TestBundleLayout(t *testing.T) {
 	requireBundle(t)
 
-	for _, p := range []string{"Contents/MacOS/zen", "Contents/Info.plist", "Contents/Resources/icons.icns"} {
+	for _, p := range []string{"Contents/MacOS/zenmd", "Contents/Info.plist", "Contents/Resources/icons.icns"} {
 		fi, err := os.Stat(filepath.Join(bundle, p))
 		if err != nil || fi.IsDir() {
 			t.Errorf("missing file %s", p)
 		}
 	}
-	if fi, err := os.Stat(filepath.Join(bundle, "Contents/MacOS/zen")); err == nil && fi.Mode()&0o111 == 0 {
-		t.Error("Contents/MacOS/zen is not executable")
+	if fi, err := os.Stat(filepath.Join(bundle, "Contents/MacOS/zenmd")); err == nil && fi.Mode()&0o111 == 0 {
+		t.Error("Contents/MacOS/zenmd is not executable")
 	}
 	if fi, err := os.Stat(filepath.Join(bundle, "Contents/Helpers")); err != nil || !fi.IsDir() {
 		t.Error("missing directory Contents/Helpers")
@@ -81,7 +81,7 @@ func TestBundleLayout(t *testing.T) {
 	want := map[string]string{
 		"CFBundleName":               "zen.md",
 		"CFBundleDisplayName":        "zen.md",
-		"CFBundleExecutable":         "zen",
+		"CFBundleExecutable":         "zenmd",
 		"CFBundleIdentifier":         bundleID,
 		"CFBundlePackageType":        "APPL",
 		"CFBundleIconFile":           "icons",
@@ -115,11 +115,11 @@ func TestBundleLayout(t *testing.T) {
 
 func TestBundledCLI(t *testing.T) {
 	requireBundle(t)
-	out, err := exec.Command(filepath.Join(bundle, "Contents/MacOS/zen"), "--version").CombinedOutput()
+	out, err := exec.Command(filepath.Join(bundle, "Contents/MacOS/zenmd"), "--version").CombinedOutput()
 	if err != nil {
-		t.Fatalf("zen --version: %v\n%s", err, out)
+		t.Fatalf("zenmd --version: %v\n%s", err, out)
 	}
-	if got, want := strings.TrimSpace(string(out)), "zen "+readVersion(t); got != want {
+	if got, want := strings.TrimSpace(string(out)), "zenmd "+readVersion(t); got != want {
 		t.Errorf("got %q, want %q", got, want)
 	}
 }

@@ -5,7 +5,7 @@ zen follows [Semantic Versioning 2.0.0](https://semver.org).
 - The version lives in one place: the `VERSION` file at the repo root
   (`0.1.0-alpha.1`, no `v` prefix, one line).
 - Builds inject it: `-ldflags "-X github.com/dragosh/zen/internal/cli.Version=$(cat VERSION)"`.
-  `zen --version` prints `zen 0.1.0-alpha.1`. An unstamped build prints `zen dev`.
+  `zenmd --version` prints `zenmd 0.1.0-alpha.1`. An unstamped build prints `zenmd dev`.
 - The macOS bundle uses `CFBundleShortVersionString = MAJOR.MINOR.PATCH` and
   `CFBundleVersion =` the commit count (monotonic).
 - Git tags are `v<VERSION>` on `main`.

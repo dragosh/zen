@@ -1,7 +1,7 @@
 version: '3'
 
 vars:
-  APP_NAME: "zen"
+  APP_NAME: "zenmd"
   BIN_DIR: "bin"
   PACKAGE_MANAGER: '{{.PACKAGE_MANAGER | default "npm"}}'
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
@@ -75,22 +75,20 @@ tasks:
       - npm test
 
   install:
-    summary: Builds zen and links it into ~/.local/bin (override with INSTALL_DIR) so `zen` works from any directory
+    summary: Builds zenmd and links it (and the zen alias, until 0.4.0) into ~/.local/bin (override with INSTALL_DIR) so `zenmd` works from any directory
     vars:
       INSTALL_DIR: '{{.INSTALL_DIR | default (print .HOME "/.local/bin")}}'
     deps:
       - build
     cmds:
-      - mkdir -p "{{.INSTALL_DIR}}"
-      - ln -sf "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}" "{{.INSTALL_DIR}}/{{.APP_NAME}}"
-      - echo "Linked {{.INSTALL_DIR}}/{{.APP_NAME}} -> {{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}"
+      - go run ./build/darwin/installcli -exe "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}" -dir "{{.INSTALL_DIR}}"
 
   uninstall:
-    summary: Removes the zen link created by `task install`
+    summary: Removes the zenmd and zen links created by `task install`
     vars:
       INSTALL_DIR: '{{.INSTALL_DIR | default (print .HOME "/.local/bin")}}'
     cmds:
-      - rm -f "{{.INSTALL_DIR}}/{{.APP_NAME}}"
+      - go run ./build/darwin/installcli -exe "{{.ROOT_DIR}}/{{.BIN_DIR}}/{{.APP_NAME}}" -dir "{{.INSTALL_DIR}}" -uninstall
 
   version:
     summary: Prints the version from the VERSION file
@@ -149,6 +147,11 @@ tasks:
         echo "$v -> $new"
 
   install:cli:
-    summary: Links the zen command from the installed Zen.app (INSTALL_DIR, APP_PATH override)
+    summary: Links the zenmd command (and the zen alias) from the installed Zen.app (INSTALL_DIR, APP_PATH override)
     cmds:
       - task: "{{.GOOS}}:install:cli"
+
+  uninstall:cli:
+    summary: Removes the zenmd and zen links, only when they point into Zen.app (INSTALL_DIR, APP_PATH override)
+    cmds:
+      - task: "{{.GOOS}}:uninstall:cli"

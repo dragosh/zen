@@ -14,7 +14,7 @@ zen
 
 ## Start here
 
-1. [Install zen](getting-started/install.md) and the `zen` command.
+1. [Install zen](getting-started/install.md) and the `zenmd` command.
 2. [Open a folder](getting-started/opening-folders.md) from the app or a terminal.
 3. Learn how the [sidebar and links](reading/navigation.md) work.
 4. Tune a page with [frontmatter](reading/frontmatter.md).
@@ -31,4 +31,4 @@ zen
 - [Settings](configuration/settings.md): the settings page and config files.
 - [Keyboard shortcuts](reference/shortcuts.md) and a [markdown showcase](reference/markdown.md).
 - A small [blog](blog/index.md) that picks its layout by path.
-- [Build a website](build/index.md) from this folder with `zen build`.
+- [Build a website](build/index.md) from this folder with `zenmd build`.

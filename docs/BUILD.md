@@ -1,13 +1,13 @@
-# zen build — static websites
+# zenmd build — static websites
 
-`zen build` exports a folder as a static website. Every page is rendered with
+`zenmd build` exports a folder as a static website. Every page is rendered with
 the same Go pipeline as the app (plugins, layouts, sidebar, breadcrumb), then
 written as plain HTML with its assets next to it. Spec:
 [specs/core/static-build](../specs/core/static-build/spec.md). User guide:
 [examples/demo/build/index.md](../examples/demo/build/index.md).
 
 ```sh
-zen build [folder] [-o dir] [--hosted] [--drafts] [--clean]
+zenmd build [folder] [-o dir] [--hosted] [--drafts] [--clean]
 ```
 
 | Option | Meaning |
