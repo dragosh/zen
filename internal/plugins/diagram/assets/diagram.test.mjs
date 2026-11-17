@@ -132,3 +132,21 @@ test("no remote URLs, eval or innerHTML from source in diagram.js", () => {
   assert.doesNotMatch(src, /\beval\s*\(|new Function/);
   assert.match(src, /securityLevel:\s*"strict"/);
 });
+
+test("default export mounts one wrapper with the page runtime's shape", async () => {
+  const mod = await import("./diagram.js");
+  assert.equal(typeof mod.default.mount, "function");
+  const doc = makeDoc();
+  const g = { mermaid: stub() };
+  globalThis.mermaid = g.mermaid;
+  try {
+    const d = diagram(doc, "graph TD\n A-->B");
+    await mod.default.mount(d);
+    await mod.default.mount(d); // a second mount does nothing
+    assert.equal(d.querySelectorAll(".zen-diagram-svg").length, 1);
+    assert.equal(d.querySelectorAll("pre").length, 0);
+    assert.equal(g.mermaid.calls.render.length, 1);
+  } finally {
+    delete globalThis.mermaid;
+  }
+});

@@ -38,44 +38,51 @@ export function mermaidTheme(el, doc = document) {
   return t === "dark" ? "neutral" : t;
 }
 
+/** Renders one diagram wrapper (once) into an svg, or its error under the source. */
+export async function renderOne(el, mermaid) {
+  if (el.dataset.rendered !== undefined) return;
+  el.dataset.rendered = "";
+  const doc = el.ownerDocument || document;
+  const pre = el.querySelector("pre");
+  if (!pre) return;
+  const id = "zen-diagram-" + ++seq;
+  mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: mermaidTheme(el, doc) });
+  try {
+    const { svg } = await mermaid.render(id, pre.textContent);
+    const box = doc.createElement("div");
+    box.className = "zen-diagram-svg";
+    box.innerHTML = svg; // mermaid output, sanitised by mermaid in strict mode
+    pre.remove();
+    el.append(box);
+  } catch (err) {
+    const stray = doc.getElementById && doc.getElementById("d" + id);
+    if (stray) stray.remove();
+    showError(el, err);
+  }
+}
+
+function showError(el, err) {
+  const box = (el.ownerDocument || document).createElement("div");
+  box.className = "zen-plugin-error";
+  box.textContent = "diagram: " + (err && err.message ? err.message : String(err));
+  el.append(box);
+}
+
 /** Renders every not-yet-rendered diagram under root. */
 export async function renderAll(root, mermaid) {
-  const doc = root.ownerDocument || root;
-  for (const el of root.querySelectorAll(".zen-diagram:not([data-rendered])")) {
-    el.dataset.rendered = "";
-    const pre = el.querySelector("pre");
-    if (!pre) continue;
-    const id = "zen-diagram-" + ++seq;
-    mermaid.initialize({ startOnLoad: false, securityLevel: "strict", theme: mermaidTheme(el, doc) });
+  for (const el of root.querySelectorAll(".zen-diagram:not([data-rendered])")) await renderOne(el, mermaid);
+}
+
+// The page runtime mounts this on every [data-zen-plugin="diagram"] wrapper.
+export default {
+  async mount(el) {
+    let mermaid;
     try {
-      const { svg } = await mermaid.render(id, pre.textContent);
-      const box = doc.createElement("div");
-      box.className = "zen-diagram-svg";
-      box.innerHTML = svg; // mermaid output, sanitised by mermaid in strict mode
-      pre.remove();
-      el.append(box);
+      mermaid = await loadMermaid(el.ownerDocument || document);
     } catch (err) {
-      const stray = doc.getElementById && doc.getElementById("d" + id);
-      if (stray) stray.remove();
-      const box = doc.createElement("div");
-      box.className = "zen-plugin-error";
-      box.textContent = "diagram: " + (err && err.message ? err.message : String(err));
-      el.append(box);
+      showError(el, err);
+      return;
     }
-  }
-}
-
-async function run(root) {
-  if (!root.querySelector(".zen-diagram:not([data-rendered])")) return;
-  try {
-    await renderAll(root, await loadMermaid(root.ownerDocument || document));
-  } catch (err) {
-    console.error("diagram:", err);
-  }
-}
-
-if (typeof document !== "undefined") {
-  document.addEventListener("zen:page-rendered", (e) => run((e.detail && e.detail.root) || document.body));
-  // The first page-rendered event fires before this module has loaded.
-  run(document.body);
-}
+    await renderOne(el, mermaid);
+  },
+};
