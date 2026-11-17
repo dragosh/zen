@@ -78,7 +78,7 @@ export default {
   async mount(wrapper, ctx) {
     // The renderer's [data-zen-plugin] wrapper holds one .zen-diagram (with its theme).
     const el = (String(wrapper.className || "").split(/\s+/).includes("zen-diagram") ? wrapper : wrapper.querySelector(".zen-diagram")) || wrapper;
-    // ctx.assetUrl finds the bundle in the app and in a site made by `zen build`.
+    // ctx.assetUrl finds the bundle in the app and in a site made by `zenmd build`.
     const url = ctx && typeof ctx.assetUrl === "function" ? ctx.assetUrl("mermaid.min.js") : MERMAID_URL;
     let mermaid;
     try {

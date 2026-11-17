@@ -1,4 +1,4 @@
-// The runtime of a built site (`zen build`). It reads <script type="application/json" id="zen-page">
+// The runtime of a built site (`zenmd build`). It reads <script type="application/json" id="zen-page">
 // ({ path, siteId, root, assets: { css, js }, portable }) and mounts the plugin and layout scripts of the
 // page with the same contract as the app (docs/PLUGINS.md, docs/LAYOUTS.md): it reuses
 // plugins/runtime.ts with a static `api`. No Wails bindings are imported; the app's backend does not

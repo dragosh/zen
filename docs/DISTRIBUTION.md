@@ -10,7 +10,7 @@ the environment.
 | Package | `bin/Zen.app`, `.dmg` | `bin/Zen.pkg` (Transporter) |
 | Sandbox | no | yes (`entitlements.sandbox.plist`) |
 | Go build tag | none | `appstore` |
-| `zen` command, program/tool/sandbox plugins | yes | off ("Not available in the App Store version of zen") |
+| `zenmd` command, program/tool/sandbox plugins | yes | off ("Not available in the App Store version of zen") |
 | Tengo and JS plugins, layouts, Vale | yes | yes |
 | Identity | `Developer ID Application` | `Apple Distribution` + `3rd Party Mac Developer Installer` |
 

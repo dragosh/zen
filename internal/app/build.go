@@ -26,7 +26,7 @@ func (staticRuntime) Open(name string) (fs.File, error) {
 	return StaticAssets.Open(name)
 }
 
-// BuildSite is `zen build`: it writes the static site of b.Dir and prints the
+// BuildSite is `zenmd build`: it writes the static site of b.Dir and prints the
 // summary to stdout and the warnings to stderr. It opens no window and asks
 // nothing; trust decisions are only read.
 func BuildSite(b cli.Build, stdout, stderr io.Writer) error {

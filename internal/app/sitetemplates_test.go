@@ -279,7 +279,7 @@ func TestInitSite(t *testing.T) {
 	t.Cleanup(func() { os.RemoveAll(target) })
 	rel := filepath.Base(target)
 	out, _, err = run(cli.Init{Dir: target, Template: "techdocs", Values: map[string]string{"title": "T"}})
-	if err != nil || out != "Created 11 files in "+rel+" (Technical documentation). Open it with: zen "+rel+"\n" {
+	if err != nil || out != "Created 11 files in "+rel+" (Technical documentation). Open it with: zenmd "+rel+"\n" {
 		t.Fatalf("create: %q %v", out, err)
 	}
 	// A clash is an error that lists the files; nothing is overwritten.
@@ -289,7 +289,7 @@ func TestInitSite(t *testing.T) {
 	// A folder with a space is quoted in the hint, and one outside the current folder is shown in full.
 	spaced := filepath.Join(t.TempDir(), "my docs")
 	out, _, err = run(cli.Init{Dir: spaced, Template: "planner"})
-	if err != nil || !strings.Contains(out, "Created 8 files in "+spaced+" (Planner). Open it with: zen '"+spaced+"'") {
+	if err != nil || !strings.Contains(out, "Created 8 files in "+spaced+" (Planner). Open it with: zenmd '"+spaced+"'") {
 		t.Errorf("spaced: %q %v", out, err)
 	}
 	// An unknown template is a usage error naming the choices; the templates folder is not a target.
@@ -327,7 +327,7 @@ func TestInitSite(t *testing.T) {
 		newer[id+"/template.yml"] = &fstest.MapFile{Data: data}
 	}
 	env.builtins = newer
-	if out, _, _ := run(cli.Init{List: true}); !strings.Contains(out, "[update available: 1.1.0, see zen init --update techdocs]") {
+	if out, _, _ := run(cli.Init{List: true}); !strings.Contains(out, "[update available: 1.1.0, see zenmd init --update techdocs]") {
 		t.Errorf("update marker: %q", out)
 	}
 	out, _, err = run(cli.Init{Update: true, Template: "techdocs"})

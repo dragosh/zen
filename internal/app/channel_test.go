@@ -276,7 +276,7 @@ func TestConfigImportOnce(t *testing.T) {
 // and why that is fine in the App Store build.
 var execAllowed = map[string]string{
 	"internal/core/lint/lint.go":          "Vale, the helper inside Contents/Helpers",
-	"internal/core/scriptplugins/pool.go": "zen's own executable as the Tengo helper (Contents/MacOS/zen)",
+	"internal/core/scriptplugins/pool.go": "zen's own executable as the Tengo helper (Contents/MacOS/zenmd)",
 	"internal/core/extplugins/exec.go":    "program backends: refused by extplugins.Available(\"program\") in the App Store build",
 	"internal/plugins/sandbox/sandbox.go": "the container plugin: refused by extplugins.Available(\"sandbox\") in the App Store build",
 	"internal/app/finder.go":              "/usr/bin/open for Show in Finder and the settings fallback, only on chosen or container paths; to become NSWorkspace before submission",

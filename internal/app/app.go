@@ -133,7 +133,7 @@ func Run(opts Options) error {
 	}
 	sink := &appSink{}
 	dialogs := &wailsDialogs{}
-	// The main window always reads; `zen edit` opens an editor window once
+	// The main window always reads; `zenmd edit` opens an editor window once
 	// the application runs.
 	z, err := newZen(zenOptions{
 		Registry: reg, GlobalPath: globalPath,
@@ -223,7 +223,7 @@ func Run(opts Options) error {
 	a.Event.OnApplicationEvent(events.Common.ApplicationOpenedWithFile, func(e *application.ApplicationEvent) {
 		path := e.Context().Filename()
 		// macOS also reports the process's own command-line arguments as
-		// "open file" events (`zen edit a.md` -> "edit", "a.md"). Those are
+		// "open file" events (`zenmd edit a.md` -> "edit", "a.md"). Those are
 		// already handled by the CLI; reopening them closed the workspace.
 		if launchArg(path, os.Args[1:]) {
 			return

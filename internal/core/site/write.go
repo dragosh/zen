@@ -126,7 +126,7 @@ func (w *writer) prepare(clean bool) error {
 		return err
 	}
 	if w.marker {
-		return w.write(markerName, []byte("zen build output: this folder may be emptied by zen build --clean\n"))
+		return w.write(markerName, []byte("zenmd build output: this folder may be emptied by zenmd build --clean\n"))
 	}
 	return nil
 }

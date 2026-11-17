@@ -390,7 +390,7 @@ func (z *Zen) pageTitle(p string) string {
 	return find(ws.Tree)
 }
 
-// openStartupEditor opens the editor window `zen edit <path>` asked for; the
+// openStartupEditor opens the editor window `zenmd edit <path>` asked for; the
 // main window itself always starts in read mode.
 func (z *Zen) openStartupEditor(mode string) error {
 	if mode != "edit" {

@@ -18,6 +18,9 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Changed
 
+- The command is now `zenmd`, the zen.md engine. `zen` still works until 0.4.0 and says so on stderr. Run `task install` again for both links (`task install:cli` for /usr/local/bin needs sudo).
+- Engine: the folder session (opening, rendering, plugins, layouts, build, print, templates) is a headless Go package, `engine/session`; the app is a thin layer over it. No visible change.
+
 - zen.md-branded DMG art (generated from the icon) and file icon; no Wails template art or comments left. Info.plist gains the product name, category, copyright and export-compliance keys, and the bundle ships a privacy manifest.
 
 - The app is now called **zen.md** (window titles, menus, About, welcome screen, README). The command line tool is still `zen`, and the settings folder and plugin APIs keep their names.

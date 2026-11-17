@@ -261,12 +261,12 @@ func decodeJSON(b []byte) (any, error) {
 // that nothing else can write into the protocol.
 func HostMain(stdin, stdout, stderr *os.File) int {
 	if fi, err := stdin.Stat(); err != nil || fi.Mode()&os.ModeCharDevice != 0 {
-		fmt.Fprintln(stderr, "zen: "+HostArg+" is for zen's own use and reads from a pipe")
+		fmt.Fprintln(stderr, "zenmd: "+HostArg+" is for zen's own use and reads from a pipe")
 		return 2
 	}
 	fd, err := syscall.Dup(int(stdout.Fd()))
 	if err != nil {
-		fmt.Fprintln(stderr, "zen: cannot start the script helper")
+		fmt.Fprintln(stderr, "zenmd: cannot start the script helper")
 		return 1
 	}
 	proto := os.NewFile(uintptr(fd), "protocol")

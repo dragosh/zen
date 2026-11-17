@@ -296,7 +296,7 @@ func (z *Zen) LayoutStorageKeys(id, prefix string) ([]string, error) {
 // BuildOptions returns the form's starting values for the open folder.
 func (z *Zen) BuildOptions() (BuildOptions, error) { return z.s.BuildOptions() }
 
-// BuildWebsite builds the open folder like `zen build`; build:progress events
+// BuildWebsite builds the open folder like `zenmd build`; build:progress events
 // report each page.
 func (z *Zen) BuildWebsite(o BuildOptions) (BuildResult, error) { return z.s.BuildWebsite(o) }
 

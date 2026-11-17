@@ -71,7 +71,7 @@ type Options struct {
 	Drafts, Portable bool
 	Clean            bool
 	Exclude          []string
-	// NoPrint leaves print.html out (zen build --no-print).
+	// NoPrint leaves print.html out (zenmd build --no-print).
 	NoPrint bool
 }
 

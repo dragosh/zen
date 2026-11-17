@@ -96,7 +96,7 @@ func (z *Zen) RevealTemplates() error {
 	return revealInFinder(dir)
 }
 
-// InitSite is `zen init`: it lists templates, writes a newer built-in beside
+// InitSite is `zenmd init`: it lists templates, writes a newer built-in beside
 // the user's copy, or creates a site, and tells what it did on stdout.
 func InitSite(i cli.Init, stdout, stderr io.Writer) error {
 	globalPath, _ := config.GlobalPath()
@@ -125,10 +125,10 @@ func initSite(tpls session.TemplatesAPI, i cli.Init, stdout, stderr io.Writer) e
 
 	l := tpls.Listing()
 	for _, w := range l.Warnings {
-		fmt.Fprintln(stderr, "zen: "+w)
+		fmt.Fprintln(stderr, "zenmd: "+w)
 	}
 	if l.Note != "" {
-		fmt.Fprintln(stderr, "zen: "+l.Note)
+		fmt.Fprintln(stderr, "zenmd: "+l.Note)
 	}
 	if i.List {
 		width := 0
@@ -145,7 +145,7 @@ func initSite(tpls session.TemplatesAPI, i cli.Init, stdout, stderr io.Writer) e
 					line += " — " + t.Description
 				}
 				if t.Update != "" {
-					line += fmt.Sprintf(" [update available: %s, see zen init --update %s]", t.Update, t.ID)
+					line += fmt.Sprintf(" [update available: %s, see zenmd init --update %s]", t.Update, t.ID)
 				}
 				fmt.Fprintln(stdout, line)
 			}
@@ -187,7 +187,7 @@ func initSite(tpls session.TemplatesAPI, i cli.Init, stdout, stderr io.Writer) e
 		n = "1 file"
 	}
 	shown := shownFolder(i.Dir)
-	fmt.Fprintf(stdout, "Created %s in %s (%s). Open it with: zen %s\n", n, shown, t.Name, shellQuote(shown))
+	fmt.Fprintf(stdout, "Created %s in %s (%s). Open it with: zenmd %s\n", n, shown, t.Name, shellQuote(shown))
 	return nil
 }
 

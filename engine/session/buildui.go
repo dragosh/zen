@@ -1,7 +1,7 @@
 package session
 
 // File › Build Website… (⇧⌘B) and Settings › Website: the services behind the
-// dialog (ui/static-build). They run the same code as `zen build` (WriteSite)
+// dialog (ui/static-build). They run the same code as `zenmd build` (WriteSite)
 // on the open folder; this file adds the options, progress, cancel and the
 // "save as folder defaults" edit of .zen.yml.
 
@@ -251,7 +251,7 @@ func (s *Session) BuildWebsite(o BuildOptions) (BuildResult, error) {
 	})
 }
 
-// Build builds the open folder like `zen build` and returns the result.
+// Build builds the open folder like `zenmd build` and returns the result.
 // Errors are the CLI's. After CancelBuild, when ctx ends (or a switch to
 // another folder) the pages not yet rendered are left out, the rest of the
 // site is written as for any build (so the marker is there and the folder can

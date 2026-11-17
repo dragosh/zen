@@ -17,7 +17,7 @@ import (
 	"github.com/dragosh/zen/internal/core/site"
 )
 
-// SiteOptions are the options of a site build, the flags of `zen build`.
+// SiteOptions are the options of a site build, the flags of `zenmd build`.
 type SiteOptions struct {
 	Dir      string // absolute folder
 	Out      string // absolute output folder; "" = from config / default
@@ -41,7 +41,7 @@ type SiteEnv struct {
 	Wrap func(site.Input) site.Input
 }
 
-// WriteSite is `zen build`: it writes the static site of b.Dir and prints the
+// WriteSite is `zenmd build`: it writes the static site of b.Dir and prints the
 // summary to stdout and the warnings to stderr. It opens no window and asks
 // nothing; trust decisions are only read.
 func WriteSite(env SiteEnv, b SiteOptions, stdout, stderr io.Writer) error {

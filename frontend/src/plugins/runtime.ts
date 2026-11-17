@@ -28,7 +28,7 @@ export type PluginCtx = {
   badge(path: string, text: string | null): void;
   /**
    * The URL of another file of this plugin or layout (one it does not list in `js`/`css`, such as a
-   * bundle it loads lazily). Works in the app and in a site made by `zen build`.
+   * bundle it loads lazily). Works in the app and in a site made by `zenmd build`.
    */
   assetUrl(file: string): string;
 };

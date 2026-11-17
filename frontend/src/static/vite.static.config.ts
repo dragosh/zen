@@ -1,4 +1,4 @@
-// Builds the runtime of `zen build` into dist/static/zen.js (a classic IIFE with no imports) and
+// Builds the runtime of `zenmd build` into dist/static/zen.js (a classic IIFE with no imports) and
 // dist/static/zen.css. Run after the app build, which empties dist:
 //   vite build --config src/static/vite.static.config.ts
 import { defineConfig } from "vite";

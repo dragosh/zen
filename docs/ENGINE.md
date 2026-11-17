@@ -1,6 +1,6 @@
 # zenmd: the engine
 
-Status: proposal (November 2026). This document plans the work before it is
+Status: E1 done (November 2026): the command is `zenmd`, and the headless session is `engine/session`. This document plans the work before it is
 specified in `specs/engine/*`.
 
 zen.md becomes two layers:
@@ -93,8 +93,8 @@ file locks.
 
 | Wave | Spec | What | Done when |
 |---|---|---|---|
-| E1 | `engine/cli-rename` | The command and executable become `zenmd`, and `zen` stays as an alias for one minor release, printing a notice. Updates the CLI install, Taskfile, docs and demo. | `zenmd build/init/version` work; `zen` still works with a notice |
-| E1 | `engine/session` | Extract the headless session from `internal/app` into `engine/session`, with no Wails import. The app's `Zen` service becomes a thin adapter (bindings, dialogs, events). | `internal/app` contains only Wails glue; the session has its own tests; behaviour unchanged |
+| E1 ✓ | `engine/cli-rename` | The command and executable become `zenmd`, and `zen` stays as an alias for one minor release, printing a notice. Updates the CLI install, Taskfile, docs and demo. | `zenmd build/init/version` work; `zen` still works with a notice |
+| E1 ✓ | `engine/session` | Extract the headless session from `internal/app` into `engine/session`, with no Wails import. The app's `Zen` service becomes a thin adapter (bindings, dialogs, events). | `internal/app` contains only Wails glue; the session has its own tests; behaviour unchanged |
 | E2 | `engine/public-api` | Move `internal/core/*` and the builtins to `engine/*` and `builtins/*`. Document the Go API, add `apidiff` checks in CI, and add a small "embed zenmd" example program. | `go doc` reads well; an example renders a folder in 20 lines |
 | E2 | `engine/runtime` | Split the frontend into `runtime/` (page, plugin runtime, static, print) and `apps/zenmd-app/frontend` (shell, nav, editor). One build of the runtime is used by the app and by `zenmd build`. | Built sites and the app load the same runtime; the app bundle imports it |
 | E3 | `engine/format-spec` | Write `spec/`: frontmatter keys, directives, inline attributes, plugin blocks, layouts and links. Add conformance fixtures (`.md` in, normalised HTML out) and `zenmd check` for a folder (render warnings, broken links, Vale). | Every documented feature has a fixture; `zenmd check examples/demo` is clean |

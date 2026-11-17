@@ -7,7 +7,7 @@ import (
 	"sort"
 )
 
-// Build is the build: section of the config files: what `zen build` does
+// Build is the build: section of the config files: what `zenmd build` does
 // when the command line does not say. Zero values mean "not set".
 type Build struct {
 	Out      string   // output folder, relative to the folder being built

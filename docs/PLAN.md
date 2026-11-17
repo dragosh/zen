@@ -96,6 +96,10 @@ Sanitising is last and unconditional; no plugin output skips it.
 
 ### Service API (the contract between Go and the frontend)
 
+Since engine E1 the Go side of this contract is `engine/session` (a headless
+folder session, see docs/ENGINE.md and `go doc ./engine/session`); the app's
+`Zen` service in `internal/app` binds it to Wails with one-line delegations.
+
 Exposed by `internal/app`, consumed only through `frontend/src/api`.
 UI features are built against the fake in `frontend/src/api/fake.ts`.
 
