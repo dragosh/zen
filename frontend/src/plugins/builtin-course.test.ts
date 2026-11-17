@@ -1,13 +1,15 @@
 // @vitest-environment happy-dom
 // The built-in "course" layout (internal/plugins/course/assets/course.js), loaded as the app loads it.
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, expect, test } from "vitest";
 import { createFakeApi, type FakeApi } from "../api/fake";
 import { installRuntime } from "./runtime";
 
-const ASSETS = join(dirname(fileURLToPath(import.meta.url)), "../../../internal/plugins/course/assets");
+// The built-in layouts live in internal/layouts/ (they were plugins before core/layouts).
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+const ASSETS = [join(ROOT, "internal/layouts/course/assets"), join(ROOT, "internal/plugins/course/assets")].find((d) => existsSync(d))!;
 const PATH = "demo/layouts/course.md";
 
 let api: FakeApi;
@@ -29,8 +31,8 @@ beforeEach(async () => {
   });
   root = document.body.appendChild(document.createElement("article"));
   // @ts-ignore plain browser JavaScript outside src, no types
-  mod = await import("../../../internal/plugins/course/assets/course.js");
-  await rt.load({ js: ["/_plugins/course/course.js?v=test"], css: [] });
+  mod = await import(/* @vite-ignore */ join(ASSETS, "course.js"));
+  await rt.load({ js: ["/_layouts/course/course.js?v=test"], css: [] });
 });
 afterEach(() => rt.destroy());
 
@@ -44,8 +46,8 @@ const COURSE = `<h1>Intro</h1><p>Welcome</p><h2>Install</h2><p>one</p>${check([[
 
 async function render(html = COURSE, attrs: Record<string, string> | null = { id: "intro" }): Promise<HTMLElement> {
   const w = document.createElement("div");
-  w.setAttribute("data-zen-plugin", "course");
   w.setAttribute("data-zen-layout", "course");
+  w.setAttribute("data-zen-layout-source", "builtin");
   if (attrs) w.setAttribute("data-zen-attrs", JSON.stringify(attrs));
   w.innerHTML = html; // test fixture only
   root.replaceChildren(w);

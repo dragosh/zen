@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import type { PluginInfo } from "../api";
+import type { LayoutInfo, PluginInfo } from "../api";
 import { createFakeApi } from "../api/fake";
 import { createSettingsView, type SettingsView } from "./settings";
 import { followTheme, storedTheme, THEME_KEY } from "./theme";
@@ -43,8 +43,8 @@ const PLUGINS: PluginInfo[] = [
 ];
 
 type Setup = { api: ReturnType<typeof createFakeApi>; s: SettingsView };
-function setup(hasWorkspace = true, plugins: PluginInfo[] = []): Setup {
-  const api = createFakeApi({ plugins });
+function setup(hasWorkspace = true, plugins: PluginInfo[] = [], layouts: LayoutInfo[] = []): Setup {
+  const api = createFakeApi({ plugins, layouts });
   const s = createSettingsView({ api, hasWorkspace: () => hasWorkspace });
   document.body.append(s.el);
   s.show();
@@ -68,10 +68,10 @@ async function plugins(plugins: PluginInfo[] = PLUGINS, hasWorkspace = true): Pr
 
 // ---- the page and its sections
 
-test("it is a page with a section list on the left: Appearance, Configuration files, Plugins", () => {
+test("it is a page with a section list on the left: Appearance, Configuration files, Plugins, Layouts", () => {
   const { s } = setup();
   const names = Array.from(s.el.querySelectorAll(".zen-settings-section")).map((b) => b.textContent);
-  expect(names).toEqual(["Appearance", "Configuration files", "Plugins"]);
+  expect(names).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts"]);
   expect(s.el.querySelector("h1")!.textContent).toBe("Settings");
   expect(s.el.getAttribute("aria-label")).toBe("Settings");
   expect(s.el.classList.contains("zen-settings-page")).toBe(true);
@@ -90,10 +90,12 @@ test("one section shows at a time; the first is Appearance; arrow keys and click
   key(list, "ArrowDown");
   expect(shown()).toEqual(["plugins"]);
   expect(document.activeElement).toBe(section(s, "plugins"));
+  key(list, "ArrowDown");
+  expect(shown()).toEqual(["layouts"]);
   key(list, "ArrowDown"); // wraps
   expect(shown()).toEqual(["appearance"]);
   key(list, "ArrowUp");
-  expect(shown()).toEqual(["plugins"]);
+  expect(shown()).toEqual(["layouts"]);
 });
 
 // ---- appearance
@@ -427,4 +429,197 @@ test("All plugins: an entry at the top shows every plugin's main snippet in one 
   expect(items[2].querySelector(".zen-plugin-snippet-preview")).toBeNull(); // external: snippet only
   pick(s, "note").click();
   expect(helpPane(s).dataset.view).toBeUndefined();
+});
+
+// ---- layouts
+
+const LAYOUTS: LayoutInfo[] = [
+  {
+    id: "article", version: "1.0.0", description: "The reading view", source: "builtin", status: "on", kind: "layout", hasTemplate: false, hasScript: false, problem: "",
+    fields: [], options: [],
+    help: { summary: "The default <b>reading</b> column.", snippets: [{ title: "Plain page", markdown: "---\nlayout: article\n---\n# Title" }] },
+  },
+  {
+    id: "post", version: "1.0.0", description: "A blog post", source: "builtin", status: "on", kind: "layout", hasTemplate: true, hasScript: false, problem: "",
+    fields: [{ name: "date", type: "date", description: "Publication date" }, { name: "author", type: "string", description: "" }],
+    options: [{ name: "toc", type: "bool", default: true, description: "Show a rail." }],
+    help: { summary: "Cover, title, byline.", snippets: [{ title: "A post", markdown: "---\nlayout: post\ndate: 2026-11-17\n---\n# Title" }, { title: "Without a cover", markdown: "---\nlayout: { name: post, cover: false }\n---\n# T" }] },
+  },
+  {
+    id: "slides", version: "1.0.0", description: "A presentation", source: "builtin", status: "on", kind: "layout", hasTemplate: false, hasScript: true, problem: "",
+    fields: [], options: [], help: { summary: "", snippets: [{ title: "A deck", markdown: "---\nlayout: slides\n---\n# A\n\n---\n\n# B" }] },
+  },
+  {
+    id: "memo", version: "0.1.0", description: "A memo", source: "folder", status: "undecided", kind: "layout", hasTemplate: true, hasScript: true, problem: "",
+    fields: [{ name: "to", type: "string", description: "Recipient" }], options: [],
+    help: { summary: "A memo.", snippets: [{ title: "A memo", markdown: "---\nlayout: memo\nto: Ann\n---\n# Memo" }] },
+  },
+  { id: "mine", version: "0.1.0", description: "", source: "user", status: "on", kind: "layout", hasTemplate: false, hasScript: false, problem: "", fields: [], options: [], help: { summary: "", snippets: [] } },
+  { id: "old", version: "0.1.0", description: "", source: "folder", status: "blocked", kind: "layout", hasTemplate: false, hasScript: false, problem: "", fields: [], options: [], help: { summary: "", snippets: [] } },
+  { id: "broken", version: "", description: "", source: "folder", status: "invalid", kind: "layout", hasTemplate: false, hasScript: false, problem: "layout.yml: template <b>x</b> not found", fields: [], options: [], help: { summary: "", snippets: [] } },
+];
+const lItem = (s: SettingsView, id: string) => s.el.querySelector<HTMLElement>(`.zen-settings-layout[data-layout="${id}"]`)!;
+const lPick = (s: SettingsView, id: string) => lItem(s, id).querySelector<HTMLButtonElement>(".zen-settings-layout-select")!;
+const lTrust = (s: SettingsView, id: string) => lItem(s, id).querySelector<HTMLButtonElement>(".zen-settings-layout-trust");
+const lHelp = (s: SettingsView) => s.el.querySelector<HTMLElement>(".zen-layout-help")!;
+async function layouts(list: LayoutInfo[] = LAYOUTS): Promise<Setup> {
+  const r = setup(true, [], list);
+  section(r.s, "layouts").click();
+  await settle();
+  return r;
+}
+
+test("layouts: the list reads api.layouts() when shown; rows show name, version, origin, status and template/script hints", async () => {
+  const { api, s } = await layouts();
+  expect(api.callsTo("layouts")).toHaveLength(1);
+  expect(api.callsTo("plugins")).toHaveLength(1); // the Plugins section is read too, independently
+  const rows = Array.from(s.el.querySelectorAll<HTMLElement>(".zen-settings-layout"));
+  expect(rows.map((r) => r.dataset.layout)).toEqual(["article", "post", "slides", "memo", "mine", "old", "broken"]);
+  const text = (id: string) => lItem(s, id).textContent!;
+  expect(text("post")).toContain("1.0.0");
+  expect(text("post")).toContain("Built in");
+  expect(text("post")).toContain("template");
+  expect(text("post")).not.toContain("script");
+  expect(text("slides")).toContain("script");
+  expect(text("memo")).toContain("This folder");
+  expect(text("memo")).toContain("template");
+  expect(text("memo")).toContain("script");
+  expect(text("memo")).toContain("Not allowed yet");
+  expect(text("mine")).toContain("Your layouts");
+  expect(text("old")).toContain("Blocked");
+  expect(text("broken")).toContain("Invalid");
+  expect(text("broken")).toContain("template <b>x</b> not found");
+  expect(s.el.querySelector(".zen-settings-layouts b")).toBeNull();
+  expect(lItem(s, "article").querySelector(".zen-settings-layout-source")!.getAttribute("data-source")).toBe("builtin");
+  s.show();
+  await settle();
+  expect(api.callsTo("layouts")).toHaveLength(2);
+});
+
+test("layouts: Allow/Block only for external, non-invalid layouts; they call layoutTrust and refresh", async () => {
+  const { api, s } = await layouts();
+  expect(lTrust(s, "post")).toBeNull();
+  expect(lTrust(s, "broken")).toBeNull();
+  const allow = lTrust(s, "memo")!;
+  expect(allow.textContent).toBe("Allow");
+  expect(lTrust(s, "old")!.textContent).toBe("Allow");
+  expect(lTrust(s, "mine")!.textContent).toBe("Block");
+  lPick(s, "post").click();
+  allow.click();
+  await settle();
+  expect(api.callsTo("layoutTrust")).toEqual([["memo", true]]);
+  expect(api.callsTo("pluginTrust")).toEqual([]);
+  expect(lItem(s, "memo").dataset.status).toBe("on");
+  expect(lTrust(s, "memo")!.textContent).toBe("Block");
+  expect(lPick(s, "post").getAttribute("aria-current")).toBe("true");
+  expect(document.activeElement).toBe(lTrust(s, "memo"));
+  lTrust(s, "memo")!.click();
+  await settle();
+  expect(api.callsTo("layoutTrust")).toEqual([["memo", true], ["memo", false]]);
+  expect(lItem(s, "memo").dataset.status).toBe("blocked");
+});
+
+test("layouts: a failed trust call and a failed list are shown as text", async () => {
+  const { api, s } = await layouts();
+  api.failNext("layoutTrust", new Error("<i>denied</i>"));
+  lTrust(s, "memo")!.click();
+  await settle();
+  const status = panel(s, "layouts").querySelector("[role=status]")!;
+  expect(status.textContent).toContain("Could not allow memo");
+  expect(status.textContent).toContain("<i>denied</i>");
+  expect(panel(s, "layouts").querySelector("i")).toBeNull();
+  api.failNext("layouts", new Error("down"));
+  s.show();
+  await settle();
+  expect(panel(s, "layouts").textContent).toContain("Could not list layouts: down");
+});
+
+test("layouts: empty state", async () => {
+  const { s } = await layouts([]);
+  expect(panel(s, "layouts").textContent).toContain("No layouts");
+});
+
+test("layouts: the first layout is selected and its help shows; clicking another changes it; arrows move", async () => {
+  const { s } = await layouts();
+  expect(lPick(s, "article").getAttribute("aria-current")).toBe("true");
+  expect(lHelp(s).querySelector(".zen-plugin-help-title")!.textContent).toBe("article");
+  lPick(s, "memo").click();
+  expect(lHelp(s).querySelector(".zen-plugin-help-title")!.textContent).toBe("memo");
+  const list = s.el.querySelector<HTMLElement>(".zen-settings-layouts")!;
+  lPick(s, "memo").focus();
+  key(list, "ArrowUp");
+  expect(document.activeElement).toBe(lPick(s, "slides"));
+  key(list, "Enter");
+  expect(lHelp(s).querySelector(".zen-plugin-help-title")!.textContent).toBe("slides");
+  key(list, "Home");
+  expect(document.activeElement).toBe(lPick(s, "article"));
+});
+
+test("layouts help: description, summary as text, fields table, options table, hints", async () => {
+  const { s } = await layouts();
+  lPick(s, "post").click();
+  const h = lHelp(s);
+  expect(h.textContent).toContain("A blog post");
+  expect(h.textContent).toContain("Cover, title, byline.");
+  const fields = Array.from(h.querySelectorAll(".zen-layout-field"));
+  expect(fields.map((f) => f.querySelector(".zen-layout-field-name")!.textContent)).toEqual(["date", "author"]);
+  expect(fields[0].textContent).toContain("date");
+  expect(fields[0].textContent).toContain("Publication date");
+  const opts = Array.from(h.querySelectorAll(".zen-plugin-option"));
+  expect(opts).toHaveLength(1);
+  expect(opts[0].textContent).toContain("toc");
+  expect(opts[0].textContent).toContain("bool");
+  expect(opts[0].textContent).toContain("default true");
+  expect(h.textContent).toContain("page template");
+  lPick(s, "article").click();
+  expect(lHelp(s).textContent).toContain("The default <b>reading</b> column.");
+  expect(lHelp(s).querySelector("b")).toBeNull();
+  expect(lHelp(s).querySelector(".zen-layout-field")).toBeNull();
+  lPick(s, "memo").click();
+  expect(lHelp(s).textContent).toContain("runs a page script");
+  lPick(s, "broken").click();
+  expect(lHelp(s).textContent).toContain("template <b>x</b> not found");
+});
+
+test("layouts help: every snippet has Copy; built-in layouts get a static preview through api.preview, external ones do not", async () => {
+  const writeText = vi.fn(async () => {});
+  vi.stubGlobal("navigator", { clipboard: { writeText } });
+  const { api, s } = await layouts();
+  lPick(s, "post").click();
+  await settle();
+  const snippets = Array.from(lHelp(s).querySelectorAll<HTMLElement>(".zen-plugin-snippet"));
+  expect(snippets.map((x) => x.querySelector("h4")!.textContent)).toEqual(["A post", "Without a cover"]);
+  expect(snippets[0].querySelector("pre")!.textContent).toContain("layout: post");
+  snippets[0].querySelector<HTMLButtonElement>(".zen-plugin-copy")!.click();
+  await settle();
+  expect(writeText).toHaveBeenCalledWith("---\nlayout: post\ndate: 2026-11-17\n---\n# Title");
+  expect(snippets[0].querySelector(".zen-plugin-copy")!.textContent).toBe("Copied");
+  expect(api.callsTo("preview").map((c) => c[1])).toEqual([
+    "---\nlayout: post\ndate: 2026-11-17\n---\n# Title", "---\nlayout: { name: post, cover: false }\n---\n# T",
+  ]);
+  expect(lHelp(s).querySelectorAll(".zen-plugin-snippet-preview")).toHaveLength(2);
+  const before = api.callsTo("preview").length;
+  lPick(s, "memo").click();
+  await settle();
+  expect(api.callsTo("preview")).toHaveLength(before);
+  expect(lHelp(s).querySelector(".zen-plugin-snippet-preview")).toBeNull();
+  expect(lHelp(s).querySelector("pre")!.textContent).toContain("layout: memo");
+});
+
+test("layouts: a failing preview leaves the snippet alone; a stale preview does not land in another layout's pane", async () => {
+  const { api, s } = await layouts();
+  api.failNext("preview", new Error("boom"));
+  lPick(s, "post").click();
+  await settle();
+  expect(lHelp(s).querySelector(".zen-plugin-snippet-preview")).toBeNull();
+  expect(lHelp(s).querySelectorAll(".zen-plugin-snippet")).toHaveLength(2);
+  lPick(s, "slides").click();
+  lPick(s, "memo").click();
+  await settle();
+  expect(lHelp(s).querySelector(".zen-plugin-snippet-preview")).toBeNull();
+});
+
+test("layouts: the Plugins list no longer talks about layouts it adds", async () => {
+  const { s } = await plugins();
+  expect(panel(s, "plugins").textContent).not.toContain("Layouts");
 });

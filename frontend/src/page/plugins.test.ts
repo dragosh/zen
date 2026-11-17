@@ -15,6 +15,8 @@ pageHooks.importModule = async (url) => {
 };
 const urlOf = (id: string, v = "aaaaaaaaaaaa") => `/_plugins/${id}/${id}.js?v=${v}`;
 let version = "aaaaaaaaaaaa";
+const layoutUrl = (id: string) => `/_layouts/${id}/${id}.js?v=aaaaaaaaaaaa`;
+const registerLayout = (id: string, h: { mount(el: HTMLElement, ctx: PluginCtx): unknown }) => { modules.set(layoutUrl(id), { default: h }); };
 const register = (id: string, h: { mount(el: HTMLElement, ctx: PluginCtx): unknown }) => { modules.set(urlOf(id, version), { default: h }); };
 
 let env: Env;
@@ -172,14 +174,14 @@ test("a failed load leaves nothing mounted twice", async () => {
 test("a layout page marks the article so the plugin gets the whole pane", async () => {
   const id = fresh();
   api.decorate = (p) => p.path === "README.md"
-    ? { ...p, layout: "slides", assets: { css: [], js: [urlOf(id)] }, html: `<div data-zen-plugin="${id}" data-zen-layout="slides">${p.html}</div>` }
+    ? { ...p, layout: { name: "slides", source: "builtin" }, assets: { css: [], js: [layoutUrl(id)] }, html: `<div data-zen-layout="${id}" data-zen-layout-source="builtin">${p.html}</div>` }
     : p;
   env.ctx.store.set({ path: "README.md" });
   mount();
   const kinds: string[] = [];
-  register(id, { mount(_el, ctx) { kinds.push(`${ctx.kind}:${ctx.name}`); } });
+  registerLayout(id, { mount(_el, ctx) { kinds.push(`${ctx.kind}:${ctx.name}`); } });
   await settle();
-  expect(kinds).toEqual(["layout:slides"]);
+  expect(kinds).toEqual([`layout:${id}`]);
   expect(article().dataset.layout).toBe("slides");
   expect(article().classList.contains("zen-layout-slides")).toBe(true);
 
@@ -193,13 +195,19 @@ test("mountPage ignores a layout name that is not a plain name", () => {
   const el = document.createElement("article");
   el.className = "zen-page";
   const page = { path: "a.md", title: "A", html: "<p>a</p>", frontmatter: {}, breadcrumb: [], assets: { css: [], js: [] }, warnings: [] };
-  mountPage(el, { ...page, layout: "x y\"><b>" });
+  mountPage(el, { ...page, layout: { name: "x y\"><b>", source: "" } });
   expect(el.dataset.layout).toBeUndefined();
   expect(el.className).toBe("zen-page");
-  mountPage(el, { ...page, layout: "course" });
+  mountPage(el, { ...page, layout: { name: "course", source: "builtin" } });
   expect(el.className).toBe("zen-page zen-layout-course");
-  mountPage(el, { ...page, layout: "slides" });
+  mountPage(el, { ...page, layout: { name: "slides", source: "builtin" } });
   expect(el.className).toBe("zen-page zen-layout-slides");
+  mountPage(el, { ...page, layout: { name: "article", source: "" } });
+  expect(el.className).toBe("zen-page"); // the reading view keeps the reading column
+  expect(el.dataset.layout).toBeUndefined();
+  mountPage(el, { ...page, layout: { name: "docs", source: "builtin" } });
+  expect(el.className).toBe("zen-page zen-layout-docs");
+  expect(el.dataset.layout).toBe("docs");
 });
 
 test("a page without plugin blocks logs no errors", async () => {
@@ -272,4 +280,46 @@ test("⌘P prints the page (not in an editor window); other keys do not", async 
   unmount!(); unmount = undefined;
   document.dispatchEvent(new KeyboardEvent("keydown", { key: "p", metaKey: true, bubbles: true }));
   expect(print).toHaveBeenCalledTimes(2);
+});
+
+test("layouts:changed renders the page again and mounts the new layout script", async () => {
+  const id = fresh();
+  let v = 1;
+  api.decorate = (p) => p.path === "README.md"
+    ? { ...p, layout: { name: "post", source: "folder" }, assets: { css: [], js: [layoutUrl(id).replace("aaaaaaaaaaaa", `v${v}`)] }, html: `<div data-zen-layout="${id}" data-zen-layout-source="folder">${p.html}</div>` }
+    : p;
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  const log: string[] = [];
+  modules.set(layoutUrl(id).replace("aaaaaaaaaaaa", "v1"), { default: { mount() { log.push("v1"); return () => log.push("clean v1"); } } });
+  modules.set(layoutUrl(id).replace("aaaaaaaaaaaa", "v2"), { default: { mount() { log.push("v2"); } } });
+  await settle();
+  expect(log).toEqual(["v1"]);
+  expect(article().dataset.layout).toBe("post");
+  v = 2;
+  api.emit("layouts:changed", undefined);
+  await settle();
+  expect(log).toEqual(["v1", "clean v1", "v2"]);
+  expect(api.callsTo("page").length).toBeGreaterThanOrEqual(2);
+});
+
+test("layouts:changed re-renders an editor's unsaved draft, not the file", async () => {
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await settle();
+  api.emit("page:draft", { path: "README.md", content: "# Draft" });
+  await settle();
+  const pages = api.callsTo("page").length;
+  api.emit("layouts:changed", undefined);
+  await settle();
+  expect(api.callsTo("page").length).toBe(pages);
+  expect(api.callsTo("preview").length).toBeGreaterThanOrEqual(2);
+});
+
+test("a layout page links its stylesheet from /_layouts/", async () => {
+  api.decorate = (p) => ({ ...p, layout: { name: "post", source: "builtin" }, assets: { css: ["/_layouts/post/post.css?v=abc123abc123"], js: [] } });
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await settle();
+  expect(document.head.querySelector("link[data-zen-asset^='/_layouts/post/']")).not.toBeNull();
 });

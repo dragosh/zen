@@ -34,6 +34,11 @@ vi.mock("../../bindings/github.com/dragosh/zen/internal/app/index.js", () => ({
     PluginStream: binding("PluginStream"),
     PluginCancel: binding("PluginCancel"),
     PluginStorageKeys: binding("PluginStorageKeys"),
+    Layouts: binding("Layouts"),
+    LayoutTrust: binding("LayoutTrust"),
+    LayoutStorageGet: binding("LayoutStorageGet"),
+    LayoutStorageSet: binding("LayoutStorageSet"),
+    LayoutStorageKeys: binding("LayoutStorageKeys"),
   },
 }));
 
@@ -91,9 +96,13 @@ describe("wails api", () => {
 
     results.Page = page;
     const p = await api.page("a.md");
-    expect(p).toEqual({ ...page, frontmatter: {}, breadcrumb: [], assets: { css: [], js: [] }, warnings: [], layout: "" });
-    results.Page = { ...page, layout: "slides" };
-    expect((await api.page("a.md")).layout).toBe("slides");
+    expect(p).toEqual({ ...page, frontmatter: {}, breadcrumb: [], assets: { css: [], js: [] }, warnings: [], layout: { name: "article", source: "" } });
+    results.Page = { ...page, layout: { name: "post", source: "folder" } };
+    expect((await api.page("a.md")).layout).toEqual({ name: "post", source: "folder" });
+    results.Page = { ...page, layout: { name: "x", source: "elsewhere" } };
+    expect((await api.page("a.md")).layout).toEqual({ name: "x", source: "" });
+    results.Page = { ...page, layout: "slides" }; // an older Go side: a plain name
+    expect((await api.page("a.md")).layout).toEqual({ name: "slides", source: "" });
     calls.pop();
 
     results.Source = "# a";
@@ -364,6 +373,61 @@ describe("wails api", () => {
     for (const fn of listeners.get("plugins:changed") ?? []) fn({ name: "plugins:changed", data: null });
     off();
     for (const fn of listeners.get("plugins:changed") ?? []) fn({ name: "plugins:changed", data: null });
+    expect(n).toBe(1);
+  });
+
+  it("layouts: maps the list defensively and passes trust and storage through", async () => {
+    const api = (await import("./wails")).default;
+    results.Layouts = [
+      {
+        id: "memo", version: "0.1.0", description: "A memo", source: "folder", status: "undecided", kind: "layout", hasTemplate: true, hasScript: false, problem: "",
+        fields: [{ name: "to", type: "string", description: "Who" }, { name: "x" }, null],
+        options: [{ name: "toc", type: "bool", default: true, description: "Rail" }, null],
+        help: { summary: "S", snippets: [{ title: "A memo", markdown: "---\nlayout: memo\n---" }, null] },
+      },
+      { id: "x", source: "elsewhere", status: "weird", fields: "nope", options: 3, help: "nope" },
+      { id: "article", source: "builtin", status: "on" },
+      null,
+    ];
+    const rest = { kind: "layout", hasTemplate: false, hasScript: false, problem: "", fields: [], options: [], help: { summary: "", snippets: [] } };
+    expect(await api.layouts()).toEqual([
+      {
+        id: "memo", version: "0.1.0", description: "A memo", source: "folder", status: "undecided", kind: "layout", hasTemplate: true, hasScript: false, problem: "",
+        fields: [{ name: "to", type: "string", description: "Who" }, { name: "x", type: "", description: "" }],
+        options: [{ name: "toc", type: "bool", default: true, description: "Rail" }],
+        help: { summary: "S", snippets: [{ title: "A memo", markdown: "---\nlayout: memo\n---" }] },
+      },
+      { id: "x", version: "", description: "", source: "folder", status: "invalid", ...rest },
+      { id: "article", version: "", description: "", source: "builtin", status: "on", ...rest },
+    ]);
+    results.Layouts = null;
+    expect(await api.layouts()).toEqual([]);
+    calls.length = 0;
+    await expect(api.layoutTrust("memo", true)).resolves.toBeUndefined();
+    results.LayoutStorageGet = "{\"n\":1}";
+    expect(await api.layoutStorageGet("memo", "k")).toBe("{\"n\":1}");
+    results.LayoutStorageGet = "";
+    expect(await api.layoutStorageGet("memo", "k")).toBe("null");
+    await expect(api.layoutStorageSet("memo", "k", "2")).resolves.toBeUndefined();
+    results.LayoutStorageKeys = ["a", "b"];
+    expect(await api.layoutStorageKeys("memo", "")).toEqual(["a", "b"]);
+    results.LayoutStorageKeys = null;
+    expect(await api.layoutStorageKeys("memo", "z")).toEqual([]);
+    expect(calls.map((c) => [c.name, ...c.args])).toEqual([
+      ["LayoutTrust", "memo", true], ["LayoutStorageGet", "memo", "k"], ["LayoutStorageGet", "memo", "k"],
+      ["LayoutStorageSet", "memo", "k", "2"], ["LayoutStorageKeys", "memo", ""], ["LayoutStorageKeys", "memo", "z"],
+    ]);
+    results.LayoutTrust = new Error("not external");
+    await expect(api.layoutTrust("article", true)).rejects.toThrow("not external");
+  });
+
+  it("layouts:changed arrives without a payload", async () => {
+    const api = (await import("./wails")).default;
+    let n = 0;
+    const off = api.on("layouts:changed", () => { n++; });
+    for (const fn of listeners.get("layouts:changed") ?? []) fn({ name: "layouts:changed", data: null });
+    off();
+    for (const fn of listeners.get("layouts:changed") ?? []) fn({ name: "layouts:changed", data: null });
     expect(n).toBe(1);
   });
 });
