@@ -93,10 +93,12 @@ test("one section shows at a time; the first is Appearance; arrow keys and click
   expect(document.activeElement).toBe(section(s, "plugins"));
   key(list, "ArrowDown");
   expect(shown()).toEqual(["layouts"]);
+  key(list, "ArrowDown");
+  expect(shown()).toEqual(["website"]);
   key(list, "ArrowDown"); // wraps
   expect(shown()).toEqual(["appearance"]);
   key(list, "ArrowUp");
-  expect(shown()).toEqual(["layouts"]);
+  expect(shown()).toEqual(["website"]);
 });
 
 // ---- appearance

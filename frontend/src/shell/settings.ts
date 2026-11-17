@@ -1,9 +1,10 @@
 // The Settings page, shown in the main pane (the sidebar stays): a section
-// list on the left (Appearance, Configuration files, Plugins, Layouts) and the section
+// list on the left (Appearance, Configuration files, Plugins, Layouts, Website) and the section
 // on the right. Theme applies to this machine and all windows; the two config
 // files open in zen's own editor window; Plugins is shell/pluginhelp.ts.
 // All text through textContent.
 import type { Api } from "../api";
+import { createWebsiteSection, type BuildApi } from "./buildsite";
 import { button, el } from "./dom";
 import { createLayoutsSection } from "./layouthelp";
 import { createPluginsSection } from "./pluginhelp";
@@ -27,12 +28,21 @@ const SECTIONS = [
   { id: "files", label: "Configuration files" },
   { id: "plugins", label: "Plugins" },
   { id: "layouts", label: "Layouts" },
+  { id: "website", label: "Website" },
 ] as const;
 type SectionId = (typeof SECTIONS)[number]["id"];
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-export function createSettingsView(opts: { api: Api; hasWorkspace(): boolean }): SettingsView {
+export function createSettingsView(opts: {
+  api: Api;
+  hasWorkspace(): boolean;
+  /** The build services (default: the api, once it has them) and what Build… does (ui/static-build). */
+  build?: Partial<BuildApi>;
+  openBuild?(): void;
+  /** The open folder's path, "" for none (for the last build of the folder). */
+  root?(): string;
+}): SettingsView {
   const { api } = opts;
   const page = el("section", "zen-settings-page");
   page.setAttribute("aria-label", "Settings");
@@ -158,6 +168,15 @@ export function createSettingsView(opts: { api: Api; hasWorkspace(): boolean }):
   const layouts = createLayoutsSection({ api });
   panels.get("layouts")!.append(layouts.el);
 
+  // ---- Website
+
+  const website = createWebsiteSection({
+    api: opts.build ?? (api as unknown as Partial<BuildApi>),
+    root: () => (opts.hasWorkspace() ? (opts.root?.() ?? "/") : ""),
+    openBuild: opts.openBuild,
+  });
+  panels.get("website")!.append(website.el);
+
   choose("appearance");
   return {
     el: page,
@@ -167,6 +186,7 @@ export function createSettingsView(opts: { api: Api; hasWorkspace(): boolean }):
       status.textContent = "";
       void plugins.refresh();
       void layouts.refresh();
+      void website.refresh();
       (tabs.find((t) => t.getAttribute("aria-current") === "true") ?? tabs[0]).focus();
     },
     destroy() {

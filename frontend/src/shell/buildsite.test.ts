@@ -20,11 +20,11 @@ function fakeApi(over: Partial<BuildApi> = {}) {
     pickBuildFolder: rec("pickBuildFolder", () => Promise.resolve("")),
     openBuiltSite: rec("openBuiltSite", () => Promise.resolve()),
     revealBuiltSite: rec("revealBuiltSite", () => Promise.resolve()),
-    on: ((event: string, fn: (p?: never) => void) => {
-      const set = (event === "build:progress" ? listeners.progress : listeners.menu) as Set<typeof fn>;
+    on: ((event: string, fn: (p?: BuildProgress) => void) => {
+      const set = (event === "build:progress" ? listeners.progress : listeners.menu) as unknown as Set<typeof fn>;
       set.add(fn);
-      return () => set.delete(fn);
-    }) as BuildApi["on"],
+      return () => { set.delete(fn); };
+    }) as unknown as BuildApi["on"],
     ...over,
   };
   return {
@@ -242,7 +242,7 @@ test("errors: one message with the cause, the options stay open and editable", a
   expect(q<HTMLInputElement>(".zen-buildsite-out").disabled).toBe(false);
   expect(q<HTMLInputElement>(".zen-buildsite-out").value).toBe(".");
   expect(btn("Build").disabled).toBe(false);
-  expect(d.el.querySelector("[role=progressbar]")).toBeNull();
+  expect(d.el.querySelector<HTMLElement>(".zen-buildsite-progress")!.hidden).toBe(true);
   // Fix it and build again; the message clears.
   q<HTMLInputElement>(".zen-buildsite-out").value = "_site";
   btn("Build").click();
@@ -278,8 +278,8 @@ test("Save as folder defaults previews the change first and writes only on confi
   await settle();
   btn("Write .zen.yml").click();
   await settle();
-  expect(f.to("saveBuildDefaults")).toHaveLength(2);
-  expect(f.to("saveBuildDefaults")[1].args).toEqual([{ ...OPTIONS, drafts: true }, true]);
+  expect(f.to("saveBuildDefaults")).toHaveLength(3); // preview, preview again, then the confirmed write
+  expect(f.to("saveBuildDefaults")[2].args).toEqual([{ ...OPTIONS, drafts: true }, true]);
   expect(q(".zen-buildsite-status").textContent).toContain("Saved to .zen.yml");
   expect(d.el.querySelector(".zen-buildsite-preview")).toBeNull();
 });
