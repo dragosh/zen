@@ -91,30 +91,45 @@ Spacing scale 4/8/12/16/24/32/48. Radius 6px. No shadows except the modal.
 
 ### 3. Editor
 
+The editor opens in its own window (Edit or ⌘E on a page); the main window
+keeps reading and follows the unsaved text live.
+
 ```
-┌────────────┬─────────────────────────────────────────────┐
-│ ☯ my-docs  │ README › Guides › Install ●    [Split] [Done]│
-├────────────┼─────────────────────────────────────────────┤
-│            │ B  I  S  H1 H2  “ ”  •  1.  ☐  </>  🔗  ▦   │  toolbar 36px
-│  (sidebar  ├──────────────────────┬──────────────────────┤
-│   as in    │ # Install            │ Install              │
-│   reader)  │                      │ ───────              │
-│            │ Run **zen** …        │ Run zen …            │
-│            │  source (mono)       │  preview (as reader) │
-└────────────┴──────────────────────┴──────────────────────┘
+┌──────────────────────────────────────────────────────────┐
+│ Install ●                                  [Split] [Done] │
+├──────────────────────────────────────────────────────────┤
+│ B  I  S  H1 H2  “ ”  •  1.  ☐  </>  🔗  ▦                 │  toolbar 36px
+├───────────────────────────┬──────────────────────────────┤
+│ 1 # Install               │ Install                      │
+│ 2                         │ ───────                      │
+│ 3 Run **zen** …           │ Run zen …                    │
+│   source (mono, numbered) │ preview (as reader)          │
+├───────────────────────────┴──────────────────────────────┤
+│ Problems  1 error, 1 warning                             │  full width
+└──────────────────────────────────────────────────────────┘
 ```
 
-- **Modes.** `Split` toggles between source-only and source + preview
-  (50/50, draggable divider). Preview is `api.preview()` debounced 150 ms.
+- **Split.** The `Split` button in the header, or ⇧⌘P, shows a rendered
+  preview to the right of the source (below it when the window is narrower
+  than 900px). Off by default; hidden for settings files. The choice and the
+  divider position are remembered for the editor window.
+- **Divider.** A 1px rule like the sidebar's resize edge. Drag it, or focus it
+  and press ←/→ (↑/↓ when stacked) to move 5%; Home and End jump to the
+  limits. The source keeps 20% to 80% of the space.
+- **Preview.** `api.preview()` of the unsaved text, debounced 150 ms; the
+  latest answer wins. It mounts like the reader, so plugin colours, diagrams
+  and scripts work. Links in the preview do nothing.
+- **Scroll sync.** The preview follows the source by proportion.
+- **Source.** Line numbers, syntax colours, and Vale squiggles. The Problems
+  console spans the full width under both panes.
 - **Toolbar.** Bold ⌘B, italic ⌘I, strikethrough, H1, H2, quote, bullet list,
   numbered list, task, code, link ⌘K, table. Buttons are grayscale text
   glyphs with `aria-label` and a tooltip showing the shortcut. Each wraps the
   selection or toggles the line prefix.
-- **Saving.** ⌘S saves. A dot `●` after the breadcrumb marks unsaved changes.
-  `Done` returns to the reader; with unsaved changes it asks Save / Discard /
+- **Saving.** ⌘S saves. A dot `●` after the title marks unsaved changes.
+  `Done` closes the window; with unsaved changes it asks Save / Discard /
   Cancel. If the file changes on disk while dirty, a bar offers
   "Reload from disk" or "Keep mine".
-- **Scroll sync.** Preview follows the source by proportion (alpha).
 
 ## Accessibility
 

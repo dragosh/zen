@@ -73,6 +73,38 @@
 .zen-editor-panes > .zen-lint-wrap { flex: 1 1 100%; }
 .zen-lint-wrap > .zen-editor-source { flex: 1 1 auto; height: auto; }
 
+/* Split: preview beside the source (below it in a narrow window). The
+   divider is a 1px rule like the sidebar's resize edge, with a wider grab area. */
+.zen-editor-panes.is-stacked { flex-direction: column; }
+.zen-editor-panes.is-split > .zen-lint-wrap { flex: 0 0 var(--zen-split, 50%); min-width: 0; min-height: 0; }
+.zen-editor-divider {
+  flex: none;
+  position: relative;
+  z-index: 1;
+  width: 1px;
+  background: var(--rule);
+  cursor: col-resize;
+}
+.zen-editor-divider::after {
+  content: "";
+  position: absolute;
+  inset: 0 -3px;
+}
+.zen-editor-panes.is-stacked > .zen-editor-divider { width: auto; height: 1px; cursor: row-resize; }
+.zen-editor-panes.is-stacked > .zen-editor-divider::after { inset: -3px 0; }
+.zen-editor-divider:hover,
+.zen-editor-panes.is-resizing > .zen-editor-divider { background: var(--fg-muted); }
+.zen-editor-divider:focus-visible { outline-offset: 2px; }
+.zen-editor-preview {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  background: var(--bg);
+}
+.zen-editor-preview > .zen-page { padding-top: var(--space-5); padding-bottom: var(--space-6); }
+.zen-editor-panes.is-resizing { user-select: none; }
+
 .zen-editor-dot {
   color: var(--fg-muted);
   font-size: 10px;

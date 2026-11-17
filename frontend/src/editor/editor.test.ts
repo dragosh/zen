@@ -104,13 +104,12 @@ describe("editor: load and keys", () => {
   });
 });
 
-describe("editor: editor only, main window follows", () => {
-  it("has no split view or preview", async () => {
+describe("editor: split is optional, main window follows", () => {
+  it("starts source-only: Split and Done, no preview, no divider", async () => {
     s = await setup();
-    expect(Array.from(s.slots.actions.querySelectorAll("button")).map((b) => b.textContent)).toEqual(["Done"]);
+    expect(Array.from(s.slots.actions.querySelectorAll("button")).map((b) => b.textContent)).toEqual(["Split", "Done"]);
     expect(s.slots.main.querySelector("[role=separator]:not(.zen-lint-console-resize), .zen-editor-preview, .zen-page")).toBeNull();
-    const ev = key(document, "p", { metaKey: true, shiftKey: true });
-    expect(ev.defaultPrevented).toBe(false);
+    expect(s.api.callsTo("preview")).toEqual([]);
   });
 
   it("shares unsaved text with the main window after typing stops", async () => {

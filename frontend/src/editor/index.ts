@@ -1,13 +1,14 @@
 // ui/editor: markdown source with a formatting toolbar and a problems console.
 // Mounted only in an editor window (ui/editor-window): one page per window,
-// Done closes the window. There is no preview here: the main window follows
-// the unsaved text live (api.draft -> page:draft).
+// Done closes the window. The main window follows the unsaved text live
+// (api.draft -> page:draft); Split adds a preview pane next to the source.
 import type { Alert } from "../api";
 import { backdrop, renderConsole } from "../lint";
 import { button, el } from "../shell/dom";
 import type { Feature } from "../shell/types";
 import { commands, continueList, indent, outdent, type CommandName, type Edit } from "./commands";
 import { highlight, highlightYaml } from "./highlight";
+import { createPreview, type Preview } from "./preview";
 import { createToolbar, TOOLS } from "./toolbar";
 
 export { commands, continueList } from "./commands";
@@ -17,6 +18,24 @@ export type { Edit } from "./commands";
 export const LINT_DELAY = 600;
 /** Share the unsaved text with the main window this long after typing stops. */
 export const DRAFT_DELAY = 150;
+
+/** Below this window width the preview goes under the source instead of beside it. */
+export const STACK_BELOW = 900;
+export const SPLIT_MIN = 20;
+export const SPLIT_MAX = 80;
+export const SPLIT_DEFAULT = 50;
+const SPLIT_STEP = 5;
+// Remembered per window kind (this is the editor window's).
+const SPLIT_KEY = "zen.editor.split";
+const SPLIT_POS_KEY = "zen.editor.split.pos";
+
+const clampPos = (n: number) => Math.min(SPLIT_MAX, Math.max(SPLIT_MIN, Math.round(n)));
+function readStore(key: string): string | null {
+  try { return localStorage.getItem(key); } catch { return null; }
+}
+function writeStore(key: string, value: string): void {
+  try { localStorage.setItem(key, value); } catch { /* not remembered */ }
+}
 
 /** The settings files open in the editor as "pages" zen:config/global and zen:config/workspace. */
 export const CONFIG_PREFIX = "zen:config/";
@@ -115,7 +134,10 @@ export const editorFeature: Feature = {
     dot.title = "Unsaved changes";
     dot.hidden = true;
     const doneBtn = button("Done", () => void done(), { className: "primary", title: "Done (Esc)" });
-    slots.actions.append(dot, doneBtn);
+    const config = isConfigPath(current);
+    const splitBtn = button("Split", () => setSplit(!split), { title: "Split view (⌘⇧P)" });
+    splitBtn.setAttribute("aria-pressed", "false");
+    slots.actions.append(dot, ...(config ? [] : [splitBtn]), doneBtn); // no preview for settings files
 
     // Main: toolbar, bar, source, problems console.
     const root = el("div", "zen-editor");
@@ -129,8 +151,7 @@ export const editorFeature: Feature = {
     ta.setAttribute("aria-label", "Markdown source");
     ta.wrap = "soft";
     // ui/lint: squiggles on a mirror behind the textarea, problems console below.
-    // Settings files are YAML: no markdown toolbar, no Vale, no live preview.
-    const config = isConfigPath(current);
+    // Settings files are YAML: no markdown toolbar, no Vale, no preview.
     if (config) {
       toolbar.hidden = true;
       ta.spellcheck = false;
@@ -144,6 +165,96 @@ export const editorFeature: Feature = {
       onLink: (url) => void api.openExternal(url).catch(() => undefined),
     });
     panes.append(lintView.el);
+    // Split: a preview pane beside (or, in a narrow window, below) the source, with a divider.
+    let split = false;
+    let pos = clampPos(Number.parseFloat(readStore(SPLIT_POS_KEY) ?? "") || SPLIT_DEFAULT);
+    let preview: Preview | null = null;
+    let divider: HTMLElement | null = null;
+    const stacked = () => window.innerWidth < STACK_BELOW;
+    function applyPos(save: boolean): void {
+      panes.style.setProperty("--zen-split", `${pos}%`);
+      divider?.setAttribute("aria-valuenow", String(pos));
+      if (save) writeStore(SPLIT_POS_KEY, String(pos));
+    }
+    function applyOrientation(): void {
+      const s = stacked();
+      panes.classList.toggle("is-stacked", s);
+      divider?.setAttribute("aria-orientation", s ? "horizontal" : "vertical");
+    }
+    function followSource(): void {
+      const max = ta.scrollHeight - ta.clientHeight;
+      preview?.follow(max > 0 ? ta.scrollTop / max : 0);
+    }
+    function renderPreview(): void {
+      if (split && preview) preview.update(current, ta.value);
+    }
+    function setSplit(on: boolean): void {
+      if (config || on === split) return;
+      split = on;
+      splitBtn.setAttribute("aria-pressed", String(on));
+      writeStore(SPLIT_KEY, on ? "1" : "0");
+      panes.classList.toggle("is-split", on);
+      if (on) {
+        preview = createPreview(api);
+        divider = makeDivider();
+        panes.append(divider, preview.el);
+        applyPos(false);
+        applyOrientation();
+        renderPreview();
+        followSource();
+      } else {
+        preview?.destroy();
+        preview = null;
+        divider?.dispatchEvent(new Event("zen:dispose"));
+        divider?.remove();
+        divider = null;
+      }
+    }
+    function makeDivider(): HTMLElement {
+      const d = el("div", "zen-editor-divider");
+      d.setAttribute("role", "separator");
+      d.setAttribute("aria-label", "Resize preview");
+      d.setAttribute("aria-valuemin", String(SPLIT_MIN));
+      d.setAttribute("aria-valuemax", String(SPLIT_MAX));
+      d.title = "Drag to resize";
+      d.tabIndex = 0;
+      let dragging = false;
+      const onMove = (e: MouseEvent) => {
+        if (!dragging) return;
+        const r = panes.getBoundingClientRect();
+        pos = clampPos(stacked() ? ((e.clientY - r.top) / r.height) * 100 : ((e.clientX - r.left) / r.width) * 100);
+        applyPos(false);
+      };
+      const onUp = () => {
+        if (!dragging) return;
+        dragging = false;
+        panes.classList.remove("is-resizing");
+        applyPos(true);
+      };
+      d.addEventListener("mousedown", (e) => {
+        if (e.button !== 0) return;
+        e.preventDefault();
+        dragging = true;
+        panes.classList.add("is-resizing");
+      });
+      d.addEventListener("keydown", (e) => {
+        const to = { ArrowLeft: pos - SPLIT_STEP, ArrowUp: pos - SPLIT_STEP, ArrowRight: pos + SPLIT_STEP, ArrowDown: pos + SPLIT_STEP, Home: SPLIT_MIN, End: SPLIT_MAX }[e.key];
+        if (to === undefined) return;
+        e.preventDefault();
+        pos = clampPos(to);
+        applyPos(true);
+      });
+      window.addEventListener("mousemove", onMove);
+      window.addEventListener("mouseup", onUp);
+      d.addEventListener("zen:dispose", () => {
+        window.removeEventListener("mousemove", onMove);
+        window.removeEventListener("mouseup", onUp);
+      });
+      return d;
+    }
+    const onWindowResize = () => applyOrientation();
+    window.addEventListener("resize", onWindowResize);
+    ta.addEventListener("scroll", followSource);
     root.append(toolbar, bar, panes, problems.el);
     slots.main.append(root);
 
@@ -237,6 +348,7 @@ export const editorFeature: Feature = {
         dropDraft();
         lintView.refresh();
         void lintNow();
+        renderPreview();
       } catch (err) {
         if (mine === loadSeq) showBar(`Could not open ${path}: ${(err as Error).message ?? err}`);
       }
@@ -293,6 +405,7 @@ export const editorFeature: Feature = {
       setDirty(ta.value !== saved);
       shareDraft();
       scheduleLint();
+      renderPreview();
     });
     ta.addEventListener("keydown", (e) => {
       const mod = e.metaKey || e.ctrlKey;
@@ -321,7 +434,10 @@ export const editorFeature: Feature = {
       if (dialog || e.defaultPrevented) return;
       const mod = e.metaKey || e.ctrlKey;
       const k = e.key.toLowerCase();
-      if (mod && !e.shiftKey && k === "s") {
+      if (mod && e.shiftKey && !e.altKey && k === "p" && !config) {
+        e.preventDefault();
+        setSplit(!split);
+      } else if (mod && !e.shiftKey && k === "s") {
         e.preventDefault();
         void save();
       } else if (e.key === "Escape" && !mod) {
@@ -364,12 +480,18 @@ export const editorFeature: Feature = {
       ]);
     });
 
+    if (!config && readStore(SPLIT_KEY) === "1") setSplit(true);
     void load(current).then(() => ta.focus());
 
     return () => {
       document.removeEventListener("keydown", onKey);
       window.removeEventListener("beforeunload", onBeforeUnload);
       window.removeEventListener("zen:before-close", onBeforeClose);
+      window.removeEventListener("resize", onWindowResize);
+      ta.removeEventListener("scroll", followSource);
+      divider?.dispatchEvent(new Event("zen:dispose"));
+      preview?.destroy();
+      splitBtn.remove();
       offChanged();
       dialog?.close();
       dropDraft();
