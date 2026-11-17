@@ -42,6 +42,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 9 | [core/script-plugins](core/script-plugins/spec.md) | one-file Tengo plugins, run in a helper process | core/plugin-hardening | done |
 | 10 | [core/layouts](core/layouts/spec.md) | layouts as their own concept: `.zen/layouts/<id>/layout.yml`, Go templates, built-ins in `internal/layouts` | core/script-plugins | done |
 | 9 | [ui/new-page](ui/new-page/spec.md) | `internal/app/newpage.go`, `frontend/src/shell/newpage.ts`, File › New Page | app/services, ui/shell | done |
+| 11 | [core/static-build](core/static-build/spec.md) | `zen build`: folder → static website (hosted, or `--portable` for file://); `internal/core/site`, `internal/app/build.go`, `internal/cli` build command, `build:` config, `frontend/src/static` | core/layouts, cli/commands | specified |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 
