@@ -3,6 +3,7 @@
 package app
 
 import (
+	"errors"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -156,6 +157,7 @@ func Run(opts Options) error {
 		Dir: opts.Dir, Page: opts.Page, Mode: "read",
 		ConfigDir: configDir,
 		Events:    sink, Dialogs: dialogs,
+		DeferOpen: true, // opened once the window can show progress
 	})
 	if err != nil {
 		return err
@@ -224,6 +226,7 @@ func Run(opts Options) error {
 			case <-maximised:
 			case <-time.After(time.Second):
 			}
+			z.openInitial()         // the folder given on the command line (Startup may have done it)
 			z.state.promptPending() // plugins of the folder given on the command line
 			z.state.promptPendingLayouts()
 			if err := z.openStartupEditor(opts.Mode); err != nil {
@@ -247,6 +250,9 @@ func Run(opts Options) error {
 				return // an editor kept its unsaved changes
 			}
 			st, err := z.openPath(path)
+			if errors.Is(err, ErrOpenCancelled) {
+				return // stopped from the loader
+			}
 			if err != nil {
 				a.Dialog.Warning().SetTitle("Could not open").SetMessage(err.Error()).Show()
 				return
@@ -260,7 +266,12 @@ func Run(opts Options) error {
 		NewPage: newPageAction(win, sink),
 		OpenFolder: func() {
 			go func() {
-				if ws, err := z.PickFolder(); err == nil && ws != nil {
+				ws, err := z.PickFolder()
+				if err != nil {
+					a.Dialog.Warning().SetTitle("Could not open the folder").SetMessage(err.Error()).Show()
+					return
+				}
+				if ws != nil {
 					sink.Emit(EventWorkspaceOpened, z.Startup())
 				}
 			}()

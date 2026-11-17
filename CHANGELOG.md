@@ -18,6 +18,8 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Changed
 
+- Opening a big folder is faster: the folder is walked once, and live reload starts watching in the background (~/Developer, 945 pages: 3 s → 0.6 s).
+
 - A slimmer menu bar: File has New Page and Open Folder; developer items (Reload, DevTools) are gone from release builds. ⌘W closes the focused window; ⌘, opens Settings from any window.
 
 - Plugins can no longer declare layouts (`layouts:` in plugin.yml or a .tengo file is an error pointing to `.zen/layouts/`).
@@ -32,6 +34,8 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 - Settings is a page in the main window (cog or ⌘,; Esc or Back returns) with Appearance, Configuration files and Plugins sections, instead of a popover.
 
 ### Added
+
+- A loader while a folder opens: the folder's name, what zen is doing (reading the folder, indexing pages) with counts, and Cancel. Opening stops after `limits.openTimeout` seconds (default 30) and keeps the folder that was open. The folder given at launch now opens after the window shows.
 
 - `zen build`: export a folder as a static website that opens from disk or any web server (`--hosted` for a web-server-only build), rendered with the same plugins and layouts as the app.
 - Layouts are their own concept, separate from plugins: `.zen/layouts/<id>/layout.yml` with an HTML template (Go `html/template`), CSS and an optional script; folder defaults and path patterns in `.zen.yml`; Settings › Layouts and the New Page picker list them. New built-in layouts `docs`, `post`, `landing`, `wide`, `handout` (slides and course unchanged). Demo: a `memo` folder layout and a `blog/` folder using `layouts: "blog/**": post`. See docs/LAYOUTS.md.

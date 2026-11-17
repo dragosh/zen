@@ -4,6 +4,7 @@
 package workspace
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 )
 
 var (
@@ -78,6 +80,10 @@ type Link struct {
 type Workspace struct {
 	root                 string
 	maxFiles, maxEntries int
+
+	mu      sync.Mutex
+	first   []string // the listing made by OpenContext, handed out once by Opened
+	entries int      // files and folders the last walk visited
 }
 
 // Open returns the workspace for an existing directory, with the default
@@ -86,6 +92,13 @@ func Open(dir string) (*Workspace, error) { return OpenWithLimits(dir, 0, 0) }
 
 // OpenWithLimits is Open with custom limits; 0 means the default.
 func OpenWithLimits(dir string, maxFiles, maxEntries int) (*Workspace, error) {
+	return OpenContext(context.Background(), dir, maxFiles, maxEntries, nil)
+}
+
+// OpenContext is OpenWithLimits that stops with ctx's error when ctx ends and
+// calls onEntry (if not nil) with the number of files and folders visited so
+// far, every 256 entries. Opened hands out the listing it made once.
+func OpenContext(ctx context.Context, dir string, maxFiles, maxEntries int, onEntry func(int)) (*Workspace, error) {
 	abs, err := filepath.Abs(dir)
 	if err != nil {
 		return nil, err
@@ -103,9 +116,11 @@ func OpenWithLimits(dir string, maxFiles, maxEntries int) (*Workspace, error) {
 	}
 	w := &Workspace{root: root, maxFiles: maxFiles, maxEntries: maxEntries}
 	// Refuse folders that are too big before anything indexes or watches them.
-	if _, err := w.Files(); err != nil {
+	files, err := w.FilesContext(ctx, onEntry)
+	if err != nil {
 		return nil, err
 	}
+	w.first = files
 	return w, nil
 }
 
@@ -117,6 +132,22 @@ func (w *Workspace) Name() string { return filepath.Base(w.root) }
 
 // Files lists every markdown file as sorted, "/"-separated relative paths.
 func (w *Workspace) Files() ([]string, error) {
+	return w.FilesContext(context.Background(), nil)
+}
+
+// Opened returns, once, the listing OpenContext made, so the first index
+// does not walk the folder again; nil afterwards (call Files).
+func (w *Workspace) Opened() []string {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	f := w.first
+	w.first = nil
+	return f
+}
+
+// FilesContext is Files that stops with ctx's error when ctx ends and reports
+// the entries visited through onEntry (every 256, may be nil).
+func (w *Workspace) FilesContext(ctx context.Context, onEntry func(int)) ([]string, error) {
 	maxFiles, maxEntries := MaxFiles, MaxEntries
 	if w.maxFiles > 0 {
 		maxFiles = w.maxFiles
@@ -132,6 +163,14 @@ func (w *Workspace) Files() ([]string, error) {
 		}
 		if entries++; entries > maxEntries {
 			return &TooManyFilesError{Limit: maxEntries}
+		}
+		if entries&255 == 0 {
+			if err := ctx.Err(); err != nil {
+				return err
+			}
+			if onEntry != nil {
+				onEntry(entries)
+			}
 		}
 		if err != nil {
 			// Unreadable entry below the root: leave it out.
@@ -167,7 +206,17 @@ func (w *Workspace) Files() ([]string, error) {
 		return nil, err
 	}
 	sort.Strings(files)
+	w.mu.Lock()
+	w.entries = entries
+	w.mu.Unlock()
 	return files, nil
+}
+
+// Entries is the number of files and folders the last walk visited.
+func (w *Workspace) Entries() int {
+	w.mu.Lock()
+	defer w.mu.Unlock()
+	return w.entries
 }
 
 // Home returns the root README.md (any case), or "".

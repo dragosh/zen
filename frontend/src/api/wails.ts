@@ -147,10 +147,15 @@ function payload(data: unknown): unknown {
 const api: Api = {
   async startup(): Promise<Startup> {
     const s = (await call(Zen.Startup())) as Raw;
-    return { workspace: workspace(s?.workspace), page: s?.page ?? "", mode: s?.mode === "edit" ? "edit" : "read" };
+    const out: Startup = { workspace: workspace(s?.workspace), page: s?.page ?? "", mode: s?.mode === "edit" ? "edit" : "read" };
+    if (typeof s?.error === "string" && s.error) out.error = s.error;
+    return out;
   },
   async pickFolder() {
     return workspace((await call(Zen.PickFolder())) as Raw);
+  },
+  async cancelOpen() {
+    await call(Zen.CancelOpen());
   },
   async page(path) {
     return page((await call(Zen.Page(path))) as Raw);
@@ -227,7 +232,7 @@ const api: Api = {
   async pluginCancel(callId) {
     await call(Zen.PluginCancel(callId));
   },
-  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "layouts:changed" | "menu:new-page" | "menu:settings", fn: (p: any) => void): () => void {
+  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "layouts:changed" | "menu:new-page" | "menu:settings" | "workspace:opening", fn: (p: any) => void): () => void {
     if (event === "menu:new-page") return Events.On("menu:new-page", () => fn(undefined));
     if (event === "menu:settings") return Events.On("menu:settings", () => fn(undefined));
     if (event === "layouts:changed") return Events.On("layouts:changed", () => fn(undefined));
@@ -245,6 +250,19 @@ const api: Api = {
         const d = payload(e.data) as { path?: unknown; content?: unknown } | null;
         if (typeof d?.path !== "string" || !d.path) return;
         fn({ path: d.path, content: typeof d.content === "string" ? d.content : null });
+      });
+    }
+    if (event === "workspace:opening") {
+      const phases = ["reading", "indexing", "done", "failed"];
+      return Events.On("workspace:opening", (e: { data: unknown }) => {
+        const d = payload(e.data) as { name?: unknown; phase?: unknown; done?: unknown; total?: unknown } | null;
+        if (typeof d?.phase !== "string" || !phases.includes(d.phase)) return;
+        fn({
+          name: typeof d.name === "string" ? d.name : "",
+          phase: d.phase,
+          done: typeof d.done === "number" ? d.done : 0,
+          total: typeof d.total === "number" ? d.total : 0,
+        });
       });
     }
     if (event === "page:changed") {

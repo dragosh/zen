@@ -110,6 +110,38 @@ test("no page and no home shows a hint in the page slot", async () => {
   expect(log).toContain("mount page guides/usage.md");
 });
 
+test("the launch folder that did not open: the welcome screen says why", async () => {
+  const s = boot(createFakeApi({ startup: { workspace: null, page: "", mode: "read", error: "opening big took longer than 30s." } }));
+  await s.start();
+  expect(root.querySelector(".zen-welcome")).not.toBeNull();
+  expect(root.querySelector(".zen-welcome-status")?.textContent).toBe("Could not open the folder: opening big took longer than 30s.");
+});
+
+test("opening a folder shows the loader with Cancel; a failure shows why", async () => {
+  const api = createFakeApi();
+  const s = boot(api);
+  await s.start();
+  const loader = () => document.querySelector<HTMLElement>(".zen-opening")!;
+  api.emit("workspace:opening", { name: "big", phase: "indexing", done: 3, total: 10 });
+  await new Promise((r) => setTimeout(r, 300));
+  expect(loader().hidden).toBe(false);
+  expect(loader().textContent).toContain("Indexing pages · 3 of 10");
+  Array.from(loader().querySelectorAll("button")).find((b) => b.textContent === "Cancel")!.click();
+  expect(api.callsTo("cancelOpen")).toHaveLength(1);
+  api.emit("workspace:opening", { name: "big", phase: "failed", done: 0, total: 0 });
+  expect(loader().hidden).toBe(true);
+
+  // The Open button in the frame: an error shows in the loader.
+  api.failNext("pickFolder", new Error("opening big took longer than 30s."));
+  s.openFolder();
+  await tick();
+  expect(loader().hidden).toBe(false);
+  expect(loader().textContent).toContain("took longer than 30s.");
+  s.destroy();
+  expect(document.querySelector(".zen-opening")).toBeNull();
+  shell = undefined;
+});
+
 test("open folder", async () => {
   const api = createFakeApi({ pick: null });
   const s = boot(api);

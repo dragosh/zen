@@ -21,7 +21,11 @@ plugins:
 limits:                         # global config.yml only
   files: 2000                   # markdown files, up to 100000
   entries: 50000                # files and folders scanned, up to 5000000
+  openTimeout: 30               # seconds opening a folder may take, up to 600
 ```
+
+While a folder opens, zen shows a loader with what it is doing and a Cancel
+button; Cancel, or running past `openTimeout`, keeps the folder that was open.
 
 ## Frontmatter
 

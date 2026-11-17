@@ -156,6 +156,7 @@ The global `config.yml` (only) can also raise or lower the folder limits:
 limits:
   files: 5000       # markdown files (default 2000, max 100000)
   entries: 200000   # files and folders scanned (default 50000, max 5000000)
+  openTimeout: 60   # seconds reading and indexing may take (default 30, max 600)
 ```
 
 A `limits` key in `.zen.yml` is ignored with a warning, so a folder cannot

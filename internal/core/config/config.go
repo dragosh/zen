@@ -66,14 +66,20 @@ type LayoutDefaults struct {
 // Zero means "use the built-in default". Only the global config sets them,
 // so a folder cannot raise its own limits.
 type Limits struct {
-	Files   int // markdown files
-	Entries int // files and folders visited
+	Files       int // markdown files
+	Entries     int // files and folders visited
+	OpenTimeout int // seconds opening a folder may take
 }
 
 // Hard ceilings for configured limits.
 const (
 	MaxLimitFiles   = 100_000
 	MaxLimitEntries = 5_000_000
+	MaxOpenTimeout  = 600 // seconds
+
+	// DefaultOpenTimeout is how long opening a folder may take when
+	// limits.openTimeout is not set.
+	DefaultOpenTimeout = 30
 )
 
 // Limits returns the configured folder limits (zero fields: defaults).
@@ -432,8 +438,9 @@ func parseLimits(v any, warn func(string, ...any)) Limits {
 	}
 	l.Files = get("files", MaxLimitFiles)
 	l.Entries = get("entries", MaxLimitEntries)
+	l.OpenTimeout = get("openTimeout", MaxOpenTimeout)
 	for k := range m {
-		if k != "files" && k != "entries" {
+		if k != "files" && k != "entries" && k != "openTimeout" {
 			warn("unknown key limits.%s", k)
 		}
 	}

@@ -23,8 +23,8 @@ func TestLimits(t *testing.T) {
 		t.Fatalf("default: %+v", got)
 	}
 
-	writeFile(t, global, "limits:\n  files: 5000\n  entries: 200000\n")
-	if got := Load(global, "").Limits(); got != (Limits{Files: 5000, Entries: 200000}) {
+	writeFile(t, global, "limits:\n  files: 5000\n  entries: 200000\n  openTimeout: 90\n")
+	if got := Load(global, "").Limits(); got != (Limits{Files: 5000, Entries: 200000, OpenTimeout: 90}) {
 		t.Fatalf("global: %+v", got)
 	}
 
@@ -37,9 +37,9 @@ func TestLimits(t *testing.T) {
 		t.Fatalf("warnings: %v", c.Warnings())
 	}
 
-	writeFile(t, global, "limits:\n  files: 0\n  entries: 99999999\n  depth: 3\n")
+	writeFile(t, global, "limits:\n  files: 0\n  entries: 99999999\n  depth: 3\n  openTimeout: 9999\n")
 	c = Load(global, "")
-	if got := c.Limits(); got != (Limits{Files: 0, Entries: MaxLimitEntries}) {
+	if got := c.Limits(); got != (Limits{Files: 0, Entries: MaxLimitEntries, OpenTimeout: MaxOpenTimeout}) {
 		t.Fatalf("invalid/capped: %+v", got)
 	}
 	w := strings.Join(c.Warnings(), "\n")

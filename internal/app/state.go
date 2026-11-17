@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/dragosh/zen/internal/cli"
 	"github.com/dragosh/zen/internal/core/config"
@@ -85,6 +86,7 @@ type Startup struct {
 	Workspace *Workspace `json:"workspace"`
 	Page      string     `json:"page"`
 	Mode      string     `json:"mode"`
+	Error     string     `json:"error,omitempty"` // the folder given at launch did not open: why
 }
 
 // PageChanged is the payload of page:changed.
@@ -126,8 +128,18 @@ type state struct {
 
 	noWatch bool // open does not start a watcher (the static build)
 
-	watchMu sync.Mutex // serialises watcher start/stop
-	w       *watch.Watcher
+	watchMu  sync.Mutex // serialises watcher start/stop
+	w        *watch.Watcher
+	watchGen int // bumped by every start and stop; a late async start compares it
+
+	openMu      sync.Mutex
+	openCancel  context.CancelFunc // cancels the open in progress, nil when none
+	openGen     int
+	openTimeout time.Duration // 0 = from limits.openTimeout (tests set it)
+
+	indexCtx  context.Context       // set while open indexes: cancel stops the index (guarded by mu)
+	indexStep func(done, total int) // progress of that index (guarded by mu)
+	indexErr  error                 // why that index stopped (guarded by mu)
 }
 
 func newState(reg *plugins.Registry, globalPath string, events EventSink) *state {
@@ -151,56 +163,10 @@ func (s *state) emit(name string, data any) {
 
 // open replaces the workspace with dir ("" closes it) and starts watching.
 // It must not be called from the watch callback.
-func (s *state) open(dir string) error {
-	var ws *workspace.Workspace
-	if dir != "" {
-		var err error
-		l := config.Load(s.globalPath, "").Limits() // global only: a folder cannot raise its own limits
-		if ws, err = workspace.OpenWithLimits(dir, l.Files, l.Entries); err != nil {
-			return err
-		}
-	}
-	root := ""
-	if ws != nil {
-		root = ws.Root()
-	}
-	s.reloadMu.Lock()
-	ext := s.loadExternal(root, true) // may ask the user; no state lock is held
-	lay := s.loadLayouts(root, true)
-	s.streams.cancelAll() // streams belong to the folder they started in
-	s.watchMu.Lock()
-	defer s.watchMu.Unlock()
-	if s.w != nil {
-		s.w.Stop()
-		s.w = nil
-	}
-	s.mu.Lock()
-	old := s.ext
-	s.ws, s.current, s.idx = ws, "", nil
-	s.ext, s.reg = ext, ext.reg
-	s.lay, s.lreg, s.site = lay, lay.reg, nil
-	s.rebuildLocked()
-	s.mu.Unlock()
-	if old != nil {
-		old.cancel() // calls of the previous folder's plugins end
-	}
-	s.reloadMu.Unlock()
-	s.emit(EventPluginsChanged, nil)
-	s.emit(EventLayoutsChanged, nil)
-	if ws == nil || s.noWatch {
-		return nil
-	}
-	w, err := watch.Start(ws.Root(), s.handle)
-	if err != nil {
-		return err // the workspace stays usable without live reload
-	}
-	s.w = w
-	return nil
-}
-
 func (s *state) stopWatch() {
 	s.watchMu.Lock()
 	defer s.watchMu.Unlock()
+	s.watchGen++ // a watcher still starting is dropped
 	if s.w != nil {
 		s.w.Stop()
 		s.w = nil
@@ -227,7 +193,11 @@ func (s *state) rebuildLocked() bool {
 
 // reindexLocked rebuilds the index and reports whether the tree changed.
 func (s *state) reindexLocked() bool {
-	files, err := s.ws.Files()
+	files := s.ws.Opened() // the listing open made, once
+	var err error
+	if files == nil {
+		files, err = s.ws.Files()
+	}
 	if err != nil && s.idx != nil {
 		// The folder grew past the limits while open: keep the current tree.
 		return false
@@ -245,7 +215,10 @@ func (s *state) reindexLocked() bool {
 	metas := make(map[string]index.Meta, len(files))
 	slugOf := map[string]string{}
 	known := make(map[string]bool, len(files))
-	for _, p := range files {
+	for i, p := range files {
+		if i&63 == 0 && s.indexStoppedLocked() {
+			return false
+		}
 		known[strings.ToLower(p)] = true
 		fm, _, _ := config.SplitFrontmatter(read(p))
 		m, slug, _ := index.ParseMeta(fm) // warnings are added when the page renders
@@ -271,7 +244,16 @@ func (s *state) reindexLocked() bool {
 		return m
 	}
 
+	done := 0
 	links := func(p string) []string {
+		// Called once per page while the index is built: progress and cancel.
+		if s.indexStoppedLocked() {
+			return nil
+		}
+		done++
+		if s.indexStep != nil {
+			s.indexStep(done, len(files))
+		}
 		var out []string
 		for _, l := range s.r.Links(p, read(p)) {
 			if l.Kind == "internal" && l.Path != "" {
@@ -280,14 +262,34 @@ func (s *state) reindexLocked() bool {
 		}
 		return out
 	}
-	titles := func(p string) string { return s.r.Title(p, read(p)) }
+	titles := func(p string) string {
+		if s.indexStoppedLocked() {
+			return ""
+		}
+		return s.r.Title(p, read(p))
+	}
 	idx := index.BuildWithMeta(files, s.ws.Home(), links, titles, meta)
+	if s.indexStoppedLocked() {
+		return false
+	}
 	changed := s.idx == nil || !s.idx.Equal(idx)
 	s.idx = idx
 	s.tree = navNodes(idx.Tree())
 	s.site = newLayoutSite(s.ws, idx, s.tree)
 	s.r = s.r.WithLayouts(s.lreg, s.site)
 	return changed
+}
+
+// indexStoppedLocked reports whether the index open is building was cancelled
+// or ran out of time; the reason is kept in indexErr.
+func (s *state) indexStoppedLocked() bool {
+	if s.indexErr != nil {
+		return true
+	}
+	if s.indexCtx != nil {
+		s.indexErr = s.indexCtx.Err()
+	}
+	return s.indexErr != nil
 }
 
 // siteOrNil is the layout site as a layouts.Site, nil (not a typed nil) when

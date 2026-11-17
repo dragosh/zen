@@ -1,11 +1,11 @@
 // In-memory Api for development in a browser and for tests: a three-page
 // sample workspace, emit() to simulate Go events, and a record of every call.
-import type { Api, Crumb, Draft, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
+import type { Api, Crumb, Draft, LayoutInfo, LintResult, NavNode, OpenProgress, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
 
-type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig" | "createPage"
+type Method = "startup" | "pickFolder" | "cancelOpen" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig" | "createPage"
   | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys"
   | "layouts" | "layoutTrust" | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys";
-type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "layouts:changed": undefined; "menu:new-page": undefined; "menu:settings": undefined };
+type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "layouts:changed": undefined; "menu:new-page": undefined; "menu:settings": undefined; "workspace:opening": OpenProgress };
 
 /** A plugin as tests write it: the help and what it adds default to nothing. */
 export type PluginSeed = Omit<PluginInfo, "help" | "blocks" | "inlines" | "layouts" | "options"> & Partial<Pick<PluginInfo, "help" | "blocks" | "inlines" | "layouts" | "options">>;
@@ -162,6 +162,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     "layouts:changed": new Set(),
     "menu:new-page": new Set(),
     "menu:settings": new Set(),
+    "workspace:opening": new Set(),
   };
   let streamCount = 0;
   const failures = new Map<Method, Error>();
@@ -218,6 +219,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
       if (api.pick) tree = api.pick.tree;
       return api.pick;
     }),
+    cancelOpen: () => call("cancelOpen", [], () => undefined),
     page: (path) => call("page", [path], () => render(path, need(path))),
     source: (path) => call("source", [path], () => need(path)),
     preview: (path, content) => call("preview", [path, content], () => render(path, content)),

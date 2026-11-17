@@ -6,6 +6,7 @@ import type { Api, NavNode, Workspace } from "../api";
 import { button, el, logo } from "./dom";
 import { createHistory } from "./history";
 import { createLayout, type Layout } from "./layout";
+import { createOpening } from "./opening";
 import { openNewPage, type NewPageDialog } from "./newpage";
 import { closeWindowKey, reloadKey } from "./keys";
 import { createSettingsView, type SettingsView } from "./settings";
@@ -247,7 +248,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     unmountMain = feature("editor")?.mount(slots, ctx) ?? null;
   }
 
-  function showWelcome(): void {
+  function showWelcome(error = ""): void {
     closeFrame();
     store.set({ workspace: null, path: "", anchor: "", page: undefined, dirty: false });
     const view = el("main", "zen-welcome");
@@ -260,6 +261,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       el("p", "zen-hint", "⌘O"),
       status,
     );
+    if (error) status.textContent = `Could not open the folder: ${error}`;
     root.replaceChildren(view);
     doc.title = "zen";
   }
@@ -293,7 +295,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       if (last) showFrame(startup.workspace, last.path, last.anchor);
       else showFrame(startup.workspace, startup.page);
     }
-    else showWelcome();
+    else showWelcome(startup.error ?? "");
   }
 
   async function openFolder(status?: HTMLElement): Promise<void> {
@@ -302,7 +304,9 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       workspace = await api.pickFolder();
     } catch (err) {
       console.error("zen: opening a folder failed", err);
+      opening.hide();
       if (status?.isConnected) status.textContent = `Could not open the folder: ${message(err)}`;
+      else if (!destroyed) opening.fail(message(err));
       return;
     }
     if (destroyed || !workspace) return; // cancelled
@@ -349,6 +353,9 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   const offNewPage = api.on("menu:new-page", showNewPage);
   // Zen › Settings… (⌘,) from any window: Go shows the main window first.
   const offSettings = api.on("menu:settings", openSettings);
+  // While a folder opens (the Open button, the menu, Open With, the launch folder): a loader with Cancel.
+  const opening = createOpening(doc, { onCancel: () => void api.cancelOpen().catch((err) => console.error("zen: cancel failed", err)) });
+  const offOpening = kind.kind === "main" ? api.on("workspace:opening", (p) => opening.update(p)) : () => {};
   const offOpened = api.on("workspace:opened", (s) => {
     if (!destroyed && s.workspace && kind.kind === "main") showFrame(s.workspace, s.page);
   });
@@ -364,6 +371,8 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       offNewPage();
       offSettings();
       offOpened();
+      offOpening();
+      opening.destroy();
       closeFrame();
       root.replaceChildren();
     },

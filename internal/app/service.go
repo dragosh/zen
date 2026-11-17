@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/dragosh/zen/internal/cli"
@@ -32,6 +33,9 @@ type zenOptions struct {
 	Events     EventSink
 	Dialogs    Dialogs
 	Open       func(url string) error
+	// DeferOpen leaves Dir to the first Startup call (or OpenInitial), so the
+	// window can show progress while a big folder opens.
+	DeferOpen bool
 }
 
 // Zen is the service bound to the frontend (docs/PLAN.md "Service API").
@@ -42,6 +46,23 @@ type Zen struct {
 	dialogs Dialogs
 	open    func(string) error
 	windows *windowManager // nil until the GUI runs (ui/editor-window)
+
+	initialDir  string // opened by openInitial when DeferOpen
+	initialOnce sync.Once
+	initialMu   sync.Mutex
+	initialErr  error // why the folder given at launch did not open (guarded by initialMu)
+}
+
+func (z *Zen) launchErr() error {
+	z.initialMu.Lock()
+	defer z.initialMu.Unlock()
+	return z.initialErr
+}
+
+func (z *Zen) setLaunchErr(err error) {
+	z.initialMu.Lock()
+	z.initialErr = err
+	z.initialMu.Unlock()
 }
 
 func newZen(o zenOptions) (*Zen, error) {
@@ -64,6 +85,10 @@ func newZen(o zenOptions) (*Zen, error) {
 	if z.mode != "edit" {
 		z.mode = "read"
 	}
+	if o.DeferOpen {
+		z.initialDir = o.Dir
+		return z, nil
+	}
 	if err := z.state.open(o.Dir); err != nil {
 		return nil, err
 	}
@@ -80,6 +105,10 @@ func (z *Zen) close() {
 
 // Startup returns the workspace, the page to show first and the mode.
 func (z *Zen) Startup() Startup {
+	z.openInitial()
+	if err := z.launchErr(); err != nil {
+		return Startup{Mode: z.mode, Error: err.Error()}
+	}
 	ws := z.state.workspace()
 	page := z.page
 	if page == "" || ws == nil {
@@ -88,15 +117,46 @@ func (z *Zen) Startup() Startup {
 	return Startup{Workspace: ws, Page: page, Mode: z.mode}
 }
 
-// PickFolder shows the folder dialog and opens the chosen folder; null on cancel.
+// openInitial opens the folder given at launch, once, when DeferOpen; every
+// caller waits for it.
+func (z *Zen) openInitial() {
+	z.initialOnce.Do(func() {
+		if z.initialDir == "" {
+			return
+		}
+		// Cancelled means a newer open (Open Folder, Open With) replaced it.
+		if err := z.state.open(z.initialDir); err != nil && !errors.Is(err, ErrOpenCancelled) {
+			z.setLaunchErr(openErr(z.state, err))
+		}
+	})
+}
+
+// openErr is the message for an open that failed, without absolute paths.
+func openErr(s *state, err error) error {
+	var te *OpenTimeoutError
+	if errors.Is(err, ErrOpenCancelled) || errors.As(err, &te) {
+		return err // no paths in these
+	}
+	return s.cleanErr(".", err)
+}
+
+// CancelOpen stops the folder that is opening; the one open before stays.
+func (z *Zen) CancelOpen() { z.state.cancelOpen() }
+
+// PickFolder shows the folder dialog and opens the chosen folder; null on
+// cancel, also when the opening itself was cancelled (CancelOpen).
 func (z *Zen) PickFolder() (*Workspace, error) {
 	dir, err := z.dialogs.PickFolder()
 	if err != nil || dir == "" {
 		return nil, err
 	}
 	if err := z.state.open(dir); err != nil {
-		return nil, z.state.cleanErr(".", err)
+		if errors.Is(err, ErrOpenCancelled) {
+			return nil, nil
+		}
+		return nil, openErr(z.state, err)
 	}
+	z.setLaunchErr(nil) // a folder is open now
 	z.page = ""
 	return z.state.workspace(), nil
 }
@@ -118,8 +178,9 @@ func (z *Zen) openPath(path string) (Startup, error) {
 		return Startup{}, errors.New("not a folder or markdown file")
 	}
 	if err := z.state.open(l.Dir); err != nil {
-		return Startup{}, z.state.cleanErr(".", err)
+		return Startup{}, openErr(z.state, err)
 	}
+	z.setLaunchErr(nil)
 	z.page = l.Page
 	return z.Startup(), nil
 }

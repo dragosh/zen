@@ -49,7 +49,10 @@ export type LayoutInfo = {
   /** Why an invalid layout was rejected, "" otherwise. */
   problem: string;
 };
-export type Startup = { workspace: Workspace | null; page: string; mode: "read" | "edit" };
+/** error: the folder given at launch did not open (workspace is then null). */
+export type Startup = { workspace: Workspace | null; page: string; mode: "read" | "edit"; error?: string };
+/** workspace:opening — progress while a folder opens; the last one has phase "done" or "failed". */
+export type OpenProgress = { name: string; phase: "reading" | "indexing" | "done" | "failed"; done: number; total: number };
 /** One Vale finding (ui/lint). line is 1-based; col and endCol are 1-based rune columns, endCol inclusive. */
 export type Alert = {
   line: number; col: number; endCol: number;
@@ -70,7 +73,9 @@ export type LintResult = { available: boolean; alerts: Alert[] };
 
 export interface Api {
   startup(): Promise<Startup>;
-  pickFolder(): Promise<Workspace | null>; // native folder dialog
+  pickFolder(): Promise<Workspace | null>; // native folder dialog; null also when the opening was cancelled
+  /** Stops the folder that is opening; the one open before stays. */
+  cancelOpen(): Promise<void>;
   page(path: string): Promise<Page>;
   source(path: string): Promise<string>;
   preview(path: string, content: string): Promise<Page>; // render unsaved text
@@ -141,6 +146,7 @@ export interface Api {
   on(event: "menu:new-page", fn: () => void): () => void;
   /** Zen › Settings… (⌘,): show Settings in the main window. */
   on(event: "menu:settings", fn: () => void): () => void;
+  on(event: "workspace:opening", fn: (p: OpenProgress) => void): () => void;
 }
 
 /**
