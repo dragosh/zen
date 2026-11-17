@@ -10,12 +10,11 @@ import (
 	"testing"
 
 	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zen/internal/plugins/check"
 	"github.com/dragosh/zen/internal/plugins/codeblock"
-	"github.com/dragosh/zen/internal/plugins/course"
 	"github.com/dragosh/zen/internal/plugins/diagram"
 	"github.com/dragosh/zen/internal/plugins/quiz"
 	"github.com/dragosh/zen/internal/plugins/sandbox"
-	"github.com/dragosh/zen/internal/plugins/slides"
 )
 
 // TestDemoFolder opens examples/demo the way the app does and checks that it
@@ -26,7 +25,7 @@ func TestDemoFolder(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
 	demo := filepath.Join(filepath.Dir(file), "..", "..", "examples", "demo")
 	reg := plugins.NewRegistry()
-	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New(), slides.New(), course.New(), quiz.New(), sandbox.New()} {
+	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New(), check.New(), quiz.New(), sandbox.New()} {
 		if err := reg.Register(p); err != nil {
 			t.Fatal(err)
 		}

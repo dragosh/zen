@@ -1,0 +1,80 @@
+/* post layout: cover, title, meta line, text, tags, previous and next. */
+[data-zen-layout="post"] .zl-post {
+  max-width: 68ch;
+  margin: 0 auto;
+  padding: var(--space-7) var(--space-6) 96px;
+  box-sizing: border-box;
+}
+[data-zen-layout="post"] .zl-post-cover {
+  display: block;
+  width: 100%;
+  max-height: 320px;
+  object-fit: cover;
+  margin: 0 0 var(--space-6);
+  border-radius: var(--radius);
+  background: var(--bg-subtle);
+}
+[data-zen-layout="post"] .zl-post-head h1 {
+  margin: 0 0 var(--space-3);
+  padding: 0;
+  border: 0;
+  font-size: 2.5rem;
+  line-height: 1.15;
+}
+[data-zen-layout="post"] .zl-post-meta {
+  display: flex;
+  flex-wrap: wrap;
+  margin: 0 0 var(--space-6);
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--rule);
+  color: var(--fg-muted);
+  font: 13px/1.5 var(--font-ui);
+}
+[data-zen-layout="post"] .zl-post-meta > * + *::before { content: "\00b7"; margin: 0 var(--space-2); }
+/* The title is shown above; the page's own first heading would repeat it. */
+[data-zen-layout="post"] .zl-post-text > h1:first-child { display: none; }
+[data-zen-layout="post"] .zl-post-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  list-style: none;
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  font: 12px/1 var(--font-ui);
+}
+[data-zen-layout="post"] .zl-post-tags li {
+  margin: 0;
+  padding: 5px 10px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  color: var(--fg-muted);
+}
+[data-zen-layout="post"] .zl-post-pager {
+  display: flex;
+  gap: var(--space-4);
+  margin-top: var(--space-7);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-ui);
+}
+[data-zen-layout="post"] .zl-post-pager a {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  color: var(--fg);
+  text-decoration: none;
+  cursor: pointer;
+}
+[data-zen-layout="post"] .zl-post-pager a:hover { background: var(--bg-subtle); }
+[data-zen-layout="post"] .zl-post-pager small { color: var(--fg-muted); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
+[data-zen-layout="post"] .zl-post-pager span { font: 600 15px/1.35 var(--font-body); }
+[data-zen-layout="post"] .zl-post-pager .zl-next { text-align: right; margin-left: auto; }
+[data-zen-layout="post"] .zl-post-pager .zl-prev:only-child { max-width: 50%; }
+@media (max-width: 600px) {
+  [data-zen-layout="post"] .zl-post { padding: var(--space-5) var(--space-4) 64px; }
+  [data-zen-layout="post"] .zl-post-head h1 { font-size: 2rem; }
+}

@@ -14,10 +14,12 @@ import (
 	"github.com/dragosh/zen/internal/core/config"
 	"github.com/dragosh/zen/internal/core/extplugins"
 	"github.com/dragosh/zen/internal/core/index"
+	"github.com/dragosh/zen/internal/core/layouts"
 	"github.com/dragosh/zen/internal/core/plugins"
 	"github.com/dragosh/zen/internal/core/render"
 	"github.com/dragosh/zen/internal/core/watch"
 	"github.com/dragosh/zen/internal/core/workspace"
+	builtinlayouts "github.com/dragosh/zen/internal/layouts"
 )
 
 // Event names emitted to the frontend.
@@ -61,8 +63,15 @@ type PageAssets struct {
 	JS  []string `json:"js"`
 }
 
+// PageLayout is the layout a page is shown with; article and builtin when it
+// chose none.
+type PageLayout struct {
+	Name   string `json:"name"`
+	Source string `json:"source"` // builtin | folder | user
+}
+
 type Page struct {
-	Layout      string         `json:"layout"` // layout plugin of the page, "" when none
+	Layout      PageLayout     `json:"layout"`
 	Path        string         `json:"path"`
 	Title       string         `json:"title"`
 	HTML        string         `json:"html"`
@@ -95,9 +104,13 @@ type state struct {
 	events     EventSink
 	dialogs    Dialogs
 	trust      *extplugins.Trust
-	ext        *extState  // guarded by mu
-	streams    streams    // running plugin streams (stream.go)
-	reloadMu   sync.Mutex // serialises loading the external plugins (open, trust changes, plugin edits)
+	lbase      *layouts.Registry // built-in layouts
+	lreg       *layouts.Registry // lbase plus the allowed layouts of the open folder (guarded by mu)
+	lay        *layoutState      // guarded by mu
+	site       *layoutSite       // where pages sit in the folder (guarded by mu)
+	ext        *extState         // guarded by mu
+	streams    streams           // running plugin streams (stream.go)
+	reloadMu   sync.Mutex        // serialises loading the external plugins (open, trust changes, plugin edits)
 	life       context.Context
 	stop       context.CancelFunc // ends every plugin call (the app quits)
 
@@ -123,7 +136,8 @@ func newState(reg *plugins.Registry, globalPath string, events EventSink) *state
 		reg.SetAssetVersion(cli.Version) // built-in assets are versioned by the app version
 	}
 	life, stop := context.WithCancel(context.Background())
-	return &state{base: reg, reg: reg, globalPath: globalPath, events: events, trust: extplugins.LoadTrust(""), life: life, stop: stop}
+	lbase := builtinlayouts.Registry(cli.Version)
+	return &state{base: reg, reg: reg, lbase: lbase, lreg: lbase, globalPath: globalPath, events: events, trust: extplugins.LoadTrust(""), life: life, stop: stop}
 }
 
 // emit sends an event unless there is nobody to send it to.
@@ -150,7 +164,8 @@ func (s *state) open(dir string) error {
 	}
 	s.reloadMu.Lock()
 	ext := s.loadExternal(root, true) // may ask the user; no state lock is held
-	s.streams.cancelAll()             // streams belong to the folder they started in
+	lay := s.loadLayouts(root, true)
+	s.streams.cancelAll() // streams belong to the folder they started in
 	s.watchMu.Lock()
 	defer s.watchMu.Unlock()
 	if s.w != nil {
@@ -161,6 +176,7 @@ func (s *state) open(dir string) error {
 	old := s.ext
 	s.ws, s.current, s.idx = ws, "", nil
 	s.ext, s.reg = ext, ext.reg
+	s.lay, s.lreg, s.site = lay, lay.reg, nil
 	s.rebuildLocked()
 	s.mu.Unlock()
 	if old != nil {
@@ -168,6 +184,7 @@ func (s *state) open(dir string) error {
 	}
 	s.reloadMu.Unlock()
 	s.emit(EventPluginsChanged, nil)
+	s.emit(EventLayoutsChanged, nil)
 	if ws == nil {
 		return nil
 	}
@@ -202,7 +219,7 @@ func (s *state) rebuildLocked() bool {
 		_, opts, _ := global.Plugin(id)
 		return opts
 	})
-	s.r = render.New(s.reg, s.cfg, &slugResolver{ws: s.ws, slugs: s.slugs}) // reindex refreshes the slugs
+	s.r = render.New(s.reg, s.cfg, &slugResolver{ws: s.ws, slugs: s.slugs}).WithLayouts(s.lreg, s.siteOrNil()) // reindex refreshes the slugs
 	return s.reindexLocked()
 }
 
@@ -241,7 +258,7 @@ func (s *state) reindexLocked() bool {
 		s.navWarn[strings.ToLower(p)] = w
 	}
 	s.slugs = slugs
-	s.r = render.New(s.reg, s.cfg, &slugResolver{ws: s.ws, slugs: slugs})
+	s.r = render.New(s.reg, s.cfg, &slugResolver{ws: s.ws, slugs: slugs}).WithLayouts(s.lreg, s.siteOrNil())
 	meta := func(p string) index.Meta {
 		m := metas[p]
 		if m.Parent != "" && !known[strings.ToLower(m.Parent)] {
@@ -266,7 +283,18 @@ func (s *state) reindexLocked() bool {
 	changed := s.idx == nil || !s.idx.Equal(idx)
 	s.idx = idx
 	s.tree = navNodes(idx.Tree())
+	s.site = newLayoutSite(s.ws, idx, s.tree)
+	s.r = s.r.WithLayouts(s.lreg, s.site)
 	return changed
+}
+
+// siteOrNil is the layout site as a layouts.Site, nil (not a typed nil) when
+// there is none yet.
+func (s *state) siteOrNil() layouts.Site {
+	if s.site == nil {
+		return nil
+	}
+	return s.site
 }
 
 func navNodes(ns []index.Node) []NavNode {
@@ -331,7 +359,7 @@ func (sn renderSnap) render(path string, src []byte) (Page, error) {
 		return Page{}, cleanErrFor(sn.root, path, err)
 	}
 	p := Page{
-		Path: path, Title: rp.Title, HTML: rp.HTML, Layout: rp.Layout,
+		Path: path, Title: rp.Title, HTML: rp.HTML, Layout: PageLayout{Name: rp.Layout.Name, Source: rp.Layout.Source},
 		Frontmatter: rp.Frontmatter, Breadcrumb: sn.crumbs,
 		Assets:   PageAssets{CSS: rp.Assets.CSS, JS: rp.Assets.JS},
 		Warnings: rp.Warnings,

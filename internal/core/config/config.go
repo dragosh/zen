@@ -43,6 +43,20 @@ type Config struct {
 	plugins  map[string]plugin
 	warnings []string
 	limits   Limits
+	layouts  LayoutDefaults
+}
+
+// LayoutRule maps a path pattern (glob: * within a folder, ** across folders)
+// to the name of a layout.
+type LayoutRule struct{ Pattern, Name string }
+
+// LayoutDefaults are the layouts the config files choose for pages that do not
+// name one: the layout of every page, and the rules by path. Rules are tried
+// in order and the first match wins; the workspace's rules come before the
+// global ones.
+type LayoutDefaults struct {
+	Default string
+	Rules   []LayoutRule
 }
 
 // Limits caps the folder scan when a workspace opens (see core/workspace).
@@ -73,6 +87,12 @@ type Settings struct {
 	Warnings []string
 
 	plugins map[string]plugin
+	layouts LayoutDefaults
+}
+
+// Layouts returns the default layout and the layout rules of the config files.
+func (s Settings) Layouts() LayoutDefaults {
+	return LayoutDefaults{Default: s.layouts.Default, Rules: append([]LayoutRule(nil), s.layouts.Rules...)}
 }
 
 // GlobalPath returns <os.UserConfigDir()>/zen/config.yml.
@@ -122,6 +142,7 @@ func (c *Config) ForPage(frontmatter map[string]any) Settings {
 		Theme:    c.theme,
 		Warnings: append([]string(nil), c.warnings...),
 		plugins:  make(map[string]plugin, len(c.plugins)),
+		layouts:  LayoutDefaults{Default: c.layouts.Default, Rules: append([]LayoutRule(nil), c.layouts.Rules...)},
 	}
 	for id, p := range c.plugins {
 		s.plugins[id] = plugin{enabled: p.enabled, options: cloneMap(p.options)}
@@ -301,6 +322,23 @@ func (c *Config) loadFile(path string, global bool) {
 			if v != nil {
 				mergePlugins(c.plugins, v, warn)
 			}
+		case "layout":
+			if n, ok := v.(string); ok && validLayoutName(n) {
+				c.layouts.Default = n
+			} else if v != nil {
+				warn("layout must be a layout name such as docs")
+			}
+		case "layouts":
+			if v == nil {
+				continue
+			}
+			rules, ok := orderedRules(data, warn)
+			if !ok {
+				warn("layouts must be a mapping of path patterns to layout names")
+				continue
+			}
+			// The file's own rules come before those of the layers below it.
+			c.layouts.Rules = append(rules, c.layouts.Rules...)
 		case "limits":
 			if !global {
 				warn("limits can only be set in the global config")
@@ -312,6 +350,54 @@ func (c *Config) loadFile(path string, global bool) {
 			warn("unknown key %q", k)
 		}
 	}
+}
+
+// validLayoutName reports whether n looks like a layout id: [a-z][a-z0-9-]*.
+func validLayoutName(n string) bool {
+	if n == "" || n[0] < 'a' || n[0] > 'z' {
+		return false
+	}
+	for i := 0; i < len(n); i++ {
+		c := n[i]
+		if !(c >= 'a' && c <= 'z' || c >= '0' && c <= '9' || c == '-') {
+			return false
+		}
+	}
+	return true
+}
+
+// orderedRules reads the `layouts` mapping of a config file in file order (a
+// Go map would lose it). Entries whose pattern or name is not valid are left
+// out with a warning. ok is false when the key is not a mapping.
+func orderedRules(data []byte, warn func(string, ...any)) (rules []LayoutRule, ok bool) {
+	var doc yaml.Node
+	if yaml.Unmarshal(bytes.TrimPrefix(data, []byte("\xEF\xBB\xBF")), &doc) != nil || len(doc.Content) == 0 {
+		return nil, false
+	}
+	top := doc.Content[0]
+	for i := 0; i+1 < len(top.Content); i += 2 {
+		if top.Content[i].Value != "layouts" {
+			continue
+		}
+		m := top.Content[i+1]
+		if m.Kind != yaml.MappingNode {
+			return nil, false
+		}
+		for j := 0; j+1 < len(m.Content); j += 2 {
+			pattern, val := m.Content[j].Value, m.Content[j+1]
+			if val.Kind != yaml.ScalarNode || val.Tag != "!!str" || !validLayoutName(val.Value) {
+				warn("layouts: %q must name a layout such as docs", pattern)
+				continue
+			}
+			if pattern == "" {
+				warn("layouts: a pattern is empty")
+				continue
+			}
+			rules = append(rules, LayoutRule{Pattern: pattern, Name: val.Value})
+		}
+		return rules, true
+	}
+	return nil, false
 }
 
 func parseLimits(v any, warn func(string, ...any)) Limits {

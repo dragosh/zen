@@ -1,0 +1,68 @@
+/* handout layout: a paper sheet on screen, the sheet alone in print. */
+[data-zen-layout="handout"] .zl-handout {
+  padding: var(--space-6) var(--space-4) 96px;
+  background: var(--bg-subtle);
+  box-sizing: border-box;
+}
+/* Paper stays white with dark ink in both themes. */
+[data-zen-layout="handout"] .zl-sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 210mm;
+  max-width: 100%;
+  min-height: 297mm;
+  margin: 0 auto;
+  padding: 18mm 20mm;
+  box-sizing: border-box;
+  background: #ffffff;
+  color: #111111;
+  border: 1px solid var(--rule);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, .06), 0 8px 24px rgba(0, 0, 0, .08);
+  font-size: 11pt;
+  line-height: 1.5;
+}
+[data-zen-layout="handout"] .zl-paper-letter .zl-sheet { width: 8.5in; min-height: 11in; }
+[data-zen-layout="handout"] .zl-sheet a { color: #111111; }
+[data-zen-layout="handout"] .zl-sheet h1, [data-zen-layout="handout"] .zl-sheet h2, [data-zen-layout="handout"] .zl-sheet h3 { color: #111111; border-color: #dddddd; }
+[data-zen-layout="handout"] .zl-sheet code, [data-zen-layout="handout"] .zl-sheet pre { background: #f3f3f2; color: #111111; }
+[data-zen-layout="handout"] .zl-sheet th { background: #f3f3f2; }
+[data-zen-layout="handout"] .zl-sheet th, [data-zen-layout="handout"] .zl-sheet td { border-color: #dddddd; }
+[data-zen-layout="handout"] .zl-sheet blockquote { color: #555555; border-color: #111111; }
+[data-zen-layout="handout"] .zl-sheet-head, [data-zen-layout="handout"] .zl-sheet-foot {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  color: #6b6b6b;
+  font: 9pt/1.4 var(--font-ui);
+}
+[data-zen-layout="handout"] .zl-sheet-head { margin-bottom: 10mm; padding-bottom: 3mm; border-bottom: 1px solid #dddddd; }
+[data-zen-layout="handout"] .zl-sheet-body { flex: 1; }
+[data-zen-layout="handout"] .zl-sheet-body > :first-child { margin-top: 0; }
+[data-zen-layout="handout"] .zl-sheet-foot { margin-top: 10mm; padding-top: 3mm; border-top: 1px solid #dddddd; }
+[data-zen-layout="handout"] .zl-sheet-page::after { content: ""; }
+@media (max-width: 800px) {
+  [data-zen-layout="handout"] .zl-handout { padding: var(--space-3) var(--space-2) 64px; }
+  [data-zen-layout="handout"] .zl-sheet { padding: var(--space-5) var(--space-4); min-height: 0; }
+}
+@page { size: A4; margin: 0; }
+@media print {
+  [data-zen-layout="handout"] .zl-handout { padding: 0; background: none; }
+  [data-zen-layout="handout"] .zl-sheet {
+    width: auto;
+    min-height: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+    font-size: 11pt;
+  }
+  /* The header and footer repeat on every printed page. */
+  [data-zen-layout="handout"] .zl-sheet-head { position: fixed; top: 0; left: 0; right: 0; margin: 0; }
+  [data-zen-layout="handout"] .zl-sheet-foot { position: fixed; bottom: 0; left: 0; right: 0; margin: 0; }
+  [data-zen-layout="handout"] .zl-sheet-body { padding: 16mm 20mm 18mm; }
+  [data-zen-layout="handout"] .zl-sheet-head, [data-zen-layout="handout"] .zl-sheet-foot { padding: 5mm 20mm 0; background: #ffffff; }
+  [data-zen-layout="handout"] .zl-sheet-foot { padding: 3mm 20mm 5mm; }
+  [data-zen-layout="handout"] h1, [data-zen-layout="handout"] h2, [data-zen-layout="handout"] h3 { break-after: avoid; }
+  [data-zen-layout="handout"] pre, [data-zen-layout="handout"] table, [data-zen-layout="handout"] img { break-inside: avoid; }
+}

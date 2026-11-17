@@ -34,7 +34,6 @@ type Registry struct {
 	byID    map[string]int
 	blocks  map[string]string // block name -> owning plugin id
 	inlines map[string]string // inline name -> owning plugin id
-	layouts map[string]string // layout name -> owning plugin id
 	denied  []Manifest        // plugins the user did not allow
 
 	user     atomic.Pointer[userOptions]
@@ -77,7 +76,6 @@ func NewRegistry() *Registry {
 		byID:    map[string]int{},
 		blocks:  map[string]string{},
 		inlines: map[string]string{},
-		layouts: map[string]string{},
 	}
 }
 
@@ -88,15 +86,6 @@ func (r *Registry) Plugins() []Plugin {
 		out[i] = it.plugin
 	}
 	return out
-}
-
-// Layout returns the registered plugin owning layout name, or nil.
-func (r *Registry) Layout(name string) Plugin {
-	id, ok := r.layouts[name]
-	if !ok {
-		return nil
-	}
-	return r.items[r.byID[id]].plugin
 }
 
 // Deny records a plugin that exists but may not be used (not allowed by the
@@ -138,7 +127,7 @@ func (r *Registry) Register(p Plugin) error {
 		label string
 		names []string
 		owned map[string]string
-	}{{"block", m.Blocks, r.blocks}, {"inline", m.Inlines, r.inlines}, {"layout", m.Layouts, r.layouts}} {
+	}{{"block", m.Blocks, r.blocks}, {"inline", m.Inlines, r.inlines}} {
 		for _, n := range kind.names {
 			if !nameRE.MatchString(n) {
 				return fail("invalid %s name %q (want [a-z][a-z0-9-]*)", kind.label, n)
@@ -166,9 +155,6 @@ func (r *Registry) Register(p Plugin) error {
 	}
 	for _, n := range m.Inlines {
 		r.inlines[n] = m.ID
-	}
-	for _, n := range m.Layouts {
-		r.layouts[n] = m.ID
 	}
 	r.byID[m.ID] = len(r.items)
 	r.items = append(r.items, registered{plugin: p, manifest: m})
@@ -214,8 +200,7 @@ func (r *Registry) Enabled(lookup func(id string) (bool, map[string]any, bool), 
 		config:  map[string]map[string]any{},
 		blocks:  map[string]Plugin{},
 		inlines: map[string]Plugin{},
-		layouts: map[string]Plugin{},
-		denied:  map[string]map[string]string{"block": {}, "inline": {}, "layout": {}},
+		denied:  map[string]map[string]string{"block": {}, "inline": {}},
 	}
 	var warnings []string
 	deniedIDs := map[string]bool{}
@@ -307,9 +292,6 @@ func (r *Registry) Enabled(lookup func(id string) (bool, map[string]any, bool), 
 		for _, n := range m.Inlines {
 			s.inlines[n] = it.plugin
 		}
-		for _, n := range m.Layouts {
-			s.layouts[n] = it.plugin
-		}
 	}
 
 	for _, m := range r.denied {
@@ -326,7 +308,7 @@ func (r *Registry) Enabled(lookup func(id string) (bool, map[string]any, bool), 
 			kind  string
 			names []string
 			owned map[string]string
-		}{{"block", m.Blocks, r.blocks}, {"inline", m.Inlines, r.inlines}, {"layout", m.Layouts, r.layouts}} {
+		}{{"block", m.Blocks, r.blocks}, {"inline", m.Inlines, r.inlines}} {
 			for _, n := range k.names {
 				if _, taken := k.owned[n]; !taken {
 					if _, dup := s.denied[k.kind][n]; !dup {
@@ -440,7 +422,6 @@ type Set struct {
 	config    map[string]map[string]any
 	blocks    map[string]Plugin
 	inlines   map[string]Plugin
-	layouts   map[string]Plugin
 	denied    map[string]map[string]string // kind -> name -> id of the denied plugin
 	version   string                       // registry's asset version
 }
@@ -467,11 +448,8 @@ func (s *Set) Block(name string) Plugin { return s.blocks[name] }
 // Inline returns the enabled plugin owning inline name, or nil.
 func (s *Set) Inline(name string) Plugin { return s.inlines[name] }
 
-// Layout returns the enabled plugin owning layout name, or nil.
-func (s *Set) Layout(name string) Plugin { return s.layouts[name] }
-
 // Denied returns the id of the not-allowed plugin that owns name of the given
-// kind ("block", "inline" or "layout"), or "".
+// kind ("block" or "inline"), or "".
 func (s *Set) Denied(kind, name string) string { return s.denied[kind][name] }
 
 // Allow returns the extra sanitiser rules of all enabled plugins.

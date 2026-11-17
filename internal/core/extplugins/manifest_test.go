@@ -44,7 +44,6 @@ default: true
 
 blocks: [note, warning]
 inlines: [badge]
-layouts: [slides]
 
 options:
   icon: { type: bool, default: true, description: Show an icon }
@@ -74,7 +73,7 @@ func TestLoadValid(t *testing.T) {
 	if m.ID != "note" || m.Version != "0.1.0" || m.APIVersion != 1 || m.Description != "Callout boxes" || !m.Default {
 		t.Fatalf("manifest: %+v", m)
 	}
-	if strings.Join(m.Blocks, ",") != "note,warning" || strings.Join(m.Inlines, ",") != "badge" || strings.Join(m.Layouts, ",") != "slides" {
+	if strings.Join(m.Blocks, ",") != "note,warning" || strings.Join(m.Inlines, ",") != "badge" {
 		t.Fatalf("names: %+v", m)
 	}
 	if o := m.Config["icon"]; o.Type != "bool" || o.Default != true || o.Description != "Show an icon" {
@@ -353,5 +352,12 @@ func TestHelp(t *testing.T) {
 		if err == nil || !strings.Contains(err.Error(), c.want) {
 			t.Errorf("%d %s: %v, want it to mention %q", i, c.name, err, c.want)
 		}
+	}
+}
+
+func TestLayoutsAreNotPlugins(t *testing.T) {
+	dir := writePlugin(t, t.TempDir(), "pg", "id: pg\nversion: 1.0.0\napiVersion: 1\nlayouts: [pg]\nfrontend: { js: [a.js] }\n", map[string]string{"a.js": "export default {}"})
+	if _, err := Load(dir); err == nil || !strings.Contains(err.Error(), ".zen/layouts/<id>/layout.yml") {
+		t.Fatalf("layouts in plugin.yml: %v", err)
 	}
 }

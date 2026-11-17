@@ -22,6 +22,8 @@ func (s *state) middleware(next http.Handler) http.Handler {
 		switch {
 		case strings.HasPrefix(p, "/_ws/"):
 			s.serveWorkspace(w, r, strings.TrimPrefix(p, "/_ws/"))
+		case strings.HasPrefix(p, "/_layouts/"):
+			s.serveLayout(w, r, strings.TrimPrefix(p, "/_layouts/"))
 		case strings.HasPrefix(p, "/_plugins/"):
 			s.servePlugin(w, r, strings.TrimPrefix(p, "/_plugins/"))
 		default:
@@ -102,6 +104,33 @@ func (s *state) servePlugin(w http.ResponseWriter, r *http.Request, rest string)
 		http.NotFound(w, r)
 		return
 	}
+	serveFromFS(w, r, fsys, file)
+}
+
+// serveLayout serves /_layouts/<id>/<file>: the css and js files a layout
+// lists, nothing else.
+func (s *state) serveLayout(w http.ResponseWriter, r *http.Request, rest string) {
+	id, file, ok := strings.Cut(rest, "/")
+	if !ok || id == "" || !fs.ValidPath(file) || file == "." {
+		http.NotFound(w, r)
+		return
+	}
+	s.mu.Lock()
+	reg := s.lreg
+	s.mu.Unlock()
+	if reg == nil {
+		http.NotFound(w, r)
+		return
+	}
+	fsys, ok := reg.AssetFS(id)
+	if !ok {
+		http.NotFound(w, r)
+		return
+	}
+	serveFromFS(w, r, fsys, file)
+}
+
+func serveFromFS(w http.ResponseWriter, r *http.Request, fsys fs.FS, file string) {
 	f, err := fsys.Open(file)
 	if err != nil {
 		http.NotFound(w, r)

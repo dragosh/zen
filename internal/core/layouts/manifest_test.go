@@ -112,7 +112,7 @@ func TestLoadRefusals(t *testing.T) {
 		{"bad field name", "x", base("id: x\nversion: 1.0.0\ncss: [a.css]\nfields:\n  Bad-Name: { type: string }\n", map[string]string{"a.css": ""}), "field"},
 		{"bad option type", "x", base("id: x\nversion: 1.0.0\ncss: [a.css]\noptions:\n  o: { type: float }\n", map[string]string{"a.css": ""}), "option"},
 		{"bad option default", "x", base("id: x\nversion: 1.0.0\ncss: [a.css]\noptions:\n  o: { type: bool, default: 3 }\n", map[string]string{"a.css": ""}), "option"},
-		{"summary too long", "x", base("id: x\nversion: 1.0.0\ncss: [a.css]\nhelp:\n  summary: " + strings.Repeat("a", 501) + "\n", map[string]string{"a.css": ""}), "summary"},
+		{"summary too long", "x", base("id: x\nversion: 1.0.0\ncss: [a.css]\nhelp:\n  summary: "+strings.Repeat("a", 501)+"\n", map[string]string{"a.css": ""}), "summary"},
 		{"no manifest", "x", map[string]string{"a.css": ""}, "layout.yml not found"},
 		{"DS_Store as css", "x", base("id: x\nversion: 1.0.0\ncss: [.DS_Store]\n", map[string]string{".DS_Store": "x"}), "DS_Store"},
 	}

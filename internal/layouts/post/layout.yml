@@ -1,0 +1,19 @@
+id: post
+version: 0.1.0
+description: Blog post with cover, date, author and tags
+template: layout.html
+css: [post.css]
+fields:
+  date:   { type: date, description: "Publication date, such as 2026-11-17" }
+  author: { type: string, description: Who wrote it }
+  cover:  { type: image, description: Image of the folder shown above the title }
+  tags:   { type: list, description: Tags shown under the text }
+options:
+  reading: { type: bool, default: true, description: Show the reading time }
+help:
+  summary: "A blog post or a note: an optional cover image, the title, a line with the date, the author and the reading time, the text, the tags, and Previous and Next links in the sidebar order. Frontmatter fields: date, author, cover (an image of the folder) and tags. Option: reading (false hides the reading time)."
+  snippets:
+    - title: A post
+      markdown: "---\ntitle: My first post\nlayout: post\ndate: 2026-11-17\nauthor: Ada\ntags: [notes, zen]\n---\n# My first post\n\nThe text of the post.\n"
+    - title: With a cover image
+      markdown: "---\ntitle: A post with a cover\nlayout: post\ndate: 2026-11-17\ncover: images/cover.png\n---\n# A post with a cover\n\nThe text.\n"

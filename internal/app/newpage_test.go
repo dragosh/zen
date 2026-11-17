@@ -8,9 +8,8 @@ import (
 	"testing"
 
 	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zen/internal/plugins/check"
 	"github.com/dragosh/zen/internal/plugins/codeblock"
-	"github.com/dragosh/zen/internal/plugins/course"
-	"github.com/dragosh/zen/internal/plugins/slides"
 )
 
 func TestCreatePage(t *testing.T) {
@@ -32,8 +31,7 @@ func TestCreatePage(t *testing.T) {
 		if err != nil || !strings.Contains(string(b), c.has) {
 			t.Errorf("%s: %v\n%s", got, err, b)
 		}
-		// The frontmatter parses and names the layout (this registry has no
-		// layout plugins, so only the frontmatter is checked here).
+		// The frontmatter parses and names the layout.
 		pg, err := z.Page(got)
 		if l, _ := pg.Frontmatter["layout"].(string); err != nil || l != c.layout {
 			t.Errorf("%s renders: frontmatter %v, err %v", got, pg.Frontmatter, err)
@@ -78,7 +76,7 @@ func TestTitleOf(t *testing.T) {
 // The templates render with the real layout plugins and no warnings.
 func TestCreatePageTemplatesRender(t *testing.T) {
 	reg := plugins.NewRegistry()
-	for _, p := range []plugins.Plugin{codeblock.New(), slides.New(), course.New()} {
+	for _, p := range []plugins.Plugin{codeblock.New(), check.New()} {
 		if err := reg.Register(p); err != nil {
 			t.Fatal(err)
 		}
@@ -88,14 +86,18 @@ func TestCreatePageTemplatesRender(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(z.close)
-	for _, layout := range newPageLayouts {
+	for _, layout := range []string{"", "slides", "course", "docs", "post", "landing", "wide", "handout"} {
 		rel, err := z.CreatePage("new-"+layout, layout)
 		if err != nil {
 			t.Fatal(err)
 		}
 		pg, err := z.Page(rel)
-		if err != nil || pg.Layout != layout || len(pg.Warnings) != 0 {
-			t.Errorf("%q: layout %q, warnings %v, err %v", layout, pg.Layout, pg.Warnings, err)
+		want := layout
+		if want == "" {
+			want = "article"
+		}
+		if err != nil || pg.Layout.Name != want || len(pg.Warnings) != 0 {
+			t.Errorf("%q: layout %+v, warnings %v, err %v", layout, pg.Layout, pg.Warnings, err)
 		}
 	}
 }

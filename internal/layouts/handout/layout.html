@@ -1,0 +1,14 @@
+<div class="zl-handout zl-paper-{{.Option "paper"}}">
+  <div class="zl-sheet">
+    <header class="zl-sheet-head">
+      <span>{{with .Field "author"}}{{.}}{{end}}</span>
+      <span>{{with .Field "date"}}{{date .}}{{end}}</span>
+    </header>
+    <div class="zl-sheet-body">{{.Content}}</div>
+    <footer class="zl-sheet-foot">
+      <span>{{.Title}}</span>
+      <span>{{with .Field "date"}}{{date .}}{{end}}</span>
+      <span class="zl-sheet-page"></span>
+    </footer>
+  </div>
+</div>

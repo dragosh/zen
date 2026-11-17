@@ -9,20 +9,20 @@ import (
 	"path/filepath"
 	"strings"
 	"unicode"
+
+	"github.com/dragosh/zen/internal/core/layouts"
 )
 
 // EventNewPage asks the main window to show the New Page dialog (File > New
 // Page…, Cmd+N). No payload.
 const EventNewPage = "menu:new-page"
 
-// Layouts offered by File > New Page: "" is a plain page.
-var newPageLayouts = []string{"", "slides", "course"}
-
 // errPageExists is returned by CreatePage when the file is already there.
 var errPageExists = errors.New("a page with that name already exists")
 
-// CreatePage creates a markdown page from the template of layout ("" for a
-// plain page, "slides" or "course") and returns its workspace path. ".md" is
+// CreatePage creates a markdown page from the template of layout ("" or
+// "article" for a plain page, or the id of any layout the folder can use: its
+// first help snippet is the starting text) and returns its workspace path. ".md" is
 // added when name has no extension; missing folders are created inside the
 // workspace. An existing file is never overwritten.
 func (z *Zen) CreatePage(name, layout string) (string, error) {
@@ -30,14 +30,11 @@ func (z *Zen) CreatePage(name, layout string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	ok := false
-	for _, l := range newPageLayouts {
-		ok = ok || l == layout
-	}
+	text, ok := z.state.newPageText(layout, titleOf(rel))
 	if !ok {
 		return "", fmt.Errorf("unknown layout %q", layout)
 	}
-	return rel, z.state.create(rel, pageTemplate(layout, titleOf(rel)))
+	return rel, z.state.create(rel, text)
 }
 
 // newPagePath cleans a page name typed by the user into a workspace path.
@@ -82,7 +79,67 @@ func titleOf(rel string) string {
 	return string(r)
 }
 
-// pageTemplate is the starting text of a new page.
+// newPageText is the starting text of a new page in layout; false when the
+// folder has no such layout.
+func (s *state) newPageText(layout, title string) (string, bool) {
+	if layout == "" || layout == "article" {
+		return pageTemplate("", title), true
+	}
+	s.mu.Lock()
+	var l *layouts.Layout
+	if s.lreg != nil {
+		l = s.lreg.Get(layout)
+	}
+	s.mu.Unlock()
+	if l == nil {
+		return "", false
+	}
+	switch layout {
+	case "slides", "course":
+		if l.Source() == layouts.SourceBuiltin {
+			return pageTemplate(layout, title), true
+		}
+	}
+	if sn := l.Manifest().Help.Snippets; len(sn) > 0 {
+		return snippetPage(sn[0].Markdown, title), true
+	}
+	return "---\ntitle: " + yamlString(title) + "\nlayout: " + layout + "\n---\n# " + title + "\n\n", true
+}
+
+// snippetPage turns a help snippet into a new page: its frontmatter gets the
+// page's title and its first heading is replaced by it.
+func snippetPage(md, title string) string {
+	md = strings.ReplaceAll(md, "\r\n", "\n")
+	rest := md
+	var front []string
+	if strings.HasPrefix(md, "---\n") {
+		if end := strings.Index(md[4:], "\n---\n"); end >= 0 {
+			front = strings.Split(md[4:4+end], "\n")
+			rest = md[4+end+5:]
+		}
+	}
+	var kept []string
+	for _, l := range front {
+		if !strings.HasPrefix(l, "title:") {
+			kept = append(kept, l)
+		}
+	}
+	kept = append([]string{"title: " + yamlString(title)}, kept...)
+	lines := strings.Split(rest, "\n")
+	for i, l := range lines {
+		if strings.TrimSpace(l) == "" {
+			continue
+		}
+		if strings.HasPrefix(l, "# ") {
+			lines[i] = "# " + title
+		}
+		break
+	}
+	return "---\n" + strings.Join(kept, "\n") + "\n---\n" + strings.Join(lines, "\n")
+}
+
+// pageTemplate is the starting text of a new page (a plain page, or the
+// slides and course decks, which have their own wording).
 func pageTemplate(layout, title string) string {
 	switch layout {
 	case "slides":

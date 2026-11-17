@@ -7,12 +7,12 @@ package render
 import (
 	"bytes"
 	"fmt"
-	stdhtml "html"
+	"net/url"
 	"path"
-	"sort"
 	"strings"
 
 	"github.com/dragosh/zen/internal/core/config"
+	"github.com/dragosh/zen/internal/core/layouts"
 	"github.com/dragosh/zen/internal/core/plugins"
 	"github.com/dragosh/zen/internal/core/workspace"
 	"github.com/yuin/goldmark"
@@ -36,8 +36,12 @@ type Page struct {
 	Frontmatter       map[string]any
 	Assets            plugins.Assets
 	Warnings          []string
-	Layout            string // layout plugin name applied to the page, "" when none
+	Layout            LayoutRef // the layout the page was laid out with
 }
+
+// LayoutRef names the layout a page uses: its id and where it comes from
+// (builtin, folder or user). "article" and builtin when the page chose none.
+type LayoutRef struct{ Name, Source string }
 
 // Renderer renders pages. It holds no mutable state and is safe for
 // concurrent use.
@@ -45,6 +49,17 @@ type Renderer struct {
 	reg   *plugins.Registry
 	cfg   *config.Config
 	links Resolver
+
+	layouts *layouts.Registry // nil: only the built-in article exists
+	site    layouts.Site      // where pages sit in the folder, for template layouts
+}
+
+// WithLayouts returns a renderer that also knows the layouts of reg, and site
+// for the navigation data of template layouts (nil for none).
+func (r *Renderer) WithLayouts(reg *layouts.Registry, site layouts.Site) *Renderer {
+	c := *r
+	c.layouts, c.site = reg, site
+	return &c
 }
 
 // New returns a renderer. reg, cfg and links may be nil: no plugins, the
@@ -149,25 +164,31 @@ func (r *Renderer) Render(pagePath string, src []byte) (Page, error) {
 	}
 
 	// 6b layout
-	layout := ""
-	if name, wrapped := r.layout(st, meta, out); wrapped != "" {
-		layout, out = name, wrapped
-	}
+	lay := r.applyLayout(st, pagePath, title, meta, settings, out)
+	out = lay.html
 	for _, id := range st.denied {
 		st.warnings = append(st.warnings, fmt.Sprintf("plugin %q is not allowed (Settings › Plugins)", id))
 	}
 
 	// 7 sanitise
-	out = addInternalHref(scopedSanitise(out, set.AllowByPlugin()))
+	policy := basePolicy
+	if lay.template {
+		policy = layoutPolicy
+	}
+	out = addInternalHref(scopedSanitiseWith(out, set.AllowByPlugin(), policy))
+
+	assets := usedAssets(set.Assets(), st.used)
+	assets.CSS = append(assets.CSS, lay.assets.CSS...)
+	assets.JS = append(assets.JS, lay.assets.JS...)
 
 	return Page{
 		Path:        pagePath,
 		Title:       title,
 		HTML:        out,
 		Frontmatter: meta,
-		Assets:      usedAssets(set.Assets(), st.used),
+		Assets:      assets,
 		Warnings:    st.warnings,
-		Layout:      layout,
+		Layout:      lay.ref,
 	}, nil
 }
 
@@ -208,54 +229,72 @@ func (r *Renderer) Title(pagePath string, src []byte) string {
 	return pageTitle(st, meta, doc, body, pagePath)
 }
 
-// layout wraps the page in its layout plugin's element when the frontmatter
-// asks for one. It returns the layout name and the wrapped HTML, or "" when
-// the page has no (usable) layout; problems become warnings.
-func (r *Renderer) layout(st *state, meta map[string]any, out string) (string, string) {
-	raw, present := meta["layout"]
-	if !present {
-		return "", ""
+// laidOut is the page after its layout.
+type laidOut struct {
+	html     string
+	ref      LayoutRef
+	assets   plugins.Assets
+	template bool // a template drew part of the page
+}
+
+// applyLayout puts the page in the layout it chose (frontmatter, then the
+// config's patterns, then the config's default, then the article). Problems
+// become warnings and the page falls back to the article, which adds nothing.
+func (r *Renderer) applyLayout(st *state, pagePath, title string, meta map[string]any, settings config.Settings, out string) laidOut {
+	article := laidOut{html: out, ref: LayoutRef{Name: layouts.Default, Source: layouts.SourceBuiltin}}
+	choice := layouts.Resolve(pagePath, meta, settings.Layouts())
+	st.warnings = append(st.warnings, choice.Warnings...)
+	var l *layouts.Layout
+	if r.layouts != nil {
+		l = r.layouts.Get(choice.Name)
 	}
-	name, ok := raw.(string)
-	if !ok || !plugins.ValidName(name) {
-		st.warnings = append(st.warnings, "layout must be a name such as slides")
-		return "", ""
+	switch {
+	case l == nil && choice.Name == layouts.Default:
+		return article
+	case l == nil && r.layouts != nil && r.layouts.Problem(choice.Name) != "":
+		st.warnings = append(st.warnings, fmt.Sprintf("layout %q is invalid: %s", choice.Name, r.layouts.Problem(choice.Name)))
+		return article
+	case l == nil && r.layouts != nil && r.layouts.Denied(choice.Name):
+		st.warnings = append(st.warnings, fmt.Sprintf("layout %q is not allowed (Settings › Layouts)", choice.Name))
+		return article
+	case l == nil:
+		st.warnings = append(st.warnings, fmt.Sprintf("unknown layout %q", choice.Name))
+		return article
+	case l.Changed():
+		st.warnings = append(st.warnings, fmt.Sprintf("layout %q changed; allow it again (Settings › Layouts)", choice.Name))
+		return article
 	}
-	p := st.set.Layout(name)
-	if p == nil {
-		switch {
-		case st.set.Denied("layout", name) != "":
-			st.deny(st.set.Denied("layout", name))
-		case r.reg.Layout(name) != nil:
-			st.warnings = append(st.warnings, fmt.Sprintf("layout %q belongs to plugin %q, which is switched off", name, r.reg.Layout(name).Manifest().ID))
-		default:
-			st.warnings = append(st.warnings, fmt.Sprintf("unknown layout %q", name))
-		}
-		return "", ""
+	if l.Manifest().ID == layouts.Default && !l.HasTemplate() && len(l.Manifest().CSS)+len(l.Manifest().JS) == 0 {
+		return article
 	}
-	attrs := map[string]string{}
-	switch opts := meta["layoutOptions"].(type) {
-	case nil:
-	case map[string]any:
-		keys := make([]string, 0, len(opts))
-		for k := range opts {
-			keys = append(keys, k)
-		}
-		sort.Strings(keys)
-		for _, k := range keys {
-			if s, ok := opts[k].(string); ok {
-				attrs[k] = s
-			} else {
-				st.warnings = append(st.warnings, fmt.Sprintf("layoutOptions.%s must be text; ignored", k))
+	in := layouts.Input{
+		Title: title, Path: pagePath, Content: out, Frontmatter: meta, Options: choice.Options, Site: r.site,
+		Markdown: st.markdown,
+		Image: func(v string) (string, bool) {
+			if lk := r.resolve(pagePath, v); lk.Kind == "asset" {
+				return wsURL(lk.Path), true
 			}
-		}
-	default:
-		st.warnings = append(st.warnings, "layoutOptions must be a mapping; ignored")
+			if u, err := url.Parse(v); err == nil && strings.EqualFold(u.Scheme, "https") && u.Host != "" {
+				return v, true
+			}
+			return "", false
+		},
 	}
-	id := p.Manifest().ID
-	st.used[id] = true
-	return name, `<div data-zen-plugin="` + stdhtml.EscapeString(id) + `" data-zen-layout="` + stdhtml.EscapeString(name) + `"` +
-		attrsJSON(attrs) + ">" + out + "</div>"
+	if st.titleOnly {
+		return article
+	}
+	var res layouts.Result
+	err := guard(func() (e error) { res, e = l.Apply(in); return })
+	if err != nil {
+		st.warnings = append(st.warnings, fmt.Sprintf("layout %q: %v; using the article layout", choice.Name, err))
+		return article
+	}
+	st.warnings = append(st.warnings, res.Warnings...)
+	ver := ""
+	if r.layouts != nil {
+		ver = r.layouts.AssetVersion()
+	}
+	return laidOut{html: res.HTML, ref: LayoutRef{Name: l.Manifest().ID, Source: l.Source()}, assets: l.URLs(ver), template: l.HasTemplate()}
 }
 
 // Links returns the resolved links and images of the page in document order.

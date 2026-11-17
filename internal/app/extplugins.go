@@ -35,12 +35,11 @@ type PluginInfo struct {
 	// backend zen runs), page (scripts and styles only) or script (one Tengo
 	// file zen runs itself). For a rejected plugin it is a best guess.
 	Kind string `json:"kind"`
-	// Help is what the plugin says about itself; Blocks, Inlines, Layouts and
+	// Help is what the plugin says about itself; Blocks, Inlines and
 	// Options are what it adds. They are empty lists, never null.
 	Help    PluginHelp     `json:"help"`
 	Blocks  []string       `json:"blocks"`
 	Inlines []string       `json:"inlines"`
-	Layouts []string       `json:"layouts"`
 	Options []PluginOption `json:"options"`
 }
 
@@ -71,7 +70,6 @@ func pluginInfo(m plugins.Manifest) PluginInfo {
 		Help:    PluginHelp{Summary: m.Help.Summary, Snippets: []PluginSnippet{}},
 		Blocks:  append([]string{}, m.Blocks...),
 		Inlines: append([]string{}, m.Inlines...),
-		Layouts: append([]string{}, m.Layouts...),
 		Options: []PluginOption{},
 	}
 	for _, sn := range m.Help.Snippets {
@@ -731,6 +729,11 @@ func (s *state) storageGet(id, key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	return getAt(path, key)
+}
+
+// getAt reads one key of the storage file at path.
+func getAt(path, key string) (string, error) {
 	mu := lockFor(path)
 	mu.Lock()
 	defer mu.Unlock()
@@ -757,13 +760,18 @@ func (s *state) storageSet(id, key, value string) error {
 	if !json.Valid([]byte(value)) {
 		return errors.New("the value is not valid JSON")
 	}
-	var compact bytes.Buffer
-	if err := json.Compact(&compact, []byte(value)); err != nil {
-		return errors.New("the value is not valid JSON")
-	}
 	path, err := s.storagePath(id)
 	if err != nil {
 		return err
+	}
+	return setAt(path, key, value)
+}
+
+// setAt stores a JSON value under key in the storage file at path.
+func setAt(path, key, value string) error {
+	var compact bytes.Buffer
+	if err := json.Compact(&compact, []byte(value)); err != nil {
+		return errors.New("the value is not valid JSON")
 	}
 	mu := lockFor(path)
 	mu.Lock()
@@ -849,6 +857,11 @@ func (s *state) storageKeys(id, prefix string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
+	return keysAt(path, prefix)
+}
+
+// keysAt lists the keys of the storage file at path that start with prefix.
+func keysAt(path, prefix string) ([]string, error) {
 	mu := lockFor(path)
 	mu.Lock()
 	defer mu.Unlock()

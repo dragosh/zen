@@ -14,7 +14,10 @@ import (
 
 var (
 	basePolicy = newPolicy(nil)
-	policies   sync.Map // allow-rule key -> *bluemonday.Policy (immutable once built)
+	// layoutPolicy is the base policy for a page laid out by a template layout:
+	// the same, plus the structural elements and class names a template needs.
+	layoutPolicy = newLayoutPolicy()
+	policies     sync.Map // allow-rule key -> *bluemonday.Policy (immutable once built)
 )
 
 // forbidden elements and attributes no Allow rule can re-enable.
@@ -56,6 +59,7 @@ func newPolicy(allow []plugins.AllowRule) *bluemonday.Policy {
 	name := regexp.MustCompile(`^[a-z][a-z0-9-]*$`)
 	p.AllowAttrs("data-zen-plugin", "data-zen-name", "data-zen-layout").Matching(name).OnElements("div", "span")
 	p.AllowAttrs("data-zen-attrs").OnElements("div", "span")
+	p.AllowAttrs("data-zen-layout-source").Matching(regexp.MustCompile(`^(builtin|folder|user)$`)).OnElements("div")
 	for _, r := range allow {
 		el := strings.ToLower(strings.TrimSpace(r.Element))
 		if el == "" || forbiddenElements[el] {
@@ -72,6 +76,21 @@ func newPolicy(allow []plugins.AllowRule) *bluemonday.Policy {
 			p.AllowAttrs(attrs...).OnElements(el)
 		}
 	}
+	return p
+}
+
+// newLayoutPolicy extends the base policy for template layouts: page structure
+// elements, class names (styling hooks for the layout's CSS) on every element
+// a template draws, and the one action attribute the frontend acts on.
+func newLayoutPolicy() *bluemonday.Policy {
+	p := newPolicy(nil)
+	p.AllowElements("header", "footer", "nav", "article", "aside", "figure", "figcaption", "time", "address", "hgroup")
+	p.AllowAttrs("class").Matching(bluemonday.SpaceSeparatedTokens).OnElements(
+		"header", "footer", "nav", "article", "aside", "figure", "figcaption", "time", "address", "hgroup",
+		"p", "h1", "h2", "h3", "h4", "h5", "h6", "img", "blockquote", "table", "td", "th", "tr", "em", "small", "dl", "dt", "dd")
+	p.AllowAttrs("datetime").Matching(regexp.MustCompile(`^[0-9T:+\-. Z]{1,40}$`)).OnElements("time")
+	p.AllowAttrs("aria-label").Matching(regexp.MustCompile(`^[^<>]{1,80}$`)).OnElements("nav", "a", "section", "aside", "div")
+	p.AllowAttrs("data-zen-action").Matching(regexp.MustCompile(`^(edit|print)$`)).OnElements("a")
 	return p
 }
 
@@ -100,11 +119,16 @@ func policyFor(allow []plugins.AllowRule) *bluemonday.Policy {
 // sanitised on its own and put back after the page has been sanitised; a
 // wrapper that is not closed is left to the base policy.
 func scopedSanitise(in string, rules map[string][]plugins.AllowRule) string {
+	return scopedSanitiseWith(in, rules, basePolicy)
+}
+
+// scopedSanitiseWith is scopedSanitise with base as the policy of the page.
+func scopedSanitiseWith(in string, rules map[string][]plugins.AllowRule, base *bluemonday.Policy) string {
 	if len(rules) == 0 || !strings.Contains(in, "data-zen-plugin") {
-		return basePolicy.Sanitize(in)
+		return base.Sanitize(in)
 	}
 	sc := &scoper{rules: rules, prefix: "zensan" + newNonce() + "n"}
-	out := basePolicy.Sanitize(sc.scope(in))
+	out := base.Sanitize(sc.scope(in))
 	for round := 0; round <= len(sc.frags) && strings.Contains(out, sc.prefix); round++ {
 		pairs := make([]string, 0, 2*len(sc.frags))
 		for i, f := range sc.frags {

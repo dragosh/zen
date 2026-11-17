@@ -46,9 +46,9 @@ type undeclared struct{ hooked }
 
 func (undeclared) HasHook(string) bool { return false }
 
-func xm(id string, blocks, inlines, layouts []string) plugins.Manifest {
+func xm(id string, blocks, inlines, _ []string) plugins.Manifest {
 	return plugins.Manifest{ID: id, Version: "1.0.0", APIVersion: plugins.APIVersion, Default: true,
-		Blocks: blocks, Inlines: inlines, Layouts: layouts}
+		Blocks: blocks, Inlines: inlines}
 }
 
 func xrender(t *testing.T, src string, ps ...plugins.Plugin) Page {
@@ -190,66 +190,6 @@ func TestDefaultContentDepthLimit(t *testing.T) {
 	}
 }
 
-func TestLayout(t *testing.T) {
-	o := owner{xm("deck", nil, nil, []string{"slides"})}
-	pg := xrender(t, "---\nlayout: slides\nlayoutOptions:\n  transition: fade\n  loop: \"yes\"\n---\n# One\n\n---\n\n# Two\n", o)
-	ws := wrappers(pg.HTML)
-	if len(ws) != 1 || ws[0]["data-zen-plugin"] != "deck" || ws[0]["data-zen-layout"] != "slides" || ws[0]["tag"] != "div" {
-		t.Fatalf("layout wrapper: %v\n%s", ws, pg.HTML)
-	}
-	if !strings.HasPrefix(pg.HTML, "<div data-zen-plugin=") || !strings.HasSuffix(strings.TrimSpace(pg.HTML), "</div>") {
-		t.Errorf("the wrapper must enclose the whole page: %s", pg.HTML)
-	}
-	if ws[0]["data-zen-attrs"] != `{"loop":"yes","transition":"fade"}` {
-		t.Errorf("layout attrs: %q", ws[0]["data-zen-attrs"])
-	}
-	if _, has := ws[0]["data-zen-name"]; has {
-		t.Error("a layout wrapper has no data-zen-name")
-	}
-	if pg.Layout != "slides" || len(pg.Warnings) != 0 {
-		t.Errorf("layout %q warnings %v", pg.Layout, pg.Warnings)
-	}
-	if strings.Join(pg.Assets.JS, ",") != "/_plugins/deck/o.js" {
-		t.Errorf("layout must load the plugin's assets: %+v", pg.Assets)
-	}
-	if !strings.Contains(pg.HTML, "<hr>") || strings.Count(pg.HTML, "<h1") != 2 {
-		t.Errorf("page content changed: %s", pg.HTML)
-	}
-
-	// No options: no attrs. Non-string options are ignored with a warning.
-	pg = xrender(t, "---\nlayout: slides\nlayoutOptions: { n: 3, ok: fine }\n---\nx\n", o)
-	if ws := wrappers(pg.HTML); len(ws) != 1 || ws[0]["data-zen-attrs"] != `{"ok":"fine"}` {
-		t.Errorf("non-string option: %v", ws)
-	}
-	if len(pg.Warnings) != 1 || !strings.Contains(pg.Warnings[0], "layoutOptions") {
-		t.Errorf("warnings: %v", pg.Warnings)
-	}
-	pg = xrender(t, "---\nlayout: slides\n---\nx\n", o)
-	if ws := wrappers(pg.HTML); len(ws) != 1 || ws[0]["data-zen-attrs"] != "" {
-		t.Errorf("no options: %v", ws)
-	}
-
-	// No layout: Layout stays "" and nothing is wrapped.
-	pg = xrender(t, "# Plain\n", o)
-	if pg.Layout != "" || len(wrappers(pg.HTML)) != 0 || len(pg.Assets.JS) != 0 {
-		t.Errorf("plain page: %+v", pg)
-	}
-	// Unknown layout, or the plugin is switched off: warning, normal page.
-	for _, src := range []string{
-		"---\nlayout: poster\n---\n# T\n",
-		"---\nlayout: slides\nplugins: { deck: false }\n---\n# T\n",
-		"---\nlayout: [a]\n---\n# T\n",
-	} {
-		pg = xrender(t, src, o)
-		if pg.Layout != "" || len(wrappers(pg.HTML)) != 0 || !strings.Contains(pg.HTML, "<h1") {
-			t.Errorf("%q: wrapped or layout set: %+v", src, pg)
-		}
-		if len(pg.Warnings) != 1 || !strings.Contains(pg.Warnings[0], "layout") {
-			t.Errorf("%q: warnings %v", src, pg.Warnings)
-		}
-	}
-}
-
 func TestSanitiserKeepsPluginMarkup(t *testing.T) {
 	// Hand-written wrappers go through the same rules.
 	pg := xrender(t, `<div data-zen-plugin="a" data-zen-name="ok-name" data-zen-layout="ok" data-zen-attrs="{&quot;a&quot;:&quot;&lt;b&gt;&quot;}">x</div>`+"\n\n"+
@@ -309,8 +249,8 @@ func TestPluginAllowRulesKeepHardDenials(t *testing.T) {
 
 func TestDeniedPluginRendersPlain(t *testing.T) {
 	reg := plugins.NewRegistry()
-	reg.Deny(xm("x", []string{"secret"}, []string{"sec"}, []string{"slay"}))
-	src := "---\nlayout: slay\nplugins: { x: true }\n---\n:::secret\nplain **md**\n:::\n\n```secret\ncode\n```\n\nText :sec[t] and :sec[u].\n"
+	reg.Deny(xm("x", []string{"secret"}, []string{"sec"}, nil))
+	src := "---\nplugins: { x: true }\n---\n:::secret\nplain **md**\n:::\n\n```secret\ncode\n```\n\nText :sec[t] and :sec[u].\n"
 	pg, err := New(reg, nil, nil).Render("p.md", []byte(src))
 	if err != nil {
 		t.Fatal(err)
@@ -319,7 +259,7 @@ func TestDeniedPluginRendersPlain(t *testing.T) {
 	if len(pg.Warnings) != 1 || pg.Warnings[0] != want {
 		t.Fatalf("warnings: %q", pg.Warnings)
 	}
-	if len(wrappers(pg.HTML)) != 0 || pg.Layout != "" {
+	if len(wrappers(pg.HTML)) != 0 {
 		t.Errorf("a denied plugin was used: %s", pg.HTML)
 	}
 	for _, plain := range []string{"<strong>md</strong>", `<code class="language-secret">code`, ":sec[t]"} {

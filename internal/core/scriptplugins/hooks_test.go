@@ -17,7 +17,6 @@ func TestManifestFromThePluginMap(t *testing.T) {
     description: "Callout boxes",
     blocks: ["note", "warning"],
     inlines: ["badge"],
-    layouts: ["deck"],
     hooks: ["source", "html", "action"],
     css: "div.note { border-left: 3px solid }",
     options: {icon: {type: "bool", default: true, description: "Show an icon"}}
@@ -26,7 +25,7 @@ func TestManifestFromThePluginMap(t *testing.T) {
 	if m.ID != "note" || m.Version != "0.1.0" || m.Description != "Callout boxes" || m.APIVersion != plugins.APIVersion || !m.Default {
 		t.Errorf("manifest: %+v", m)
 	}
-	if strings.Join(m.Blocks, ",") != "note,warning" || strings.Join(m.Inlines, ",") != "badge" || strings.Join(m.Layouts, ",") != "deck" {
+	if strings.Join(m.Blocks, ",") != "note,warning" || strings.Join(m.Inlines, ",") != "badge" {
 		t.Errorf("names: %+v", m)
 	}
 	if o := m.Config["icon"]; o.Type != "bool" || o.Default != true || o.Description != "Show an icon" {

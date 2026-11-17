@@ -1,0 +1,17 @@
+id: landing
+version: 0.1.0
+description: Home page of a folder with a hero and cards for its pages
+template: layout.html
+css: [landing.css]
+fields:
+  tagline: { type: string, description: One line under the title }
+  cover:   { type: image, description: Image of the folder shown behind the title }
+options:
+  cards: { type: bool, default: true, description: Show a card for each page under this one }
+help:
+  summary: "The home page of a folder: a hero with the title, an optional tagline and cover image, the text, and a card for each page under this one in the sidebar (its title and first paragraph). Frontmatter fields: tagline and cover. Option: cards (false hides the cards)."
+  snippets:
+    - title: A home page
+      markdown: "---\ntitle: My guide\nlayout: landing\ntagline: Everything you need, in one place\n---\nA short welcome. The pages below this one appear as cards.\n"
+    - title: With a cover image
+      markdown: "---\ntitle: My guide\nlayout: landing\ntagline: Read, write, check\ncover: images/cover.png\n---\nWelcome.\n"

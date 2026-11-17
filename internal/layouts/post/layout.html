@@ -1,0 +1,19 @@
+<article class="zl-post">
+  {{with .Field "cover"}}<img class="zl-post-cover" src="{{.}}" alt="">{{end}}
+  <header class="zl-post-head">
+    <h1>{{.Title}}</h1>
+    <p class="zl-post-meta">
+      {{with .Field "date"}}<time datetime="{{.Format "2006-01-02"}}">{{date .}}</time>{{end}}
+      {{with .Field "author"}}<span>{{.}}</span>{{end}}
+      {{if .Option "reading"}}<span>{{.ReadingTime}} min read</span>{{end}}
+    </p>
+  </header>
+  <div class="zl-post-text">{{.Content}}</div>
+  {{with .Field "tags"}}<ul class="zl-post-tags">{{range .}}<li>{{.}}</li>{{end}}</ul>{{end}}
+  {{if or .Prev .Next}}
+  <nav class="zl-post-pager" aria-label="Previous and next posts">
+    {{with .Prev}}<a data-zen-link="internal" data-path="{{.Path}}" class="zl-prev"><small>Previous</small><span>{{.Title}}</span></a>{{end}}
+    {{with .Next}}<a data-zen-link="internal" data-path="{{.Path}}" class="zl-next"><small>Next</small><span>{{.Title}}</span></a>{{end}}
+  </nav>
+  {{end}}
+</article>

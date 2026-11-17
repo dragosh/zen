@@ -1,0 +1,15 @@
+<div class="zl-landing">
+  <header class="zl-hero">
+    {{with .Field "cover"}}<img class="zl-hero-cover" src="{{.}}" alt="">{{end}}
+    <h1>{{.Title}}</h1>
+    {{with .Field "tagline"}}<p class="zl-tagline">{{.}}</p>{{end}}
+  </header>
+  <div class="zl-landing-text">{{.Content}}</div>
+  {{if .Option "cards"}}{{with .Children}}
+  <section class="zl-cards" aria-label="Pages">
+    <ul>
+      {{range .}}<li><a data-zen-link="internal" data-path="{{.Path}}" class="zl-card"><strong>{{.Title}}</strong>{{with .Summary}}<span>{{.}}</span>{{end}}</a></li>{{end}}
+    </ul>
+  </section>
+  {{end}}{{end}}
+</div>

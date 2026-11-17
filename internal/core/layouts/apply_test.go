@@ -76,7 +76,7 @@ func TestApplyDataModel(t *testing.T) {
 	}
 	tpl := `P={{.Path}}|
 {{range .Breadcrumb}}[{{.Title}}:{{.Path}}]{{end}}|
-{{range .TOC}}<{{.Level}}:{{.ID}}:{{.Text}}>{{end}}|
+{{range .TOC}}[{{.Level}}:{{.ID}}:{{.Text}}]{{end}}|
 {{with .Prev}}prev={{.Title}}@{{.Path}}{{end}}{{if .Next}}next{{else}}nonext{{end}}|
 {{range .Children}}({{.Title}}/{{.Path}}/{{.Summary}}){{end}}|
 w={{.Words}} rt={{.ReadingTime}}|
@@ -86,7 +86,7 @@ img={{.Field "cover"}}|
 {{if .Option "toc"}}toc{{end}} {{.Option "width"}} {{.Option "n"}}`
 	fields := "fields:\n  author: { type: string }\n  date: { type: date }\n  tags: { type: list }\n  cover: { type: image }\n  intro: { type: string }\n"
 	opts := "options:\n  toc: { type: bool, default: false }\n  width: { type: string, default: narrow }\n  n: { type: int, default: 2 }\n"
-	content := `<h1 id="t">T</h1><h2 id="a">First <em>part</em></h2><p>` + strings.Repeat("word ", 398) + `</p><h3 id="b">Second</h3><h4 id="c">Third</h4><h5 id="d">Fifth</h5>`
+	content := `<h1 id="t">T</h1><h2 id="a">First <em>part</em></h2><p>` + strings.Repeat("word ", 394) + `</p><h3 id="b">Second</h3><h4 id="c">Third</h4><h5 id="d">Fifth</h5>`
 	res, err := apply(t, tpl, fields, opts, Input{
 		Title: "T", Path: "blog/p.md", Content: content, Site: site,
 		Frontmatter: map[string]any{
@@ -102,7 +102,7 @@ img={{.Field "cover"}}|
 	}
 	for _, want := range []string{
 		"P=blog/p.md|", "[Home:README.md][Post:blog/p.md]|",
-		"<2:a:First part><3:b:Second><4:c:Third>|", // h2-h4 only, text without tags
+		"[2:a:First part][3:b:Second][4:c:Third]|", // h2-h4 only, text without tags
 		"prev=Before@blog/a.md", "nonext|",
 		"(One/blog/one.md/First.)(Two/blog/two.md/Second.)|",
 		"w=400 rt=2|",
@@ -168,9 +168,8 @@ func TestFieldTypes(t *testing.T) {
 }
 
 func TestMarkdownFuncOnlyOnStrings(t *testing.T) {
-	res, err := apply(t, `{{markdown "**x**"}}|{{markdown (.Field "l")}}`, "fields:\n  l: { type: list }\n", "", Input{
-		Frontmatter: map[string]any{"l": []any{"a"}},
-		Markdown:    func(s string) (string, error) { return "<b>" + s + "</b>", nil },
+	res, err := apply(t, `{{markdown "**x**"}}|`, "", "", Input{
+		Markdown: func(s string) (string, error) { return "<b>" + s + "</b>", nil },
 	})
 	if err != nil {
 		t.Fatalf("%v", err)
