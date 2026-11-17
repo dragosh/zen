@@ -233,7 +233,7 @@ plugin := {
 
 if hook == "block" {
     title := attrs.title || (name == "warning" ? "Warning" : "Note")
-    out = zen.html("div", {class: name}, zen.html("strong", {}, title), zen.markdown(body))
+    out = zen.html("div", {class: name}, zen.html("div", {class: "callout-title"}, zen.html("strong", {}, title)), zen.markdown(body))
 }
 ```
 

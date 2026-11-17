@@ -45,7 +45,7 @@ A **Tengo** script gets the text of the block and returns HTML.
 renders as:
 
 :::tip{title="One file"}
-A **Tengo** script gets the text of the block and returns HTML.
+A **Tengo** script **gets the text of** the block and returns HTML.
 :::
 
 And the whole plugin is this file:
@@ -59,13 +59,13 @@ plugin := {
     css: "div.callout { margin: 0 0 1em; padding: 0.6em 1em; border: 1px solid var(--rule); " +
          "border-left-width: 4px; border-radius: var(--radius) } " +
          "div.callout.caution { border-left-color: var(--fg) } " +
-         "div.callout strong { display: block; margin-bottom: 0.25em }"
+         "div.callout-title { margin-bottom: 0.25em }"
 }
 
 if hook == "block" {
     title := attrs.title || (name == "caution" ? "Caution" : "Tip")
     out = zen.html("div", {class: "callout " + name},
-        zen.html("strong", {}, title),
+        zen.html("div", {class: "callout-title"}, zen.html("strong", {}, title)),
         zen.markdown(body))
 }
 ```

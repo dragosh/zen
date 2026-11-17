@@ -1,6 +1,7 @@
 package app
 
 import (
+	"os"
 	"path/filepath"
 	"regexp"
 	"runtime"
@@ -163,6 +164,18 @@ func TestDemoFolder(t *testing.T) {
 	}
 	if !strings.Contains(strings.Join(how.Assets.CSS, ","), "/_plugins/callout/inline.css") {
 		t.Errorf("callout css not offered: %+v", how.Assets)
+	}
+	// The title has its own block wrapper (kept by the sanitiser); bold text in
+	// the body stays inline in its paragraph, and no style targets every
+	// <strong> in a callout (that pushed bold body text onto its own line).
+	if !strings.Contains(how.HTML, `<div class="callout-title"><strong>One file</strong></div>`) {
+		t.Errorf("callout title wrapper missing: %s", how.HTML)
+	}
+	if !strings.Contains(how.HTML, `<p>A <strong>Tengo</strong> script`) {
+		t.Errorf("bold text in a callout body must stay inline in its paragraph: %s", how.HTML)
+	}
+	if css, _ := os.ReadFile(filepath.Join(demo, ".zen", "plugins", "callout.tengo")); strings.Contains(string(css), "callout strong") {
+		t.Error("callout.tengo styles every <strong> in a callout")
 	}
 	src, _ := z.state.ws.Read("plugins/writing-plugins.md")
 	if !strings.Contains(string(src), "The simplest plugin: one Tengo file") ||
