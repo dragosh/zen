@@ -12,7 +12,7 @@ Work through the steps in order. Tick the boxes to unlock the next step. Your pr
 
 ## Open a folder
 
-Zen reads a folder of markdown files. Open one from the File menu, or run `zen .` in a terminal.
+Zen reads a folder of markdown files. Open one from the File menu, or run `zenmd .` in a terminal.
 
 :::check
 - [ ] I opened a folder in zen

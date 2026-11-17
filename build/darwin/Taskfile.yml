@@ -6,7 +6,7 @@ includes:
 vars:
   # Docker image for cross-compilation (used when building on non-macOS)
   CROSS_IMAGE: wails-cross
-  # The bundle is Zen.app; the executable inside stays `zen` (APP_NAME).
+  # The bundle is Zen.app; the executable inside is `zenmd` (APP_NAME).
   BUNDLE_NAME: Zen
   BUNDLE: '{{.BIN_DIR}}/{{.BUNDLE_NAME}}.app'
   # Signing identity. "-" = ad-hoc (alpha). For a Developer ID build:
@@ -307,17 +307,20 @@ tasks:
       - task: art
 
   install:cli:
-    summary: Links INSTALL_DIR/zen (default /usr/local/bin) to the zen binary inside the installed Zen.app (APP_PATH, default /Applications/Zen.app)
+    summary: Links INSTALL_DIR/zenmd and INSTALL_DIR/zen (default /usr/local/bin) to the zenmd binary inside the installed Zen.app (APP_PATH, default /Applications/Zen.app)
     vars:
       INSTALL_DIR: '{{.INSTALL_DIR | default "/usr/local/bin"}}'
       APP_PATH: '{{.APP_PATH | default "/Applications/Zen.app"}}'
-    preconditions:
-      - sh: test -x "{{.APP_PATH}}/Contents/MacOS/{{.APP_NAME}}"
-        msg: "{{.APP_PATH}} not found. Copy bin/Zen.app to /Applications first (or set APP_PATH)."
     cmds:
-      - mkdir -p "{{.INSTALL_DIR}}"
-      - ln -sfn "{{.APP_PATH}}/Contents/MacOS/{{.APP_NAME}}" "{{.INSTALL_DIR}}/{{.APP_NAME}}"
-      - echo "Linked {{.INSTALL_DIR}}/{{.APP_NAME}} -> {{.APP_PATH}}/Contents/MacOS/{{.APP_NAME}}"
+      - go run ./build/darwin/installcli -app "{{.APP_PATH}}" -dir "{{.INSTALL_DIR}}"
+
+  uninstall:cli:
+    summary: Removes INSTALL_DIR/zenmd and INSTALL_DIR/zen, only when they point into Zen.app
+    vars:
+      INSTALL_DIR: '{{.INSTALL_DIR | default "/usr/local/bin"}}'
+      APP_PATH: '{{.APP_PATH | default "/Applications/Zen.app"}}'
+    cmds:
+      - go run ./build/darwin/installcli -app "{{.APP_PATH}}" -dir "{{.INSTALL_DIR}}" -uninstall
 
   run:
     cmds:

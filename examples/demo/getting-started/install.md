@@ -5,7 +5,7 @@ nav:
 ---
 # Install zen
 
-zen is one application, `Zen.app`, with the `zen` command inside it.
+zen.md is one application, `Zen.app`, with the `zenmd` command inside it.
 
 ## From the source
 
@@ -17,18 +17,18 @@ task package          # builds bin/Zen.app (downloads Vale once)
 
 Drag `bin/Zen.app` into `/Applications`.
 
-## The `zen` command
+## The `zenmd` command
 
 ```sh
-task install:cli      # links /usr/local/bin/zen to the app
+task install:cli      # links /usr/local/bin/zenmd (and zen) to the app
 # or, while developing:
-task install          # links ~/.local/bin/zen to bin/zen
+task install          # links ~/.local/bin/zenmd to bin/zenmd
 ```
 
 Check it:
 
 ```sh
-zen --version         # zen 0.1.0-alpha.1
+zenmd --version       # zenmd 0.1.0-alpha.1
 ```
 
 Next: [open a folder](opening-folders.md).

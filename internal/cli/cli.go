@@ -1,4 +1,4 @@
-// Package cli parses the zen command line and decides whether to print
+// Package cli parses the zenmd command line and decides whether to print
 // information or start the GUI. It uses the standard library only.
 package cli
 
@@ -11,6 +11,31 @@ import (
 	"regexp"
 	"strings"
 )
+
+// Name is the command and executable: the name of the engine.
+const Name = "zenmd"
+
+// Alias is the old command name. It keeps working until 0.4.0 and says so.
+const Alias = "zen" // removed in 0.4.0
+
+// ProgramName tells which name the program was started as, from argv[0]:
+// "zen" (the alias, matched by base name and ignoring case, as the disk may
+// be case-insensitive) or "zenmd" for anything else (including a temporary
+// binary from `go run .`). The link name counts, not the link's target.
+func ProgramName(argv0 string) string {
+	base := filepath.Base(filepath.FromSlash(argv0))
+	if argv0 != "" && strings.EqualFold(base, Alias) {
+		return Alias
+	}
+	return Name
+}
+
+// Notice prints the alias line for "zen" and nothing for any other name.
+func Notice(w io.Writer, invokedAs string) {
+	if invokedAs == Alias {
+		fmt.Fprintln(w, "zen is now zenmd; the zen name stops working in 0.4.0")
+	}
+}
 
 // Version is set at build time with
 // -ldflags "-X github.com/dragosh/zen/internal/cli.Version=<v>".
@@ -26,7 +51,7 @@ type Launch struct {
 // Launcher starts the GUI and blocks until it exits.
 type Launcher func(Launch) error
 
-// Build describes what `zen build` does: no window, no questions.
+// Build describes what `zenmd build` does: no window, no questions.
 type Build struct {
 	Dir      string // absolute folder
 	Out      string // absolute output folder; "" = from config / default
@@ -43,7 +68,7 @@ type Build struct {
 // written.
 type Builder func(Build, io.Writer, io.Writer) error
 
-// Init describes `zen init`: start a folder from a site template, or list and
+// Init describes `zenmd init`: start a folder from a site template, or list and
 // update the templates. It never asks anything, so it works in scripts.
 type Init struct {
 	Dir, Template string            // absolute target folder; template id (or the id to update)
@@ -52,24 +77,24 @@ type Init struct {
 	ShowDir       bool
 }
 
-// Initer does what `zen init` asks. It writes its result to stdout and notes
+// Initer does what `zenmd init` asks. It writes its result to stdout and notes
 // to stderr. Return UsageError for a wrong request (exit 2) and any other
 // error for a failure (exit 1).
 type Initer func(Init, io.Writer, io.Writer) error
 
-// UsageError is an error that makes zen print the usage and exit with 2.
+// UsageError is an error that makes zenmd print the usage and exit with 2.
 func UsageError(msg string) error { return usageError(msg) }
 
-const usage = `zen - markdown reader and editor
+const usage = `zenmd - the zen.md engine: markdown folders as pages, sites and print
 
 Usage:
-  zen [path]          open a folder or markdown file (default: current folder)
-  zen edit [path]     open in the editor; a new .md file is created on save
-  zen build [folder]  build a static website; options below
-  zen init site [--techdocs|--learning|--planner] [folder]
-                      start a folder from a site template; options below
-  zen help            show this help
-  zen version         show the version
+  zenmd [path]          open a folder or markdown file (default: current folder)
+  zenmd edit [path]     open in the editor; a new .md file is created on save
+  zenmd build [folder]  build a static website; options below
+  zenmd init site [--techdocs|--learning|--planner] [folder]
+                        start a folder from a site template; options below
+  zenmd help            show this help
+  zenmd version         show the version
 
 Options:
   -h, --help          show this help
@@ -109,7 +134,7 @@ func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher, b
 			fmt.Fprint(stdout, usage)
 			return 0
 		case flags && (arg == "-v" || arg == "--version"):
-			fmt.Fprintf(stdout, "zen %s\n", Version)
+			fmt.Fprintf(stdout, "zenmd %s\n", Version)
 			return 0
 		case flags && strings.HasPrefix(arg, "-") && arg != "-":
 			return fail(stderr, usageError("unknown option "+arg))
@@ -117,7 +142,7 @@ func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher, b
 			fmt.Fprint(stdout, usage)
 			return 0
 		case flags && first && arg == "version":
-			fmt.Fprintf(stdout, "zen %s\n", Version)
+			fmt.Fprintf(stdout, "zenmd %s\n", Version)
 			return 0
 		case flags && first && arg == "build":
 			return runBuild(args[i+1:], cwd, stdout, stderr, build)
@@ -150,7 +175,7 @@ func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher, b
 	return 0
 }
 
-// runBuild parses the arguments after `zen build` and calls the builder.
+// runBuild parses the arguments after `zenmd build` and calls the builder.
 func runBuild(args []string, cwd string, stdout, stderr io.Writer, build Builder) int {
 	b := Build{}
 	var paths []string
@@ -212,7 +237,7 @@ func runBuild(args []string, cwd string, stdout, stderr io.Writer, build Builder
 		b.Out = filepath.Clean(b.Out)
 	}
 	if build == nil {
-		return fail(stderr, errors.New("this zen cannot build sites"))
+		return fail(stderr, errors.New("this zenmd cannot build sites"))
 	}
 	if err := build(b, stdout, stderr); err != nil {
 		return fail(stderr, err)
@@ -222,7 +247,7 @@ func runBuild(args []string, cwd string, stdout, stderr io.Writer, build Builder
 
 var initFlagRE = regexp.MustCompile(`^--[a-z][a-z0-9-]*$`)
 
-// runInit parses the arguments after `zen init` and calls the initer.
+// runInit parses the arguments after `zenmd init` and calls the initer.
 func runInit(args []string, cwd string, stdout, stderr io.Writer, initer Initer) int {
 	in := Init{Values: map[string]string{}}
 	var paths []string
@@ -315,7 +340,7 @@ func runInit(args []string, cwd string, stdout, stderr io.Writer, initer Initer)
 	case modes == 1 && (site || len(paths) > 0 || len(set) > 0 || title != nil || author != nil || (in.Template != "" && !noTemplate)):
 		return fail(stderr, usageError("--list, --dir and --update take nothing else"))
 	case modes == 0 && !site:
-		return fail(stderr, usageError("zen init what? try: zen init site --techdocs"))
+		return fail(stderr, usageError("zenmd init what? try: zenmd init site --techdocs"))
 	case len(paths) > 1:
 		return fail(stderr, usageError("more than one folder given"))
 	}
@@ -337,7 +362,7 @@ func runInit(args []string, cwd string, stdout, stderr io.Writer, initer Initer)
 		in.Dir = filepath.Clean(in.Dir)
 	}
 	if initer == nil {
-		return fail(stderr, errors.New("zen init is not available in this build of zen"))
+		return fail(stderr, errors.New("zenmd init is not available in this build"))
 	}
 	missing := modes == 0 && in.Template == ""
 	if missing {
@@ -347,7 +372,7 @@ func runInit(args []string, cwd string, stdout, stderr io.Writer, initer Initer)
 		return fail(stderr, err)
 	}
 	if missing {
-		fmt.Fprintln(stderr, "zen: choose a template, for example: zen init site --techdocs")
+		fmt.Fprintln(stderr, "zenmd: choose a template, for example: zenmd init site --techdocs")
 		return 2
 	}
 	return 0
@@ -364,10 +389,10 @@ func finderLaunch(cwd string) bool {
 func fail(stderr io.Writer, err error) int {
 	var u usageError
 	if errors.As(err, &u) {
-		fmt.Fprintf(stderr, "zen: %v\n\n%s", err, usage)
+		fmt.Fprintf(stderr, "zenmd: %v\n\n%s", err, usage)
 		return 2
 	}
-	fmt.Fprintf(stderr, "zen: %v\n", err)
+	fmt.Fprintf(stderr, "zenmd: %v\n", err)
 	return 1
 }
 

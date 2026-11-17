@@ -11,6 +11,6 @@ plugins:
   codeblock: true
   diagram: { theme: neutral }
 
-# zen build turns this folder into a website you can host anywhere.
+# zenmd build turns this folder into a website you can host anywhere.
 build:
   out: _site

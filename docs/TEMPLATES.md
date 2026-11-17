@@ -1,17 +1,17 @@
 # Site templates
 
-A site template is a folder that `zen init site` (or File › New Site from
+A site template is a folder that `zenmd init site` (or File › New Site from
 Template…, ⇧⌘N) copies into a new or existing folder. Spec:
 [specs/core/init](../specs/core/init/spec.md).
 
 ```sh
-zen init site --techdocs docs       # Technical documentation (Diátaxis)
-zen init site --learning course     # A learning path
-zen init site --planner plans       # A planner
-zen init site --template my-id .    # any template in your templates folder
-zen init --list                     # what is there
-zen init --dir                      # where the templates folder is
-zen init --update techdocs          # a newer built-in, written next to yours as techdocs.new
+zenmd init site --techdocs docs       # Technical documentation (Diátaxis)
+zenmd init site --learning course     # A learning path
+zenmd init site --planner plans       # A planner
+zenmd init site --template my-id .    # any template in your templates folder
+zenmd init --list                     # what is there
+zenmd init --dir                      # where the templates folder is
+zenmd init --update techdocs          # a newer built-in, written next to yours as techdocs.new
 ```
 
 ## Where templates live

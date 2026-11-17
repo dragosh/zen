@@ -45,7 +45,7 @@
 		<key>CFBundleDisplayName</key>
 		<string>{{PRODUCT_NAME}}</string>
 		<key>CFBundleExecutable</key>
-		<string>zen</string>
+		<string>zenmd</string>
 		<key>CFBundleGetInfoString</key>
 		<string>Markdown reader and editor</string>
 		<key>CFBundleIconFile</key>

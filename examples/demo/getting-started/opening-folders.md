@@ -18,11 +18,11 @@ watches stays inside that folder.
 
 | Command | Opens |
 |---|---|
-| `zen` | the current folder |
-| `zen docs/` | that folder |
-| `zen notes/idea.md` | the nearest folder above it with a `.zen.yml` or `.git`, at that page |
-| `zen edit README.md` | the folder, plus an editor window for the page |
-| `zen --help` / `zen --version` | help, version |
+| `zenmd` | the current folder |
+| `zenmd docs/` | that folder |
+| `zenmd notes/idea.md` | the nearest folder above it with a `.zen.yml` or `.git`, at that page |
+| `zenmd edit README.md` | the folder, plus an editor window for the page |
+| `zenmd --help` / `zenmd --version` | help, version |
 
 ## What zen shows first
 

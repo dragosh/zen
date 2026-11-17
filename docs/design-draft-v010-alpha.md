@@ -20,7 +20,7 @@ plugin system, built on [Wails v3](https://v3.wails.io).
 ### Reference CLI subcommands
 ```
 zen -> open the current folder, if there is a README.md file renders it
-zen edit [path/to-file] -> editor with option specific filepath
+zenmd edit [path/to-file] -> editor with option specific filepath
 ```
 ## Core features
   - Server side markdown render with a pluggable system 

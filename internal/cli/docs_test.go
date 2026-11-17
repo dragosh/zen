@@ -12,7 +12,7 @@ import (
 // oldCommand finds the retired command name used as a command: `zen build`,
 // `zen init …`, `zen --version`, `zen .`, a path argument, or a code line that
 // starts with it. Running text such as "zen reads a folder" does not match.
-var oldCommand = regexp.MustCompile("(^|[\\s`$(&|])zen( (build|init|edit|help|version)\\b| -{1,2}[a-z]| \\.(\\s|$|`)| \\[| [\\w.~-]+/|\\s*#|\\s*$)")
+var oldCommand = regexp.MustCompile("(^|[\\s`$(&|])zen( (build|init|edit|help|version)\\b| -{1,2}[a-z]| \\.(\\s|$|`)| \\[| [\\w.~-]+/)|&& zen\\s*$|`zen` \\|")
 
 // docFiles lists the files the cli-rename spec owns for command examples.
 func docFiles(t *testing.T) []string {

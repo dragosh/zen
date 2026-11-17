@@ -35,7 +35,7 @@ plugins:
 ```
 
 ```sh
-zen edit README.md   # open the editor
+zenmd edit README.md   # open the editor
 ```
 
 ```json

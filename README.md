@@ -2,7 +2,7 @@
 
 **zen.md** is a desktop markdown reader and editor with live reload and a runtime
 plugin system, built on [Wails v3](https://v3.wails.io). macOS first. Its
-command line tool is `zen`.
+command line tool is `zenmd` (`zen` still works until 0.4.0 and says so).
 
 - Plan and architecture: [docs/PLAN.md](docs/PLAN.md)
 - Feature specs, prompts and tests: [specs/](specs/README.md)
@@ -18,17 +18,17 @@ go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
 | Command | What it does |
 |---|---|
 | `wails3 dev` | Run the app with live reload |
-| `wails3 build` | Build `bin/zen` |
-| `wails3 package` | Build `bin/zen.app` (macOS) |
+| `wails3 build` | Build `bin/zenmd` |
+| `wails3 package` | Build `bin/Zen.app` (macOS) |
 | `wails3 task darwin:package:dmg` | Build the `.dmg` (macOS) |
 | `wails3 task test` | Run Go and frontend tests |
 
 ## CLI
 
 ```sh
-zen [file ...]     # open files in the app
-zen --version
-zen --help
+zenmd [file ...]   # open files in the app
+zenmd --version
+zenmd --help
 ```
 
 ## Try it
@@ -37,5 +37,5 @@ zen --help
 shows every feature. Build the app, then:
 
 ```bash
-cd examples/demo && zen
+cd examples/demo && zenmd
 ```

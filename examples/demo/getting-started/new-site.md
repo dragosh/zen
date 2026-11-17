@@ -32,19 +32,19 @@ overwritten, zen writes nothing and lists the files in the way.
 ## From a terminal
 
 ```sh
-zen init site --techdocs docs --title "Acme docs"
-zen init site --learning course --author "Ana"
-zen init --list
+zenmd init site --techdocs docs --title "Acme docs"
+zenmd init site --learning course --author "Ana"
+zenmd init --list
 ```
 
 | Command | Does |
 |---|---|
-| `zen init site --<id> [folder]` | creates the site; the folder defaults to the current one |
-| `zen init site --template <id>` | the same, for any template by id |
+| `zenmd init site --<id> [folder]` | creates the site; the folder defaults to the current one |
+| `zenmd init site --template <id>` | the same, for any template by id |
 | `--title`, `--author`, `--set key=value` | give the values; the others take their defaults |
-| `zen init --list` | lists the templates |
-| `zen init --update <id>` | writes a newer built-in next to your copy, as `<id>.new` |
-| `zen init --dir` | prints the templates folder |
+| `zenmd init --list` | lists the templates |
+| `zenmd init --update <id>` | writes a newer built-in next to your copy, as `<id>.new` |
+| `zenmd init --dir` | prints the templates folder |
 
 The command never asks questions, so it works in scripts. It exits with 1 when
 files are in the way, and with 2 for a mistake in the command.

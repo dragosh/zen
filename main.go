@@ -20,13 +20,16 @@ func main() {
 	if len(os.Args) > 1 && os.Args[1] == scriptplugins.HostArg {
 		os.Exit(scriptplugins.HostMain(os.Stdin, os.Stdout, os.Stderr))
 	}
+	// The alias notice: only for the old name, on stderr, after the helper
+	// mode above (which must print nothing).
+	cli.Notice(os.Stderr, cli.ProgramName(os.Args[0]))
 	cwd, err := os.Getwd()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "zen: %v\n", err)
+		fmt.Fprintf(os.Stderr, "zenmd: %v\n", err)
 		os.Exit(1)
 	}
 	if sub, err := fs.Sub(dist, "frontend/dist"); err == nil {
-		app.StaticAssets = sub // zen build: the static page runtime (dist/static)
+		app.StaticAssets = sub // zenmd build: the static page runtime (dist/static)
 	}
 	os.Exit(cli.Run(os.Args[1:], cwd, os.Stdout, os.Stderr, launch, app.BuildSite, app.InitSite))
 }
