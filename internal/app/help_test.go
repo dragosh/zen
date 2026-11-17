@@ -105,7 +105,7 @@ func TestPluginsHelpAndAdds(t *testing.T) {
 	for i, p := range shape {
 		by[p.ID] = i
 		if p.Help.Summary == "" || len(p.Help.Snippets) == 0 {
-			t.Errorf("%s: no help in Plugins(): %s", p.ID, raw)
+			t.Errorf("%s: no help in Plugins()", p.ID)
 		}
 	}
 	d := shape[by["diagram"]]
@@ -125,6 +125,12 @@ func TestPluginsHelpAndAdds(t *testing.T) {
 		p := shape[by[id]]
 		if p.Help.Summary == "" || len(p.Help.Snippets) == 0 {
 			t.Errorf("demo plugin %s has no help", id)
+		}
+		for _, sn := range p.Help.Snippets {
+			pg, err := z.Preview("README.md", sn.Markdown)
+			if err != nil || len(pg.Warnings) > 0 || strings.Contains(pg.HTML, "zen-plugin-error") {
+				t.Errorf("demo plugin %s, snippet %q: %v %q", id, sn.Title, err, pg.Warnings)
+			}
 		}
 	}
 }

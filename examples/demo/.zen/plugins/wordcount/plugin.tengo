@@ -6,7 +6,15 @@ plugin := {
     description: "Word counts for this page and for every page",
     inlines: ["words"],
     blocks: ["pages"],
-    permissions: ["read"]
+    permissions: ["read"],
+    help: {
+        summary: "Word counts, from the files of this folder (it asks for the read permission). The words inline counts the page it is on; the pages block lists pages with their counts, at most limit of them.",
+        snippets: [
+            {title: "Words of this page", markdown: "This page has :words[] words."},
+            {title: "Words of the first five pages", markdown: `:::pages{limit=5}
+:::`}
+        ]
+    }
 }
 
 count := func(path) {

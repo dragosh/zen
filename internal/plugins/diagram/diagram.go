@@ -28,8 +28,16 @@ func (plugin) Manifest() plugins.Manifest {
 		APIVersion:  plugins.APIVersion,
 		Description: "Mermaid diagrams",
 		Default:     true,
-		Blocks:      []string{"mermaid", "diagram"},
-		Allow:       []plugins.AllowRule{{Element: "div", Attrs: []string{"data-theme"}}},
+		Help: plugins.Help{
+			Summary: "Draws mermaid diagrams from a mermaid (or diagram) block. Diagrams follow the light or dark theme. A wrong diagram keeps its source visible, with mermaid's error under it.",
+			Snippets: []plugins.Snippet{
+				{Title: "A flowchart", Markdown: plugins.Fences("~~~mermaid\ngraph LR\n  A[Open folder] --> B{README.md?}\n  B -- yes --> C[Show README]\n  B -- no --> D[Pick a page]\n~~~")},
+				{Title: "A sequence diagram", Markdown: plugins.Fences("~~~mermaid\nsequenceDiagram\n  You->>Editor: type\n  You->>Editor: save\n  Editor-->>You: page reloads\n~~~")},
+				{Title: "Another theme for one page", Markdown: plugins.Fences("---\nplugins:\n  diagram: { theme: dark }\n---\n# A page\n\n~~~mermaid\ngraph TD\n  A --> B\n~~~")},
+			},
+		},
+		Blocks: []string{"mermaid", "diagram"},
+		Allow:  []plugins.AllowRule{{Element: "div", Attrs: []string{"data-theme"}}},
 		Config: map[string]plugins.Option{
 			"theme": {Type: "string", Default: "neutral", Description: "mermaid theme: neutral, dark or default"},
 		},

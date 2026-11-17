@@ -3,6 +3,17 @@ plugin := {
     version: "0.1.0",
     description: "Tip and caution callouts",
     blocks: ["tip", "caution"],
+    help: {
+        summary: "Tip and caution callouts in one Tengo file. The body is markdown, so **bold** and links work inside. title sets the heading (the default is Tip or Caution).",
+        snippets: [
+            {title: "A tip", markdown: `:::tip{title="One file"}
+A **Tengo** script gets the text of the block and returns HTML.
+:::`},
+            {title: "A caution", markdown: `:::caution
+Back up the folder first.
+:::`}
+        ]
+    },
     css: "div.callout { margin: 0 0 1em; padding: 0.6em 1em; border: 1px solid var(--rule); " +
          "border-left-width: 4px; border-radius: var(--radius) } " +
          "div.callout.caution { border-left-color: var(--fg) } " +

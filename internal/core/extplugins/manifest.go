@@ -73,6 +73,7 @@ type rawManifest struct {
 	Layouts     []string             `yaml:"layouts"`
 	Options     map[string]rawOption `yaml:"options"`
 	Allow       []rawAllow           `yaml:"allow"`
+	Help        any                  `yaml:"help"` // {summary, snippets: [{title, markdown}]}, checked by plugins.ParseHelp
 	Backend     *rawBackend          `yaml:"backend"`
 	Frontend    *rawFrontend         `yaml:"frontend"`
 }
@@ -272,6 +273,11 @@ func Load(dir string) (*Plugin, error) {
 			return nil, errors.New("allow: element is empty")
 		}
 		m.Allow = append(m.Allow, plugins.AllowRule{Element: a.Element, Attrs: a.Attrs})
+	}
+	if raw.Help != nil {
+		if m.Help, err = plugins.ParseHelp(raw.Help); err != nil {
+			return nil, err
+		}
 	}
 	if raw.Backend != nil {
 		if p.back, err = loadBackend(real, raw.Backend); err != nil {

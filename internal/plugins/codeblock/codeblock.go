@@ -40,6 +40,13 @@ func (plugin) Manifest() plugins.Manifest {
 		APIVersion:  plugins.APIVersion,
 		Description: "Code blocks: syntax colours (chroma, CSS classes only) and Copy and Wrap buttons.",
 		Default:     true,
+		Help: plugins.Help{
+			Summary: "Colours fenced code blocks by language and gives each block a Copy and a Wrap button. A block without a language, or with one chroma does not know, stays plain.",
+			Snippets: []plugins.Snippet{
+				{Title: "A coloured block", Markdown: plugins.Fences("~~~go\nfunc Hello(name string) string {\n\treturn \"hello, \" + name\n}\n~~~")},
+				{Title: "Line numbers and wrapping for one page", Markdown: plugins.Fences("---\nplugins:\n  codeblock: { lineNumbers: true, wrap: true }\n---\n# A page\n\n~~~sh\nzen edit README.md\n~~~")},
+			},
+		},
 		Allow: []plugins.AllowRule{
 			{Element: "span", Attrs: []string{"class"}},
 			{Element: "pre", Attrs: []string{"class"}},

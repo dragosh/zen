@@ -3,6 +3,7 @@ package plugins
 import (
 	"errors"
 	"fmt"
+	"strings"
 	"unicode/utf8"
 )
 
@@ -102,3 +103,7 @@ func ParseHelp(v any) (Help, error) {
 	}
 	return h, CheckHelp(h)
 }
+
+// Fences returns s with every "~~~" replaced by a code fence ("```"), so that
+// built-in help snippets can be written in Go raw strings.
+func Fences(s string) string { return strings.ReplaceAll(s, "~~~", "```") }

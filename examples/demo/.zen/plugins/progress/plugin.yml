@@ -6,6 +6,17 @@ default: true
 
 blocks: [progress]
 
+help:
+  summary: Checklists that remember what you ticked. Give the block an id that is unique in the page; the ticks are saved on this Mac under that id.
+  snippets:
+    - title: A checklist
+      markdown: |
+        :::progress{id=first-plugin}
+        - [ ] Read this page
+        - [ ] Allow the demo plugins
+        - [ ] Copy one and change it
+        :::
+
 frontend:
   js: [progress.js]
   css: [progress.css]

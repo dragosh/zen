@@ -54,7 +54,15 @@ func (*plugin) Manifest() plugins.Manifest {
 		APIVersion:  plugins.APIVersion,
 		Description: "Quizzes with stored answers and scores",
 		Default:     true,
-		Blocks:      []string{"quiz", "quiz-results"},
+		Help: plugins.Help{
+			Summary: "Quizzes written in markdown. A quiz block holds numbered questions: ( ) and (x) for one right option, [ ] and [x] for several, question = answer for free text, and a line starting with > is the explanation. The answers stay out of the page; zen checks them when you press Check. Scores are kept on this Mac.",
+			Snippets: []plugins.Snippet{
+				{Title: "A quiz", Markdown: ":::quiz{id=http-basics title=\"HTTP basics\" pass=70}\n1. Which method is idempotent?\n   - ( ) POST\n   - (x) PUT\n   - ( ) PATCH\n   > PUT replaces the resource, so repeating it changes nothing.\n2. Select the 2xx codes.\n   - [x] 200\n   - [x] 204\n   - [ ] 301\n3. What does TLS stand for? = Transport Layer Security\n:::\n"},
+				{Title: "Options of a quiz block", Markdown: "id names the stored results and must be unique in the page.\ntitle is the heading, pass the percent that passes (default 70), attempts caps the tries, shuffle mixes the options, reveal=each checks one question at a time.\n\n:::quiz{id=short title=\"Short quiz\" attempts=3 shuffle reveal=each}\n1. Is Go compiled?\n   - (x) Yes\n   - ( ) No\n:::\n"},
+				{Title: "All your results", Markdown: ":::quiz-results\n:::\n"},
+			},
+		},
+		Blocks: []string{"quiz", "quiz-results"},
 	}
 }
 

@@ -6,6 +6,20 @@ default: true
 
 blocks: [note, warning]
 
+help:
+  summary: Callout boxes. A note block draws a note, a warning block a warning; title sets the heading (the default is Note or Warning). The body is plain text turned into HTML by note.sh.
+  snippets:
+    - title: A note
+      markdown: |
+        :::note{title="Remember"}
+        A backend gets the text of the block and prints HTML.
+        :::
+    - title: A warning
+      markdown: |
+        :::warning
+        Back up the folder first.
+        :::
+
 allow:
   - { element: div, attrs: [class] }
 
