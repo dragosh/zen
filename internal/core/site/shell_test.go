@@ -129,7 +129,10 @@ func TestShellCSP(t *testing.T) {
 				}
 				wantScript := "script-src 'self'"
 				if portable {
-					wantScript = "script-src 'self' blob:"
+					wantScript = "script-src 'self' file: blob:"
+				}
+				if !portable && strings.Contains(csp, "file:") {
+					t.Errorf("%s: hosted pages must not allow file: %s", name, csp)
 				}
 				if !regexp.MustCompile(`(^|; )` + regexp.QuoteMeta(wantScript) + `(;|$)`).MatchString(csp) {
 					t.Errorf("%s: want %q in %s", name, wantScript, csp)
