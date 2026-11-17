@@ -2,7 +2,7 @@
 // getApi() only inside the Wails webview.
 import { Events, Window } from "@wailsio/runtime";
 import { Zen } from "../../bindings/github.com/dragosh/zen/internal/app/index.js";
-import type { Alert, Api, Crumb, LintResult, NavNode, Page, PluginInfo, Startup, Workspace } from "./index";
+import type { Alert, Api, Crumb, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
 
 type Raw = Record<string, any> | null | undefined;
 
@@ -37,6 +37,18 @@ const SOURCES: PluginInfo["source"][] = ["builtin", "folder", "user"];
 const STATUSES: PluginInfo["status"][] = ["on", "off", "blocked", "undecided", "invalid"];
 const KINDS: PluginInfo["kind"][] = ["program", "page", "script", "builtin"];
 
+const strings = (v: unknown): string[] => (Array.isArray(v) ? v.map(String) : []);
+
+function snippets(v: unknown): PluginSnippet[] {
+  return (Array.isArray(v) ? v : []).filter((x): x is Record<string, any> => Boolean(x) && typeof x === "object")
+    .map((x) => ({ title: String(x.title ?? ""), markdown: String(x.markdown ?? "") }));
+}
+
+function options(v: unknown): PluginOption[] {
+  return (Array.isArray(v) ? v : []).filter((x): x is Record<string, any> => Boolean(x) && typeof x === "object")
+    .map((x) => ({ name: String(x.name ?? ""), type: String(x.type ?? ""), default: x.default ?? null, description: String(x.description ?? "") }));
+}
+
 /** Unknown values fall to the careful side: an external plugin that is not in use. */
 function pluginInfo(p: Record<string, any>): PluginInfo {
   return {
@@ -48,6 +60,11 @@ function pluginInfo(p: Record<string, any>): PluginInfo {
     runs: Array.isArray(p.runs) ? p.runs.map(String) : [],
     problem: String(p.problem ?? ""),
     kind: KINDS.includes(p.kind) ? p.kind : p.source === "builtin" ? "builtin" : "program",
+    help: { summary: String(p.help?.summary ?? ""), snippets: snippets(p.help?.snippets) },
+    blocks: strings(p.blocks),
+    inlines: strings(p.inlines),
+    layouts: strings(p.layouts),
+    options: options(p.options),
   };
 }
 

@@ -25,5 +25,5 @@ zen
 - [Plugins](plugins/index.md): code colours, diagrams and how plugins are written.
   Make your own with a script or a few lines of JavaScript:
   [Writing your own plugin](plugins/writing-plugins.md).
-- [Settings](configuration/settings.md): the settings panel and config files.
+- [Settings](configuration/settings.md): the settings page and config files.
 - [Keyboard shortcuts](reference/shortcuts.md) and a [markdown showcase](reference/markdown.md).

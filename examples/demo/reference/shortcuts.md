@@ -8,7 +8,7 @@
 | <kbd>⌘E</kbd> | edit the page |
 | <kbd>⌘[</kbd> / <kbd>⌘]</kbd> | back / forward |
 | <kbd>⌘\</kbd> | show or hide the sidebar |
-| <kbd>⌘,</kbd> | settings |
+| <kbd>⌘,</kbd> | settings (<kbd>Esc</kbd> goes back) |
 | <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | move in the sidebar, close and open branches |
 
 ## Editor window

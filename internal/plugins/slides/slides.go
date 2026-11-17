@@ -25,7 +25,14 @@ func (plugin) Manifest() plugins.Manifest {
 		APIVersion:  plugins.APIVersion,
 		Description: "Show a page as slides",
 		Default:     true,
-		Layouts:     []string{"slides"},
+		Help: plugins.Help{
+			Summary: "Shows a page as slides. Set layout: slides in the frontmatter. A line with three dashes starts a new slide (without any, each top heading does). A paragraph that starts with Note: is a speaker note. Arrow keys move, O shows all slides, F shows the deck full page.",
+			Snippets: []plugins.Snippet{
+				{Title: "A slide deck", Markdown: "---\ntitle: My talk\nlayout: slides\n---\n# First slide\n\nA short opening.\n\nNote: Welcome everyone.\n\n---\n\n## Second slide\n\n- One point\n- Another point\n"},
+				{Title: "Ratio and transition", Markdown: "---\ntitle: My talk\nlayout: slides\nlayoutOptions: { ratio: \"4:3\", transition: fade }\n---\n# A slide\n\nratio is width:height (default 16:9); transition may be fade.\n"},
+			},
+		},
+		Layouts: []string{"slides"},
 	}
 }
 

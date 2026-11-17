@@ -23,9 +23,11 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 - Edit opens the page in its own editor window (editor only, no split preview); the main window follows the unsaved text live.
 - File › Open Folder (⌘O) from the menu switches the window to the new folder, also from the welcome screen.
 - `zen` opens the current folder instead of a single file.
+- Settings is a page in the main window (cog or ⌘,; Esc or Back returns) with Appearance, Configuration files and Plugins sections, instead of a popover.
 
 ### Added
 
+- Plugin help: Settings › Plugins shows help for each plugin next to the list (summary, what it adds, snippets with a Copy button, a preview for built-ins) and an "All plugins" cheat sheet. Plugins add it with a `help:` key in `plugin.yml` or the Tengo `plugin` map; all built-in and demo plugins have it.
 - Script plugins: a single `.tengo` file is a plugin (blocks, inlines, layouts, actions), with a `zen` module for HTML, nested markdown, storage and, with permission, reading the folder. Scripts run in a helper process with time, allocation and memory limits, so a broken script can never crash zen. Samples: `callout.tengo`, `wordcount/plugin.tengo`.
 - File › New Page… (⌘N) asks for a name and a layout (page, slides or course) and opens the new page in the editor.
 - Editor: the Problems panel has severity tabs and can be resized from its top edge.

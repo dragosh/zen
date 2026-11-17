@@ -1,17 +1,17 @@
-// The settings panel, opened from the cog at the bottom of the sidebar:
-// theme (this machine, all windows), the two config files, opened in zen's
-// own editor window, and the plugins with Allow / Block for external ones.
+// The Settings page, shown in the main pane (the sidebar stays): a section
+// list on the left (Appearance, Configuration files, Plugins) and the section
+// on the right. Theme applies to this machine and all windows; the two config
+// files open in zen's own editor window; Plugins is shell/pluginhelp.ts.
 // All text through textContent.
-import type { Api, PluginInfo } from "../api";
+import type { Api } from "../api";
 import { button, el } from "./dom";
+import { createPluginsSection } from "./pluginhelp";
 import { setTheme, storedTheme, type Theme } from "./theme";
 
-export type SettingsPanel = {
+export type SettingsView = {
   el: HTMLElement;
-  open(): void;
-  close(): void;
-  toggle(): void;
-  isOpen(): boolean;
+  /** Called each time the page is shown: re-reads the theme and the plugins. */
+  show(): void;
   destroy(): void;
 };
 
@@ -21,34 +21,77 @@ const THEMES: { id: Theme; label: string }[] = [
   { id: "dark", label: "Dark" },
 ];
 
-const SOURCE_LABEL: Record<PluginInfo["source"], string> = { builtin: "Built in", folder: "This folder", user: "Your plugins" };
-const KIND_LABEL: Record<PluginInfo["kind"], string> = { builtin: "built in", program: "program", page: "page scripts", script: "script" };
-const STATUS_LABEL: Record<PluginInfo["status"], string> = {
-  on: "On", off: "Off", blocked: "Blocked", undecided: "Not allowed yet", invalid: "Invalid",
-};
+const SECTIONS = [
+  { id: "appearance", label: "Appearance" },
+  { id: "files", label: "Configuration files" },
+  { id: "plugins", label: "Plugins" },
+] as const;
+type SectionId = (typeof SECTIONS)[number]["id"];
+
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-export function createSettings(opts: { api: Api; anchor: HTMLButtonElement; hasWorkspace(): boolean }): SettingsPanel {
-  const { api, anchor } = opts;
-  const doc = anchor.ownerDocument;
-  const panel = el("section", "zen-settings");
-  panel.id = "zen-settings";
-  panel.setAttribute("role", "dialog");
-  panel.setAttribute("aria-label", "Settings");
-  panel.hidden = true;
-  anchor.setAttribute("aria-controls", panel.id);
-  anchor.setAttribute("aria-expanded", "false");
+export function createSettingsView(opts: { api: Api; hasWorkspace(): boolean }): SettingsView {
+  const { api } = opts;
+  const page = el("section", "zen-settings-page");
+  page.setAttribute("aria-label", "Settings");
 
-  const title = el("h2", "zen-settings-title", "Settings");
+  // ---- the section list
 
-  // Theme: a radio group shown as a segmented control.
-  const themeLabel = el("p", "zen-settings-label", "Appearance");
+  const nav = el("nav", "zen-settings-sections");
+  nav.setAttribute("aria-label", "Settings sections");
+  nav.append(el("h1", "zen-settings-title", "Settings"));
+  const tabs = SECTIONS.map(({ id, label }) => {
+    const b = button(label, () => choose(id), { className: "zen-settings-section" });
+    b.dataset.section = id;
+    return b;
+  });
+  const items = el("div", "zen-settings-sections-list");
+  items.append(...tabs);
+  nav.addEventListener("keydown", (e) => {
+    const step = ({ ArrowDown: 1, ArrowUp: -1 } as Record<string, number>)[e.key];
+    if (step === undefined) return;
+    e.preventDefault();
+    const i = SECTIONS.findIndex((s) => s.id === current);
+    const next = (i + step + SECTIONS.length) % SECTIONS.length;
+    choose(SECTIONS[next].id);
+    tabs[next].focus();
+  });
+  nav.append(items);
+
+  const body = el("div", "zen-settings-body");
+  const panels = new Map<SectionId, HTMLElement>();
+  for (const { id, label } of SECTIONS) {
+    const p = el("div", "zen-settings-panel");
+    p.dataset.section = id;
+    p.append(el("h2", "zen-settings-heading", label));
+    p.hidden = true;
+    panels.set(id, p);
+    body.append(p);
+  }
+  page.append(nav, body);
+
+  let current: SectionId = "appearance";
+  function choose(id: SectionId): void {
+    current = id;
+    for (const t of tabs) {
+      const on = t.dataset.section === id;
+      if (on) t.setAttribute("aria-current", "true");
+      else t.removeAttribute("aria-current");
+      t.tabIndex = on ? 0 : -1;
+    }
+    panels.forEach((p, pid) => { p.hidden = pid !== id; });
+  }
+
+  // ---- Appearance: a radio group shown as a segmented control.
+
+  const doc = () => page.ownerDocument;
+  const themeLabel = el("p", "zen-settings-label", "Theme");
   themeLabel.id = "zen-settings-theme-label";
   const seg = el("div", "zen-settings-segment");
   seg.setAttribute("role", "radiogroup");
   seg.setAttribute("aria-labelledby", themeLabel.id);
   const radios = THEMES.map(({ id, label }) => {
-    const b = button(label, () => choose(id), { className: "zen-settings-option" });
+    const b = button(label, () => pickTheme(id), { className: "zen-settings-option" });
     b.setAttribute("role", "radio");
     b.dataset.theme = id;
     return b;
@@ -58,9 +101,10 @@ export function createSettings(opts: { api: Api; anchor: HTMLButtonElement; hasW
     const step = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[e.key];
     if (step === undefined) return;
     e.preventDefault();
+    e.stopPropagation(); // not the section list's arrows
     const i = THEMES.findIndex((t) => t.id === storedTheme());
     const next = THEMES[(i + step + THEMES.length) % THEMES.length].id;
-    choose(next);
+    pickTheme(next);
     radios.find((r) => r.dataset.theme === next)!.focus();
   });
   function renderTheme(): void {
@@ -71,13 +115,14 @@ export function createSettings(opts: { api: Api; anchor: HTMLButtonElement; hasW
       r.tabIndex = on ? 0 : -1;
     }
   }
-  function choose(t: Theme): void {
-    setTheme(t, doc);
+  function pickTheme(t: Theme): void {
+    setTheme(t, doc());
     renderTheme();
   }
+  panels.get("appearance")!.append(themeLabel, seg);
 
-  // Config files.
-  const filesLabel = el("p", "zen-settings-label", "Configuration files");
+  // ---- Configuration files
+
   const status = el("p", "zen-settings-status");
   status.setAttribute("role", "status");
   const row = (name: string, hint: string, which: "global" | "workspace") => {
@@ -95,111 +140,30 @@ export function createSettings(opts: { api: Api; anchor: HTMLButtonElement; hasW
     try {
       await api.openConfig(which);
       status.textContent = `${name} opened in the editor.`;
-      close();
     } catch (err) {
       status.textContent = `Could not open ${name}: ${message(err)}`;
     }
   }
+  panels.get("files")!.append(global.r, local.r, status);
 
-  // Plugins: read from the API each time the panel opens and after Allow / Block.
-  const pluginsLabel = el("p", "zen-settings-label", "Plugins");
-  pluginsLabel.id = "zen-settings-plugins-label";
-  const pluginList = el("div", "zen-settings-plugins");
-  pluginList.setAttribute("role", "list");
-  pluginList.setAttribute("aria-labelledby", pluginsLabel.id);
-  const pluginStatus = el("p", "zen-settings-status zen-settings-plugins-status");
-  pluginStatus.setAttribute("role", "status");
-  let pluginSeq = 0;
+  // ---- Plugins
 
-  function pluginRow(p: PluginInfo): HTMLElement {
-    const r = el("div", "zen-settings-plugin");
-    r.setAttribute("role", "listitem");
-    r.dataset.plugin = p.id;
-    r.dataset.status = p.status;
-    const text = el("div", "zen-settings-plugin-text");
-    const head = el("div", "zen-settings-plugin-head");
-    head.append(el("span", "zen-settings-plugin-name", p.id));
-    if (p.version) head.append(el("span", "zen-settings-plugin-version", p.version));
-    head.append(el("span", "zen-settings-plugin-state", STATUS_LABEL[p.status]));
-    text.append(head, el("span", "zen-settings-plugin-hint", `${SOURCE_LABEL[p.source]} · ${KIND_LABEL[p.kind]}`));
-    if (p.runs.length > 0) text.append(el("span", "zen-settings-plugin-runs", `Runs: ${p.runs.join(", ")}`));
-    if (p.problem) text.append(el("span", "zen-settings-plugin-problem", p.problem));
-    r.append(text);
-    if (p.source !== "builtin" && p.status !== "invalid") {
-      const allow = p.status === "blocked" || p.status === "undecided";
-      const verb = allow ? "Allow" : "Block";
-      r.append(button(`${verb} ${p.id}`, () => void trust(p.id, allow), { className: "zen-settings-plugin-trust", text: verb }));
-    }
-    return r;
-  }
-  async function refreshPlugins(): Promise<void> {
-    const mine = ++pluginSeq;
-    try {
-      const list = await api.plugins();
-      if (mine !== pluginSeq) return;
-      if (list.length === 0) pluginList.replaceChildren(el("p", "zen-settings-plugins-empty", "No plugins in this folder."));
-      else pluginList.replaceChildren(...list.map(pluginRow));
-    } catch (err) {
-      if (mine !== pluginSeq) return;
-      pluginList.replaceChildren(el("p", "zen-settings-plugins-empty", `Could not list plugins: ${message(err)}`));
-    }
-  }
-  async function trust(id: string, allow: boolean): Promise<void> {
-    pluginStatus.textContent = "";
-    for (const b of Array.from(pluginList.querySelectorAll("button"))) b.disabled = true;
-    try {
-      await api.pluginTrust(id, allow);
-    } catch (err) {
-      pluginStatus.textContent = `Could not ${allow ? "allow" : "block"} ${id}: ${message(err)}`;
-    }
-    await refreshPlugins();
-  }
+  const plugins = createPluginsSection({ api });
+  panels.get("plugins")!.append(plugins.el);
 
-  panel.append(title, themeLabel, seg, filesLabel, global.r, local.r, status, pluginsLabel, pluginList, pluginStatus);
-
-  const onDocDown = (e: Event) => {
-    const t = e.target as Node | null;
-    if (t && !panel.contains(t) && !anchor.contains(t)) close();
-  };
-  const onKey = (e: KeyboardEvent) => {
-    if (e.key === "Escape" && !panel.hidden) {
-      e.preventDefault();
-      e.stopPropagation();
-      close();
-      anchor.focus();
-    }
-  };
-
-  function open(): void {
-    if (!panel.hidden) return;
-    renderTheme();
-    local.b.disabled = !opts.hasWorkspace();
-    status.textContent = "";
-    pluginStatus.textContent = "";
-    void refreshPlugins();
-    panel.hidden = false;
-    anchor.setAttribute("aria-expanded", "true");
-    doc.addEventListener("mousedown", onDocDown, true);
-    doc.addEventListener("keydown", onKey, true);
-    (radios.find((r) => r.getAttribute("aria-checked") === "true") ?? radios[0]).focus();
-  }
-  function close(): void {
-    if (panel.hidden) return;
-    panel.hidden = true;
-    anchor.setAttribute("aria-expanded", "false");
-    doc.removeEventListener("mousedown", onDocDown, true);
-    doc.removeEventListener("keydown", onKey, true);
-  }
-
+  choose("appearance");
   return {
-    el: panel,
-    open,
-    close,
-    toggle: () => (panel.hidden ? open() : close()),
-    isOpen: () => !panel.hidden,
+    el: page,
+    show() {
+      renderTheme();
+      local.b.disabled = !opts.hasWorkspace();
+      status.textContent = "";
+      void plugins.refresh();
+      (tabs.find((t) => t.getAttribute("aria-current") === "true") ?? tabs[0]).focus();
+    },
     destroy() {
-      close();
-      panel.remove();
+      plugins.destroy();
+      page.remove();
     },
   };
 }

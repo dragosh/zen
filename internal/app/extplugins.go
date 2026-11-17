@@ -35,6 +35,58 @@ type PluginInfo struct {
 	// backend zen runs), page (scripts and styles only) or script (one Tengo
 	// file zen runs itself). For a rejected plugin it is a best guess.
 	Kind string `json:"kind"`
+	// Help is what the plugin says about itself; Blocks, Inlines, Layouts and
+	// Options are what it adds. They are empty lists, never null.
+	Help    PluginHelp     `json:"help"`
+	Blocks  []string       `json:"blocks"`
+	Inlines []string       `json:"inlines"`
+	Layouts []string       `json:"layouts"`
+	Options []PluginOption `json:"options"`
+}
+
+// PluginHelp is a plugin's summary and its snippets (Settings › Plugins).
+type PluginHelp struct {
+	Summary  string          `json:"summary"`
+	Snippets []PluginSnippet `json:"snippets"`
+}
+
+// PluginSnippet is one example to copy into a page.
+type PluginSnippet struct {
+	Title    string `json:"title"`
+	Markdown string `json:"markdown"`
+}
+
+// PluginOption is one option a plugin reads from the config or a page.
+type PluginOption struct {
+	Name        string `json:"name"`
+	Type        string `json:"type"`
+	Default     any    `json:"default"`
+	Description string `json:"description"`
+}
+
+// pluginInfo builds a list row from a manifest; the caller sets the rest.
+func pluginInfo(m plugins.Manifest) PluginInfo {
+	info := PluginInfo{
+		ID: m.ID, Version: m.Version, Description: m.Description, Runs: []string{},
+		Help:    PluginHelp{Summary: m.Help.Summary, Snippets: []PluginSnippet{}},
+		Blocks:  append([]string{}, m.Blocks...),
+		Inlines: append([]string{}, m.Inlines...),
+		Layouts: append([]string{}, m.Layouts...),
+		Options: []PluginOption{},
+	}
+	for _, sn := range m.Help.Snippets {
+		info.Help.Snippets = append(info.Help.Snippets, PluginSnippet{Title: sn.Title, Markdown: sn.Markdown})
+	}
+	names := make([]string, 0, len(m.Config))
+	for n := range m.Config {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	for _, n := range names {
+		o := m.Config[n]
+		info.Options = append(info.Options, PluginOption{Name: n, Type: o.Type, Default: o.Default, Description: o.Description})
+	}
+	return info
 }
 
 const (
@@ -237,7 +289,7 @@ func (s *state) loadExternal(root string, prompt bool) *extState {
 	var all []found
 	seen := map[string]bool{}
 	addInvalid := func(id, source, kind, problem string) {
-		e.invalid = append(e.invalid, PluginInfo{ID: id, Source: source, Status: "invalid", Runs: []string{}, Problem: problem, Kind: kind})
+		e.invalid = append(e.invalid, invalidInfo(id, source, kind, problem))
 		e.warns = append(e.warns, fmt.Sprintf("plugin %q: %s", id, problem))
 	}
 	for _, d := range []struct{ dir, source string }{{folderDir, "folder"}, {userDir, "user"}} {
@@ -383,6 +435,12 @@ func (s *state) loadExternal(root string, prompt bool) *extState {
 	return e
 }
 
+func invalidInfo(id, source, kind, problem string) PluginInfo {
+	info := pluginInfo(plugins.Manifest{ID: id})
+	info.Source, info.Status, info.Problem, info.Kind = source, "invalid", problem, kind
+	return info
+}
+
 // Plugins lists the built-in and external plugins for Settings › Plugins.
 func (z *Zen) Plugins() []PluginInfo { return z.state.pluginList() }
 
@@ -406,8 +464,9 @@ func (s *state) pluginList() []PluginInfo {
 	}
 	out := []PluginInfo{}
 	for _, m := range s.base.All() {
-		out = append(out, PluginInfo{ID: m.ID, Version: m.Version, Description: m.Description, Source: "builtin",
-			Status: onOff(enabled(m.ID, m.Default)), Runs: []string{}, Kind: "builtin"})
+		info := pluginInfo(m)
+		info.Source, info.Status, info.Kind = "builtin", onOff(enabled(m.ID, m.Default)), "builtin"
+		out = append(out, info)
 	}
 	if s.ext == nil {
 		return out
@@ -419,8 +478,9 @@ func (s *state) pluginList() []PluginInfo {
 		case "allowed":
 			st = onOff(enabled(m.ID, m.Default))
 		}
-		out = append(out, PluginInfo{ID: m.ID, Version: m.Version, Description: m.Description, Source: c.source,
-			Status: st, Runs: append([]string{}, c.p.Runs()...), Kind: c.p.Kind()})
+		info := pluginInfo(m)
+		info.Source, info.Status, info.Runs, info.Kind = c.source, st, append([]string{}, c.p.Runs()...), c.p.Kind()
+		out = append(out, info)
 	}
 	return append(out, s.ext.invalid...)
 }

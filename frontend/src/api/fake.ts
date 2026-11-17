@@ -6,6 +6,17 @@ type Method = "startup" | "pickFolder" | "page" | "source" | "preview" | "save" 
   | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys";
 type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "menu:new-page": undefined };
 
+/** A plugin as tests write it: the help and what it adds default to nothing. */
+export type PluginSeed = Omit<PluginInfo, "help" | "blocks" | "inlines" | "layouts" | "options"> & Partial<Pick<PluginInfo, "help" | "blocks" | "inlines" | "layouts" | "options">>;
+
+const plugin = (p: PluginSeed): PluginInfo => ({
+  ...p,
+  runs: [...p.runs],
+  help: { summary: p.help?.summary ?? "", snippets: (p.help?.snippets ?? []).map((x) => ({ ...x })) },
+  blocks: [...(p.blocks ?? [])], inlines: [...(p.inlines ?? [])], layouts: [...(p.layouts ?? [])],
+  options: (p.options ?? []).map((o) => ({ ...o })),
+});
+
 export type FakeOptions = {
   /** What startup() resolves to. Default: no workspace (welcome screen). */
   startup?: Startup;
@@ -17,8 +28,8 @@ export type FakeOptions = {
   lint?: LintResult;
   /** Development only: computes lint() from the content instead (api/index.ts). */
   devLint?: (path: string, content: string) => LintResult;
-  /** What plugins() lists. Default: none. */
-  plugins?: PluginInfo[];
+  /** What plugins() lists. Default: none. The help and what a plugin adds may be left out. */
+  plugins?: PluginSeed[];
 };
 
 type LintAnswer = LintResult | ((path: string, content: string) => LintResult);
@@ -170,7 +181,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     confirmExternal: true,
     broadcasts: [],
     lintResult: options.devLint ?? options.lint ?? { available: false, alerts: [] },
-    pluginList: (options.plugins ?? []).map((p) => ({ ...p, runs: [...p.runs] })),
+    pluginList: (options.plugins ?? []).map(plugin),
     invokeResult: null,
     callsTo: (method) => api.calls.filter((c) => c.method === method).map((c) => c.args),
     emit(event, payload) {
@@ -213,7 +224,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
       const r = typeof api.lintResult === "function" ? api.lintResult(path, content) : api.lintResult;
       return { available: r.available, alerts: r.alerts.map((a) => ({ ...a })) };
     }),
-    plugins: () => call("plugins", [], () => api.pluginList.map((p) => ({ ...p, runs: [...p.runs] }))),
+    plugins: () => call("plugins", [], () => api.pluginList.map(plugin)),
     pluginTrust: (id, allow) => call("pluginTrust", [id, allow], () => {
       const p = api.pluginList.find((x) => x.id === id);
       if (!p || p.source === "builtin") throw new Error(`plugin "${id}" is not an external plugin`);

@@ -13,6 +13,9 @@ export type Page = {
   layout: string;
 };
 /** One built-in or external plugin as Settings lists it (core/extplugins). */
+export type PluginSnippet = { title: string; markdown: string };
+/** One option a plugin reads from the config or a page's frontmatter. */
+export type PluginOption = { name: string; type: string; default: unknown; description: string };
 export type PluginInfo = {
   id: string; version: string; description: string;
   source: "builtin" | "folder" | "user";
@@ -23,6 +26,11 @@ export type PluginInfo = {
   problem: string;
   /** What it is made of: Go built into zen, a program zen runs, scripts and styles only, or one Tengo file zen runs itself. */
   kind: "program" | "page" | "script" | "builtin";
+  /** What the plugin says about itself: a summary and snippets to copy into a page (Settings › Plugins). */
+  help: { summary: string; snippets: PluginSnippet[] };
+  /** What it adds: block, inline and layout names, and its options. */
+  blocks: string[]; inlines: string[]; layouts: string[];
+  options: PluginOption[];
 };
 export type Startup = { workspace: Workspace | null; page: string; mode: "read" | "edit" };
 /** One Vale finding (ui/lint). line is 1-based; col and endCol are 1-based rune columns, endCol inclusive. */
@@ -154,7 +162,27 @@ function devOptions(): FakeOptions {
     });
     return { available: true, alerts };
   };
+  const noHelp = { help: { summary: "", snippets: [] }, blocks: [], inlines: [], layouts: [], options: [] };
   return {
+    plugins: [
+      {
+        id: "codeblock", version: "0.1.0", description: "Code blocks: syntax colours and Copy and Wrap buttons.", source: "builtin", status: "on", runs: [], problem: "", kind: "builtin",
+        help: { summary: "Colours fenced code blocks by language and gives each a Copy and a Wrap button.", snippets: [{ title: "A coloured block", markdown: "```go\nfmt.Println(1)\n```" }, { title: "Line numbers", markdown: "---\nplugins:\n  codeblock: { lineNumbers: true }\n---\n# A page" }] },
+        blocks: [], inlines: [], layouts: [],
+        options: [{ name: "lineNumbers", type: "bool", default: false, description: "Show a line-number gutter." }, { name: "style", type: "string", default: "zen", description: "Highlight style." }],
+      },
+      {
+        id: "diagram", version: "0.1.0", description: "Mermaid diagrams", source: "builtin", status: "on", runs: [], problem: "", kind: "builtin",
+        help: { summary: "Draws mermaid diagrams.", snippets: [{ title: "A flowchart", markdown: "```mermaid\ngraph LR\n  A --> B\n```" }] },
+        blocks: ["mermaid", "diagram"], inlines: [], layouts: [], options: [{ name: "theme", type: "string", default: "neutral", description: "mermaid theme: neutral, dark or default" }],
+      },
+      {
+        id: "note", version: "0.1.0", description: "Callout boxes", source: "folder", status: "undecided", runs: ["./note.sh"], problem: "", kind: "program",
+        help: { summary: "Callout boxes.", snippets: [{ title: "A note", markdown: ":::note{title=\"Remember\"}\nHello.\n:::" }] },
+        blocks: ["note", "warning"], inlines: [], layouts: [], options: [],
+      },
+      { id: "calc", version: "0.1.0", description: "", source: "folder", status: "on", runs: ["bc -l"], problem: "", kind: "program", ...noHelp },
+    ],
     lint: { available: true, alerts: [] },
     devLint: lint,
     ...(q.get("window") === "editor" ? { startup: { workspace: sampleWorkspace(), page: q.get("path") ?? "", mode: "edit" as const } } : {}),

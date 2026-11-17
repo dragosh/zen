@@ -421,6 +421,15 @@ options:                      # read from config / frontmatter `plugins.note.*`
 allow:                        # extra HTML the sanitiser keeps for this plugin
   - { element: div, attrs: [class] }
 
+help:                         # shown in Settings, Plugins (optional)
+  summary: Callout boxes, a note or a warning.
+  snippets:
+    - title: A note
+      markdown: |
+        :::note{title="Remember"}
+        Text.
+        :::
+
 backend:
   command: ["./note.sh"]      # relative to the plugin folder, or a program on PATH
   hooks: [block, inline]      # any of: source, block, inline, html, action
@@ -431,6 +440,16 @@ frontend:
   js: [note.js]               # ES modules, loaded only on pages that use the plugin
   css: [note.css]
 ```
+
+### Help for your plugin
+
+The `help` key is optional. Settings shows it beside the plugin: the summary
+and each snippet with a **Copy** button. The summary has at most 500
+characters. A plugin has up to 8 snippets of at most 4 KB each, and each one
+has a `title` and the `markdown` a reader pastes into a page. Any other key in
+`help` is an error. A Tengo plugin puts the same keys in its `plugin` map.
+All five plugins in this folder have a `help` section, so read them in
+Settings, under Plugins.
 
 A plugin is switched on, off and given options like the built-in ones: in
 frontmatter, `.zen.yml` or `config.yml` (see [Plugins](index.md)).
@@ -530,9 +549,10 @@ and write that plugin's storage and call its backend. Allow only plugins you
 trust. zen asks you in its own dialog, which a script cannot click for you.
 
 A plugin that is not allowed does nothing: its blocks show as plain markdown,
-with a note on the page. The settings panel (the cog, or <kbd>⌘,</kbd>) lists
-every plugin with where it comes from, what it runs, and an **Allow** or
-**Block** button.
+with a note on the page. The Plugins section of the settings page (the cog, or
+<kbd>⌘,</kbd>) lists every plugin with where it comes from, what it runs, and
+an **Allow** or **Block** button. Next to the list it shows the help of the
+plugin you select.
 
 ## When something goes wrong
 

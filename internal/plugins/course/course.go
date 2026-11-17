@@ -25,8 +25,14 @@ func (plugin) Manifest() plugins.Manifest {
 		APIVersion:  plugins.APIVersion,
 		Description: "Show a page as a step-by-step course",
 		Default:     true,
-		Layouts:     []string{"course"},
-		Blocks:      []string{"check"},
+		Help: plugins.Help{
+			Summary: "Shows a page as a step-by-step course. Set layout: course in the frontmatter; each second-level heading is a step, and one step shows at a time. A check block holds a checklist that unlocks the next step. Progress is saved on this Mac.",
+			Snippets: []plugins.Snippet{
+				{Title: "A course", Markdown: "---\ntitle: Getting started\nlayout: course\nlayoutOptions: { id: getting-started }\n---\n# Getting started\n\nWork through the steps in order.\n\n## Open a folder\n\nChoose File, then Open Folder.\n\n:::check\n- [ ] I opened a folder\n- [ ] I can see its pages\n:::\n\n## Read a page\n\nClick a page in the sidebar.\n"},
+			},
+		},
+		Layouts: []string{"course"},
+		Blocks:  []string{"check"},
 	}
 }
 

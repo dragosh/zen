@@ -49,6 +49,13 @@ export type Layout = {
   /** Clamps to 200–400, applies and remembers the width. */
   setSidebarWidth(px: number): void;
   setHistoryState(canBack: boolean, canForward: boolean): void;
+  /**
+   * Puts a view in the place of the main pane (Settings): the pane and the header's
+   * breadcrumb and actions are hidden, not unmounted. null brings the pane back.
+   */
+  showView(view: HTMLElement | null): void;
+  /** Reflects on the cog whether the Settings view is showing. */
+  setSettingsOpen(open: boolean): void;
   destroy(): void;
 };
 
@@ -74,7 +81,7 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
   const foot = el("div", "zen-sidebar-foot");
   const settings = button("Settings", () => handlers.onSettings?.(settings), { className: "ghost zen-settings-button", text: "", title: "Settings ⌘," });
   settings.append(cogIcon(nav.ownerDocument));
-  settings.setAttribute("aria-haspopup", "dialog");
+  settings.setAttribute("aria-expanded", "false");
   foot.append(settings);
 
   const edge = el("div", "zen-resizer");
@@ -106,6 +113,7 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
   content.append(header, main);
   frame.append(nav, edge, content);
 
+  let view: HTMLElement | null = null;
   let width = storedWidth();
   let visible = true;
 
@@ -166,6 +174,15 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
     setHistoryState(canBack, canForward) {
       back.disabled = !canBack;
       forward.disabled = !canForward;
+    },
+    showView(next) {
+      view?.remove();
+      view = next;
+      if (next) main.after(next);
+      main.hidden = actions.hidden = breadcrumb.hidden = next !== null;
+    },
+    setSettingsOpen(open) {
+      settings.setAttribute("aria-expanded", String(open));
     },
     destroy() {
       window.removeEventListener("mousemove", onMove);

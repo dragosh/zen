@@ -173,3 +173,31 @@ func TestRunsDescribesWhatThePluginCanDo(t *testing.T) {
 		t.Errorf("js: %v", got)
 	}
 }
+
+func TestHelpInThePluginMap(t *testing.T) {
+	s := newSite(t)
+	p := s.plugin("hi", `plugin := {version: "1.0.0", blocks: ["hi"], help: {summary: "Says hi.", snippets: [{title: "Basic", markdown: ":::hi\nthere\n:::"}]}}`+"\nout = \"x\"\n")
+	h := p.Manifest().Help
+	if h.Summary != "Says hi." || len(h.Snippets) != 1 || h.Snippets[0].Title != "Basic" || h.Snippets[0].Markdown != ":::hi\nthere\n:::" {
+		t.Fatalf("help: %+v", h)
+	}
+
+	cases := []struct{ name, help, want string }{
+		{"not a map", `"x"`, "help"},
+		{"summary not a string", `{summary: 5}`, "summary"},
+		{"summary too long", `{summary: text.repeat("a", 501)}`, "summary"},
+		{"unknown key", `{summary: "x", colour: "red"}`, `"colour"`},
+		{"snippets not a list", `{snippets: "x"}`, "snippets"},
+		{"snippet not a map", `{snippets: ["x"]}`, "snippet"},
+		{"snippet unknown key", `{snippets: [{title: "t", markdown: "m", lang: "go"}]}`, `"lang"`},
+		{"snippet without markdown", `{snippets: [{title: "t"}]}`, "markdown"},
+		{"nine snippets", `{snippets: [{title: "t", markdown: "m"}, {title: "t", markdown: "m"}, {title: "t", markdown: "m"}, {title: "t", markdown: "m"}, {title: "t", markdown: "m"}, {title: "t", markdown: "m"}, {title: "t", markdown: "m"}, {title: "t", markdown: "m"}, {title: "t", markdown: "m"}]}`, "8"},
+		{"snippet too big", `{snippets: [{title: "t", markdown: text.repeat("a", 4097)}]}`, "4 KB"},
+	}
+	for i, c := range cases {
+		err := s.loadErr(sprintf("help%d", i), `text := import("text"); plugin := {version: "1.0.0", blocks: ["x"], help: `+c.help+`}`)
+		if !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s: %v, want it to mention %q", c.name, err, c.want)
+		}
+	}
+}

@@ -3,3 +3,12 @@ version: 0.1.0
 apiVersion: 1
 blocks: [calc]
 backend: { command: ["bc", "-l"], hooks: [block], output: text }
+help:
+  summary: "Sums worked out by the bc tool. The text of a calc block goes to bc -l and its answer is shown as it is. No code at all: the plugin is only this file."
+  snippets:
+    - title: Two sums
+      markdown: |
+        ```calc
+        2^10
+        scale=4; 22/7
+        ```

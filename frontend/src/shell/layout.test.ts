@@ -102,3 +102,30 @@ test("the edge is resizable from the keyboard", () => {
   expect(l.sidebarWidth()).toBeGreaterThan(260);
   expect(edge.getAttribute("aria-valuenow")).toBe(String(l.sidebarWidth()));
 });
+
+test("showView swaps the main pane for a view; the sidebar and the header controls stay", () => {
+  const l = createLayout();
+  const view = document.createElement("section");
+  l.showView(view);
+  expect(l.el.querySelector(".zen-content")!.contains(view)).toBe(true);
+  expect(l.slots.main.hidden).toBe(true);
+  expect(l.slots.actions.hidden).toBe(true);
+  expect(l.slots.breadcrumb.hidden).toBe(true);
+  expect(l.el.querySelector("nav")!.hidden).toBe(false);
+  expect(l.el.querySelector('button[aria-label="Back"]')).not.toBeNull();
+  l.showView(null);
+  expect(view.isConnected).toBe(false);
+  expect(l.slots.main.hidden).toBe(false);
+  expect(l.slots.actions.hidden).toBe(false);
+  expect(l.slots.breadcrumb.hidden).toBe(false);
+});
+
+test("the cog reports whether Settings is open", () => {
+  const l = createLayout();
+  const cog = l.el.querySelector<HTMLButtonElement>(".zen-settings-button")!;
+  expect(cog.hasAttribute("aria-haspopup")).toBe(false); // it opens a page, not a popup
+  l.setSettingsOpen(true);
+  expect(cog.getAttribute("aria-expanded")).toBe("true");
+  l.setSettingsOpen(false);
+  expect(cog.getAttribute("aria-expanded")).toBe("false");
+});

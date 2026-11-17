@@ -28,7 +28,7 @@ var hookNames = []string{"block", "inline", "source", "html", "action"}
 
 var knownKeys = map[string]bool{
 	"version": true, "description": true, "default": true, "blocks": true, "inlines": true, "layouts": true,
-	"hooks": true, "permissions": true, "timeout": true, "css": true, "js": true, "stylesheets": true, "options": true,
+	"hooks": true, "permissions": true, "timeout": true, "css": true, "js": true, "stylesheets": true, "options": true, "help": true,
 }
 
 var (
@@ -250,6 +250,11 @@ func (p *Plugin) parse(id string, res *msg) error {
 				return fmt.Errorf("option %q: %v", n, err)
 			}
 			man.Config[n] = opt
+		}
+	}
+	if h, present := m["help"]; present {
+		if man.Help, err = plugins.ParseHelp(h); err != nil {
+			return err
 		}
 	}
 	if len(sp.hooks) == 0 && len(man.Layouts) == 0 && len(sp.js) == 0 {
