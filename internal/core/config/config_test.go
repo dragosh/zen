@@ -419,3 +419,56 @@ func TestPluginLookup(t *testing.T) {
 		t.Fatal("zero Settings mentions a plugin")
 	}
 }
+
+func TestLayoutDefaults(t *testing.T) {
+	dir := t.TempDir()
+	global := filepath.Join(dir, "config.yml")
+	ws := filepath.Join(dir, "ws")
+	os.MkdirAll(ws, 0o755)
+	os.WriteFile(global, []byte("version: 1\nlayout: wide\nlayouts:\n  \"talks/**\": slides\n  \"blog/**\": wide\n"), 0o644)
+	os.WriteFile(filepath.Join(ws, ".zen.yml"), []byte("version: 1\nlayout: docs\nlayouts:\n  \"blog/**\": post\n  \"talks/*.md\": slides\n  \"**/*.md\": article\n"), 0o644)
+	c := Load(global, ws)
+	if w := c.Warnings(); len(w) != 0 {
+		t.Fatalf("layout and layouts are known keys: %v", w)
+	}
+	d := c.ForPage(nil).Layouts()
+	if d.Default != "docs" {
+		t.Errorf("workspace default wins over global: %q", d.Default)
+	}
+	var got []string
+	for _, r := range d.Rules {
+		got = append(got, r.Pattern+"="+r.Name)
+	}
+	// Workspace rules first, in file order, then the global ones.
+	want := `blog/**=post talks/*.md=slides **/*.md=article talks/**=slides blog/**=wide`
+	if strings.Join(got, " ") != want {
+		t.Errorf("rules %v", got)
+	}
+	if d := Default().ForPage(nil).Layouts(); d.Default != "" || len(d.Rules) != 0 {
+		t.Errorf("defaults %+v", d)
+	}
+	// The global default applies when the folder has none.
+	os.WriteFile(filepath.Join(ws, ".zen.yml"), []byte("version: 1\n"), 0o644)
+	if d := Load(global, ws).ForPage(nil).Layouts(); d.Default != "wide" || len(d.Rules) != 2 {
+		t.Errorf("global only: %+v", d)
+	}
+}
+
+func TestLayoutDefaultsInvalid(t *testing.T) {
+	dir := t.TempDir()
+	ws := filepath.Join(dir, "ws")
+	os.MkdirAll(ws, 0o755)
+	os.WriteFile(filepath.Join(ws, ".zen.yml"), []byte("version: 1\nlayout: Not A Name\nlayouts:\n  \"a/**\": 3\n  \"b/**\": \"Bad Name\"\n  \"c/**\": ok\n"), 0o644)
+	c := Load("", ws)
+	if len(c.Warnings()) != 3 {
+		t.Errorf("warnings %v", c.Warnings())
+	}
+	d := c.ForPage(nil).Layouts()
+	if d.Default != "" || len(d.Rules) != 1 || d.Rules[0].Name != "ok" {
+		t.Errorf("only valid entries kept: %+v", d)
+	}
+	os.WriteFile(filepath.Join(ws, ".zen.yml"), []byte("version: 1\nlayouts: [a, b]\n"), 0o644)
+	if w := Load("", ws).Warnings(); len(w) != 1 || !strings.Contains(w[0], "layouts") {
+		t.Errorf("layouts must be a mapping: %v", w)
+	}
+}
