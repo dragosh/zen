@@ -132,7 +132,7 @@ func TestOutputPaths(t *testing.T) {
 	contains(t, "empty index", e["index.html"], "No pages yet")
 	for name := range e {
 		if strings.HasSuffix(name, ".html") && name != "index.html" {
-			t.Errorf("empty folder wrote %s", name)
+			t.Errorf("empty folder wrote %s", name) // print.html is not written without pages
 		}
 	}
 
@@ -141,7 +141,7 @@ func TestOutputPaths(t *testing.T) {
 	rep, out = build(t, c, Options{})
 	var htmls []string
 	for name := range listing(t, out) {
-		if strings.HasSuffix(name, ".html") && name != "index.html" {
+		if strings.HasSuffix(name, ".html") && name != "index.html" && name != "print.html" {
 			htmls = append(htmls, name)
 		}
 	}
@@ -230,4 +230,51 @@ func contains2(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+func TestBuildPrintFile(t *testing.T) {
+	f := guideFake()
+	f.page("pic.md", "Pic", `<p><img src="/_ws/img/a.png"></p>`)
+	f.files["img/a.png"] = "PNG"
+	f.tree = append(f.tree, NavNode{Title: "Pic", Path: "pic.md", Kind: "page"})
+	rep, out := build(t, f, Options{Portable: true})
+	doc := read(t, out, "print.html")
+	contains(t, "print.html", doc, `<h1 class="zen-print-title">Welcome</h1>`, `href="_zen/zen.css"`,
+		`script-src &#39;self&#39; file: blob:`, `src="img/a.png"`, "4 pages") // the portable CSP
+	if rep.Print != "print.html" {
+		t.Errorf("Report.Print = %q", rep.Print)
+	}
+	if !has(out, "img/a.png") || !has(out, "_zen/zen.js") {
+		t.Error("what print.html uses is not in the build")
+	}
+	// No page links to it.
+	for name, body := range listing(t, out) {
+		if strings.HasSuffix(name, ".html") && name != "print.html" {
+			lacks(t, name, body, "print.html")
+		}
+	}
+	// Drafts follow the build: left out unless asked for.
+	f.with("pic.md", func(p *Page) { p.Draft = true })
+	_, out = build(t, f, Options{})
+	lacks(t, "print.html", read(t, out, "print.html"), "Pic<")
+	// A hosted build's print.html has the hosted CSP, like its pages.
+	_, out = build(t, f, Options{})
+	lacks(t, "hosted print.html", read(t, out, "print.html"), "file:", "blob:")
+	// Deterministic.
+	_, o2 := build(t, guideFake(), Options{})
+	_, o3 := build(t, guideFake(), Options{})
+	if read(t, o2, "print.html") != read(t, o3, "print.html") {
+		t.Error("print.html differs between two builds")
+	}
+	// NoPrint leaves it out.
+	rep, out = build(t, guideFake(), Options{NoPrint: true})
+	if has(out, "print.html") || rep.Print != "" {
+		t.Error("--no-print still wrote print.html")
+	}
+	// The count of files does not change by it.
+	repA, _ := build(t, guideFake(), Options{})
+	repB, _ := build(t, guideFake(), Options{NoPrint: true})
+	if repA.Files != repB.Files {
+		t.Errorf("print.html counted as a file: %d vs %d", repA.Files, repB.Files)
+	}
 }
