@@ -12,6 +12,18 @@ before you save.
 - **Spelling and style flags** from Vale as wavy underlines, with the
   **Problems** list underneath. See [linting](linting.md).
 
+## Split view
+
+Press **Split** in the header, or <kbd>⇧⌘P</kbd>, to see the rendered page
+next to the source. In a narrow window the preview sits below instead.
+
+- The preview shows what you typed, before you save.
+- Drag the thin divider to resize, or focus it and press <kbd>←</kbd> and
+  <kbd>→</kbd>. Zen remembers the width and whether Split was on.
+- The preview scrolls along with the source.
+- Links in the preview do nothing; use the main window to follow them.
+- Settings files have no preview, so they have no **Split** button.
+
 ## Toolbar
 
 | Button | Does | Shortcut |
