@@ -26,6 +26,11 @@ export type PluginCtx = {
   onAnchor(fn: (anchor: string) => void): () => void;
   /** Sets (or with null/"" clears) a short label (12 characters at most) after the page's title in the sidebar. */
   badge(path: string, text: string | null): void;
+  /**
+   * The URL of another file of this plugin or layout (one it does not list in `js`/`css`, such as a
+   * bundle it loads lazily). Works in the app and in a site made by `zen build`.
+   */
+  assetUrl(file: string): string;
 };
 /** What a layout script gets: a plugin's ctx without the backend (no invoke, no stream). */
 export type LayoutCtx = Omit<PluginCtx, "invoke" | "stream" | "kind"> & { kind: "layout" };
@@ -54,6 +59,8 @@ type Options = {
   onAnchor?(fn: (anchor: string) => void): () => void;
   /** Sets or clears (null) the sidebar badge of a page. */
   badge?(path: string, text: string | null): void;
+  /** URL of a plugin's or layout's file (default: the app's /_plugins/<id>/<file>, /_layouts/<id>/<file>). */
+  assetUrl?(kind: "plugin" | "layout", id: string, file: string): string;
   /** Loads a plugin script as an ES module (default: dynamic import()). Tests inject it. */
   importModule?(url: string): Promise<unknown>;
   /**
@@ -301,6 +308,11 @@ export function installRuntime(opts: Options): Runtime {
         };
         m.offs.add(off);
         return off;
+      },
+      assetUrl(file: string): string {
+        const f = String(file).split("/").filter((s) => s !== "" && s !== "." && s !== "..").map(encodeURIComponent).join("/");
+        if (opts.assetUrl) return opts.assetUrl(layout ? "layout" : "plugin", id, f);
+        return `/_${layout ? "layouts" : "plugins"}/${encodeURIComponent(id)}/${f}`;
       },
       badge(path: string, text: string | null): void {
         if (typeof path !== "string" || path === "") return;

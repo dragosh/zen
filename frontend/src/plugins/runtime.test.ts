@@ -619,6 +619,12 @@ test("anchor() is empty and onAnchor harmless when the host does not provide the
   expect(() => ctx.badge("a.md", "x")).not.toThrow();
 });
 
+test("assetUrl(file) names another file of the plugin, inside its folder", async () => {
+  const ctx = await ctxOf();
+  expect(ctx.assetUrl("mermaid.min.js")).toBe(`/_plugins/${ctx.id}/mermaid.min.js`);
+  expect(ctx.assetUrl("../../x/a b.js")).toBe(`/_plugins/${ctx.id}/x/a%20b.js`);
+});
+
 test("badge(path, text) sets and clears a label, at most 12 characters", async () => {
   const calls: [string, string | null][] = [];
   withExtras({ badge: (p, t) => void calls.push([p, t]) });
@@ -665,7 +671,7 @@ test("a layout ctx has no invoke and no stream", async () => {
   registerLayout("post", { mount(_el: HTMLElement, ctx: object) { keys.push(Object.keys(ctx).sort()); } });
   wrapper("post", { layout: "post" });
   await mount();
-  expect(keys[0]).toEqual(["anchor", "attrs", "badge", "id", "kind", "name", "navigate", "onAnchor", "page", "storage"]);
+  expect(keys[0]).toEqual(["anchor", "assetUrl", "attrs", "badge", "id", "kind", "name", "navigate", "onAnchor", "page", "storage"]);
   expect(keys[0]).not.toContain("invoke");
   expect(keys[0]).not.toContain("stream");
   expect(api.callsTo("pluginInvoke")).toEqual([]);

@@ -7,6 +7,7 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -286,6 +287,38 @@ func (in *buildInput) WorkspaceFile(path string) (fs.File, error) {
 		return nil, err
 	}
 	return f, nil
+}
+
+// AssetFiles lists every file the app serves for a plugin or layout (kind
+// "plugins" | "layouts"): all of a built-in's embedded assets; for external
+// plugins, whose files cannot be listed, nothing beyond what pages name.
+func (in *buildInput) AssetFiles(kind, id string) []string {
+	in.s.mu.Lock()
+	reg, lreg := in.s.reg, in.s.lreg
+	in.s.mu.Unlock()
+	var fsys fs.FS
+	var ok bool
+	switch {
+	case kind == "plugins" && reg != nil:
+		fsys, ok = reg.AssetFS(id)
+	case kind == "layouts" && lreg != nil:
+		fsys, ok = lreg.AssetFS(id)
+	}
+	if !ok {
+		return nil
+	}
+	var out []string
+	_ = fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return fs.SkipDir
+		}
+		if d.Type().IsRegular() && path.Base(p) != ".DS_Store" {
+			out = append(out, p)
+		}
+		return nil
+	})
+	sort.Strings(out)
+	return out
 }
 
 // Asset opens a /_plugins/ or /_layouts/ URL the way the app serves it.

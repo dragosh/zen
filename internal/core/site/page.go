@@ -40,6 +40,7 @@ func (s *site) writePage(b *built) error {
 			continue
 		}
 		seen[a.url] = true
+		s.copyExtras(pg.Path, a)
 		if err := s.copyAsset(a); err != nil {
 			s.warn(pg.Path, a.url+": "+err.Error()+"; left out")
 			continue
@@ -60,6 +61,7 @@ func (s *site) writePage(b *built) error {
 			continue
 		}
 		seen[a.url] = true
+		s.copyExtras(pg.Path, a)
 		if s.o.Portable {
 			src, err := s.readAsset(a)
 			if err != nil {

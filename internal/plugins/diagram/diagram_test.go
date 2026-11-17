@@ -60,7 +60,7 @@ func TestRenderBlock(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			want := `<div data-zen-plugin="diagram" class="zen-diagram" data-theme="` + c.want +
+			want := `<div class="zen-diagram" data-theme="` + c.want +
 				`"><pre>graph TD` + "\n" + `A--&gt;B&lt;script&gt;alert(1)&lt;/script&gt;&amp;</pre></div>`
 			if out != want {
 				t.Errorf("got  %s\nwant %s", out, want)
@@ -88,6 +88,10 @@ func TestThroughRenderer(t *testing.T) {
 			if !strings.Contains(p.HTML, w) {
 				t.Errorf("%q: missing %q in %s", src, w, p.HTML)
 			}
+		}
+		// One wrapper per diagram: a second one would be mounted (and drawn) twice.
+		if n := strings.Count(p.HTML, `data-zen-plugin="diagram"`); n != 1 {
+			t.Errorf("%q: %d diagram wrappers in %s", src, n, p.HTML)
 		}
 	}
 }

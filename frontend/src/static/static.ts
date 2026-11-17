@@ -181,6 +181,7 @@ export function start(doc: Document = document): void {
       return () => listeners.delete(fn);
     },
     badge: () => {},
+    assetUrl: (kind, id, file) => new URL(`${page.root}_zen/${kind}s/${escapePath(id)}/${file}`, doc.baseURI).href,
     importModule,
   });
 

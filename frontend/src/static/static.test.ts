@@ -167,6 +167,7 @@ test("navigate, anchor and onAnchor follow the static links; badge does nothing"
   window.dispatchEvent(new HashChangeEvent("hashchange"));
   expect(heard).toEqual(["two"]);
   expect(() => ctx.badge("a.md", "new")).not.toThrow();
+  expect(ctx.assetUrl("mermaid.min.js")).toBe(new URL("../_zen/plugins/n/mermaid.min.js", document.baseURI).href);
   window.location.hash = "";
 });
 

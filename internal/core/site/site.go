@@ -55,6 +55,15 @@ type Input interface {
 // then keeps its output folder out of the input.
 type rooter interface{ Root() string }
 
+// assetLister is implemented by an Input that can list every file the app
+// serves for a plugin or layout (kind "plugins" | "layouts"). A build copies
+// all of them for each plugin or layout a page uses, so scripts can load
+// files they do not list (the diagram plugin's mermaid bundle) through
+// ctx.assetUrl.
+type assetLister interface {
+	AssetFiles(kind, id string) []string
+}
+
 // Options are what a build does.
 type Options struct {
 	Out              string
@@ -173,6 +182,8 @@ type site struct {
 	wsFiles  map[string]error
 	assetURL map[string]assetRef
 	assets   map[string]error
+	extras   map[string]bool // kind/id whose other files were copied
+	scripts  map[string]bool // every page script URL (canonical), known before pages are written
 }
 
 type built struct {
@@ -205,7 +216,7 @@ func Build(in Input, o Options) (Report, error) {
 		}
 	}
 	s := &site{in: in, o: o, pages: map[string]*built{}, warns: map[string]bool{}, files: map[string]bool{},
-		wsFiles: map[string]error{}, assetURL: map[string]assetRef{}, assets: map[string]error{}}
+		wsFiles: map[string]error{}, assetURL: map[string]assetRef{}, assets: map[string]error{}, extras: map[string]bool{}}
 	if r, ok := in.(rooter); ok {
 		s.root = r.Root()
 	}
@@ -248,6 +259,15 @@ func Build(in Input, o Options) (Report, error) {
 			continue
 		}
 		rendered = append(rendered, pg)
+	}
+
+	s.scripts = map[string]bool{}
+	for _, pg := range rendered {
+		for _, u := range pg.JS {
+			if a, ok := parseAssetURL(u); ok {
+				s.scripts[a.url] = true
+			}
+		}
 	}
 
 	if skipped > 0 {

@@ -6,13 +6,13 @@ let loading = null;
 let seq = 0;
 
 /** Loads mermaid once; resolves with globalThis.mermaid. */
-export function loadMermaid(doc = document, g = globalThis) {
+export function loadMermaid(doc = document, g = globalThis, url = MERMAID_URL) {
   if (g.mermaid) return Promise.resolve(g.mermaid);
   if (loading && loading.doc === doc) return loading.p;
   doc.head.querySelectorAll("script").forEach((s) => s.dataset && s.dataset.zenDiagram !== undefined && s.remove());
   const p = new Promise((resolve, reject) => {
     const s = doc.createElement("script");
-    s.src = MERMAID_URL;
+    s.src = url;
     s.dataset.zenDiagram = "";
     s.addEventListener("load", () => (g.mermaid ? resolve(g.mermaid) : reject(new Error("mermaid did not load"))));
     s.addEventListener("error", () => reject(new Error("could not load mermaid")));
@@ -75,10 +75,14 @@ export async function renderAll(root, mermaid) {
 
 // The page runtime mounts this on every [data-zen-plugin="diagram"] wrapper.
 export default {
-  async mount(el) {
+  async mount(wrapper, ctx) {
+    // The renderer's [data-zen-plugin] wrapper holds one .zen-diagram (with its theme).
+    const el = (String(wrapper.className || "").split(/\s+/).includes("zen-diagram") ? wrapper : wrapper.querySelector(".zen-diagram")) || wrapper;
+    // ctx.assetUrl finds the bundle in the app and in a site made by `zen build`.
+    const url = ctx && typeof ctx.assetUrl === "function" ? ctx.assetUrl("mermaid.min.js") : MERMAID_URL;
     let mermaid;
     try {
-      mermaid = await loadMermaid(el.ownerDocument || document);
+      mermaid = await loadMermaid(el.ownerDocument || document, globalThis, url);
     } catch (err) {
       showError(el, err);
       return;

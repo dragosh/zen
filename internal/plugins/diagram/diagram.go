@@ -49,7 +49,7 @@ func (plugin) RenderBlock(ctx plugins.Context, b plugins.Block) (string, error) 
 	if !themes[theme] {
 		theme = "neutral"
 	}
-	return `<div data-zen-plugin="diagram" class="zen-diagram" data-theme="` + theme + `"><pre>` +
+	return `<div class="zen-diagram" data-theme="` + theme + `"><pre>` +
 		html.EscapeString(b.Body) + `</pre></div>`, nil
 }
 

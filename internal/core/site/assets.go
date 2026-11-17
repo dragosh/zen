@@ -64,6 +64,27 @@ func (s *site) copyAsset(a assetRef) error {
 	return err
 }
 
+// copyExtras copies every file the app serves for the plugin or layout of a,
+// once per plugin or layout; failures are warnings for page.
+// In portable mode the scripts pages list are inlined, so they are not copied.
+func (s *site) copyExtras(page string, a assetRef) {
+	l, ok := s.in.(assetLister)
+	key := a.kind + "/" + a.id
+	if !ok || s.extras[key] {
+		return
+	}
+	s.extras[key] = true
+	for _, f := range l.AssetFiles(a.kind, a.id) {
+		ref, ok := parseAssetURL("/_" + a.kind + "/" + a.id + "/" + f)
+		if !ok || (s.o.Portable && s.scripts[ref.url]) {
+			continue
+		}
+		if err := s.copyAsset(ref); err != nil {
+			s.warn(page, ref.url+": "+err.Error()+"; left out")
+		}
+	}
+}
+
 // readAsset reads the file the way the app serves it; only listed files exist.
 func (s *site) readAsset(a assetRef) ([]byte, error) {
 	f, err := s.in.Asset(a.url)

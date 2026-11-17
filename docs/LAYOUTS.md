@@ -213,8 +213,9 @@ windows.
 A layout script is an ES module with a default export `{ mount(root, ctx) }`,
 loaded from `/_layouts/<id>/<file>` and bound to the layout (`ctx.kind ===
 "layout"`, `ctx.id` is the layout id). It gets `ctx.attrs`, `ctx.page`,
-`ctx.storage` (`get`, `set`, `keys`; kept per layout and folder) and the
-navigation helpers. A layout has no backend: `ctx.invoke` and `ctx.stream` do
+`ctx.storage` (`get`, `set`, `keys`; kept per layout and folder), the
+navigation helpers and `ctx.assetUrl(file)` (the URL of another file of the
+layout, in the app and in a `zen build` site). A layout has no backend: `ctx.invoke` and `ctx.stream` do
 not exist.
 
 `slides` and `course` are the built-in examples (`internal/layouts/slides`,

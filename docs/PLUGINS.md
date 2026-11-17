@@ -565,6 +565,7 @@ unmounts every plugin and mounts again from the current page (`plugins:changed`)
 | `ctx.anchor()` | the current page's anchor (`""` when none) |
 | `ctx.onAnchor(fn)` | `fn(anchor)` when the anchor changes without a reload (a link to another heading of the same page); returns a remover; removed on unmount |
 | `ctx.badge(path, text)` | sets a short label (12 characters at most; `null` clears) shown muted after that page's title in the sidebar, until the window closes |
+| `ctx.assetUrl(file)` | the URL of another file the plugin ships but does not list in `js`/`css` (a bundle it loads lazily, data, images). Works in the app and in a site made by `zen build` |
 
 ```js
 // stream a log into a <pre>

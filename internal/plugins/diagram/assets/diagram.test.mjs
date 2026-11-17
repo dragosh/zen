@@ -17,6 +17,7 @@ class El {
   querySelectorAll(s) {
     const m = {
       ".zen-diagram:not([data-rendered])": (e) => e.className.split(" ").includes("zen-diagram") && !("rendered" in e.dataset),
+      ".zen-diagram": (e) => e.className.split(" ").includes("zen-diagram"),
       "pre": (e) => e.tagName === "PRE",
       ".zen-plugin-error": (e) => e.className === "zen-plugin-error",
       ".zen-diagram-svg": (e) => e.className === "zen-diagram-svg",
@@ -146,6 +147,46 @@ test("default export mounts one wrapper with the page runtime's shape", async ()
     assert.equal(d.querySelectorAll(".zen-diagram-svg").length, 1);
     assert.equal(d.querySelectorAll("pre").length, 0);
     assert.equal(g.mermaid.calls.render.length, 1);
+  } finally {
+    delete globalThis.mermaid;
+  }
+});
+
+test("mount loads mermaid from ctx.assetUrl", async () => {
+  const mod = await import("./diagram.js");
+  const doc = makeDoc();
+  const d = diagram(doc, "graph TD\n A-->B");
+  const p = mod.default.mount(d, { assetUrl: (f) => "../_zen/plugins/diagram/" + f });
+  const s = doc.head.querySelectorAll("script")[0];
+  assert.equal(s.src, "../_zen/plugins/diagram/mermaid.min.js");
+  globalThis.mermaid = stub();
+  try {
+    s.fire("load");
+    await p;
+    assert.equal(d.querySelectorAll(".zen-diagram-svg").length, 1);
+  } finally {
+    delete globalThis.mermaid;
+  }
+});
+
+test("mount on the renderer's wrapper draws its one diagram once, with the diagram's theme", async () => {
+  const mod = await import("./diagram.js");
+  const doc = makeDoc();
+  const wrapper = doc.createElement("div");
+  wrapper.dataset.zenPlugin = "diagram";
+  const d = doc.createElement("div");
+  d.className = "zen-diagram"; d.dataset.theme = "default";
+  const pre = doc.createElement("pre"); pre.textContent = "graph TD\n A-->B"; d.append(pre);
+  wrapper.append(d);
+  doc.body.append(wrapper);
+  const m = stub();
+  globalThis.mermaid = m;
+  try {
+    await mod.default.mount(wrapper);
+    assert.equal(m.calls.render.length, 1);
+    assert.equal(m.calls.init[0].theme, "default");
+    assert.equal(d.querySelectorAll(".zen-diagram-svg").length, 1);
+    assert.equal(wrapper.children.length, 1); // nothing appended outside the diagram
   } finally {
     delete globalThis.mermaid;
   }

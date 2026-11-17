@@ -2,6 +2,7 @@ package site
 
 import (
 	"path/filepath"
+	"sort"
 	"strings"
 	"testing"
 )
@@ -111,6 +112,48 @@ func TestPluginAssets(t *testing.T) {
 	for name := range listing(t, out) {
 		if strings.Contains(name, "..") || strings.HasSuffix(name, ".css") && !strings.HasPrefix(name, "_zen/") {
 			t.Errorf("stray file %s", name)
+		}
+	}
+}
+
+// listingFake also lists every file it serves for a plugin or layout, as the
+// app does for built-ins.
+type listingFake struct{ *fake }
+
+func (l listingFake) AssetFiles(kind, id string) []string {
+	var out []string
+	prefix := "/_" + kind + "/" + id + "/"
+	for u := range l.assets {
+		if strings.HasPrefix(u, prefix) {
+			out = append(out, strings.TrimPrefix(u, prefix))
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+func TestPluginExtraFiles(t *testing.T) {
+	for _, portable := range []bool{false, true} {
+		f := newFake()
+		f.page("d.md", "D", `<div data-zen-plugin="diagram">x</div>`)
+		f.page("plain.md", "P", `<p>none</p>`)
+		f.with("d.md", func(p *Page) {
+			p.CSS = []string{"/_plugins/diagram/diagram.css?v=1"}
+			p.JS = []string{"/_plugins/diagram/diagram.js?v=1"}
+		})
+		f.assets["/_plugins/diagram/diagram.css"] = ".d{}"
+		f.assets["/_plugins/diagram/diagram.js"] = "export default {}"
+		f.assets["/_plugins/diagram/mermaid.min.js"] = "var mermaid"
+		f.assets["/_plugins/unused/x.js"] = "unused"
+		_, out := build(t, listingFake{f}, Options{Portable: portable})
+		if read(t, out, "_zen/plugins/diagram/mermaid.min.js") != "var mermaid" {
+			t.Errorf("portable=%v: the unlisted file the plugin serves was not copied", portable)
+		}
+		if has(out, "_zen/plugins/unused/x.js") {
+			t.Errorf("portable=%v: a plugin no page uses was copied", portable)
+		}
+		if got := has(out, "_zen/plugins/diagram/diagram.js"); got == portable {
+			t.Errorf("portable=%v: page script copied = %v", portable, got)
 		}
 	}
 }
