@@ -6,12 +6,12 @@ import { resolve } from "node:path";
 
 export default defineConfig({
   build: {
-    outDir: resolve(__dirname, "../../dist/static"),
+    outDir: resolve(import.meta.dirname, "../../dist/static"),
     emptyOutDir: true,
     minify: true,
     cssCodeSplit: false,
     lib: {
-      entry: resolve(__dirname, "static.ts"),
+      entry: resolve(import.meta.dirname, "static.ts"),
       name: "zenStatic",
       formats: ["iife"],
       fileName: () => "zen.js",
