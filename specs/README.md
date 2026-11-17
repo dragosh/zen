@@ -43,6 +43,8 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 10 | [core/layouts](core/layouts/spec.md) | layouts as their own concept: `.zen/layouts/<id>/layout.yml`, Go templates, built-ins in `internal/layouts` | core/script-plugins | done |
 | 9 | [ui/new-page](ui/new-page/spec.md) | `internal/app/newpage.go`, `frontend/src/shell/newpage.ts`, File › New Page | app/services, ui/shell | done |
 | 11 | [core/static-build](core/static-build/spec.md) | `zen build`: folder → static website (hosted, or `--portable` for file://); `internal/core/site`, `internal/app/build.go`, `internal/cli` build command, `build:` config, `frontend/src/static` | core/layouts, cli/commands | specified |
+| 11 | [app/menu](app/menu/spec.md) | slim native menu: `internal/app/menu.go`, ⌘W in `frontend/src/shell/keys.ts` | ui/new-page, ui/editor-window | specified |
+| 12 | [packaging/appstore](packaging/appstore/spec.md) | zen DMG art and icons (no Wails), Developer ID + Mac App Store channels: `build/darwin/**`, `build/config.yml`, `internal/app/channel*.go`, `internal/core/extplugins/channel*.go` | packaging/macos, app/menu | specified |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 
