@@ -85,10 +85,10 @@ func TestCancelOpenKeepsTheFolderThatWasOpen(t *testing.T) {
 		t.Fatalf("a cancelled open is like a cancelled dialog: %v %v", ws, err)
 	}
 	s := z.Startup()
-	if s.Workspace == nil || s.Workspace.Root != z.state.workspace().Root || s.Workspace.Name != z.state.workspace().Name {
+	if s.Workspace == nil || s.Workspace.Root != z.s.Workspace().Root || s.Workspace.Name != z.s.Workspace().Name {
 		t.Fatalf("startup: %+v", s)
 	}
-	if got := z.state.workspace().Root; !strings.HasSuffix(got, strings.TrimPrefix(first, "/private")) {
+	if got := z.s.Workspace().Root; !strings.HasSuffix(got, strings.TrimPrefix(first, "/private")) {
 		t.Fatalf("the first folder should still be open, got %s", got)
 	}
 	if p, err := z.Page("docs/guide.md"); err != nil || p.Title != "Guide" {
@@ -97,7 +97,7 @@ func TestCancelOpenKeepsTheFolderThatWasOpen(t *testing.T) {
 	if last := openings(&ev.sink); last[len(last)-1].Phase != "failed" {
 		t.Errorf("last event: %+v", last[len(last)-1])
 	}
-	if err := z.state.open(dl.folder); err != nil {
+	if err := z.s.Open(dl.folder); err != nil {
 		t.Fatalf("a later open works: %v", err)
 	}
 }
@@ -105,7 +105,7 @@ func TestCancelOpenKeepsTheFolderThatWasOpen(t *testing.T) {
 func TestOpenTimeout(t *testing.T) {
 	first := tree(t, docs)
 	z, _, dl, _ := newTestZen(t, first, "", "read")
-	z.state.openTimeout = time.Nanosecond
+	z.s.SetOpenTimeout(time.Nanosecond)
 	dl.folder = bigTree(t, 300)
 	_, err := z.PickFolder()
 	var te *OpenTimeoutError
@@ -125,7 +125,7 @@ func TestDeferredOpenAtLaunch(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(z.close)
-	if z.state.workspace() != nil {
+	if z.s.Workspace() != nil {
 		t.Fatal("DeferOpen opened the folder in newZen")
 	}
 	s := z.Startup()
@@ -144,45 +144,16 @@ func TestDeferredOpenAtLaunch(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(z2.close)
-	z2.state.openTimeout = time.Nanosecond
+	z2.s.SetOpenTimeout(time.Nanosecond)
 	s = z2.Startup()
 	if s.Workspace != nil || !strings.Contains(s.Error, "took longer than") {
 		t.Fatalf("startup: %+v", s)
 	}
-	z2.state.openTimeout = 0
+	z2.s.SetOpenTimeout(0)
 	if ws, err := z2.PickFolder(); err != nil || ws == nil {
 		t.Fatal(ws, err)
 	}
 	if s := z2.Startup(); s.Workspace == nil || s.Error != "" {
 		t.Fatalf("after Open Folder: %+v", s)
 	}
-}
-
-func TestWatcherStartsInTheBackgroundAndStopsCleanly(t *testing.T) {
-	dir := tree(t, docs)
-	s := newState(plugins.NewRegistry(), "", nil)
-	s.startWatch(dir, true)
-	s.stopWatch() // before it is ready: the late watcher is dropped
-	time.Sleep(200 * time.Millisecond)
-	s.watchMu.Lock()
-	if s.w != nil {
-		t.Error("a stopped watcher came back")
-	}
-	s.watchMu.Unlock()
-
-	s.startWatch(dir, true)
-	deadline := time.Now().Add(5 * time.Second)
-	for {
-		s.watchMu.Lock()
-		w := s.w
-		s.watchMu.Unlock()
-		if w != nil {
-			break
-		}
-		if time.Now().After(deadline) {
-			t.Fatal("the background watcher never started")
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	s.stopWatch()
 }

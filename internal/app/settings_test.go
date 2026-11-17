@@ -52,7 +52,7 @@ func TestOpenConfig(t *testing.T) {
 	if err := z.OpenConfig("workspace"); err != nil {
 		t.Fatal(err)
 	}
-	ws := filepath.Join(z.state.workspace().Root, config.WorkspaceFile)
+	ws := filepath.Join(z.s.Workspace().Root, config.WorkspaceFile)
 	if b, _ := os.ReadFile(ws); !strings.Contains(string(b), "version: 1") {
 		t.Fatalf("workspace template: %q", b)
 	}

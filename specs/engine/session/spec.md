@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | specified |
+| Status | done |
 | Target version | 0.3.0 (engine `zenmd` 0.3.0) |
 | Branch | `feature/engine-session` |
 | Wave | 13 (E1) |
