@@ -53,6 +53,9 @@ func SetNavKey(src []byte, key string, value *string) ([]byte, error) {
 		if out == nil {
 			return src, nil // nothing to remove
 		}
+		if value == nil && closeAt > 1 && closingLine(out) == 1 {
+			out = out[2:] // the key was all the frontmatter had: the empty block goes too
+		}
 	}
 	result := bom + joinLines(out)
 	if err := checkEdit(rest, result[len(bom):], key, value); err != nil {

@@ -142,3 +142,15 @@ func TestSetNavKeyRemoveFromEmptyFlow(t *testing.T) {
 		t.Fatalf("%q %v", got, err)
 	}
 }
+
+func TestSetNavKeyRemovingTheOnlyKeyRemovesTheBlock(t *testing.T) {
+	got, err := SetNavKey([]byte("---\nnav:\n  hidden: true\n---\n# T\n"), "hidden", nil)
+	if err != nil || string(got) != "# T\n" {
+		t.Fatalf("%q %v", got, err)
+	}
+	// A block that was empty to begin with is left as it is.
+	got, err = SetNavKey([]byte("---\n---\n# T\n"), "hidden", nil)
+	if err != nil || string(got) != "---\n---\n# T\n" {
+		t.Fatalf("%q %v", got, err)
+	}
+}

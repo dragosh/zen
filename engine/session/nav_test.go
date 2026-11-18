@@ -62,7 +62,7 @@ func read(t *testing.T, dir, rel string) string {
 func changedEvents(ev *sink) int {
 	n := 0
 	for _, e := range ev.all() {
-		if e.name == EventWorkspaceChanged {
+		if e.Name == EventWorkspaceChanged {
 			n++
 		}
 	}
