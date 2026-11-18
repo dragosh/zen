@@ -2,6 +2,7 @@ package codeblock
 
 import (
 	"io/fs"
+	"os"
 	"regexp"
 	"strings"
 	"testing"
@@ -230,8 +231,13 @@ func TestLargeBlock(t *testing.T) {
 	// such as losing the parallel tokenising (~1.3 s idle, far more loaded).
 	d := time.Since(start)
 	t.Logf("1 MB highlighted in %v", d)
-	if d > 3*time.Second && !raceEnabled {
-		t.Errorf("1 MB took %v", d)
+	// GitHub's shared runners are slower and noisier: three times the budget there.
+	budget := 3 * time.Second
+	if os.Getenv("CI") != "" {
+		budget *= 3
+	}
+	if d > budget && !raceEnabled {
+		t.Errorf("1 MB took %v (budget %v)", d, budget)
 	}
 	if !strings.Contains(out, `class="kd"`) {
 		t.Error("1 MB block not highlighted")
