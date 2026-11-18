@@ -14,6 +14,7 @@ const SOURCES = { "README.md": "# Home\n\nSome teh text.\n", "b.md": "# B\n\nA t
 const TEH = alert({ line: 3, col: 6, endCol: 8, match: "teh" });
 
 beforeEach(() => {
+  localStorage.clear();
   document.head.replaceChildren();
   document.body.replaceChildren();
   api = createFakeApi({ sources: { ...SOURCES }, lint: { available: true, alerts: [TEH] } });
@@ -23,7 +24,8 @@ afterEach(() => { unmount?.(); unmount = undefined; vi.useRealTimers(); });
 
 const mount = () => { unmount = pageFeature.mount(env.slots, env.ctx); };
 const article = () => env.slots.main.querySelector("article.zen-page") as HTMLElement;
-const countButton = () => env.slots.actions.querySelector<HTMLButtonElement>(".zen-lint-count")!;
+// The issue count is the badge on the Inspector button (ui/inspector); the list is in the panel.
+const badge = () => env.slots.actions.querySelector<HTMLElement>(".zen-inspector-badge")!;
 const settle = async () => { for (let i = 0; i < 5; i++) await tick(); };
 
 test("lints the page from disk after it renders and marks the article", async () => {
@@ -33,8 +35,8 @@ test("lints the page from disk after it renders and marks the article", async ()
   expect(api.callsTo("lint")).toEqual([["README.md", ""]]);
   const m = article().querySelector("mark.zen-lint")!;
   expect(m.textContent).toBe("teh");
-  expect(countButton().hidden).toBe(false);
-  expect(countButton().textContent).toBe("1 issue");
+  expect(badge().hidden).toBe(false);
+  expect(badge().textContent).toBe("1");
 });
 
 test("shows nothing when Vale is unavailable or the lint call fails", async () => {
@@ -43,14 +45,14 @@ test("shows nothing when Vale is unavailable or the lint call fails", async () =
   mount();
   await settle();
   expect(article().querySelector("mark")).toBeNull();
-  expect(countButton().hidden).toBe(true);
+  expect(badge().hidden).toBe(true);
 
   api.lintResult = { available: true, alerts: [TEH] };
   api.failNext("lint", new Error("boom"));
   const err = vi.spyOn(console, "warn").mockImplementation(() => {});
   api.emit("page:changed", { path: "README.md" });
   await settle();
-  expect(countButton().hidden).toBe(true);
+  expect(badge().hidden).toBe(true);
   err.mockRestore();
 });
 
@@ -63,7 +65,7 @@ test("page:changed re-lints the open page", async () => {
   await settle();
   expect(api.callsTo("lint")).toHaveLength(2);
   expect(article().querySelectorAll("mark.zen-lint")).toHaveLength(2);
-  expect(countButton().textContent).toBe("2 issues");
+  expect(badge().textContent).toBe("2");
 });
 
 test("a late result for the previous page is dropped", async () => {
@@ -82,7 +84,7 @@ test("a late result for the previous page is dropped", async () => {
   await settle();
   release({ available: true, alerts: [TEH, TEH, TEH] });
   await settle();
-  expect(countButton().textContent).toBe("1 issue");
+  expect(badge().textContent).toBe("1");
   expect(article().querySelector("h1")!.textContent).toBe("B");
 });
 
@@ -93,8 +95,8 @@ test("clicking an issue scrolls to its mark and highlights it briefly", async ()
   mount();
   await settle();
   vi.useFakeTimers();
-  countButton().click();
-  const item = env.slots.actions.querySelector<HTMLButtonElement>(".zen-lint-panel li button")!;
+  env.slots.actions.querySelector<HTMLButtonElement>(".zen-inspector-toggle")!.click();
+  const item = document.querySelector<HTMLButtonElement>(".zen-inspector .zen-lint-item")!;
   item.click();
   const m = article().querySelector("mark.zen-lint")!;
   expect(spy).toHaveBeenCalled();
@@ -104,13 +106,13 @@ test("clicking an issue scrolls to its mark and highlights it briefly", async ()
   expect(m.classList.contains("zen-lint-flash")).toBe(false);
 });
 
-test("unmount removes the count button", async () => {
+test("unmount removes the inspector button", async () => {
   env.ctx.store.set({ path: "README.md" });
   mount();
   await settle();
   unmount!();
   unmount = undefined;
-  expect(env.slots.actions.querySelector(".zen-lint-widget")).toBeNull();
+  expect(env.slots.actions.querySelector(".zen-inspector-toggle")).toBeNull();
 });
 
 test("follows an editor's unsaved draft live, keeping scroll, then returns to disk", async () => {

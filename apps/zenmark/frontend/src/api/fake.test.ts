@@ -282,3 +282,14 @@ test("layouts:changed is an event like the others", () => {
   api.emit("layouts:changed", undefined);
   expect(n).toBe(1);
 });
+
+test("pageInfo describes a known page and fails for an unknown one; revealInFinder is recorded", async () => {
+  const api = createFakeApi({ sources: { "a.md": "# A\n" } });
+  const info = await api.pageInfo("a.md");
+  expect(info).toMatchObject({ path: "a.md", size: 4 });
+  expect(info.absPath.endsWith("/a.md")).toBe(true);
+  expect(info.modTime).toBeGreaterThan(0);
+  await expect(api.pageInfo("nope.md")).rejects.toThrow("page not found");
+  await api.revealInFinder("a.md");
+  expect(api.callsTo("revealInFinder")).toEqual([["a.md"]]);
+});

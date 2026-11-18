@@ -25,6 +25,8 @@ vi.mock("../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/index.js", () 
     OpenExternal: binding("OpenExternal"),
     OpenEditor: binding("OpenEditor"),
     Lint: binding("Lint"),
+    PageInfo: binding("PageInfo"),
+    RevealInFinder: binding("RevealInFinder"),
     OpenConfig: binding("OpenConfig"),
     Plugins: binding("Plugins"),
     PluginTrust: binding("PluginTrust"),
@@ -196,6 +198,20 @@ describe("wails api", () => {
     expect(await api.lint("a.md", "x")).toEqual({ available: false, alerts: [] });
     results.Lint = null;
     expect(await api.lint("a.md", "x")).toEqual({ available: false, alerts: [] });
+  });
+
+  it("pageInfo maps the file details and RevealInFinder is called with the page path", async () => {
+    const api = (await import("./wails")).default;
+    results.PageInfo = { path: "a.md", absPath: "/f/a.md", size: 12, modTime: 1700000000000, birthTime: 1600000000000 };
+    expect(await api.pageInfo("a.md")).toEqual({ path: "a.md", absPath: "/f/a.md", size: 12, modTime: 1700000000000, birthTime: 1600000000000 });
+    expect(calls.at(-1)).toEqual({ name: "PageInfo", args: ["a.md"] });
+    results.PageInfo = { path: "a.md", absPath: 3, size: "x" };
+    expect(await api.pageInfo("a.md")).toEqual({ path: "a.md", absPath: "3", size: 0, modTime: 0, birthTime: 0 });
+    results.PageInfo = new Error("a.md: not found");
+    await expect(api.pageInfo("a.md")).rejects.toThrow("not found");
+    results.RevealInFinder = undefined;
+    await api.revealInFinder("a.md");
+    expect(calls.at(-1)).toEqual({ name: "RevealInFinder", args: ["a.md"] });
   });
 
   it("draft is broadcast and other windows' drafts are delivered as page:draft", async () => {
