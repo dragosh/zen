@@ -20,3 +20,8 @@ test("280px wide, takes room from the page above 900px, overlays below, never pr
 test("is hidden whenever the main pane is (Settings)", () => {
   expect(body).toMatch(/\.zen-main\[hidden\]/);
 });
+
+test("the editor window is the panel's positioning context", () => {
+  const editor = readFileSync(new URL("../editor/editor.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  expect(editor).toMatch(/\.zen-editor-window\s*\{[^}]*position:\s*relative/);
+});

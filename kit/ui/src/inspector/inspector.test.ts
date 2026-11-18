@@ -277,3 +277,16 @@ test("page data is text, never markup", () => {
   expect(i.el.querySelector("img, b, i")).toBeNull();
   expect(field(i, "title")).toBe("<b>x</b>");
 });
+
+test("onOpenChange is told when the panel opens or closes, not when nothing changes", () => {
+  const seen: boolean[] = [];
+  const i = createInspector({ doc: document, host: host as never, onSelectIssue: select, onOpenChange: (o) => seen.push(o) });
+  made.push(i);
+  document.body.append(i.button, i.el);
+  i.setPage("docs/a.md", page(), article());
+  i.open();
+  i.open();
+  i.toggle();
+  i.close();
+  expect(seen).toEqual([true, false]);
+});

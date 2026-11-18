@@ -21,6 +21,8 @@ export type InspectorOptions = {
   host: Pick<KitHost, "pageInfo" | "revealInFinder">;
   /** A click on an issue in the list. */
   onSelectIssue(alert: Alert, index: number): void;
+  /** The panel was opened or closed (button, shortcut or API); not called when nothing changes. */
+  onOpenChange?(open: boolean): void;
 };
 
 export type Inspector = {
@@ -280,6 +282,7 @@ export function createInspector(o: InspectorOptions): Inspector {
       write(OPEN_KEY, "1");
       sync();
       fetchFile();
+      o.onOpenChange?.(true);
     },
     close() {
       if (!isOpen) return;
@@ -287,6 +290,7 @@ export function createInspector(o: InspectorOptions): Inspector {
       write(OPEN_KEY, "0");
       fetchSeq++;
       sync();
+      o.onOpenChange?.(false);
     },
     toggle() {
       if (isOpen) inspector.close();
