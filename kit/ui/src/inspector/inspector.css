@@ -24,7 +24,7 @@
   position: absolute;
   top: 44px;
   right: 0;
-  bottom: 0;
+  bottom: var(--zen-dev-height, 0px); /* above the Developer panel when it is open */
   z-index: 5;
   box-sizing: border-box;
   width: var(--zen-inspector-width);

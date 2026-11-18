@@ -148,3 +148,13 @@ test("destroy removes the button handler's effects and the panel", () => {
   expect(panel()).toBeNull();
   vi.restoreAllMocks();
 });
+
+test("the open panel's height is a CSS variable, so side panels (the Inspector) end above it", () => {
+  setDeveloperEnabled(true);
+  dev = createDeveloper(layout, host, document);
+  dev.toggle();
+  dev.setHeight(300);
+  expect(layout.el.style.getPropertyValue("--zen-dev-height")).toBe("300px");
+  dev.toggle();
+  expect(layout.el.style.getPropertyValue("--zen-dev-height")).toBe("");
+});

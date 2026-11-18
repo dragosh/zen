@@ -82,6 +82,8 @@ export function createDeveloper(layout: Layout, host: Pick<KitHost, "logs" | "on
     if (!wrap) return;
     wrap.style.height = `${height}px`;
     handle.setAttribute("aria-valuenow", String(height));
+    // Side panels (the Inspector) end above the open panel.
+    layout.el.style.setProperty("--zen-dev-height", `${height}px`);
   };
   const developer: Developer = {
     toggle() {
@@ -161,6 +163,7 @@ export function createDeveloper(layout: Layout, host: Pick<KitHost, "logs" | "on
     const inside = wrap?.contains(doc.activeElement) ?? false;
     layout.setBottomPanel(null);
     layout.setDeveloperOpen(false);
+    layout.el.style.removeProperty("--zen-dev-height");
     if (inside) layout.el.querySelector<HTMLElement>(".zen-developer-button")?.focus();
   }
 

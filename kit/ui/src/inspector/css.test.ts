@@ -6,7 +6,7 @@ const body = css.replace(/\/\*[\s\S]*?\*\//g, "");
 
 test("tokens only: no colour literals, only known variables", () => {
   expect(body).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|oklch\(|lab\(|color\(/i);
-  const known = ["--bg", "--bg-subtle", "--fg", "--fg-muted", "--rule", "--font-ui", "--font-mono", "--radius", "--btn-bg", "--btn-bg-hover", "--focus", "--zen-inspector-width", "--lint-error", "--lint-warning", "--lint-suggestion"]
+  const known = ["--bg", "--bg-subtle", "--fg", "--fg-muted", "--rule", "--font-ui", "--font-mono", "--radius", "--btn-bg", "--btn-bg-hover", "--focus", "--zen-inspector-width", "--zen-dev-height", "--lint-error", "--lint-warning", "--lint-suggestion"]
     .concat(Array.from({ length: 7 }, (_, i) => `--space-${i + 1}`));
   for (const m of Array.from(body.matchAll(/var\((--[a-z0-9-]+)/g))) expect(known).toContain(m[1]);
 });
