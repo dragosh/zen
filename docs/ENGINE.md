@@ -12,8 +12,19 @@ zenmd                    the engine: format, rendering, plugins, layouts, build,
  └─ …                    more apps, all "built on zenmd"
 ```
 
-The engine has no windows, menus or dialogs. Each app is a thin shell (Wails,
-or anything else) over the engine's session API and frontend runtime.
+The engine has no windows, menus or dialogs. Between the engine and the apps
+sits a shared **kit**: the desktop shell parts every app needs (windows,
+dialogs, the close handshake, the editor, the sidebar, settings). An app is
+then its main, its menu and its own features.
+
+```
+apps/      zen.md, <language app>, …          what makes each product itself
+kit/       desktop (Go, Wails) + ui (TS)       shared desktop shell
+engine/    + runtime/ + builtins/ + cmd/zenmd  zenmd: no windows, no Wails
+```
+
+Imports only point down: apps → kit → engine. The engine never imports the
+kit or an app, and the kit never imports an app; tests enforce both.
 
 ## Goals
 
@@ -51,8 +62,12 @@ github.com/dragosh/zen (module; renamed to …/zenmd when the repo is)
   builtins/                     default plugins, layouts and site templates
   cmd/zenmd/                    the engine CLI: build, init, check, render, serve (later)
   runtime/                      @zenmd/runtime: page runtime, static runtime, print (TypeScript)
+  kit/
+    desktop/                    Go: Run helper, window manager + close handshake, dialogs as a Prompter,
+                                events to the frontend, print window, Finder, App Store channel, bookmarks
+    ui/                         TS: frame, sidebar, editor, settings, dialogs, the opening loader, lint UI
   apps/
-    zenmd-app/                  today's zen.md app: Wails main, windows, menus, shell UI
+    zenmd-app/                  today's zen.md app: main, menu, the Zen service, its features, packaging
     <next app>/
   spec/                         the format spec and the conformance fixtures
 ```
@@ -95,8 +110,9 @@ file locks.
 |---|---|---|---|
 | E1 ✓ | `engine/cli-rename` | The command and executable become `zenmd`, and `zen` stays as an alias for one minor release, printing a notice. Updates the CLI install, Taskfile, docs and demo. | `zenmd build/init/version` work; `zen` still works with a notice |
 | E1 ✓ | `engine/session` | Extract the headless session from `internal/app` into `engine/session`, with no Wails import. The app's `Zen` service becomes a thin adapter (bindings, dialogs, events). | `internal/app` contains only Wails glue; the session has its own tests; behaviour unchanged |
-| E2 | `engine/public-api` | Move `internal/core/*` and the builtins to `engine/*` and `builtins/*`. Document the Go API, add `apidiff` checks in CI, and add a small "embed zenmd" example program. | `go doc` reads well; an example renders a folder in 20 lines |
-| E2 | `engine/runtime` | Split the frontend into `runtime/` (page, plugin runtime, static, print) and `apps/zenmd-app/frontend` (shell, nav, editor). One build of the runtime is used by the app and by `zenmd build`. | Built sites and the app load the same runtime; the app bundle imports it |
+| E2a | `engine/public-api` | Rename the module to `github.com/dragosh/zenmd`; move `internal/core/*` to `engine/*` and the built-ins to `builtins/*`; document the Go API, add an `apidiff` check in CI and an "embed zenmd" example. | `go doc` reads well; an example renders a folder in 20 lines |
+| E2b | `engine/runtime` | Split the frontend into `runtime/` (page, plugin runtime, static, print) and the app's UI. One build of the runtime is used by the app and by `zenmd build`. | Built sites and the app load the same runtime; the app bundle imports it |
+| E2c | `kit/desktop` + `kit/ui` | Move the reusable desktop parts out of `internal/app` and `frontend/src` into `kit/`; today's app becomes `apps/zenmd-app` (main, menu, `Zen` service, its features, packaging). | A second app is a main, a menu and its features; zen.md behaves the same |
 | E3 | `engine/format-spec` | Write `spec/`: frontmatter keys, directives, inline attributes, plugin blocks, layouts and links. Add conformance fixtures (`.md` in, normalised HTML out) and `zenmd check` for a folder (render warnings, broken links, Vale). | Every documented feature has a fixture; `zenmd check examples/demo` is clean |
 | E3 | `engine/hardening` | Fuzz the renderer, sanitiser, frontmatter and template placeholders. Add benchmarks with budgets (open 1,000 pages, render 5 MB, build 1,000 pages), and race tests in CI. Errors carry a code and a fix hint. | Fuzzers run in CI without findings; the budgets are enforced |
 | E4 | `engine/serve` (optional) | `zenmd serve`: a local preview server with live reload, for editors other than the app (VS Code, the terminal). | `zenmd serve examples/demo` previews in a browser and reloads on save |
@@ -109,9 +125,10 @@ After E3, the engine gets its own version (`zenmd 1.0.0-beta`) and apps depend o
 - **Apps:** their own versions, each naming the zenmd version it is built on, for example "zen.md 0.3 (zenmd 0.5)".
 - **Content:** a folder may pin a minimum engine version in `.zen.yml` (`zenmd: ">=0.5"`), and older engines say so instead of rendering it wrongly.
 
-## Open decisions
+## Decisions
 
-1. **One repository or several.** The recommendation is one repository for now, holding the engine, the apps and the spec, with one Go module. Split when a second app has its own release rhythm.
-2. **The module and repository name.** Renaming `github.com/dragosh/zen` to `…/zenmd` is a GitHub change the owner makes; the code follows. It can wait until E2.
-3. **The config folder.** `~/Library/Application Support/zen/` stays (a migration later, if ever), so existing settings, trust and plugin data keep working.
-4. **App Store packaging** belongs to each app (packaging/appstore stays with zen.md); the engine stays free of app-only entitlements.
+1. **One repository**, holding the engine, the kit, the apps and the spec, with one Go module. Split when a second app has its own release rhythm.
+2. **The repository is renamed to `zenmd`** on GitHub by the owner; the module path follows in E2a (`github.com/dragosh/zenmd`).
+3. **A kit layer** between the engine and the apps (E2c), so a second app does not copy zen.md's shell.
+4. **The config folder.** `~/Library/Application Support/zen/` stays (a migration later, if ever), so existing settings, trust and plugin data keep working.
+5. **App Store packaging** belongs to each app (packaging/appstore stays with zen.md); the engine stays free of app-only entitlements.
