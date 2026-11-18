@@ -17,6 +17,7 @@ Image zoom, and the first release that is signed and notarised.
 
 ### Changed
 
+- New Zenmark logo: the yin-yang with `#` (markdown) and `</>` (code), as the app icon, in the DMG, the README and the demo.
 - The author is Zenmark Studios: About Zenmark shows `© 2026 Zenmark Studios. All rights reserved.` The code is proprietary (LICENSE).
 - A built page with images now loads `_zen/zen.js` (for the zoom); text-only pages still have no script.
 

@@ -1,3 +1,5 @@
+<p align="center"><img src="build/appicon.png" width="128" alt="Zenmark logo"></p>
+
 # ⊹╰(⌣ʟ⌣)╯⊹ ☯ Zenmark
 
 [![ci](https://github.com/zenmark-org/zenmd/actions/workflows/ci.yml/badge.svg)](https://github.com/zenmark-org/zenmd/actions/workflows/ci.yml)
