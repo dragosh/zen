@@ -13,6 +13,7 @@ Image zoom, and the first release that is signed and notarised.
 ### Added
 
 - Image zoom: click an image in a page to see it large over the window. Click it again (or press `1`) for 100%, `+` and `-` or a trackpad pinch to zoom, scroll to pan, `0` or Fit to fit, Esc or a click outside to close. It works in built websites too. Images in links and plugins, and icons, are left alone. (specs/ui/image-zoom)
+- Inspector: a side panel on the right of the page (the Inspector button next to Edit, or ⌥⌘I) with the page's Vale issues (the count stays on the button), its file (path, size, dates, Copy path, Reveal in Finder) and its content (words, reading time, headings, links, images, plugins, front matter). It remembers whether it is open. (specs/ui/inspector)
 - Signed and notarised releases: `task release` makes the universal `Zenmark-<version>.dmg` (Developer ID, notarised, stapled) and its `.sha256`; `task release:publish` puts it on the GitHub release with these notes; the `release` workflow does both on a `v*` tag. Notarisation also takes an App Store Connect API key (CI). The DMG opens without the "could not verify" warning.
 
 ### Changed

@@ -27,6 +27,8 @@ export type Alert = {
 };
 /** available is false when Vale is missing or linting is switched off: show nothing. */
 export type LintResult = { available: boolean; alerts: Alert[] };
+/** What the system knows about a page's file (the Inspector's File section). Times are Unix milliseconds, 0 when unknown. */
+export type PageInfo = { path: string; absPath: string; size: number; modTime: number; birthTime: number };
 /** An editor's unsaved text shared with other windows; content null = draft gone. */
 export type Draft = { path: string; content: string | null };
 export type { PluginStreamEvent };
@@ -46,6 +48,10 @@ export interface KitHost extends RuntimeHost {
    * follows it live; null when the draft is gone (saved, discarded, closed).
    */
   draft(path: string, content: string | null): void;
+  /** Size, times and full path of the page's file; hosts that cannot say omit it and the Inspector shows the path only. */
+  pageInfo?(path: string): Promise<PageInfo>;
+  /** Shows the page's file in Finder (or the system's file manager); omit when the host cannot. */
+  revealInFinder?(path: string): Promise<void>;
   /** Opens the print panel for the calling window (window.print() does nothing in the macOS web view). */
   printWindow?(title: string): Promise<void>;
   /** Also delivered when another window saved the page ("editor:saved"). */

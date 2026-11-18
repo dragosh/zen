@@ -54,7 +54,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 15 (E2b) | [engine/runtime](engine/runtime/spec.md) | the browser runtime (plugin mounting, built sites, print, page CSS) moves to `runtime/` (`@zenmd/runtime`), embedded in Go as package `runtime`; one build for the app and `zenmd build` | engine/public-api | done |
 | 16 (E2c) | [kit/desktop-ui](kit/desktop-ui/spec.md) | `kit/desktop` (Go) and `kit/ui` (`@zenmd/kit`) hold the shared desktop shell; `internal/app` and `frontend/` move to `apps/zenmd-app`; runs alone | engine/public-api, engine/runtime | done |
 | 17 | [ui/image-zoom](ui/image-zoom/spec.md) | click an image to see it large: zoom, pan, fit, close; in the app and built sites; `runtime/src/zoom`, page.css, built pages with images load zen.js | engine/runtime, ui/page | done |
-| 18 | [ui/inspector](ui/inspector/spec.md) | the Inspector: a right-hand panel with the page's Vale issues, file details and content statistics, ⌥⌘I; `kit/ui/src/inspector`, `engine/session/pageinfo*.go`, `apps/zenmark/inspector.go` | ui/page, ui/lint, engine/session | in progress |
+| 18 | [ui/inspector](ui/inspector/spec.md) | the Inspector: a right-hand panel with the page's Vale issues, file details and content statistics, ⌥⌘I; `kit/ui/src/inspector`, `engine/session/pageinfo*.go`, `apps/zenmark/inspector.go` | ui/page, ui/lint, engine/session | done |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 

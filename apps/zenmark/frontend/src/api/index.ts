@@ -1,6 +1,6 @@
 // The typed client for the Go services. Types and the Api interface mirror
 // docs/PLAN.md "Service API" exactly; UI features import only from here.
-import type { Alert, Draft, KitHost, LayoutSource, LintResult, OpenProgress, Page, PluginStreamEvent, Workspace } from "@zenmd/kit";
+import type { Alert, Draft, KitHost, LayoutSource, LintResult, OpenProgress, Page, PageInfo, PluginStreamEvent, Workspace } from "@zenmd/kit";
 import { createFakeApi, sampleWorkspace, type FakeOptions } from "./fake";
 
 /** One built-in or external plugin as Settings lists it (core/extplugins). */
@@ -55,7 +55,7 @@ export type BuildProgress = { done: number; total: number };
 export type PageLayout = string;
 
 /** The data types the kit declares (kit/ui/src/host.ts); the app's api speaks them. */
-export type { Alert, Crumb, Draft, LayoutSource, LintResult, NavNode, OpenProgress, Page, PageLayoutRef, PluginStreamEvent, Workspace } from "@zenmd/kit";
+export type { Alert, Crumb, Draft, LayoutSource, LintResult, NavNode, OpenProgress, Page, PageInfo, PageLayoutRef, PluginStreamEvent, Workspace } from "@zenmd/kit";
 
 /** The page, source, preview, save, lint, draft and openEditor calls are KitHost (the kit's side); the storage, invoke, stream, cancel and openExternal calls are RuntimeHost, the runtime's side. */
 export interface Api extends KitHost {
@@ -94,6 +94,10 @@ export interface Api extends KitHost {
   openEditor(path: string): Promise<void>;
   /** Vale alerts for path: the unsaved content, or the file on disk when content is "" (ui/lint). */
   lint(path: string, content: string): Promise<LintResult>;
+  /** Size, times and full path of the page's file (ui/inspector). */
+  pageInfo(path: string): Promise<PageInfo>;
+  /** Shows the page's file in Finder (ui/inspector). */
+  revealInFinder(path: string): Promise<void>;
   /**
    * Shares an editor's unsaved text with the other windows so the reader
    * follows it live; null when the draft is gone (saved, discarded, closed).

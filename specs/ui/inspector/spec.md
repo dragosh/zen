@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | in progress |
+| Status | done |
 | Target version | 0.5.0 (MINOR) |
 | Branch | `feature/ui-inspector` |
 | Wave | 18 |
