@@ -586,3 +586,10 @@ h4.zen-plugin-help-title { font-size: 14px; }
 .zen-dev-jump { position: absolute; right: var(--space-4); bottom: var(--space-3); font-size: 12px; box-shadow: 0 0 0 1px var(--rule); }
 .zen-dev-jump[hidden] { display: none; }
 @media print { .zen-dev { display: none; } }
+
+/* Settings on the home screen (no folder open): a page of its own with Back. */
+.zen-home-settings { height: 100vh; display: flex; flex-direction: column; background: var(--bg); }
+.zen-home-settings-top { flex: none; display: flex; align-items: center; height: 44px; padding: 0 var(--space-3); border-bottom: 1px solid var(--rule); }
+.zen-home-settings > :last-child { flex: 1; min-height: 0; }
+.zen-welcome-foot .zen-welcome-settings { background: none; border: 0; padding: 0; min-height: 0; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.zen-welcome-foot .zen-welcome-settings:hover { color: var(--fg); }

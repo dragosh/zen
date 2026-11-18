@@ -8,7 +8,8 @@ import {
   type Ctx, type Developer, type Feature, type Layout, type Store,
 } from "@zenmd/kit";
 import { BRAND } from "../brand";
-import logoUrl from "../assets/logo.svg";
+// ?no-inline: a file of the app, not a data: URL (the CSP allows images from 'self' only).
+import logoUrl from "../assets/logo.svg?no-inline";
 import { registerBuildSite } from "./buildsite";
 import { installPagePrint } from "@zenmd/runtime/print/page";
 import { openNewPage, type NewPageDialog } from "./newpage";
@@ -98,6 +99,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   const feature = (id: Feature["id"]) => features.find((f) => f.id === id);
 
   let layout: Layout | null = null;
+  let homeSettings = false; // Settings shown on the home screen (no folder open)
   let developer: Developer | null = null;
   let unmountNav: (() => void) | null = null;
   let unmountMain: (() => void) | null = null;
@@ -162,6 +164,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     developer = null;
     settings?.destroy();
     settings = null;
+    homeSettings = false;
     newPage?.close();
     layout?.destroy();
     layout = null;
@@ -205,7 +208,11 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
    * the page (which stays mounted); the sidebar stays. Back, Esc, the cog and choosing a page leave it.
    */
   function openSettings(): void {
-    if (kind.kind !== "main" || !layout || settings) return;
+    if (kind.kind !== "main" || settings) return;
+    if (!layout) {
+      openHomeSettings();
+      return;
+    }
     settings = createSettingsView({
       api, hasWorkspace: () => store.get().workspace !== null,
       build: api, openBuild: () => buildSite.open(), root: () => store.get().workspace?.root ?? "",
@@ -215,8 +222,29 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     syncHistoryButtons();
     settings.show();
   }
+  /** Settings with no folder open (⌘, or Zenmark › Settings… on the home screen): a page of its own, Back returns home. */
+  function openHomeSettings(): void {
+    settings = createSettingsView({
+      api, hasWorkspace: () => false,
+      build: api, openBuild: () => buildSite.open(), root: () => "",
+    });
+    homeSettings = true;
+    const view = el("main", "zen-home-settings");
+    const top = el("div", "zen-home-settings-top");
+    top.append(button("Back to the home screen", () => closeSettings(), { className: "ghost", text: "‹ Back", title: "Back (Esc)" }));
+    view.append(top, settings.el);
+    root.replaceChildren(view);
+    settings.show();
+  }
   function closeSettings(): void {
     if (!settings) return;
+    if (homeSettings) {
+      homeSettings = false;
+      settings.destroy();
+      settings = null;
+      showWelcome();
+      return;
+    }
     const inside = settings.el.contains(doc.activeElement);
     settings.destroy();
     settings = null;
@@ -277,6 +305,8 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     closeFrame();
     store.set({ workspace: null, path: "", anchor: "", page: undefined, dirty: false });
     const view = el("main", "zen-welcome");
+    const foot = el("p", "zen-welcome-foot", "Also File › Open Folder, or ⇧⌘N to start a new site · ");
+    foot.append(button("Settings", () => openSettings(), { className: "link zen-welcome-settings", text: "Settings ⌘," }));
     const status = el("p", "zen-welcome-status");
     status.setAttribute("role", "status");
     const mark = el("img", "zen-welcome-logo");
@@ -295,7 +325,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       el("p", "zen-welcome-tagline", "Markdown folders as sites, documents and courses"),
       open,
       status,
-      el("p", "zen-welcome-foot", "Also File › Open Folder, or ⇧⌘N to start a new site"),
+      foot,
     );
     if (error) status.textContent = `Could not open the folder: ${error}`;
     root.replaceChildren(view);
@@ -416,7 +446,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     const inFrame = layout !== null;
     if (e.key === "o" || e.key === "O") void openFolder();
     else if ((e.key === "n" || e.key === "N") && inFrame) showNewPage();
-    else if (e.key === "," && inFrame) toggleSettings();
+    else if (e.key === ",") toggleSettings();
     else if (e.key === "\\" && inFrame) layout!.toggleSidebar();
     else if (e.key === "[" && inFrame) back();
     else if (e.key === "]" && inFrame) forward();
@@ -436,6 +466,21 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   const offNewSite = siteApi ? siteApi.on("menu:new-site", () => showNewSite()) : () => {};
   // Zen › Settings… (⌘,) from any window: Go shows the main window first.
   const offSettings = api.on("menu:settings", openSettings);
+  // File › Close Folder (⇧⌘W): Go closes the editor windows first (each may keep its changes), then the folder.
+  let closing = false;
+  async function closeFolder(): Promise<void> {
+    if (kind.kind !== "main" || !layout || closing) return;
+    closing = true;
+    try {
+      if (!(await api.closeFolder()) || destroyed) return;
+      showWelcome(); // closes the frame and empties the store
+    } catch (err) {
+      console.error("zen: closing the folder failed", err);
+    } finally {
+      closing = false;
+    }
+  }
+  const offCloseFolder = api.on("menu:close-folder", () => void closeFolder());
   // File › Build Website… (⇧⌘B) and Settings › Website (ui/static-build). Pages with unsaved text
   // in an editor window are named in the dialog: the website uses the saved files.
   const drafts = new Set<string>();
@@ -469,6 +514,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       offNewSite();
       newSite?.close();
       offSettings();
+      offCloseFolder();
       offOpened();
       offOpening();
       opening.destroy();

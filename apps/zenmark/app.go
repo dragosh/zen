@@ -108,7 +108,8 @@ func Run(opts Options) error {
 						}
 					}()
 				},
-				Settings: settingsAction(win, sink),
+				Settings:    settingsAction(win, sink),
+				CloseFolder: showAndEmit(win, sink, EventCloseFolder),
 			}, desktop.DevBuild)
 		},
 	})

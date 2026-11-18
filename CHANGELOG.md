@@ -21,6 +21,9 @@ A new home screen and logo, the Inspector, a sidebar menu with reordering, a Dev
 - Reorder the sidebar: drag a page among its siblings (a line shows where it lands, Esc cancels) or press <kbd>⌥↑</kbd> / <kbd>⌥↓</kbd>. The order is saved as `nav: order` (10, 20, 30…) in the frontmatter of the pages whose place changed; nothing else in the files is touched, and a failed save puts the files back. Hide from Sidebar writes `nav: hidden: true`.
 - The engine can do the same without the app: `session.ReorderNav`, `session.SetNavHidden` and `config.SetNavKey` (a careful frontmatter editor that keeps the rest of the file byte for byte).
 
+- File › Close Folder (⇧⌘W) goes back to the home screen; editor windows close first and each asks about unsaved changes.
+- Settings opens from the home screen too (⌘, or the Settings link), as a page of its own with Back.
+
 ### Changed
 
 - The sidebar no longer has an Open… button; open a folder from the home screen, with ⌘O or File › Open Folder.
@@ -30,6 +33,7 @@ A new home screen and logo, the Inspector, a sidebar menu with reordering, a Dev
 
 ### Fixed
 
+- The logo on the home screen shows in the app (it was a data: URL, which the app's content security policy blocks).
 - `task build` after `task release` no longer fails on the universal `bin/zenmd`; the bundle test accepts a universal bundle left in `bin/`.
 
 ## [0.4.0] - 2026-11-18

@@ -177,6 +177,10 @@ const api: Api = {
   async cancelOpen() {
     await call(Zen.CancelOpen());
   },
+  async closeFolder() {
+    const r = (await call(Zen.CloseFolder())) as unknown;
+    return Array.isArray(r) ? Boolean(r[0]) : Boolean(r);
+  },
   async siteTemplates() {
     const list = ((await call(Zen.SiteTemplates())) ?? []) as Raw[];
     return list.map((t) => ({
@@ -331,9 +335,10 @@ const api: Api = {
       if (list.length) fn(list);
     });
   },
-  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "layouts:changed" | "menu:new-page" | "menu:settings" | "workspace:opening" | "menu:new-site" | "menu:build-website" | "build:progress" | "menu:print-page", fn: (p: any) => void): () => void {
+  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "layouts:changed" | "menu:new-page" | "menu:settings" | "menu:close-folder" | "workspace:opening" | "menu:new-site" | "menu:build-website" | "build:progress" | "menu:print-page", fn: (p: any) => void): () => void {
     if (event === "menu:new-page") return Events.On("menu:new-page", () => fn(undefined));
     if (event === "menu:settings") return Events.On("menu:settings", () => fn(undefined));
+    if (event === "menu:close-folder") return Events.On("menu:close-folder", () => fn(undefined));
     if (event === "menu:new-site") return Events.On("menu:new-site", () => fn(undefined));
     if (event === "menu:build-website") return Events.On("menu:build-website", () => fn(undefined));
     if (event === "menu:print-page") return Events.On("menu:print-page", () => fn(undefined));

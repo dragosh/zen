@@ -57,6 +57,9 @@ const (
 	// EventBuildWebsite asks the main window to show the Build Website dialog
 	// (File > Build Website…, Shift+Cmd+B). No payload.
 	EventBuildWebsite = "menu:build-website"
+	// EventCloseFolder asks the main window to close the folder and show the
+	// home screen (File > Close Folder, Shift+Cmd+W). No payload.
+	EventCloseFolder = "menu:close-folder"
 	// EventWorkspaceOpened tells the frontend to show a different workspace,
 	// payload Startup. Sent after Finder "Open With" and File > Open Folder.
 	EventWorkspaceOpened = "workspace:opened"

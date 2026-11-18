@@ -467,17 +467,61 @@ test("choosing a page in the sidebar (navigate) leaves Settings for that page", 
   expect(s.store.get().path).toBe("guides/usage.md");
 });
 
-test("Settings is not available on the welcome screen, and a new folder closes it", async () => {
+test("a new folder closes Settings", async () => {
   const api = withWorkspace("README.md");
   const s = boot(api);
   await s.start();
   cog().click();
   api.emit("workspace:opened", { workspace: sampleWorkspace(), page: "guides/install.md", mode: "read" });
   expect(settingsPage()).toBeNull();
-  const w = boot(createFakeApi());
-  await w.start();
+});
+
+test("on the home screen ⌘, (and the Settings link) show Settings as a page; Back and Esc return home", async () => {
+  const api = createFakeApi();
+  const s = boot(api);
+  await s.start();
   key(",");
-  expect(root.querySelector(".zen-settings-page")).toBeNull();
+  await tick();
+  expect(root.querySelector(".zen-home-settings .zen-settings-page")).not.toBeNull();
+  expect(root.querySelector(".zen-welcome")).toBeNull();
+  // No folder: the folder's own config file cannot be opened.
+  expect(root.querySelectorAll(".zen-settings-section").length).toBeGreaterThan(0);
+  root.querySelector<HTMLButtonElement>(".zen-home-settings-top button")!.click();
+  expect(root.querySelector(".zen-welcome")).not.toBeNull();
+  root.querySelector<HTMLButtonElement>(".zen-welcome-settings")!.click();
+  expect(root.querySelector(".zen-home-settings")).not.toBeNull();
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  expect(root.querySelector(".zen-welcome")).not.toBeNull();
+  api.emit("menu:settings", undefined);
+  expect(root.querySelector(".zen-home-settings")).not.toBeNull();
+});
+
+test("File › Close Folder closes the folder and shows the home screen", async () => {
+  const api = withWorkspace("README.md");
+  const s = boot(api);
+  await s.start();
+  expect(root.querySelector(".zen-sidebar")).not.toBeNull();
+  api.emit("menu:close-folder", undefined);
+  await tick();
+  expect(api.callsTo("closeFolder")).toHaveLength(1);
+  expect(root.querySelector(".zen-welcome")).not.toBeNull();
+  expect(root.querySelector(".zen-sidebar")).toBeNull();
+  expect(s.store.get().workspace).toBeNull();
+  // On the home screen it does nothing.
+  api.emit("menu:close-folder", undefined);
+  await tick();
+  expect(api.callsTo("closeFolder")).toHaveLength(1);
+});
+
+test("Close Folder keeps the folder when an editor window keeps its changes", async () => {
+  const api = withWorkspace("README.md");
+  api.closeFolder = async () => false;
+  const s = boot(api);
+  await s.start();
+  api.emit("menu:close-folder", undefined);
+  await tick();
+  expect(root.querySelector(".zen-sidebar")).not.toBeNull();
+  expect(s.store.get().workspace).not.toBeNull();
 });
 
 test("Settings shows the plugins and its sections", async () => {

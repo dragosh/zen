@@ -63,6 +63,8 @@ export interface Api extends KitHost {
   pickFolder(): Promise<Workspace | null>; // native folder dialog; null also when the opening was cancelled
   /** Stops the folder that is opening; the one open before stays. */
   cancelOpen(): Promise<void>;
+  /** File › Close Folder: editor windows close first (each asks about unsaved changes); false when one kept its changes. */
+  closeFolder(): Promise<boolean>;
   // Site templates (core/init)
   siteTemplates(): Promise<SiteTemplate[]>;
   /** The native folder panel with New Folder enabled; "" when cancelled. */
@@ -147,6 +149,8 @@ export interface Api extends KitHost {
   on(event: "menu:new-page", fn: () => void): () => void;
   /** Zen › Settings… (⌘,): show Settings in the main window. */
   on(event: "menu:settings", fn: () => void): () => void;
+  /** File › Close Folder (⇧⌘W) in the app menu: close the folder, back to the home screen. */
+  on(event: "menu:close-folder", fn: () => void): () => void;
   on(event: "workspace:opening", fn: (p: OpenProgress) => void): () => void;
   on(event: "menu:new-site", fn: () => void): () => void;
   on(event: "menu:build-website", fn: () => void): () => void;

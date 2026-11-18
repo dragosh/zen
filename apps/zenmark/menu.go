@@ -11,6 +11,7 @@ const EventSettings = "menu:settings"
 // this file does not depend on Zen internals.
 type menuActions struct {
 	NewSite, NewPage, OpenFolder, Settings func()
+	CloseFolder                            func()
 	BuildWebsite, PrintPage, PrintSite     func()
 }
 
@@ -29,6 +30,8 @@ func (a menuActions) forLabel(label string) func() {
 		return a.NewPage
 	case labelOpenFolder:
 		return a.OpenFolder
+	case labelCloseFolder:
+		return a.CloseFolder
 	case labelSettings:
 		return a.Settings
 	}
@@ -51,6 +54,7 @@ const (
 	labelPrintSite    = "Print Site…"
 	labelNewPage      = "New Page…"
 	labelOpenFolder   = "Open Folder…"
+	labelCloseFolder  = "Close Folder"
 	labelSettings     = "Settings…"
 )
 
@@ -75,6 +79,7 @@ func menuSpec(dev bool) []menuItem {
 			sep,
 			{Label: labelNewPage, Accel: "CmdOrCtrl+N"},
 			{Label: labelOpenFolder, Accel: "CmdOrCtrl+O"},
+			{Label: labelCloseFolder, Accel: "CmdOrCtrl+Shift+W"},
 			sep,
 			{Label: labelBuildWebsite, Accel: "CmdOrCtrl+Shift+B"},
 			{Label: labelPrintPage, Accel: "CmdOrCtrl+P"},
