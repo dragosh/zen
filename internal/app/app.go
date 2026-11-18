@@ -11,8 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/dragosh/zenmd/engine/config"
 	"github.com/dragosh/zenmd/engine/session"
-	"github.com/dragosh/zenmd/internal/core/config"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )

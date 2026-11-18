@@ -4,9 +4,9 @@ import (
 	"io"
 	"io/fs"
 
+	"github.com/dragosh/zenmd/engine/config"
 	"github.com/dragosh/zenmd/engine/session"
 	"github.com/dragosh/zenmd/internal/cli"
-	"github.com/dragosh/zenmd/internal/core/config"
 )
 
 // StaticAssets is the built frontend (frontend/dist), set by main.go before

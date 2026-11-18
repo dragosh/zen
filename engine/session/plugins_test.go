@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zenmd/internal/core/plugins"
-	"github.com/dragosh/zenmd/internal/plugins/codeblock"
-	"github.com/dragosh/zenmd/internal/plugins/diagram"
+	"github.com/dragosh/zenmd/builtins/plugins/codeblock"
+	"github.com/dragosh/zenmd/builtins/plugins/diagram"
+	"github.com/dragosh/zenmd/engine/plugins"
 )
 
 // The "hello" plugin: a shell backend that leaves a marker in the folder

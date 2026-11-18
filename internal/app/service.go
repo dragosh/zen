@@ -8,9 +8,9 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/dragosh/zenmd/engine/plugins"
 	"github.com/dragosh/zenmd/engine/session"
 	"github.com/dragosh/zenmd/internal/cli"
-	"github.com/dragosh/zenmd/internal/core/plugins"
 )
 
 // Dialogs are the native dialogs the service needs.

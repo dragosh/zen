@@ -8,9 +8,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dragosh/zenmd/internal/core/config"
-	"github.com/dragosh/zenmd/internal/core/lint"
-	"github.com/dragosh/zenmd/internal/core/workspace"
+	"github.com/dragosh/zenmd/engine/config"
+	"github.com/dragosh/zenmd/engine/lint"
+	"github.com/dragosh/zenmd/engine/workspace"
 )
 
 // LintAlert and LintResult are the JSON shapes of Lint (ui/lint).

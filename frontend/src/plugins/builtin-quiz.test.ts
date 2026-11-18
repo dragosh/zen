@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-// The built-in quiz plugin's frontend (internal/plugins/quiz/assets/quiz.js), mounted on the
+// The built-in quiz plugin's frontend (builtins/plugins/quiz/assets/quiz.js), mounted on the
 // markup its Go block hook emits, with the answers checked through a fake ctx.invoke.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -8,7 +8,7 @@ import { afterEach, beforeEach, expect, test } from "vitest";
 import { createFakeApi, type FakeApi } from "../api/fake";
 import { installRuntime } from "./runtime";
 
-const ASSETS = join(dirname(fileURLToPath(import.meta.url)), "../../../internal/plugins/quiz/assets");
+const ASSETS = join(dirname(fileURLToPath(import.meta.url)), "../../../builtins/plugins/quiz/assets");
 
 let api: FakeApi;
 let rt: ReturnType<typeof installRuntime>;
@@ -22,7 +22,7 @@ beforeEach(async () => {
   rt = installRuntime({ importModule: async () => mod, api, navigate: () => {}, page: () => ({ path: "quizzes/http.md", title: "HTTP" }) });
   root = document.body.appendChild(document.createElement("article"));
   // @ts-ignore plain browser JavaScript outside src, no types
-  mod = await import("../../../internal/plugins/quiz/assets/quiz.js");
+  mod = await import("../../../builtins/plugins/quiz/assets/quiz.js");
   await rt.load({ js: ["/_plugins/quiz/quiz.js?v=test"], css: [] });
 });
 afterEach(() => rt.destroy());

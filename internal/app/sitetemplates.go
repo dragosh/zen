@@ -9,11 +9,11 @@ import (
 	"path/filepath"
 	"strings"
 
+	presets "github.com/dragosh/zenmd/builtins/sitetemplates"
+	"github.com/dragosh/zenmd/engine/config"
 	"github.com/dragosh/zenmd/engine/session"
+	"github.com/dragosh/zenmd/engine/sitetemplates"
 	"github.com/dragosh/zenmd/internal/cli"
-	"github.com/dragosh/zenmd/internal/core/config"
-	"github.com/dragosh/zenmd/internal/core/sitetemplates"
-	presets "github.com/dragosh/zenmd/internal/sitetemplates"
 )
 
 // EventNewSite asks the main window to show the New Site dialog (File > New

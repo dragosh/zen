@@ -1,7 +1,7 @@
 package app
 
 import (
-	"github.com/dragosh/zenmd/internal/core/sitetemplates"
+	"github.com/dragosh/zenmd/engine/sitetemplates"
 	"io/fs"
 
 	"github.com/dragosh/zenmd/engine/session"
@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/dragosh/zenmd/internal/core/plugins"
+	"github.com/dragosh/zenmd/engine/plugins"
 )
 
 type event struct {

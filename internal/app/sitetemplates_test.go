@@ -17,11 +17,11 @@ import (
 	"testing/fstest"
 	"time"
 
+	"github.com/dragosh/zenmd/engine/lint"
+	"github.com/dragosh/zenmd/engine/plugins"
 	"github.com/dragosh/zenmd/engine/session"
+	"github.com/dragosh/zenmd/engine/sitetemplates"
 	"github.com/dragosh/zenmd/internal/cli"
-	"github.com/dragosh/zenmd/internal/core/lint"
-	"github.com/dragosh/zenmd/internal/core/plugins"
-	"github.com/dragosh/zenmd/internal/core/sitetemplates"
 )
 
 // siteRig is a settings folder with a global config, and an env that uses

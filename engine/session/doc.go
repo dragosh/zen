@@ -31,8 +31,8 @@
 //
 // Sessions share no package-level state of their own, so a process may hold
 // several, one folder each. What is shared on purpose or by the packages the
-// session builds on: the Vale linter process limit (internal/core/lint), the
-// script plugin helper pool and its crash counts (internal/core/scriptplugins:
+// session builds on: the Vale linter process limit (engine/lint), the
+// script plugin helper pool and its crash counts (engine/scriptplugins:
 // closing a session or switching its folder retires the idle helpers of all
 // sessions), and the per-file storage locks.
 //

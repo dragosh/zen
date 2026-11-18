@@ -6,14 +6,14 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zenmd/internal/core/config"
-	"github.com/dragosh/zenmd/internal/core/plugins"
-	"github.com/dragosh/zenmd/internal/core/render"
-	"github.com/dragosh/zenmd/internal/plugins/check"
-	"github.com/dragosh/zenmd/internal/plugins/codeblock"
-	"github.com/dragosh/zenmd/internal/plugins/diagram"
-	"github.com/dragosh/zenmd/internal/plugins/quiz"
-	"github.com/dragosh/zenmd/internal/plugins/sandbox"
+	"github.com/dragosh/zenmd/builtins/plugins/check"
+	"github.com/dragosh/zenmd/builtins/plugins/codeblock"
+	"github.com/dragosh/zenmd/builtins/plugins/diagram"
+	"github.com/dragosh/zenmd/builtins/plugins/quiz"
+	"github.com/dragosh/zenmd/builtins/plugins/sandbox"
+	"github.com/dragosh/zenmd/engine/config"
+	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/dragosh/zenmd/engine/render"
 )
 
 func builtins() []plugins.Plugin {

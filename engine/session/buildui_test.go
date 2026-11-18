@@ -7,7 +7,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/dragosh/zenmd/internal/core/plugins"
+	"github.com/dragosh/zenmd/engine/plugins"
 )
 
 // hookSink delivers events to a callback as well as recording them.

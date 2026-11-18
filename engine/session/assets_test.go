@@ -9,7 +9,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/dragosh/zenmd/internal/core/plugins"
+	"github.com/dragosh/zenmd/engine/plugins"
 )
 
 type assetPlugin struct{}
