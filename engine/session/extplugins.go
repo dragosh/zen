@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -814,6 +815,7 @@ func (s *Session) PluginInvoke(id, page, payload string) (string, error) {
 	}
 	out, err := h.Action(t.ctx, []byte(payload))
 	if err != nil {
+		slog.Warn("plugin "+id+": "+err.Error(), "source", "plugin")
 		return "", fmt.Errorf("plugin %q: %v", id, err)
 	}
 	out = []byte(strings.TrimSpace(string(out)))

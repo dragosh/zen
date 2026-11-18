@@ -11,7 +11,7 @@ import (
 // contract: moving the engine out of this package must not change them.
 var serviceMethods = []string{
 	"BuildOptions", "BuildWebsite", "CancelBuild", "CancelOpen", "CreatePage", "CreateSite",
-	"LayoutStorageGet", "LayoutStorageKeys", "LayoutStorageSet", "LayoutTrust", "Layouts", "Lint",
+	"LayoutStorageGet", "LayoutStorageKeys", "LayoutStorageSet", "LayoutTrust", "Layouts", "Lint", "Logs",
 	"OpenBuiltSite", "OpenConfig", "OpenEditor", "OpenExternal", "Page", "PickBuildFolder",
 	"PickFolder", "PickSiteFolder", "PluginCancel", "PluginInvoke", "PluginStorageGet",
 	"PluginStorageKeys", "PluginStorageSet", "PluginStream", "PluginTrust", "Plugins", "Preview",
