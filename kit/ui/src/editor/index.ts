@@ -2,7 +2,8 @@
 // Mounted only in an editor window (ui/editor-window): one page per window,
 // Done closes the window. The main window follows the unsaved text live
 // (api.draft -> page:draft); Split adds a preview pane next to the source.
-import type { Alert } from "../host";
+import type { Alert, Page } from "../host";
+import { createInspector, inspectorKey, type Inspector } from "../inspector";
 import { backdrop, renderConsole } from "../lint";
 import { button, el } from "../shell/dom";
 import type { Feature } from "../shell/types";
@@ -16,6 +17,8 @@ export type { Edit } from "./commands";
 
 /** Lint the unsaved text this long after typing stops (ui/lint). */
 export const LINT_DELAY = 600;
+/** Count the unsaved text for the Inspector this long after typing stops (ui/inspector). */
+export const STATS_DELAY = 500;
 /** Share the unsaved text with the main window this long after typing stops. */
 export const DRAFT_DELAY = 150;
 
@@ -137,7 +140,16 @@ export const editorFeature: Feature = {
     const config = isConfigPath(current);
     const splitBtn = button("Split", () => setSplit(!split), { title: "Split view (⌘⇧P)" });
     splitBtn.setAttribute("aria-pressed", "false");
-    slots.actions.append(dot, ...(config ? [] : [splitBtn]), doneBtn); // no preview for settings files
+    // ui/inspector: issues, file and page statistics of the unsaved text. Not for settings files.
+    let inspector: Inspector | null = null;
+    if (!config) {
+      inspector = createInspector({
+        doc: document, host: api,
+        onSelectIssue: (_a: Alert, i: number) => lintView.select(i),
+        onOpenChange: (open) => { if (open) refreshStats(true); else statsSeq++; },
+      });
+    }
+    slots.actions.append(dot, ...(inspector ? [inspector.button, splitBtn] : []), doneBtn); // no preview or Inspector for settings files
 
     // Main: toolbar, bar, source, problems console.
     const root = el("div", "zen-editor");
@@ -165,6 +177,42 @@ export const editorFeature: Feature = {
       onLink: (url) => void api.openExternal(url).catch(() => undefined),
     });
     panes.append(lintView.el);
+    // Inspector statistics. The page it knows until the first render is an empty one, so the button shows at once.
+    let statsSeq = 0;
+    let statsTimer: ReturnType<typeof setTimeout> | undefined;
+    let statsPage: { page: Page; root: ParentNode } | null = null;
+    let lastPreview: { page: Page; article: HTMLElement } | null = null;
+    const emptyPage = (path: string): Page => ({
+      path, title: path.split("/").pop() ?? path, html: "", frontmatter: {}, breadcrumb: [],
+      assets: { css: [], js: [] }, warnings: [], layout: { name: "article", source: "" },
+    });
+    function showStats(page: Page, root: ParentNode): void {
+      statsPage = { page, root };
+      inspector?.setPage(page.path || current, page, root);
+    }
+    /** The Inspector's File and Page for the current text. Nothing is rendered while it is closed. */
+    function refreshStats(now = false): void {
+      if (!inspector) return;
+      clearTimeout(statsTimer);
+      statsSeq++;
+      if (!inspector.isOpen) return;
+      if (split && preview) {
+        // The preview renders anyway; its article is counted (onRender below).
+        if (lastPreview) showStats(lastPreview.page, lastPreview.article);
+        return;
+      }
+      const run = () => {
+        const mine = ++statsSeq;
+        const path = current;
+        api.preview(path, ta.value).then((page) => {
+          if (mine !== statsSeq || !inspector?.isOpen) return;
+          // Parsed apart from the document: no scripts run, no assets load, nothing shows.
+          showStats({ ...page, path }, new DOMParser().parseFromString(page.html, "text/html").body);
+        }, () => { /* keep the last statistics */ });
+      };
+      if (now) run();
+      else statsTimer = setTimeout(run, STATS_DELAY);
+    }
     // Split: a preview pane beside (or, in a narrow window, below) the source, with a divider.
     let split = false;
     let pos = clampPos(Number.parseFloat(readStore(SPLIT_POS_KEY) ?? "") || SPLIT_DEFAULT);
@@ -195,7 +243,10 @@ export const editorFeature: Feature = {
       writeStore(SPLIT_KEY, on ? "1" : "0");
       panes.classList.toggle("is-split", on);
       if (on) {
-        preview = createPreview(api);
+        preview = createPreview(api, undefined, (page, article) => {
+          lastPreview = { page, article };
+          if (inspector?.isOpen) showStats(page, article);
+        });
         divider = makeDivider();
         panes.append(divider, preview.el);
         applyPos(false);
@@ -205,6 +256,8 @@ export const editorFeature: Feature = {
       } else {
         preview?.destroy();
         preview = null;
+        lastPreview = null;
+        refreshStats(true);
         divider?.dispatchEvent(new Event("zen:dispose"));
         divider?.remove();
         divider = null;
@@ -257,6 +310,8 @@ export const editorFeature: Feature = {
     ta.addEventListener("scroll", followSource);
     root.append(toolbar, bar, panes, problems.el);
     slots.main.append(root);
+    // Beside the main pane, before it: inspector.css makes room for it.
+    if (inspector) slots.main.before(inspector.el);
     // The textarea is in the page only now: copy its typography to the
     // highlight/lint layer (also again next frame, after layout settles).
     lintView.sync();
@@ -299,9 +354,12 @@ export const editorFeature: Feature = {
 
     let lintSeq = 0;
     let lintTimer: ReturnType<typeof setTimeout> | undefined;
+    let linted = false;
     function showLint(alerts: Alert[] | null, forText: string): void {
+      linted = true;
       lintView.update(alerts ?? [], forText);
       problems.update(alerts);
+      inspector?.setIssues(alerts);
     }
     /** Lints the current text now; only the latest request's answer is drawn. */
     async function lintNow(): Promise<void> {
@@ -314,6 +372,8 @@ export const editorFeature: Feature = {
         showLint(null, text);
         return;
       }
+      // Until the first answer; later the last list stays, so it does not flash while typing.
+      if (!linted) inspector?.setIssues("checking");
       try {
         const r = await api.lint(path, text);
         if (mine !== lintSeq || path !== current) return;
@@ -353,6 +413,8 @@ export const editorFeature: Feature = {
         lintView.refresh();
         void lintNow();
         renderPreview();
+        showStats(statsPage?.page.path === path ? statsPage.page : emptyPage(path), statsPage?.root ?? document.createElement("article"));
+        refreshStats(true);
       } catch (err) {
         if (mine === loadSeq) showBar(`Could not open ${path}: ${(err as Error).message ?? err}`);
       }
@@ -369,6 +431,7 @@ export const editorFeature: Feature = {
           hideBar();
           if (ta.value === saved) dropDraft();
           void lintNow();
+          if (statsPage) showStats(statsPage.page, statsPage.root); // the file's size and dates changed
         }
         return true;
       } catch (err) {
@@ -410,6 +473,7 @@ export const editorFeature: Feature = {
       shareDraft();
       scheduleLint();
       renderPreview();
+      refreshStats();
     });
     ta.addEventListener("keydown", (e) => {
       const mod = e.metaKey || e.ctrlKey;
@@ -438,7 +502,10 @@ export const editorFeature: Feature = {
       if (dialog || e.defaultPrevented) return;
       const mod = e.metaKey || e.ctrlKey;
       const k = e.key.toLowerCase();
-      if (mod && e.shiftKey && !e.altKey && k === "p" && !config) {
+      if (inspector && inspectorKey(e)) {
+        e.preventDefault();
+        inspector.toggle();
+      } else if (mod && e.shiftKey && !e.altKey && k === "p" && !config) {
         e.preventDefault();
         setSplit(!split);
       } else if (mod && !e.shiftKey && k === "s") {
@@ -496,6 +563,9 @@ export const editorFeature: Feature = {
       divider?.dispatchEvent(new Event("zen:dispose"));
       preview?.destroy();
       splitBtn.remove();
+      statsSeq++;
+      clearTimeout(statsTimer);
+      inspector?.destroy();
       offChanged();
       dialog?.close();
       dropDraft();

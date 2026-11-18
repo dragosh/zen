@@ -18,7 +18,8 @@ export type Preview = {
   destroy(): void;
 };
 
-export function createPreview(api: KitHost, delay = PREVIEW_DELAY): Preview {
+/** `onRender` is told about every page drawn, with the article it is in (the Inspector counts it). */
+export function createPreview(api: KitHost, delay = PREVIEW_DELAY, onRender?: (page: Page, article: HTMLElement) => void): Preview {
   const root = el("div", "zen-editor-preview");
   root.setAttribute("aria-label", "Preview");
   root.setAttribute("role", "region");
@@ -52,6 +53,7 @@ export function createPreview(api: KitHost, delay = PREVIEW_DELAY): Preview {
     mountPage(article, page);
     void plugins.mountAll(article, page.assets);
     apply();
+    onRender?.(page, article);
   }
 
   return {

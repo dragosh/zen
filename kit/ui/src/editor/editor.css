@@ -142,6 +142,7 @@
 
 /* The editor window (ui/editor-window): header with the page title over the editor. */
 .zen-editor-window {
+  position: relative; /* the Inspector (ui/inspector) sits over the right edge, under the header */
   height: 100%;
   display: flex;
   flex-direction: column;

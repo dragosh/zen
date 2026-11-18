@@ -51,6 +51,19 @@ opens it; the issue count stays visible on that button when the panel is closed.
     (macOS; 0 elsewhere) and the absolute path of a markdown file inside the
     open folder. `RevealInFinder(path)` shows that file in Finder.
 
+## In the editor
+
+The editor window (ui/editor) shows the same Inspector: button, panel, sections, ⌥⌘I.
+
+E1. The Inspector button is in the editor's actions, before Split and Done. ⌥⌘I toggles the panel. Open or closed uses the same key as the reader (`zen.inspector.open`): one preference for both windows. Settings and config YAML files (`isConfigPath`) get no button and no panel, like no Split.
+E2. **Issues** are the alerts of the editor's own lint of the unsaved text, the ones `lintView` and the problems console show: the console stays. "Checking…" shows until the first lint answers (not on every keystroke, so the list does not flash while typing), "Linting off" when Vale is unavailable or the text is empty. Choosing an issue selects it in the source (`lintView.select(i)`), as the console does.
+E3. **File** is as in the reader (path, size, dates, Copy path, Reveal in Finder, optional host methods) and is fetched again after a successful save.
+E4. **Page** statistics come from the unsaved text. With Split on they are taken from the preview pane's rendered article (no extra request). Otherwise `api.preview(path, text)` is called 500 ms after typing stops, only while the Inspector is open (also once when it opens and after the file loads), a stale answer is dropped, and the HTML is parsed into a detached document (no assets, no scripts, nothing shown) for `pageStats`. With the Inspector closed nothing is rendered for it.
+E5. Layout: the panel sits beside the editor panes under the header (`.zen-editor-window` is its positioning context), so the toolbar and Done stay visible; the panel is inserted before the main pane so the sibling rule of the reader makes room above 900 px; narrower it overlays the panes.
+E6. Unmounting the editor destroys the Inspector (button, panel, timers, pending answers).
+
+Tests: `kit/ui/src/editor/inspector.test.ts` (E1 to E6), `kit/ui/src/inspector/inspector.test.ts` (`onOpenChange`), `kit/ui/src/inspector/css.test.ts` (editor window rule), `kit/ui/src/editor/split.test.ts` (action order).
+
 ## Architecture
 
 `kit/ui/src/inspector/` holds `stats.ts` (pure counting), `format.ts` (size, date,
@@ -149,7 +162,7 @@ the menu takes it, in release builds the shortcut is free.
 
 ## Notes
 
-- **Out of scope:** resizing, editing front matter from the panel, a table of contents, the editor window.
+- **Out of scope:** resizing, editing front matter from the panel, a table of contents.
 - **Integration (done by the lead at merge):** `PageInfo` joins `delegating` in `apps/zenmark/thin_test.go` (done here); other branches adding methods to `service.go`, bindings or `fake.ts` merge additively.
 - **App Store / sandbox:** `open -R` goes through `kit/desktop` like the other Finder calls and only receives paths inside the folder the user opened.
 - **Changelog:** Inspector: a side panel with the page's issues, file details and content statistics (⌥⌘I).
