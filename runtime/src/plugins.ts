@@ -6,7 +6,7 @@
 // /_layouts/<id>/, mounted on the [data-zen-layout] wrapper with a ctx that
 // has no invoke and no stream (layouts have no programs) and whose storage
 // goes to the layout services.
-import type { Api, PluginStreamEvent } from "../api";
+import type { PluginStreamEvent, RuntimeApi } from "./types";
 
 export type PluginCtx = {
   id: string; kind: "block" | "inline" | "layout"; name: string; attrs: Record<string, string>;
@@ -52,7 +52,7 @@ export type Runtime = {
   destroy(): void;
 };
 type Options = {
-  api: Api; navigate(path: string, anchor?: string): void; page(): { path: string; title: string };
+  api: RuntimeApi; navigate(path: string, anchor?: string): void; page(): { path: string; title: string };
   /** The current page's anchor (default: none). */
   anchor?(): string;
   /** Subscribes to anchor changes that do not reload the page; returns the remover. */

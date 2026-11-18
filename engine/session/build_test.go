@@ -486,8 +486,8 @@ func TestBuildDemo(t *testing.T) {
 }
 
 func TestBuildSiteWithoutRuntime(t *testing.T) {
-	// A build without a static runtime fails cleanly.
-	err := WriteSite(SiteEnv{}, SiteOptions{Dir: t.TempDir()}, &bytes.Buffer{}, &bytes.Buffer{})
+	// A runtime without zen.js and zen.css fails cleanly (none given = the embedded one, which has both).
+	err := WriteSite(SiteEnv{Runtime: fstest.MapFS{}}, SiteOptions{Dir: t.TempDir()}, &bytes.Buffer{}, &bytes.Buffer{})
 	if err == nil || !strings.Contains(err.Error(), "runtime") {
 		t.Errorf("WriteSite: %v", err)
 	}

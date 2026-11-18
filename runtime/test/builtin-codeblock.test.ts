@@ -1,9 +1,8 @@
-// @vitest-environment happy-dom
 // The built-in codeblock plugin's frontend (builtins/plugins/codeblock), loaded
 // as the app loads it: an ES module with a default export, imported by the runtime.
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { createFakeApi } from "../api/fake";
-import { installRuntime } from "./runtime";
+import { createFakeApi } from "../../frontend/src/api/fake";
+import { installRuntime } from "../src/plugins";
 
 let rt: ReturnType<typeof installRuntime>;
 let root: HTMLElement;
@@ -16,7 +15,7 @@ beforeEach(async () => {
   root = document.body.appendChild(document.createElement("article"));
   vi.resetModules();
   // @ts-ignore plain browser JavaScript outside src, no types
-  mod = await import("../../../builtins/plugins/codeblock/codeblock.js");
+  mod = await import("../../builtins/plugins/codeblock/codeblock.js");
   ({ codeText } = mod as { codeText: (pre: Element) => string });
   await rt.load({ js: ["/_plugins/codeblock/codeblock.js?v=test"], css: [] });
 });

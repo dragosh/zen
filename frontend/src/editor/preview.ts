@@ -3,7 +3,7 @@
 // and plugin runtime, so plugin assets and scripts work as on a page.
 import type { Api, Page } from "../api";
 import { mountPage, pageHooks } from "../page";
-import { installRuntime } from "../plugins/runtime";
+import { installRuntime } from "@zenmd/runtime/plugins";
 import { el } from "../shell/dom";
 
 /** Render the unsaved text this long after typing stops. */

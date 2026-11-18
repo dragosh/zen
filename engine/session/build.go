@@ -15,6 +15,7 @@ import (
 	"github.com/dragosh/zenmd/engine/config"
 	"github.com/dragosh/zenmd/engine/plugins"
 	"github.com/dragosh/zenmd/engine/site"
+	zenruntime "github.com/dragosh/zenmd/runtime"
 )
 
 // SiteOptions are the options of a site build, the flags of `zenmd build`.
@@ -33,7 +34,7 @@ type SiteOptions struct {
 // and tests their own.
 type SiteEnv struct {
 	GlobalPath string            // global config file ("" for none); its folder holds trust, user plugins and layouts
-	Runtime    fs.FS             // frontend/dist: the static runtime of a built site is static/zen.js and static/zen.css in it
+	Runtime    fs.FS             // the browser runtime of a built site: zen.js and zen.css (a static/ folder is read too); nil = the embedded runtime package
 	Registry   *plugins.Registry // built-in plugins; nil for the default set
 	Version    string            // asset versioning of the built-ins
 	// Wrap, when set, decorates the site input before the build reads it
@@ -149,19 +150,22 @@ func WriteSite(env SiteEnv, b SiteOptions, stdout, stderr io.Writer) error {
 	return nil
 }
 
-// staticRuntime reads the static runtime out of frontend/dist.
+// staticRuntime reads zen.js and zen.css out of the browser runtime: assets
+// when given (at its root, or in a static/ folder as before the runtime
+// package existed), else the embedded runtime package.
 func staticRuntime(assets fs.FS) (js, css []byte, err error) {
-	missing := errors.New("the static runtime (static/zen.js and static/zen.css) is missing from this build of zen; build the frontend first")
+	missing := errors.New("the browser runtime (zen.js and zen.css) is missing from this build of zen; build it first (task build:frontend)")
 	if assets == nil {
-		return nil, nil, missing
+		assets = zenruntime.FS()
 	}
-	if js, err = fs.ReadFile(assets, "static/zen.js"); err != nil {
-		return nil, nil, missing
+	for _, dir := range []string{"", "static/"} {
+		js, err1 := fs.ReadFile(assets, dir+"zen.js")
+		css, err2 := fs.ReadFile(assets, dir+"zen.css")
+		if err1 == nil && err2 == nil {
+			return js, css, nil
+		}
 	}
-	if css, err = fs.ReadFile(assets, "static/zen.css"); err != nil {
-		return nil, nil, missing
-	}
-	return js, css, nil
+	return nil, nil, missing
 }
 
 // buildInput adapts a session to site.Input. It renders exactly like the

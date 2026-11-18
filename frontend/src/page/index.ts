@@ -2,7 +2,7 @@
 // anchors, plugin assets, live reload, warnings, errors and the Edit action.
 import type { Alert, Page } from "../api";
 import { flash, markText, renderPanel } from "../lint";
-import { installRuntime } from "../plugins/runtime";
+import { installRuntime } from "@zenmd/runtime/plugins";
 import { button, el } from "../shell/dom";
 import type { Ctx, Feature } from "../shell/types";
 import { loadAssets } from "./assets";

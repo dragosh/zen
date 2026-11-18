@@ -1,14 +1,13 @@
-// @vitest-environment happy-dom
 // The built-in sandbox plugin's frontend (builtins/plugins/sandbox/assets), loaded
 // as the app loads it: an ES module with a default export, imported by the runtime.
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { createFakeApi, type FakeApi } from "../api/fake";
-import { installRuntime } from "./runtime";
+import { createFakeApi, type FakeApi } from "../../frontend/src/api/fake";
+import { installRuntime } from "../src/plugins";
 
-const DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../builtins/plugins/sandbox/assets");
+const DIR = join(dirname(fileURLToPath(import.meta.url)), "../../builtins/plugins/sandbox/assets");
 
 let api: FakeApi;
 let rt: ReturnType<typeof installRuntime>;
@@ -24,7 +23,7 @@ beforeEach(async () => {
   root = document.body.appendChild(document.createElement("article"));
   vi.resetModules();
   // @ts-ignore plain browser JavaScript outside src, no types
-  mod = await import("../../../builtins/plugins/sandbox/assets/sandbox.js");
+  mod = await import("../../builtins/plugins/sandbox/assets/sandbox.js");
   await rt.load({ js: ["/_plugins/sandbox/sandbox.js?v=test"], css: [] });
 });
 afterEach(() => rt.destroy());

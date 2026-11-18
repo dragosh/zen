@@ -1,7 +1,6 @@
-// @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { createFakeApi, type FakeApi } from "../api/fake";
-import { installRuntime, type PluginCtx } from "./runtime";
+import { createFakeApi, type FakeApi } from "../../frontend/src/api/fake";
+import { installRuntime, type PluginCtx } from "./plugins";
 
 /** Plugin scripts by URL: what import() would hand back (happy-dom cannot fetch modules). */
 const modules = new Map<string, unknown>();

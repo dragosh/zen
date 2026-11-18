@@ -98,3 +98,15 @@ func TestBoundaries(t *testing.T) {
 		}
 	}
 }
+
+// TestRuntimeStdlibOnly: the Go package that embeds the browser runtime
+// (runtime/, imported as .../zenmd/runtime) imports only the standard
+// library, so any engine consumer can take it.
+func TestRuntimeStdlibOnly(t *testing.T) {
+	pkg := module + "runtime"
+	for _, imp := range goList(t, "-f", `{{join .Imports " "}}`, pkg) {
+		if strings.Contains(strings.Split(imp, "/")[0], ".") {
+			t.Errorf("%s imports %s: only the standard library is allowed", pkg, imp)
+		}
+	}
+}

@@ -1,0 +1,11 @@
+{
+  "extends": "../frontend/tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "vitest": ["../frontend/node_modules/vitest"],
+      "@zenmd/runtime": ["./src/index.ts"],
+      "@zenmd/runtime/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "test", "vite.config.ts"]
+}

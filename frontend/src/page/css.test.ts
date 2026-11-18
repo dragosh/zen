@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 
-const css = readFileSync(new URL("./page.css", import.meta.url), "utf8");
+const css = readFileSync(new URL("../../../runtime/src/css/page.css", import.meta.url), "utf8");
 
 const selectors = css.replace(/\/\*[\s\S]*?\*\//g, "").match(/[^{}]+(?=\{)/g)!.flatMap((s) => s.split(",").map((x) => x.trim()));
 const has = (needle: string) => selectors.some((s) => s.includes(needle));
@@ -38,7 +38,7 @@ test("print: no sidebar, header or panels, the article uses the whole page (core
   expect(body).not.toMatch(/#[0-9a-f]{3,8}\b|rgb\(|hsl\(/i);
 });
 
-const printCss = readFileSync(new URL("./print.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+const printCss = readFileSync(new URL("../../../runtime/src/css/print.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
 /** The declarations of the rules whose selector list contains `sel`, inside @media print of print.css. */
 function printRule(sel: string): string {
   const media = printCss.slice(printCss.indexOf("@media print"));
@@ -86,6 +86,6 @@ test("print.css has no @page: the layouts and the print document set their own",
 });
 
 test("the print document is not a reading column (screen)", () => {
-  const c = readFileSync(new URL("./print.css", import.meta.url), "utf8");
+  const c = readFileSync(new URL("../../../runtime/src/css/print.css", import.meta.url), "utf8");
   expect(c).toMatch(/\.zen-page\.zen-print-doc\s*\{[^}]*max-width:\s*none/);
 });

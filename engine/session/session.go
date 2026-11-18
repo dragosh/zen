@@ -132,7 +132,7 @@ type Session struct {
 	events     Events
 	prompter   Prompter
 	version    string           // asset versioning of the built-ins
-	runtime    fs.FS            // the static runtime (frontend/dist) for Build and Print
+	runtime    fs.FS            // the browser runtime for Build and Print
 	presets    fs.FS            // the built-in site templates
 	now        func() time.Time // the clock of the print cover's date
 	buildMu    sync.Mutex
@@ -182,7 +182,7 @@ type Options struct {
 	Layouts    *layouts.Registry // built-in layouts; nil = the default set
 	Events     Events            // may be nil
 	Prompter   Prompter          // may be nil: never asks
-	Runtime    fs.FS             // the static runtime (frontend/dist) for Build and Print
+	Runtime    fs.FS             // the browser runtime (zen.js, zen.css) for Build and Print; nil = the embedded runtime package
 	Presets    fs.FS             // the built-in site templates; nil = the default set
 	Watch      bool              // live reload: watch the open folder
 	Version    string            // asset versioning of the built-ins; "" = "dev"

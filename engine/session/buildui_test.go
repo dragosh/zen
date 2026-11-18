@@ -6,6 +6,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"testing/fstest"
 
 	"github.com/dragosh/zenmd/engine/plugins"
 )
@@ -301,8 +302,8 @@ func TestBuildErrors(t *testing.T) {
 	}
 	// A missing runtime.
 	b3 := newBuildZen(t, fivePages)
-	b3.z.runtime = nil
-	if _, err := b3.z.BuildWebsite(BuildOptions{Portable: true}); err == nil || !strings.Contains(err.Error(), "static runtime") {
+	b3.z.runtime = fstest.MapFS{}
+	if _, err := b3.z.BuildWebsite(BuildOptions{Portable: true}); err == nil || !strings.Contains(err.Error(), "browser runtime") {
 		t.Errorf("no runtime: %v", err)
 	}
 }

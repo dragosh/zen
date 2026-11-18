@@ -1,12 +1,12 @@
 // The Print Preview window (?window=print): the whole folder as one document under a small toolbar.
 // It fetches the document from the app (/_print/site, made by site.PrintDocument), puts it on a sheet,
 // mounts the plugins and layouts of each page the way the page view does, and prints through the
-// system print panel (Save as PDF is in it). The toolbar is not printed (page/print.css).
+// system print panel (Save as PDF is in it). The toolbar is not printed (runtime/src/css/print.css).
 import type { Api } from "../api";
-import { installRuntime, type Runtime } from "../plugins/runtime";
+import { installRuntime, type Runtime } from "@zenmd/runtime/plugins";
 import { button, el } from "../shell/dom";
-import { printPage } from "./page";
-import { whenReady, type ReadyOptions } from "./ready";
+import { printPage } from "@zenmd/runtime/print/page";
+import { whenReady, type ReadyOptions } from "@zenmd/runtime/print/ready";
 import "./preview.css";
 
 /** What the preview needs of the service API: the plugin runtime's part, openExternal and the menu event. */

@@ -1,0 +1,12 @@
+{
+  "name": "@zenmd/runtime",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "build": "node ../frontend/node_modules/vite/bin/vite.js build --mode production --config vite.config.ts",
+    "build:dev": "node ../frontend/node_modules/vite/bin/vite.js build --mode development --config vite.config.ts"
+  }
+}

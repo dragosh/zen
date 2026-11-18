@@ -72,7 +72,6 @@ func newZen(o zenOptions) (*Zen, error) {
 		ConfigDir:  o.ConfigDir,
 		Registry:   o.Registry,
 		Events:     o.Events,
-		Runtime:    staticRuntime{},
 		Presets:    siteBuiltins,
 		Watch:      true,
 		Version:    cli.Version,
