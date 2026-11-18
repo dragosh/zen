@@ -1,7 +1,6 @@
 # zenmd: the engine
 
-Status: E1 done (November 2026): the command is `zenmd`, and the headless session is `engine/session`. This document plans the work before it is
-specified in `specs/engine/*`.
+Status: E1 and E2a done (November 2026): the command is `zenmd`, the module is `github.com/dragosh/zenmd`, the engine is public under `engine/` and the built-ins under `builtins/`. This document plans the rest before it is specified in `specs/engine/*`.
 
 zen.md becomes two layers:
 
@@ -137,7 +136,7 @@ when `apidiff` is installed. Before the first tag the job only reports.
 |---|---|---|---|
 | E1 ✓ | `engine/cli-rename` | The command and executable become `zenmd`, and `zen` stays as an alias for one minor release, printing a notice. Updates the CLI install, Taskfile, docs and demo. | `zenmd build/init/version` work; `zen` still works with a notice |
 | E1 ✓ | `engine/session` | Extract the headless session from `internal/app` into `engine/session`, with no Wails import. The app's `Zen` service becomes a thin adapter (bindings, dialogs, events). | `internal/app` contains only Wails glue; the session has its own tests; behaviour unchanged |
-| E2a | `engine/public-api` | Rename the module to `github.com/dragosh/zenmd`; move `internal/core/*` to `engine/*` and the built-ins to `builtins/*`; document the Go API, add an `apidiff` check in CI and an "embed zenmd" example. | `go doc` reads well; an example renders a folder in 20 lines |
+| E2a ✓ | `engine/public-api` | Rename the module to `github.com/dragosh/zenmd`; move `internal/core/*` to `engine/*` and the built-ins to `builtins/*`; document the Go API, add an `apidiff` check in CI and an "embed zenmd" example. | `go doc` reads well; an example renders a folder in 20 lines |
 | E2b | `engine/runtime` | Split the frontend into `runtime/` (page, plugin runtime, static, print) and the app's UI. One build of the runtime is used by the app and by `zenmd build`. | Built sites and the app load the same runtime; the app bundle imports it |
 | E2c | `kit/desktop` + `kit/ui` | Move the reusable desktop parts out of `internal/app` and `frontend/src` into `kit/`; today's app becomes `apps/zenmd-app` (main, menu, `Zen` service, its features, packaging). | A second app is a main, a menu and its features; zen.md behaves the same |
 | E3 | `engine/format-spec` | Write `spec/`: frontmatter keys, directives, inline attributes, plugin blocks, layouts and links. Add conformance fixtures (`.md` in, normalised HTML out) and `zenmd check` for a folder (render warnings, broken links, Vale). | Every documented feature has a fixture; `zenmd check examples/demo` is clean |

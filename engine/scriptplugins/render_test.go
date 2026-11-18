@@ -67,7 +67,8 @@ if hook == "block" { out = "<script>alert(1)</script><p onclick='x()' style='col
 
 func TestMarkdownNestingIsLimited(t *testing.T) {
 	s := newSite(t)
-	loop := s.plugin("loop", `plugin := {version: "1.0.0", blocks: ["loop"]}
+	// A long timeout, so that the nesting limit is what stops it, even slowly (-race).
+	loop := s.plugin("loop", `plugin := {version: "1.0.0", blocks: ["loop"], timeout: "2s"}
 if hook == "block" { out = zen.html("div", {class: "loop"}, zen.markdown(":::loop\n" + body + "\n:::")) }`)
 	pg := renderPage(t, []*scriptplugins.Plugin{loop}, ":::loop\nx\n:::\n")
 	if len(pg.Warnings) == 0 {

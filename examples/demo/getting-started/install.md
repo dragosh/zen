@@ -10,8 +10,8 @@ zen.md is one application, `Zen.app`, with the `zenmd` command inside it.
 ## From the source
 
 ```sh
-git clone https://github.com/dragosh/zen
-cd zen
+git clone https://github.com/dragosh/zenmd
+cd zenmd
 task package          # builds bin/Zen.app (downloads Vale once)
 ```
 

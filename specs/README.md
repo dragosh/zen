@@ -50,7 +50,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 12 | [ui/static-build](ui/static-build/spec.md) | File › Build Website… (⇧⌘B) and Settings › Website: build the open folder from the app with progress and results; `internal/app/buildui.go`, `frontend/src/shell/buildsite.ts` | core/static-build, app/menu | done |
 | 13 (E1) | [engine/cli-rename](engine/cli-rename/spec.md) | the command and executable become `zenmd` (`zen` alias until 0.4.0): `internal/cli`, `main.go`, Taskfiles, `installcli`, command examples in docs/demo/templates | cli/commands, core/static-build, core/init | done |
 | 13 (E1) | [engine/session](engine/session/spec.md) | the headless folder session moves from `internal/app` to the public `engine/session`; the app becomes a thin Wails adapter, no visible change | waves 3–12 | done |
-| 14 (E2a) | [engine/public-api](engine/public-api/spec.md) | module `github.com/dragosh/zenmd`; `internal/core/*` → public `engine/*`, built-ins → `builtins/*`; docs, embed example, apidiff in CI; runs alone (all imports) | engine/session, engine/cli-rename | specified |
+| 14 (E2a) | [engine/public-api](engine/public-api/spec.md) | module `github.com/dragosh/zenmd`; `internal/core/*` → public `engine/*`, built-ins → `builtins/*`; docs, embed example, apidiff in CI; runs alone (all imports) | engine/session, engine/cli-rename | done |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 

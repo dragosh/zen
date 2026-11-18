@@ -9,7 +9,7 @@ layouts:
 # zenmd build: export this folder as a static website (see build/index.md).
 build:
   out: _site
-  editURL: https://github.com/dragosh/zen/edit/main/examples/demo/{path}
+  editURL: https://github.com/dragosh/zenmd/edit/main/examples/demo/{path}
 
 plugins:
   codeblock: true
