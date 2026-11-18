@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/dragosh/zen/internal/core/workspace"
+	"github.com/dragosh/zenmd/engine/workspace"
 )
 
 // slugResolver resolves links like the workspace does and, for links that

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | specified |
+| Status | done |
 | Target version | zenmd 0.4.0 (app 0.4.0) |
 | Branch | `feature/engine-public-api` |
 | Wave | 14 (E2a); runs **alone**: it touches the import paths of every Go file |

@@ -8,9 +8,9 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dragosh/zen/internal/core/config"
-	"github.com/dragosh/zen/internal/core/lint"
-	"github.com/dragosh/zen/internal/core/workspace"
+	"github.com/dragosh/zenmd/engine/config"
+	"github.com/dragosh/zenmd/engine/lint"
+	"github.com/dragosh/zenmd/engine/workspace"
 )
 
 // LintAlert and LintResult are the JSON shapes of Lint (ui/lint).
@@ -27,6 +27,7 @@ type LintAlert struct {
 	Link        string `json:"link"`
 }
 
+// LintResult is what Lint returns: whether the linter is available and its alerts.
 type LintResult struct {
 	Available bool        `json:"available"`
 	Alerts    []LintAlert `json:"alerts"`

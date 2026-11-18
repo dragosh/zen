@@ -8,13 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dragosh/zen/internal/core/config"
-	"github.com/dragosh/zen/internal/core/index"
-	"github.com/dragosh/zen/internal/core/layouts"
-	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/core/render"
-	"github.com/dragosh/zen/internal/core/watch"
-	"github.com/dragosh/zen/internal/core/workspace"
+	"github.com/dragosh/zenmd/engine/config"
+	"github.com/dragosh/zenmd/engine/index"
+	"github.com/dragosh/zenmd/engine/layouts"
+	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/dragosh/zenmd/engine/render"
+	"github.com/dragosh/zenmd/engine/watch"
+	"github.com/dragosh/zenmd/engine/workspace"
 )
 
 // EventWorkspaceOpening reports progress while a folder opens, payload
@@ -39,6 +39,7 @@ type OpenTimeoutError struct {
 	Timeout time.Duration
 }
 
+// Error describes the timeout and how to raise it.
 func (e *OpenTimeoutError) Error() string {
 	return fmt.Sprintf("Opening %s took longer than %s. Open a smaller folder, or raise limits.openTimeout (seconds) in config.yml.",
 		e.Name, e.Timeout.Round(time.Second))

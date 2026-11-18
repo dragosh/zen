@@ -4,7 +4,7 @@ import (
 	"errors"
 	"path/filepath"
 
-	"github.com/dragosh/zen/engine/session"
+	"github.com/dragosh/zenmd/engine/session"
 )
 
 // openFile opens a file in the system's default text editor. It is only the

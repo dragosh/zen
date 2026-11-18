@@ -5,8 +5,8 @@ import (
 	"net/http"
 	"testing"
 
-	"github.com/dragosh/zen/engine/session/sessiontest"
-	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/dragosh/zenmd/engine/session/sessiontest"
 )
 
 // Helpers shared by the tests of this package. They keep the shape the

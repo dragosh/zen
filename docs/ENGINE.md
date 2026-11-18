@@ -53,7 +53,7 @@ kit or an app, and the kit never imports an app; tests enforce both.
 ## The engine's shape
 
 ```
-github.com/dragosh/zen (module; renamed to …/zenmd when the repo is)
+github.com/dragosh/zenmd (module)
   engine/                       public Go API (was internal/core + the headless half of internal/app)
     session/                    Open, Page, Preview, Save, Watch, Trust, Build, Print, Templates; events as a Go interface
     format/                     render, frontmatter, directives, sanitising
@@ -103,6 +103,33 @@ A process may hold several sessions. Shared on purpose or by the packages the
 session builds on: the Vale process limit, the script plugin helper pool
 (closing a session retires the idle helpers of every session) and the storage
 file locks.
+
+## The Go API (E2a, built)
+
+The module is `github.com/dragosh/zenmd`. What a program may import:
+
+| Package | What |
+|---|---|
+| `engine/session` | the front door: open a folder, render, save, build, print |
+| `engine/{workspace,config,index,render,plugins,extplugins,scriptplugins,layouts,site,sitetemplates,lint,watch}` | the parts session is built on |
+| `engine/session/sessiontest` | test helpers for apps |
+| `builtins` | the default set: `Plugins()`, `Layouts(version)`, `SiteTemplates()` |
+| `builtins/{layouts,sitetemplates}`, `builtins/plugins/{check,codeblock,diagram,quiz,sandbox}` | the pieces of that set |
+
+Private, under `internal/`: `app` (the zen.md app), `cli` (the command) and
+`atomicfile` (a helper). `engine/boundary_test.go` pins this list and the
+rules: nothing under `engine/` or `builtins/` imports `internal/app`,
+`internal/cli` or Wails; `engine/` imports `builtins/` only in tests and
+examples, with one exception: `engine/session` uses `builtins` for the
+default set when an app gives it no registries.
+
+Every exported name has a doc comment (`engine/doc_test.go` walks the AST), and
+`go doc ./engine` is the map. `engine/example_test.go` (`Example_embed`) opens
+`examples/demo`, lists the sidebar, renders a page and builds a site in about
+20 lines. CI runs `apidiff` over `engine/...` and `builtins/...` against the
+latest `v*` tag; an incompatible change fails unless a commit message or the
+PR body says `api-break: <reason>`. `task api:check` does the same locally
+when `apidiff` is installed. Before the first tag the job only reports.
 
 ## Waves
 

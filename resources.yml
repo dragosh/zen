@@ -20,7 +20,7 @@
 # `task darwin:fetch:helpers` downloads entries with a fetch block into the
 # git-ignored build/darwin/helpers/ and verifies tarball and binary. A missing
 # file or a checksum mismatch fails `task package`.
-- name: vale # Vale 3.25.1 prose linter (MIT), used by internal/core/lint
+- name: vale # Vale 3.25.1 prose linter (MIT), used by engine/lint
   path:
     darwin-arm64: build/darwin/helpers/arm64/vale
     darwin-amd64: build/darwin/helpers/amd64/vale

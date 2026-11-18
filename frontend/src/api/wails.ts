@@ -1,7 +1,7 @@
 // The Api over the generated Wails bindings (app/services). Loaded by
 // getApi() only inside the Wails webview.
 import { Events, Window } from "@wailsio/runtime";
-import { Zen } from "../../bindings/github.com/dragosh/zen/internal/app/index.js";
+import { Zen } from "../../bindings/github.com/dragosh/zenmd/internal/app/index.js";
 import type { Alert, Api, BuildOptions, Crumb, LayoutField, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
 
 type Raw = Record<string, any> | null | undefined;

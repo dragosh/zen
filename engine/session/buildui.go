@@ -20,8 +20,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/dragosh/zen/internal/core/config"
-	"github.com/dragosh/zen/internal/core/site"
+	"github.com/dragosh/zenmd/engine/config"
+	"github.com/dragosh/zenmd/engine/site"
 	"gopkg.in/yaml.v3"
 )
 

@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zen/internal/core/site"
+	"github.com/dragosh/zenmd/engine/site"
 )
 
 func printZen(t *testing.T, files map[string]string) *Session {

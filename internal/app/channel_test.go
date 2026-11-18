@@ -272,13 +272,13 @@ func TestConfigImportOnce(t *testing.T) {
 	}
 }
 
-// execAllowed lists every non-test file of internal/ that starts a process,
+// execAllowed lists every non-test file of internal/, engine/ and builtins/ that starts a process,
 // and why that is fine in the App Store build.
 var execAllowed = map[string]string{
-	"internal/core/lint/lint.go":          "Vale, the helper inside Contents/Helpers",
-	"internal/core/scriptplugins/pool.go": "zen's own executable as the Tengo helper (Contents/MacOS/zenmd)",
-	"internal/core/extplugins/exec.go":    "program backends: refused by extplugins.Available(\"program\") in the App Store build",
-	"internal/plugins/sandbox/sandbox.go": "the container plugin: refused by extplugins.Available(\"sandbox\") in the App Store build",
+	"engine/lint/lint.go":                 "Vale, the helper inside Contents/Helpers",
+	"engine/scriptplugins/pool.go":        "zen's own executable as the Tengo helper (Contents/MacOS/zenmd)",
+	"engine/extplugins/exec.go":           "program backends: refused by extplugins.Available(\"program\") in the App Store build",
+	"builtins/plugins/sandbox/sandbox.go": "the container plugin: refused by extplugins.Available(\"sandbox\") in the App Store build",
 	"internal/app/finder.go":              "/usr/bin/open for Show in Finder and the settings fallback, only on chosen or container paths; to become NSWorkspace before submission",
 }
 
@@ -288,24 +288,26 @@ var execAllowed = map[string]string{
 func TestNoExecOutsideBundle(t *testing.T) {
 	call := regexp.MustCompile(`\bexec\.Command(Context)?\(`)
 	found := map[string]bool{}
-	err := filepath.WalkDir("..", func(p string, d os.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if d.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
+	for _, root := range []string{"internal", "engine", "builtins"} {
+		err := filepath.WalkDir(filepath.Join("..", "..", root), func(p string, d os.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if d.IsDir() || !strings.HasSuffix(p, ".go") || strings.HasSuffix(p, "_test.go") {
+				return nil
+			}
+			b, err := os.ReadFile(p)
+			if err != nil {
+				return err
+			}
+			if call.Match(b) {
+				found[filepath.ToSlash(strings.TrimPrefix(p, "../../"))] = true
+			}
 			return nil
-		}
-		b, err := os.ReadFile(p)
+		})
 		if err != nil {
-			return err
+			t.Fatal(err)
 		}
-		if call.Match(b) {
-			found["internal/"+filepath.ToSlash(strings.TrimPrefix(p, "../"))] = true
-		}
-		return nil
-	})
-	if err != nil {
-		t.Fatal(err)
 	}
 	var names []string
 	for n := range found {

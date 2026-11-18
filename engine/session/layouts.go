@@ -8,12 +8,12 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/dragosh/zen/internal/core/config"
-	"github.com/dragosh/zen/internal/core/extplugins"
-	"github.com/dragosh/zen/internal/core/index"
-	"github.com/dragosh/zen/internal/core/layouts"
-	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/core/workspace"
+	"github.com/dragosh/zenmd/engine/config"
+	"github.com/dragosh/zenmd/engine/extplugins"
+	"github.com/dragosh/zenmd/engine/index"
+	"github.com/dragosh/zenmd/engine/layouts"
+	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/dragosh/zenmd/engine/workspace"
 )
 
 // EventLayoutsChanged (no payload) follows any change to the layout set or to

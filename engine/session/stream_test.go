@@ -15,9 +15,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/plugins/codeblock"
-	"github.com/dragosh/zen/internal/plugins/diagram"
+	"github.com/dragosh/zenmd/builtins/plugins/codeblock"
+	"github.com/dragosh/zenmd/builtins/plugins/diagram"
+	"github.com/dragosh/zenmd/engine/plugins"
 )
 
 // actor is a built-in plugin with an action and a stream hook.

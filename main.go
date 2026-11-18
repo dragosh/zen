@@ -6,9 +6,9 @@ import (
 	"io/fs"
 	"os"
 
-	"github.com/dragosh/zen/internal/app"
-	"github.com/dragosh/zen/internal/cli"
-	"github.com/dragosh/zen/internal/core/scriptplugins"
+	"github.com/dragosh/zenmd/engine/scriptplugins"
+	"github.com/dragosh/zenmd/internal/app"
+	"github.com/dragosh/zenmd/internal/cli"
 )
 
 //go:embed all:frontend/dist

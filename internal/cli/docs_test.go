@@ -29,13 +29,13 @@ func docFiles(t *testing.T) []string {
 			add(m)
 		}
 	}
-	for _, dir := range []string{"examples/demo", "internal/sitetemplates"} {
+	for _, dir := range []string{"examples/demo", "builtins/sitetemplates"} {
 		err := filepath.WalkDir(filepath.Join(root, dir), func(p string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err
 			}
 			ext := filepath.Ext(p)
-			if !d.IsDir() && (ext == ".md" || (dir == "internal/sitetemplates" && (ext == ".yml" || ext == ".txt"))) {
+			if !d.IsDir() && (ext == ".md" || (dir == "builtins/sitetemplates" && (ext == ".yml" || ext == ".txt"))) {
 				add(p)
 			}
 			return nil
