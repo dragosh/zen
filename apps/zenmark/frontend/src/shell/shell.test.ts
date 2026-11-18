@@ -47,6 +47,16 @@ afterEach(() => {
   root.remove();
 });
 
+test("welcome has the logo, tagline and footer", async () => {
+  const s = boot(createFakeApi());
+  await s.start();
+  const img = root.querySelector<HTMLImageElement>(".zen-welcome img.zen-welcome-logo")!;
+  expect(img).not.toBeNull();
+  expect(img.getAttribute("alt")).toBe("");
+  expect(root.querySelector(".zen-welcome-tagline")?.textContent).toBe("Markdown folders as sites, documents and courses");
+  expect(root.querySelector(".zen-welcome-foot")?.textContent).toContain("⇧⌘N");
+});
+
 test("shows welcome without workspace", async () => {
   const s = boot(createFakeApi());
   await s.start();

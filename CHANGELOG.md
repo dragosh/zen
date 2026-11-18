@@ -13,10 +13,12 @@ Image zoom, and the first release that is signed and notarised.
 ### Added
 
 - Image zoom: click an image in a page to see it large over the window. Click it again (or press `1`) for 100%, `+` and `-` or a trackpad pinch to zoom, scroll to pan, `0` or Fit to fit, Esc or a click outside to close. It works in built websites too. Images in links and plugins, and icons, are left alone. (specs/ui/image-zoom)
+- A calmer home screen: the new logo, a tagline, Open a folder with its ⌘O hint, and the template cards in a grid that is one, two or three columns wide. Built sites show disclosure arrows on the sidebar groups, as the app does, with no JavaScript. (specs/ui/home)
 - Signed and notarised releases: `task release` makes the universal `Zenmark-<version>.dmg` (Developer ID, notarised, stapled) and its `.sha256`; `task release:publish` puts it on the GitHub release with these notes; the `release` workflow does both on a `v*` tag. Notarisation also takes an App Store Connect API key (CI). The DMG opens without the "could not verify" warning.
 
 ### Changed
 
+- The sidebar no longer has an Open… button; open a folder from the home screen, with ⌘O or File › Open Folder.
 - New Zenmark logo: the yin-yang with `#` (markdown) and `</>` (code), as the app icon, in the DMG, the README and the demo.
 - The author is Zenmark Studios: About Zenmark shows `© 2026 Zenmark Studios. All rights reserved.` The code is proprietary (LICENSE).
 - A built page with images now loads `_zen/zen.js` (for the zoom); text-only pages still have no script.

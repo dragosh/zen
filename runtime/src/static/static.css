@@ -61,8 +61,34 @@ body.zen-site { height: auto; overflow: auto; font: 13px/1.4 var(--font-ui); }
   color: var(--fg);
   text-decoration: none;
 }
-.zen-site-nav summary { cursor: pointer; color: var(--fg-muted); }
+/* Group summaries: a chevron before the title, like the app's tree (nav.css), CSS only.
+   The browser's own marker is hidden in every engine. */
+.zen-site-nav summary {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: var(--fg-muted);
+  list-style: none;
+}
+.zen-site-nav summary::-webkit-details-marker { display: none; }
+.zen-site-nav summary::marker { content: ""; }
+.zen-site-nav summary::before {
+  content: "";
+  flex: none;
+  box-sizing: border-box;
+  width: 7px;
+  height: 7px;
+  margin: 0 7px 0 4px;
+  border-right: 2px solid var(--fg);
+  border-bottom: 2px solid var(--fg);
+  transform: rotate(-45deg);
+  transition: transform 0.12s ease;
+}
+.zen-site-nav details[open] > summary::before { margin-top: -4px; transform: rotate(45deg); }
+/* leaves line up with the titles of groups (the chevron column is 18px) */
+.zen-site-nav li > a, .zen-site-nav li > span { padding-left: calc(var(--space-2) + 18px); }
 .zen-site-nav summary > a { display: inline; padding: 0; color: var(--fg); }
+@media (prefers-reduced-motion: reduce) { .zen-site-nav summary::before { transition: none; } }
 .zen-site-nav a:hover, .zen-site-nav summary:hover { background: var(--bg-subtle); }
 .zen-site-nav a[aria-current="page"] { background: var(--btn-bg); font-weight: 600; }
 

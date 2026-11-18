@@ -26,16 +26,12 @@ test("sidebar starts at 260px and toggles", () => {
   expect(l.el.querySelector("nav")!.hidden).toBe(false);
 });
 
-test("Open… sits in the sidebar, not the header; the cog at the bottom reports itself", () => {
-  let opened = 0;
+test("the sidebar has no Open button; the cog at the bottom reports itself", () => {
   let anchor: HTMLButtonElement | null = null;
-  const l = createLayout({ onOpenFolder: () => opened++, onSettings: (a) => { anchor = a; } });
+  const l = createLayout({ onOpenFolder: () => {}, onSettings: (a) => { anchor = a; } });
   const nav = l.el.querySelector("nav")!;
-  const open = nav.querySelector<HTMLButtonElement>(".zen-sidebar-open")!;
-  expect(open.getAttribute("aria-label")).toBe("Open a folder");
-  expect(l.el.querySelector("header")!.querySelector(".zen-sidebar-open")).toBeNull();
-  open.click();
-  expect(opened).toBe(1);
+  expect(l.el.querySelector(".zen-sidebar-open")).toBeNull();
+  expect(nav.querySelector("button[aria-label='Open a folder']")).toBeNull();
   const cog = nav.querySelector<HTMLButtonElement>(".zen-sidebar-foot .zen-settings-button")!;
   expect(cog.getAttribute("aria-label")).toBe("Settings");
   expect(cog.querySelector("svg")).not.toBeNull();

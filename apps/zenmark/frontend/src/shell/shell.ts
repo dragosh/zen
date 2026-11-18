@@ -4,10 +4,11 @@
 // editor under a small header.
 import type { Api, NavNode, Workspace } from "../api";
 import {
-  button, closeWindowKey, createHistory, createLayout, createOpening, createStore, el, logo, mountPreview, reloadKey,
+  button, closeWindowKey, createHistory, createLayout, createOpening, createStore, el, mountPreview, reloadKey,
   type Ctx, type Feature, type Layout, type Store,
 } from "@zenmd/kit";
 import { BRAND } from "../brand";
+import logoUrl from "../assets/logo.svg";
 import { registerBuildSite } from "./buildsite";
 import { installPagePrint } from "@zenmd/runtime/print/page";
 import { openNewPage, type NewPageDialog } from "./newpage";
@@ -274,12 +275,23 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     const view = el("main", "zen-welcome");
     const status = el("p", "zen-welcome-status");
     status.setAttribute("role", "status");
-    view.append(
-      logo("zen-logo"),
-      el("h1", "", BRAND),
+    const mark = el("img", "zen-welcome-logo");
+    mark.src = logoUrl;
+    mark.alt = "";
+    mark.setAttribute("aria-hidden", "true");
+    mark.draggable = false;
+    const open = el("div", "zen-welcome-open");
+    open.append(
       button("Open a folder", () => void openFolder(status), { className: "primary" }),
       el("p", "zen-hint", "⌘O"),
+    );
+    view.append(
+      mark,
+      el("h1", "", BRAND),
+      el("p", "zen-welcome-tagline", "Markdown folders as sites, documents and courses"),
+      open,
       status,
+      el("p", "zen-welcome-foot", "Also File › Open Folder, or ⇧⌘N to start a new site"),
     );
     if (error) status.textContent = `Could not open the folder: ${error}`;
     root.replaceChildren(view);
@@ -315,7 +327,8 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       grid.append(card);
     }
     section.append(heading, grid, button("Show all…", () => showNewSite()));
-    view.append(section);
+    view.querySelector(".zen-welcome-foot")?.before(section);
+    if (!section.isConnected) view.append(section);
   }
 
   function showError(err: unknown): void {

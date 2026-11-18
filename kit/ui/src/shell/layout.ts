@@ -75,8 +75,7 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
   const nav = el("nav", "zen-sidebar");
   nav.id = "zen-sidebar";
   nav.setAttribute("aria-label", "Pages");
-  // The nav slot is the body; the sidebar adds Open (top right) and the
-  // settings cog (bottom) around it.
+  // The nav slot is the body; the sidebar adds the settings cog (bottom) below it.
   const navBody = el("div", "zen-sidebar-body");
   const foot = el("div", "zen-sidebar-foot");
   const settings = button("Settings", () => handlers.onSettings?.(settings), { className: "ghost zen-settings-button", text: "", title: "Settings ⌘," });
@@ -101,8 +100,7 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
   toggle.setAttribute("aria-controls", nav.id);
   const back = button("Back", () => handlers.onBack?.(), { className: "ghost", text: "‹", title: "Back ⌘[" });
   const forward = button("Forward", () => handlers.onForward?.(), { className: "ghost", text: "›", title: "Forward ⌘]" });
-  const open = button("Open a folder", () => handlers.onOpenFolder?.(), { className: "ghost zen-sidebar-open", text: "Open…", title: "Open a folder ⌘O" });
-  nav.append(navBody, open, foot);
+  nav.append(navBody, foot);
   back.disabled = forward.disabled = true;
   controls.append(toggle, back, forward);
 
