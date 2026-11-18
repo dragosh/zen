@@ -1,8 +1,8 @@
 /* The page CSS of a built site: zen's tokens, base and page styles, plus the shell
    (sidebar, breadcrumb, skip link). Black and white, light and dark by prefers-color-scheme. */
-@import "../styles/tokens.css";
-@import "../styles/base.css";
-@import "../page/page.css";
+@import "../css/tokens.css";
+@import "../css/base.css";
+@import "../css/page.css";
 
 /* The site scrolls as a document (the app's panes scroll themselves). */
 html { height: auto; }

@@ -9,7 +9,8 @@ function files(dir: string): string[] {
   return readdirSync(dir).flatMap((name) => {
     const p = join(dir, name);
     if (statSync(p).isDirectory()) return files(p);
-    return /\.(ts|css)$/.test(name) ? [p] : [];
+    // The tests may use the app's fake api as a ready-made host; the shipped sources may not.
+    return /\.(ts|css)$/.test(name) && !/\.test\.ts$/.test(name) ? [p] : [];
   });
 }
 
@@ -17,7 +18,7 @@ function files(dir: string): string[] {
 function specifiers(src: string): string[] {
   const out: string[] = [];
   const re = /(?:\bfrom\s+|\bimport\s*\(\s*|\bimport\s+|@import\s+(?:url\()?)["']([^"']+)["']/g;
-  for (const m of src.matchAll(re)) out.push(m[1]);
+  for (const m of Array.from(src.matchAll(re))) out.push(m[1]);
   return out;
 }
 

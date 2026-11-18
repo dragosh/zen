@@ -14,3 +14,4 @@ build/darwin/helpers/
 _site/
 *.provisionprofile
 bin/*.pkg
+runtime/dist

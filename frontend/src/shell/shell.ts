@@ -9,7 +9,7 @@ import { createLayout, type Layout } from "./layout";
 import { createOpening } from "./opening";
 import { BRAND } from "../brand";
 import { registerBuildSite } from "./buildsite";
-import { installPagePrint } from "../print/page";
+import { installPagePrint } from "@zenmd/runtime/print/page";
 import { mountPreview } from "../print/preview";
 import { openNewPage, type NewPageDialog } from "./newpage";
 import { openNewSite, type NewSiteDialog, type SiteApi, type SiteTemplate } from "./newsite";

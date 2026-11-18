@@ -1,5 +1,6 @@
 // The typed client for the Go services. Types and the Api interface mirror
 // docs/PLAN.md "Service API" exactly; UI features import only from here.
+import type { PluginStreamEvent, RuntimeHost } from "@zenmd/runtime";
 import { createFakeApi, sampleWorkspace, type FakeOptions } from "./fake";
 
 export type NavNode = { title: string; path: string; kind: "page" | "group"; children: NavNode[] };
@@ -77,12 +78,12 @@ export type PageLayout = string;
 
 /** An editor's unsaved text shared with other windows; content null = draft gone. */
 export type Draft = { path: string; content: string | null };
-/** One piece of a plugin stream (core/plugin-extras): a chunk, or the end (`done`, with `error` "" on success). */
-export type PluginStreamEvent = { call: string; chunk: string; done: boolean; error: string };
+export type { PluginStreamEvent };
 /** available is false when Vale is missing or linting is switched off: show nothing. */
 export type LintResult = { available: boolean; alerts: Alert[] };
 
-export interface Api {
+/** The storage, invoke, stream, cancel and openExternal calls (and the plugin events of `on`) are RuntimeHost, the runtime's side of this API. */
+export interface Api extends RuntimeHost {
   startup(): Promise<Startup>;
   pickFolder(): Promise<Workspace | null>; // native folder dialog; null also when the opening was cancelled
   /** Stops the folder that is opening; the one open before stays. */
@@ -114,7 +115,6 @@ export interface Api {
   source(path: string): Promise<string>;
   preview(path: string, content: string): Promise<Page>; // render unsaved text
   save(path: string, content: string): Promise<void>;
-  openExternal(url: string): Promise<boolean>; // Go shows the confirm dialog
   /** Opens the page in its own editor window, or focuses the one already open (ui/editor-window). */
   openEditor(path: string): Promise<void>;
   /** Vale alerts for path: the unsaved content, or the file on disk when content is "" (ui/lint). */
@@ -142,27 +142,8 @@ export interface Api {
   layouts(): Promise<LayoutInfo[]>;
   /** Records the user's Allow (true) or Block (false) for an external layout and reloads. */
   layoutTrust(id: string, allow: boolean): Promise<void>;
-  /** A layout's stored value as JSON text; "null" when the key is absent. */
-  layoutStorageGet(id: string, key: string): Promise<string>;
-  layoutStorageSet(id: string, key: string, json: string): Promise<void>;
-  /** The storage keys of a layout that start with prefix ("" for all), sorted. */
-  layoutStorageKeys(id: string, prefix: string): Promise<string[]>;
   /** Records the user's Allow (true) or Block (false) for an external plugin and reloads. */
   pluginTrust(id: string, allow: boolean): Promise<void>;
-  /** A plugin's stored value as JSON text; "null" when the key is absent. */
-  pluginStorageGet(id: string, key: string): Promise<string>;
-  pluginStorageSet(id: string, key: string, json: string): Promise<void>;
-  /**
-   * Runs the plugin's backend with ZEN_HOOK=action; JSON text in, JSON text out. `page` is the
-   * workspace path of the page the block is on: Go resolves the plugin's settings for that page.
-   */
-  pluginInvoke(id: string, page: string, json: string): Promise<string>;
-  /** The storage keys of a plugin that start with prefix ("" for all), sorted. */
-  pluginStorageKeys(id: string, prefix: string): Promise<string[]>;
-  /** Starts the plugin's stream; resolves to the call id. Output arrives as "plugin:stream" events. */
-  pluginStream(id: string, page: string, json: string): Promise<string>;
-  /** Cancels a stream; it ends with error "cancelled". */
-  pluginCancel(call: string): Promise<void>;
   on(event: "workspace:changed", fn: (w: Workspace) => void): () => void;
   /** Also delivered when another window saved the page ("editor:saved"). */
   on(event: "page:changed", fn: (e: { path: string }) => void): () => void;

@@ -1,16 +1,15 @@
-// @vitest-environment happy-dom
 // The built-in "course" layout (builtins/layouts/course/course.js), loaded as the app loads it.
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, expect, test } from "vitest";
-import { createFakeApi, type FakeApi } from "../api/fake";
-import { installRuntime } from "./runtime";
+import { createFakeApi, type FakeApi } from "../../frontend/src/api/fake";
+import { installRuntime } from "../src/plugins";
 
 // The built-in layouts live in builtins/layouts/ (they were plugins before core/layouts).
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../../..");
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), "../..");
 // Whichever of the two places has the script (a glob, so a missing one is no error).
-const scripts = import.meta.glob<unknown>("../../../builtins/layouts/course/course.js");
+const scripts = import.meta.glob<unknown>("../../builtins/layouts/course/course.js");
 const ASSETS = join(ROOT, "builtins/layouts/course");
 const PATH = "demo/layouts/course.md";
 

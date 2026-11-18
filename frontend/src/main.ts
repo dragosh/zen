@@ -1,5 +1,5 @@
-import "./styles/tokens.css";
-import "./styles/base.css";
+import "@zenmd/runtime/css/tokens.css";
+import "@zenmd/runtime/css/base.css";
 import "./styles/shell.css";
 import { getApi } from "./api";
 import { features } from "./shell/features";

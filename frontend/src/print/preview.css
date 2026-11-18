@@ -1,5 +1,5 @@
 /* The Print Preview window (ui/print): a toolbar over a sheet. The toolbar follows the app theme; the
-   document is always light, like the paper it is for. The document's own rules are in page/print.css. */
+   document is always light, like the paper it is for. The document's own rules are in runtime/src/css/print.css. */
 .zen-print-preview {
   display: flex;
   flex-direction: column;

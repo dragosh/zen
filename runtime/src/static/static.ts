@@ -1,10 +1,10 @@
 // The runtime of a built site (`zenmd build`). It reads <script type="application/json" id="zen-page">
 // ({ path, siteId, root, assets: { css, js }, portable }) and mounts the plugin and layout scripts of the
 // page with the same contract as the app (docs/PLUGINS.md, docs/LAYOUTS.md): it reuses
-// plugins/runtime.ts with a static `api`. No Wails bindings are imported; the app's backend does not
+// plugins.ts with a static `api`. No Wails bindings are imported; the app's backend does not
 // exist here, so invoke and stream reject with "runs in the zen app only".
-import type { Api } from "../api";
-import { installRuntime } from "../plugins/runtime";
+import { installRuntime } from "../plugins";
+import type { RuntimeApi } from "../types";
 import "./static.css";
 
 const NOT_HERE = "runs in the zen app only";
@@ -13,12 +13,7 @@ const KEY_RE = /^[A-Za-z0-9._-]{1,64}$/;
 type Kind = "plugin" | "layout";
 
 /** The part of the service API a built site can answer, as the runtime sees it. */
-export type StaticApi = Pick<
-  Api,
-  | "pluginStorageGet" | "pluginStorageSet" | "pluginStorageKeys"
-  | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys"
-  | "pluginInvoke" | "pluginStream" | "pluginCancel" | "on"
->;
+export type StaticApi = RuntimeApi;
 
 function validKey(key: string): void {
   if (!KEY_RE.test(key)) throw new Error("storage keys are 1 to 64 letters, digits, '.', '_' or '-'");
@@ -173,7 +168,7 @@ export function start(doc: Document = document): void {
   win.addEventListener("hashchange", onHash);
 
   const rt = installRuntime({
-    api: staticApi(page.siteId) as unknown as Api,
+    api: staticApi(page.siteId),
     navigate(path, a) {
       const url = page.root + escapePath(outFile(path)) + (a ? "#" + encodeURIComponent(a) : "");
       (staticHooks.navigate ?? ((u: string) => win.location.assign(u)))(url);
