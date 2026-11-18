@@ -221,6 +221,9 @@ func (z *Zen) CancelOpen() { z.s.CancelOpen() }
 // Page renders a workspace page.
 func (z *Zen) Page(path string) (Page, error) { return z.s.Page(path) }
 
+// PageInfo returns the size, times and location of a page's file (the Inspector).
+func (z *Zen) PageInfo(path string) (PageInfo, error) { return z.s.PageInfo(path) }
+
 // Source returns the markdown of a page, or of a settings file.
 func (z *Zen) Source(path string) (string, error) { return z.s.Source(path) }
 

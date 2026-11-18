@@ -5,7 +5,7 @@ import type { Api, BuildProgress, Crumb, Draft, SiteTemplate, LayoutInfo, LintRe
 type Method = "startup" | "pickFolder" | "cancelOpen"
   | "siteTemplates" | "pickSiteFolder" | "createSite" | "revealTemplates" | "templatesDir"
   | "buildOptions" | "buildWebsite" | "cancelBuild" | "saveBuildDefaults" | "pickBuildFolder" | "openBuiltSite" | "revealBuiltSite"
-  | "printPage" | "printSite" | "printWindow" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig" | "createPage"
+  | "printPage" | "printSite" | "printWindow" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "pageInfo" | "revealInFinder" | "openConfig" | "createPage"
   | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys"
   | "layouts" | "layoutTrust" | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys";
 type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "layouts:changed": undefined; "menu:new-page": undefined; "menu:settings": undefined; "workspace:opening": OpenProgress; "menu:new-site": undefined; "menu:build-website": undefined; "build:progress": BuildProgress; "menu:print-page": undefined };
@@ -282,6 +282,11 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
       const r = typeof api.lintResult === "function" ? api.lintResult(path, content) : api.lintResult;
       return { available: r.available, alerts: r.alerts.map((a) => ({ ...a })) };
     }),
+    pageInfo: (path) => call("pageInfo", [path], () => ({
+      path, absPath: `${(startup.workspace ?? sampleWorkspace()).root}/${path}`, size: new TextEncoder().encode(need(path)).length,
+      modTime: Date.UTC(2026, 10, 18, 9, 30), birthTime: Date.UTC(2026, 10, 1, 8, 0),
+    })),
+    revealInFinder: (path) => call("revealInFinder", [path], () => undefined),
     plugins: () => call("plugins", [], () => api.pluginList.map(plugin)),
     pluginTrust: (id, allow) => call("pluginTrust", [id, allow], () => {
       const p = api.pluginList.find((x) => x.id === id);

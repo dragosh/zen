@@ -1,7 +1,8 @@
 // The reader: loads Page for store.path, mounts its HTML and wires links,
 // anchors, plugin assets, live reload, warnings, errors and the Edit action.
 import type { Alert, Page } from "../host";
-import { flash, markText, renderPanel } from "../lint";
+import { createInspector, inspectorKey } from "../inspector";
+import { flash, markText } from "../lint";
 import { installRuntime } from "@zenmd/runtime/plugins";
 import { installImageZoom } from "@zenmd/runtime/zoom/zoom";
 import { button, el } from "../shell/dom";
@@ -86,15 +87,21 @@ export const pageFeature: Feature = {
     };
     const edit = button("Edit", openEditor, { title: "Edit (⌘E)" });
 
-    // Vale alerts (ui/lint): marks in the article, a count and panel in the actions.
+    // Vale alerts (ui/lint): marks in the article; the list is in the Inspector (ui/inspector),
+    // whose button in the actions carries the count.
     let lintMarks: (HTMLElement | null)[] = [];
-    const lintPanel = renderPanel((_alert: Alert, i: number) => {
-      const m = lintMarks[i];
-      if (!m?.isConnected) return;
-      m.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "center" });
-      flash(m);
+    const inspector = createInspector({
+      doc, host: ctx.api,
+      onSelectIssue(_alert: Alert, i: number) {
+        const m = lintMarks[i];
+        if (!m?.isConnected) return;
+        m.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "center" });
+        flash(m);
+      },
     });
-    slots.actions.append(lintPanel.el, edit);
+    slots.actions.append(inspector.button, edit);
+    // The panel sits beside the main pane, before it (inspector.css makes room for it).
+    main.before(inspector.el);
 
     // External plugins (ui/plugins): their handlers mount on the wrappers of
     // every render and are cleaned up before the next one replaces the article.
@@ -142,11 +149,11 @@ export const pageFeature: Feature = {
         const r = await ctx.api.lint(path, content);
         if (mine !== seq) return;
         lintMarks = r.available ? markText(article, r.alerts) : [];
-        lintPanel.update(r.available ? r.alerts : null);
+        inspector.setIssues(r.available ? r.alerts : null);
       } catch (err) {
         if (mine !== seq) return;
         lintMarks = [];
-        lintPanel.update(null);
+        inspector.setIssues(null);
         console.warn(`zen: could not lint ${path}`, err);
       }
     }
@@ -176,7 +183,8 @@ export const pageFeature: Feature = {
       } catch (err) {
         if (mine !== seq) return;
         stopProgress();
-        lintPanel.update(null);
+        inspector.setIssues(null);
+        inspector.setPage(null);
         errorText.textContent = `Could not load ${path}: ${message(err)}`;
         error.hidden = false;
         article.hidden = true;
@@ -188,7 +196,8 @@ export const pageFeature: Feature = {
       article.hidden = false;
       const scroll = main.scrollTop;
       render(page);
-      if (!keepScroll) lintPanel.update(null);
+      if (!keepScroll) inspector.setIssues("checking");
+      inspector.setPage(path, page, article);
       void lint(path, mine);
       warningText.textContent = page.warnings.join("\n");
       warnings.hidden = page.warnings.length === 0;
@@ -200,6 +209,7 @@ export const pageFeature: Feature = {
 
     const onState = () => {
       const { path, anchor, mode } = ctx.store.get();
+      inspector.setActive(mode === "read" && path !== "");
       if (mode !== "read" || path === "") return;
       if (path !== shownPath) {
         draft = null;
@@ -222,6 +232,10 @@ export const pageFeature: Feature = {
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "e") {
         e.preventDefault();
         openEditor();
+      }
+      if (inspectorKey(e) && inspector.available) {
+        e.preventDefault();
+        inspector.toggle();
       }
       // ⌘P is handled by the print flow (print/page.ts, installed by the shell).
     };
@@ -246,6 +260,7 @@ export const pageFeature: Feature = {
       article.hidden = false;
       const scroll = main.scrollTop;
       render(page);
+      inspector.setPage(path, page, article);
       void lint(path, mine, content);
       warningText.textContent = page.warnings.join("\n");
       warnings.hidden = page.warnings.length === 0;
@@ -280,7 +295,7 @@ export const pageFeature: Feature = {
       error.remove();
       article.remove();
       edit.remove();
-      lintPanel.destroy();
+      inspector.destroy();
     };
   },
 };

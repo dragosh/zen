@@ -117,6 +117,7 @@
 }
 
 .zen-content {
+  position: relative; /* the Inspector (ui/inspector) sits over the right edge of the main pane */
   flex: 1;
   min-width: 0;
   display: flex;

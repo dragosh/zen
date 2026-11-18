@@ -3,7 +3,7 @@
 // preview and the Settings frame. It imports @zenmd/runtime and its own files only
 // (kit/ui/test/boundary.test.ts); an app gives it a KitHost.
 export type {
-  Alert, Crumb, Draft, KitHost, LayoutSource, LintResult, NavNode, OpenProgress, Page, PageLayoutRef, PluginStreamEvent, Workspace,
+  Alert, Crumb, Draft, KitHost, LayoutSource, LintResult, NavNode, OpenProgress, Page, PageInfo, PageLayoutRef, PluginStreamEvent, Workspace,
 } from "./host";
 export { button, el, logo } from "./shell/dom";
 export { copyText } from "./shell/clipboard";
@@ -19,4 +19,5 @@ export { navFeature } from "./nav";
 export { handleLinkClick, mountPage, pageFeature, pageHooks } from "./page";
 export { editorFeature, CONFIG_PREFIX, isConfigPath } from "./editor";
 export { mountPreview, type PreviewApi, type PreviewOptions } from "./print/preview";
-export { clearMarks, flash, markText, renderPanel, type LintPanel } from "./lint";
+export { clearMarks, flash, issueList, markText, renderPanel, type LintPanel } from "./lint";
+export { createInspector, inspectorKey, pageStats, type Inspector, type InspectorOptions, type PageStats } from "./inspector";

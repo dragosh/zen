@@ -16,6 +16,35 @@ export type LintPanel = {
   destroy(): void;
 };
 
+/** The <li> items of an issue list: line, severity, message and the flagged text; a click calls onSelect. */
+function issueItems(alerts: Alert[], onSelect: (alert: Alert, index: number) => void): HTMLElement[] {
+  return alerts.map((a, i) => {
+    const sev = severityOf(a.severity);
+    const item = el("button", `zen-lint-item zen-lint-item-${sev}`);
+    item.type = "button";
+    const line = el("span", "zen-lint-line", String(a.line));
+    line.setAttribute("aria-label", `Line ${a.line}`);
+    item.append(
+      line,
+      el("span", "zen-lint-severity", sev),
+      el("span", "zen-lint-message", a.message),
+      el("span", "zen-lint-match", a.match),
+    );
+    item.title = a.check;
+    item.addEventListener("click", () => onSelect(a, i));
+    const li = el("li");
+    li.append(item);
+    return li;
+  });
+}
+
+/** A list of issues for panels other than the count button's (the Inspector's Issues section). */
+export function issueList(alerts: Alert[], onSelect: (alert: Alert, index: number) => void): HTMLUListElement {
+  const list = el("ul", "zen-lint-list");
+  list.append(...issueItems(alerts, onSelect));
+  return list;
+}
+
 let panelSeq = 0;
 
 export function renderPanel(onSelect: (alert: Alert, index: number) => void): LintPanel {
@@ -37,24 +66,7 @@ export function renderPanel(onSelect: (alert: Alert, index: number) => void): Li
   let alerts: Alert[] = [];
 
   function render(): void {
-    list.replaceChildren(...alerts.map((a, i) => {
-      const sev = severityOf(a.severity);
-      const item = el("button", `zen-lint-item zen-lint-item-${sev}`);
-      item.type = "button";
-      const line = el("span", "zen-lint-line", String(a.line));
-      line.setAttribute("aria-label", `Line ${a.line}`);
-      item.append(
-        line,
-        el("span", "zen-lint-severity", sev),
-        el("span", "zen-lint-message", a.message),
-        el("span", "zen-lint-match", a.match),
-      );
-      item.title = a.check;
-      item.addEventListener("click", () => onSelect(a, i));
-      const li = el("li");
-      li.append(item);
-      return li;
-    }));
+    list.replaceChildren(...issueItems(alerts, onSelect));
   }
 
   const onKey = (e: KeyboardEvent) => {

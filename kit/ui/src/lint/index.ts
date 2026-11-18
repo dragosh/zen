@@ -4,6 +4,6 @@
 import "./lint.css";
 
 export { clearMarks, flash, markText, severityOf, titleOf } from "./mark";
-export { renderPanel, type LintPanel } from "./panel";
+export { issueList, renderPanel, type LintPanel } from "./panel";
 export { alertRange, backdrop, type Backdrop } from "./backdrop";
 export { renderConsole, type LintConsole } from "./console";

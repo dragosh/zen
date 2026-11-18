@@ -12,10 +12,10 @@ import (
 var serviceMethods = []string{
 	"BuildOptions", "BuildWebsite", "CancelBuild", "CancelOpen", "CreatePage", "CreateSite",
 	"LayoutStorageGet", "LayoutStorageKeys", "LayoutStorageSet", "LayoutTrust", "Layouts", "Lint",
-	"OpenBuiltSite", "OpenConfig", "OpenEditor", "OpenExternal", "Page", "PickBuildFolder",
+	"OpenBuiltSite", "OpenConfig", "OpenEditor", "OpenExternal", "Page", "PageInfo", "PickBuildFolder",
 	"PickFolder", "PickSiteFolder", "PluginCancel", "PluginInvoke", "PluginStorageGet",
 	"PluginStorageKeys", "PluginStorageSet", "PluginStream", "PluginTrust", "Plugins", "Preview",
-	"PrintPage", "PrintSite", "PrintWindow", "RevealBuiltSite", "RevealTemplates", "Save", "SaveBuildDefaults",
+	"PrintPage", "PrintSite", "PrintWindow", "RevealBuiltSite", "RevealInFinder", "RevealTemplates", "Save", "SaveBuildDefaults",
 	"SiteTemplates", "Source", "Startup", "TemplatesDir",
 }
 

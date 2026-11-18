@@ -11,6 +11,7 @@ type (
 	PageAssets        = session.PageAssets
 	PageLayout        = session.PageLayout
 	Page              = session.Page
+	PageInfo          = session.PageInfo
 	Startup           = session.Startup
 	PageChanged       = session.PageChanged
 	PluginInfo        = session.PluginInfo
