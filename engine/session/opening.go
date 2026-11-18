@@ -8,13 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dragosh/zen/internal/core/config"
-	"github.com/dragosh/zen/internal/core/index"
-	"github.com/dragosh/zen/internal/core/layouts"
-	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/core/render"
-	"github.com/dragosh/zen/internal/core/watch"
-	"github.com/dragosh/zen/internal/core/workspace"
+	"github.com/dragosh/zenmd/internal/core/config"
+	"github.com/dragosh/zenmd/internal/core/index"
+	"github.com/dragosh/zenmd/internal/core/layouts"
+	"github.com/dragosh/zenmd/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/render"
+	"github.com/dragosh/zenmd/internal/core/watch"
+	"github.com/dragosh/zenmd/internal/core/workspace"
 )
 
 // EventWorkspaceOpening reports progress while a folder opens, payload

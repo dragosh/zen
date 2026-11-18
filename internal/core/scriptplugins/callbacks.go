@@ -9,10 +9,10 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/dragosh/zen/internal/core/extplugins"
-	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/core/render"
-	"github.com/dragosh/zen/internal/core/workspace"
+	"github.com/dragosh/zenmd/internal/core/extplugins"
+	"github.com/dragosh/zenmd/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/render"
+	"github.com/dragosh/zenmd/internal/core/workspace"
 )
 
 const maxReadBytes = 1 << 20 // zen.read: largest file

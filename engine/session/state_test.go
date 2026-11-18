@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zen/internal/core/watch"
+	"github.com/dragosh/zenmd/internal/core/watch"
 )
 
 func TestPageLifecycle(t *testing.T) {

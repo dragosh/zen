@@ -10,8 +10,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/core/scriptplugins"
+	"github.com/dragosh/zenmd/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/scriptplugins"
 )
 
 // writeFile writes rel (slash separated) under dir.

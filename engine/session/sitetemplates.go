@@ -8,8 +8,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/dragosh/zen/internal/core/config"
-	"github.com/dragosh/zen/internal/core/sitetemplates"
+	"github.com/dragosh/zenmd/internal/core/config"
+	"github.com/dragosh/zenmd/internal/core/sitetemplates"
 )
 
 // SiteTemplate is a site template as the frontend lists it (core/init).

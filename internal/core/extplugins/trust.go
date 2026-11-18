@@ -10,7 +10,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/dragosh/zen/internal/core/atomicfile"
+	"github.com/dragosh/zenmd/internal/core/atomicfile"
 )
 
 // Hash is the SHA-256 over the sorted relative paths and contents of every

@@ -5,11 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zen/internal/core/config"
-	core "github.com/dragosh/zen/internal/core/layouts"
-	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/core/render"
-	"github.com/dragosh/zen/internal/plugins/check"
+	"github.com/dragosh/zenmd/internal/core/config"
+	core "github.com/dragosh/zenmd/internal/core/layouts"
+	"github.com/dragosh/zenmd/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/render"
+	"github.com/dragosh/zenmd/internal/plugins/check"
 )
 
 func renderer(t *testing.T, site core.Site, cfg *config.Config) *render.Renderer {

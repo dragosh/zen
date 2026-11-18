@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing/fstest"
 
-	"github.com/dragosh/zen/engine/session"
+	"github.com/dragosh/zenmd/engine/session"
 )
 
 // Open examples/demo, list the tree, render README.md and build the site.

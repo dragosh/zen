@@ -5,7 +5,7 @@ import (
 	"net/url"
 	"strings"
 
-	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/plugins"
 	"github.com/yuin/goldmark/ast"
 	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/util"

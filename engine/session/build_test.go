@@ -11,7 +11,7 @@ import (
 	"testing"
 	"testing/fstest"
 
-	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/plugins"
 )
 
 // stubAssets stands in for frontend/dist (which a test run may not have built).

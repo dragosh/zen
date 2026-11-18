@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/plugins"
 )
 
 // fakeWindow behaves like a Wails window: Close runs the closing hook and,

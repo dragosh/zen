@@ -8,9 +8,9 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/dragosh/zen/engine/session"
-	"github.com/dragosh/zen/engine/session/sessiontest"
-	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zenmd/engine/session"
+	"github.com/dragosh/zenmd/engine/session/sessiontest"
+	"github.com/dragosh/zenmd/internal/core/plugins"
 )
 
 // waiter is a built-in plugin whose stream waits until it is cancelled.

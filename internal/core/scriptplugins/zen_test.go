@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/core/scriptplugins"
+	"github.com/dragosh/zenmd/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/scriptplugins"
 )
 
 // expr renders `out = <expr>` in a block hook.

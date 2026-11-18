@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zen/internal/core/config"
+	"github.com/dragosh/zenmd/internal/core/config"
 )
 
 func TestMatch(t *testing.T) {

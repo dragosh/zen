@@ -9,12 +9,12 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/plugins/check"
-	"github.com/dragosh/zen/internal/plugins/codeblock"
-	"github.com/dragosh/zen/internal/plugins/diagram"
-	"github.com/dragosh/zen/internal/plugins/quiz"
-	"github.com/dragosh/zen/internal/plugins/sandbox"
+	"github.com/dragosh/zenmd/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/plugins/check"
+	"github.com/dragosh/zenmd/internal/plugins/codeblock"
+	"github.com/dragosh/zenmd/internal/plugins/diagram"
+	"github.com/dragosh/zenmd/internal/plugins/quiz"
+	"github.com/dragosh/zenmd/internal/plugins/sandbox"
 )
 
 // TestDemoFolder opens examples/demo the way the app does and checks that it

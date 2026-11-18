@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dragosh/zen/internal/core/config"
-	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/config"
+	"github.com/dragosh/zenmd/internal/core/plugins"
 )
 
 // Default is the name of the layout of a page that chooses none: the built-in

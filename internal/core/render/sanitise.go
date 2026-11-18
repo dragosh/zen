@@ -7,7 +7,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/plugins"
 	"github.com/microcosm-cc/bluemonday"
 	"golang.org/x/net/html"
 )

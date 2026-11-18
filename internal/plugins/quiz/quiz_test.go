@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/core/render"
+	"github.com/dragosh/zenmd/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/render"
 )
 
 const page = `# Test

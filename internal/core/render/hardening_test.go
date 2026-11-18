@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/plugins"
 )
 
 // svgPlugin renders an svg with URL-carrying parts and allows whatever it asks.

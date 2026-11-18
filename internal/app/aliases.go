@@ -1,6 +1,6 @@
 package app
 
-import "github.com/dragosh/zen/engine/session"
+import "github.com/dragosh/zenmd/engine/session"
 
 // The JSON types of the service are defined in engine/session; these aliases
 // keep the names the frontend bindings and the rest of the app use.

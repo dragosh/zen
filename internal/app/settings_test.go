@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zen/internal/core/config"
-	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/config"
+	"github.com/dragosh/zenmd/internal/core/plugins"
 )
 
 func TestOpenConfig(t *testing.T) {

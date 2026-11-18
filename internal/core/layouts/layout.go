@@ -20,8 +20,8 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/dragosh/zen/internal/core/extplugins"
-	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/extplugins"
+	"github.com/dragosh/zenmd/internal/core/plugins"
 )
 
 // Where a layout comes from.

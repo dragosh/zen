@@ -13,7 +13,7 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/plugins"
 )
 
 func hasEvent(ev *sink, name string) bool {

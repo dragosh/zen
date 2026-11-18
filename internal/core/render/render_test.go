@@ -11,9 +11,9 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/dragosh/zen/internal/core/config"
-	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/core/workspace"
+	"github.com/dragosh/zenmd/internal/core/config"
+	"github.com/dragosh/zenmd/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/workspace"
 )
 
 // fakeResolver resolves by a fixed table; unknown hrefs are broken.

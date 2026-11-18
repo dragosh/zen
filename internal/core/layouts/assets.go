@@ -6,8 +6,8 @@ import (
 	"os"
 	"path"
 
-	"github.com/dragosh/zen/internal/core/extplugins"
-	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/extplugins"
+	"github.com/dragosh/zenmd/internal/core/plugins"
 )
 
 func readDir(dir string) ([]string, error) {

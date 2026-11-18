@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zen/internal/core/scriptplugins"
+	"github.com/dragosh/zenmd/internal/core/scriptplugins"
 )
 
 func timed(f func()) time.Duration {

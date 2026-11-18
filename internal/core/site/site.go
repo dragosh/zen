@@ -15,7 +15,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/dragosh/zen/internal/core/layouts"
+	"github.com/dragosh/zenmd/internal/core/layouts"
 )
 
 // Page is one rendered page, as the app shows it.

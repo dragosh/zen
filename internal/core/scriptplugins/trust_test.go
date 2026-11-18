@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zen/internal/core/extplugins"
-	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/core/scriptplugins"
+	"github.com/dragosh/zenmd/internal/core/extplugins"
+	"github.com/dragosh/zenmd/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/scriptplugins"
 )
 
 // edit rewrites a file and makes sure its modification time differs.

@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/core/render"
-	"github.com/dragosh/zen/internal/core/scriptplugins"
+	"github.com/dragosh/zenmd/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/render"
+	"github.com/dragosh/zenmd/internal/core/scriptplugins"
 )
 
 // renderPage renders src with the given script plugins registered.

@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/dragosh/zen/internal/core/scriptplugins"
+	"github.com/dragosh/zenmd/internal/core/scriptplugins"
 )
 
 // The test binary is its own script helper: the pool starts it as

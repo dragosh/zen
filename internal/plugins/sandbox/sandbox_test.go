@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/plugins"
 )
 
 // fake writes a fake `container` script into a temp dir and points the plugin

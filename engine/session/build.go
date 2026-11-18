@@ -12,9 +12,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/dragosh/zen/internal/core/config"
-	"github.com/dragosh/zen/internal/core/plugins"
-	"github.com/dragosh/zen/internal/core/site"
+	"github.com/dragosh/zenmd/internal/core/config"
+	"github.com/dragosh/zenmd/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/site"
 )
 
 // SiteOptions are the options of a site build, the flags of `zenmd build`.

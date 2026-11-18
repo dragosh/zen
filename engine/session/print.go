@@ -5,7 +5,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/dragosh/zen/internal/core/site"
+	"github.com/dragosh/zenmd/internal/core/site"
 )
 
 const (

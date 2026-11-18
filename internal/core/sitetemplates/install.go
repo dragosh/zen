@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/dragosh/zen/internal/core/atomicfile"
+	"github.com/dragosh/zenmd/internal/core/atomicfile"
 	"gopkg.in/yaml.v3"
 )
 

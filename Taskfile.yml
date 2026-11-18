@@ -11,7 +11,7 @@ vars:
   VERSION:
     sh: cat "{{.ROOT_DIR}}/VERSION"
   # Linker flag that stamps the version into every `go build`.
-  VERSION_LDFLAGS: '-X github.com/dragosh/zen/internal/cli.Version={{.VERSION}}'
+  VERSION_LDFLAGS: '-X github.com/dragosh/zenmd/internal/cli.Version={{.VERSION}}'
   SEMVER_RE: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$'
 
 includes:

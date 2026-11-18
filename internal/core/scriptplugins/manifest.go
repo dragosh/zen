@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/dragosh/zen/internal/core/extplugins"
-	"github.com/dragosh/zen/internal/core/plugins"
+	"github.com/dragosh/zenmd/internal/core/extplugins"
+	"github.com/dragosh/zenmd/internal/core/plugins"
 )
 
 // spec is what the plugin map declares beyond the manifest.
