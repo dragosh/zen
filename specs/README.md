@@ -54,6 +54,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 15 (E2b) | [engine/runtime](engine/runtime/spec.md) | the browser runtime (plugin mounting, built sites, print, page CSS) moves to `runtime/` (`@zenmd/runtime`), embedded in Go as package `runtime`; one build for the app and `zenmd build` | engine/public-api | done |
 | 16 (E2c) | [kit/desktop-ui](kit/desktop-ui/spec.md) | `kit/desktop` (Go) and `kit/ui` (`@zenmd/kit`) hold the shared desktop shell; `internal/app` and `frontend/` move to `apps/zenmd-app`; runs alone | engine/public-api, engine/runtime | done |
 | 17 | [ui/image-zoom](ui/image-zoom/spec.md) | click an image to see it large: zoom, pan, fit, close; in the app and built sites; `runtime/src/zoom`, page.css, built pages with images load zen.js | engine/runtime, ui/page | done |
+| 18 | [ui/sidebar-menu](ui/sidebar-menu/spec.md) | sidebar context menu and reordering by drag / Move Up and Down: `kit/ui/src/nav`, `engine/config/frontmatter_edit.go`, `engine/session/nav.go`, `apps/zenmark/nav.go` | engine/session, kit/desktop-ui, core/navmeta, ui/new-page | in progress |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 
