@@ -7,6 +7,19 @@ command line tool is `zenmd` (`zen` still works until 0.4.0 and says so).
 - Plan and architecture: [docs/PLAN.md](docs/PLAN.md)
 - Feature specs, prompts and tests: [specs/](specs/README.md)
 
+## Layout
+
+```
+engine/ builtins/ runtime/   zenmd: the engine, its built-ins and the browser runtime (@zenmd/runtime)
+kit/desktop                  Go: the window shell any desktop app needs (windows, dialogs, print, Run)
+kit/ui                       TypeScript: the shared UI (@zenmd/kit): frame, sidebar, page, editor, settings
+apps/zenmd-app               zen.md itself: menu, the Zen service, its dialogs, and apps/zenmd-app/frontend
+build/                       packaging (macOS, Wails)
+main.go                      the zenmd command
+```
+
+Imports point down: apps, then kit, then engine ([docs/ENGINE.md](docs/ENGINE.md)).
+
 ## Development
 
 Requires Go 1.26+, Node 22+ and the Wails CLI:
