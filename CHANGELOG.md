@@ -8,7 +8,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ## [0.5.0] - 2026-11-18
 
-Image zoom, and the first release that is signed and notarised.
+A new home screen and logo, the Inspector, a sidebar menu with reordering, a Developer tab, image zoom; the first release that is signed and notarised.
 
 ### Added
 
@@ -17,7 +17,6 @@ Image zoom, and the first release that is signed and notarised.
 - Inspector: a side panel on the right of the page (the Inspector button next to Edit, or ⌥⌘I) with the page's Vale issues (the count stays on the button), its file (path, size, dates, Copy path, Reveal in Finder) and its content (words, reading time, headings, links, images, plugins, front matter). It remembers whether it is open. (specs/ui/inspector)
 - Developer tab: switch on **Settings › Developer › Show developer tab** (off by default) and a Developer button appears next to the settings cog (also <kbd>⌥⌘J</kbd>). It opens a resizable panel below the page with the app's log, the plugins' errors and the console (`console.*`, uncaught errors), with level and text filters, Clear and Copy all. The Go side keeps the last 2000 log lines (`log/slog`, `Zen.Logs`, `log:entry`). (specs/ui/developer-tab)
 - Signed and notarised releases: `task release` makes the universal `Zenmark-<version>.dmg` (Developer ID, notarised, stapled) and its `.sha256`; `task release:publish` puts it on the GitHub release with these notes; the `release` workflow does both on a `v*` tag. Notarisation also takes an App Store Connect API key (CI). The DMG opens without the "could not verify" warning.
-
 - Sidebar menu: right-click (or Control-click, the menu key, <kbd>⇧F10</kbd>) a page for Open, Open in Editor, New Page Here…, Move Up / Move Down, Copy Path, Copy Link, Reveal in Finder and Hide from Sidebar; a folder has New Page Here…, Copy Path and Reveal in Finder. (specs/ui/sidebar-menu)
 - Reorder the sidebar: drag a page among its siblings (a line shows where it lands, Esc cancels) or press <kbd>⌥↑</kbd> / <kbd>⌥↓</kbd>. The order is saved as `nav: order` (10, 20, 30…) in the frontmatter of the pages whose place changed; nothing else in the files is touched, and a failed save puts the files back. Hide from Sidebar writes `nav: hidden: true`.
 - The engine can do the same without the app: `session.ReorderNav`, `session.SetNavHidden` and `config.SetNavKey` (a careful frontmatter editor that keeps the rest of the file byte for byte).
