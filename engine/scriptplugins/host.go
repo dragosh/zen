@@ -36,6 +36,22 @@ type host struct {
 	files map[string]*compiled // by hash
 	wait  map[int64]chan *msg  // callbacks waiting for a reply
 	cb    int64
+	calls sync.WaitGroup // calls still running
+}
+
+// drainTimeout bounds how long the helper waits, once its input has ended,
+// for calls still running to send their answers (each call has its own,
+// shorter time limit).
+const drainTimeout = 3 * time.Second
+
+// drain waits for running calls to finish, drainTimeout at most.
+func (h *host) drain() {
+	done := make(chan struct{})
+	go func() { h.calls.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(drainTimeout):
+	}
 }
 
 // ServeHost runs the helper: it reads messages from in and writes answers to
@@ -50,10 +66,10 @@ func serve(in io.Reader, out io.Writer, exit func()) {
 	for {
 		line, err := readLine(r, maxLine)
 		if err != nil {
-			if errors.Is(err, errLineTooLong) {
-				return
-			}
-			return // EOF: zen is gone or closed us
+			// EOF (zen is gone or closed us) or a line too long: answer the
+			// calls already running, then stop.
+			h.drain()
+			return
 		}
 		var m msg
 		if json.Unmarshal(line, &m) != nil {
@@ -63,7 +79,11 @@ func serve(in io.Reader, out io.Writer, exit func()) {
 		case tLoad:
 			h.load(&m)
 		case tCall:
-			go h.call(&m)
+			h.calls.Add(1)
+			go func(m msg) {
+				defer h.calls.Done()
+				h.call(&m)
+			}(m)
 		case tReply:
 			h.mu.Lock()
 			ch := h.wait[m.CB]
