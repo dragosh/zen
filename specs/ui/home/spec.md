@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | in progress |
+| Status | done |
 | Target version | 0.5.0 |
 | Branch | `feature/ui-home` |
 | Wave | 18 |
