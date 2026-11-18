@@ -6,6 +6,10 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ## [Unreleased]
 
+### Changed
+
+- The author is Zenmark Studios: About Zenmark shows `© 2026 Zenmark Studios. All rights reserved.` The code is proprietary (LICENSE).
+
 ## [0.4.0] - 2026-11-18
 
 The first tagged release: the app is Zenmark, built on the zenmd engine (`github.com/zenmark-org/zenmd`).

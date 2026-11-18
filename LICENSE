@@ -1,0 +1,10 @@
+Copyright © 2026 Zenmark Studios. All rights reserved.
+
+This software and its source code are proprietary to Zenmark Studios. No
+licence is granted to use, copy, modify, merge, publish, distribute,
+sublicense or sell copies of it, in whole or in part, except with prior
+written permission from Zenmark Studios.
+
+Third-party components bundled with the software (for example Vale, mermaid
+and the Go and npm modules listed in go.mod and package.json) remain under
+their own licences; their notices ship in Zenmark.app/Contents/Resources/licenses.

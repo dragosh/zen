@@ -13,6 +13,8 @@ built on it ([docs/ENGINE.md](docs/ENGINE.md)).
 
 Website: [zenmark.org](https://zenmark.org) · Code: [github.com/zenmark-org/zenmd](https://github.com/zenmark-org/zenmd) · Status: alpha, `0.4.0` (see [CHANGELOG.md](CHANGELOG.md)).
 
+© 2026 Zenmark Studios. All rights reserved; the code is proprietary ([LICENSE](LICENSE)).
+
 ## Quick start
 
 Requires macOS 13+, Go 1.26+, Node 22+, the Wails CLI and Task:

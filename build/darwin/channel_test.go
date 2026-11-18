@@ -269,10 +269,10 @@ func TestInfoPlist(t *testing.T) {
 		}
 	}
 	if configValue(t, "bundleId") != bundleID {
-		t.Errorf("bundle id %q changed; the owner has not decided yet", configValue(t, "bundleId"))
+		t.Errorf("bundle id %q changed (decided: %s)", configValue(t, "bundleId"), bundleID)
 	}
-	if c := configValue(t, "copyright"); c != "© 2026 Zenmark authors" {
-		t.Errorf("copyright placeholder = %q", c)
+	if c := configValue(t, "copyright"); c != "© 2026 Zenmark Studios. All rights reserved." {
+		t.Errorf("copyright = %q", c)
 	}
 	if configValue(t, "category") != "public.app-category.productivity" {
 		t.Errorf("category = %q", configValue(t, "category"))

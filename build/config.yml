@@ -8,7 +8,7 @@ info:
   productName: "Zenmark"
   bundleId: "org.zenmark.app"
   description: "Markdown reader and editor"
-  copyright: "© 2026 Zenmark authors" # placeholder until the copyright holder is decided
+  copyright: "© 2026 Zenmark Studios. All rights reserved."
   category: "public.app-category.productivity"
   comments: "Markdown reader and editor"
   version: "0.1.0"

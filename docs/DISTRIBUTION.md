@@ -53,12 +53,13 @@ without `actool` only warns and keeps `icons.icns`.
 ## Decided
 
 - Name **Zenmark** (trademark search clear; no App Store app by that name), bundle `Zenmark.app`, bundle id `org.zenmark.app`, domain [zenmark.org](https://zenmark.org), GitHub organisation [zenmark-org](https://github.com/zenmark-org).
+- Author **Zenmark Studios**: `© 2026 Zenmark Studios. All rights reserved.` in Info.plist (About Zenmark). The code is proprietary (LICENSE).
+- Apple Developer account: yes (Developer ID signing is being set up).
 
 ## Decisions still open (owner)
 
-1. Apple Developer account and Team ID; reserve the name "Zenmark" in App Store Connect.
+1. Reserve the name "Zenmark" in App Store Connect (needs the App Store bundle id registered).
 2. App Store feature set: Tengo and JS plugins stay in the proposal (App Review 2.5.2 is the main risk; fallback: built-ins only).
-3. Copyright holder (`© 2026 Zenmark authors` is a placeholder).
 
 ## App Store Connect checklist (not built here)
 
