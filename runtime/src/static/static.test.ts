@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { readFileSync } from "node:fs";
 import { start, staticApi, staticHooks } from "./static";
 
 /** A Storage over a Map, with the key order of insertion. */
@@ -232,4 +233,14 @@ test("hosted output opened from disk says why its scripts do not run, without tr
   await settle();
   expect(loaded).toEqual([]);
   expect(document.querySelector(".zen-plugin-error")?.textContent).toContain(HOSTED_FROM_DISK);
+});
+
+// ---- the site sidebar's disclosure arrows (CSS only)
+test("group summaries get a chevron and no native marker", () => {
+  const css = readFileSync(new URL("./static.css", import.meta.url), "utf8");
+  expect(css).toMatch(/\.zen-site-nav summary\s*\{[^}]*list-style:\s*none/);
+  expect(css).toContain(".zen-site-nav summary::-webkit-details-marker");
+  expect(css).toMatch(/\.zen-site-nav summary::before\s*\{[^}]*border-right/);
+  expect(css).toMatch(/\.zen-site-nav details\[open\] > summary::before\s*\{[^}]*rotate\(45deg\)/);
+  expect(css).toMatch(/prefers-reduced-motion[^{]*\{[^}]*summary::before/);
 });
