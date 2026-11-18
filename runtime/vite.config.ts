@@ -1,6 +1,6 @@
 // Builds the browser runtime into runtime/dist/zen.js (a classic IIFE with no imports, for <script src>) and
 // runtime/dist/zen.css. Embedded in Go by runtime/embed.go, used by `zenmd build` and the app. The only
-// vite is the frontend's (runtime has no node_modules): run it with `npm run build` here or in frontend.
+// vite is the app frontend's (apps/zenmd-app/frontend; runtime has no node_modules): run it with `npm run build` here or there.
 // A plain object, so this file imports nothing and needs no package of its own.
 import { resolve } from "node:path";
 

@@ -1,18 +1,13 @@
 package main
 
 import (
-	"embed"
 	"fmt"
-	"io/fs"
 	"os"
 
+	app "github.com/dragosh/zenmd/apps/zenmd-app"
 	"github.com/dragosh/zenmd/engine/scriptplugins"
-	"github.com/dragosh/zenmd/internal/app"
 	"github.com/dragosh/zenmd/internal/cli"
 )
-
-//go:embed all:frontend/dist
-var dist embed.FS
 
 func main() {
 	// The hidden script-helper mode: before the command line is parsed and
@@ -28,13 +23,5 @@ func main() {
 		fmt.Fprintf(os.Stderr, "zenmd: %v\n", err)
 		os.Exit(1)
 	}
-	os.Exit(cli.Run(os.Args[1:], cwd, os.Stdout, os.Stderr, launch, app.BuildSite, app.InitSite))
-}
-
-func launch(l cli.Launch) error {
-	assets, err := fs.Sub(dist, "frontend/dist")
-	if err != nil {
-		return err
-	}
-	return app.Run(app.Options{Assets: assets, Dir: l.Dir, Page: l.Page, Mode: l.Mode})
+	os.Exit(cli.Run(os.Args[1:], cwd, os.Stdout, os.Stderr, app.Launch, app.BuildSite, app.InitSite))
 }

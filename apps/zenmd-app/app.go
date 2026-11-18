@@ -1,0 +1,113 @@
+// Package app is zen.md itself: its menu, the Zen service bound to the
+// frontend, its dialogs and its settings. The window shell (windows, the close
+// handshake, dialogs, print, Finder, the App Store channel) is kit/desktop.
+package app
+
+import (
+	"errors"
+	"io/fs"
+	"path/filepath"
+
+	"github.com/dragosh/zenmd/builtins"
+	"github.com/dragosh/zenmd/engine/config"
+	"github.com/dragosh/zenmd/kit/desktop"
+	"github.com/wailsapp/wails/v3/pkg/application"
+)
+
+// Name is the product's name as people see it: window titles, the app menu.
+// The command and executable stay `zen`.
+const Name = "zen.md"
+
+// Options configures a GUI run.
+type Options struct {
+	// Assets is the built frontend.
+	Assets fs.FS
+	// Dir is the absolute workspace directory to open, "" for none.
+	Dir string
+	// Page is the workspace-relative page to open, "" for the default.
+	Page string
+	// Mode is "read" or "edit".
+	Mode string
+}
+
+// Run starts the GUI and blocks until the application exits.
+func Run(opts Options) error {
+	reg := builtins.Plugins()
+	globalPath, _ := config.GlobalPath()
+	configDir := ""
+	if globalPath != "" {
+		configDir = filepath.Dir(globalPath)
+	}
+	sink := desktop.NewSink()
+	dialogs := desktop.Dialogs(nil) // bound to the application by desktop.Run
+	windows := desktop.NewWindows(desktop.WindowsOptions{Title: Name})
+	// The main window always reads; `zenmd edit` opens an editor window once
+	// the application runs.
+	z, err := newZen(zenOptions{
+		Registry: reg, GlobalPath: globalPath,
+		Dir: opts.Dir, Page: opts.Page, Mode: "read",
+		ConfigDir: configDir,
+		Events:    sink, Dialogs: dialogs,
+		DeferOpen: true, // opened once the window can show progress
+	})
+	if err != nil {
+		return err
+	}
+	defer z.close()
+	z.windows = windows
+
+	return desktop.Run(desktop.Options{
+		Name:        Name,
+		Description: "Markdown reader and editor",
+		Assets:      opts.Assets,
+		Middleware:  z.middleware,
+		Services:    []application.Service{application.NewService(z)},
+		Sink:        sink,
+		Dialogs:     dialogs,
+		Windows:     windows,
+		OnCreated: func(a *application.App, _ *application.WebviewWindow) {
+			z.open = a.Browser.OpenURL
+		},
+		OnStarted: func(*application.App, *application.WebviewWindow) error {
+			z.openInitial()     // the folder given on the command line (Startup may have done it)
+			z.s.PromptPending() // plugins of the folder given on the command line
+			z.s.PromptPendingLayouts()
+			return z.openStartupEditor(opts.Mode)
+		},
+		OpenWith: func(path string) (any, error) {
+			st, err := z.openPath(path)
+			if errors.Is(err, ErrOpenCancelled) {
+				return nil, nil // stopped from the loader
+			}
+			if err != nil {
+				return nil, err
+			}
+			return st, nil
+		},
+		OpenedEvent: EventWorkspaceOpened,
+		// Menu: see menu.go.
+		Menu: func(a *application.App, win *application.WebviewWindow) *application.Menu {
+			return buildMenu(a, menuActions{
+				NewSite:      showAndEmit(win, sink, EventNewSite),
+				BuildWebsite: showAndEmit(win, sink, EventBuildWebsite),
+				// Print Page goes to the window that has the focus (main or editor).
+				PrintPage: func() { _ = z.PrintPage() },
+				PrintSite: func() { _ = z.PrintSite() },
+				NewPage:   newPageAction(win, sink),
+				OpenFolder: func() {
+					go func() {
+						ws, err := z.PickFolder()
+						if err != nil {
+							a.Dialog.Warning().SetTitle("Could not open the folder").SetMessage(err.Error()).Show()
+							return
+						}
+						if ws != nil {
+							sink.Emit(EventWorkspaceOpened, z.Startup())
+						}
+					}()
+				},
+				Settings: settingsAction(win, sink),
+			}, desktop.DevBuild)
+		},
+	})
+}

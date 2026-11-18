@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | specified |
+| Status | done |
 | Target version | zenmd 0.4.0 (app 0.4.0) |
 | Branch | `feature/kit-desktop-ui` |
 | Wave | 16 (E2c); runs **alone**: it moves the app and its frontend |

@@ -1,7 +1,7 @@
 // The built-in codeblock plugin's frontend (builtins/plugins/codeblock), loaded
 // as the app loads it: an ES module with a default export, imported by the runtime.
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { createFakeApi } from "../../frontend/src/api/fake";
+import { createFakeApi } from "../../apps/zenmd-app/frontend/src/api/fake";
 import { installRuntime } from "../src/plugins";
 
 let rt: ReturnType<typeof installRuntime>;

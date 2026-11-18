@@ -5,13 +5,13 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "vitest";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const frontend = resolve(root, "..", "frontend");
+const frontend = resolve(root, "..", "apps", "zenmd-app", "frontend");
 
 // One build of the runtime: runtime/dist/zen.js is a classic IIFE (no module
 // syntax, loadable by <script src>), next to zen.css; the app build no
 // longer produces frontend/dist/static.
 test("the runtime builds to a classic IIFE and a stylesheet", () => {
-  execFileSync("npm", ["--prefix", "../runtime", "run", "build"], { cwd: frontend, stdio: "pipe" });
+  execFileSync("npm", ["--prefix", "../../../runtime", "run", "build"], { cwd: frontend, stdio: "pipe" });
   const js = readFileSync(join(root, "dist", "zen.js"), "utf8");
   expect(js.length).toBeGreaterThan(1000);
   expect(js).not.toMatch(/^\s*import[\s{*"']/m);

@@ -36,7 +36,9 @@ func TestPackageLayout(t *testing.T) {
 		"builtins/plugins/check", "builtins/plugins/codeblock", "builtins/plugins/diagram",
 		"builtins/plugins/quiz", "builtins/plugins/sandbox",
 	}
-	internal := []string{"internal/app", "internal/atomicfile", "internal/cli"}
+	internal := []string{"internal/atomicfile", "internal/cli"}
+	apps := []string{"apps/zenmd-app"}
+	kit := []string{"kit/desktop"}
 	got := func(patterns ...string) []string {
 		var out []string
 		for _, p := range goList(t, patterns...) {
@@ -52,6 +54,8 @@ func TestPackageLayout(t *testing.T) {
 	}{
 		{"public", public, got("./../engine/...", "./../builtins/...")},
 		{"internal", internal, got("./../internal/...")},
+		{"apps", apps, got("./../apps/...")},
+		{"kit", kit, got("./../kit/...")},
 	} {
 		want := append([]string(nil), c.want...)
 		sort.Strings(want)
@@ -70,12 +74,12 @@ func TestPackageLayout(t *testing.T) {
 }
 
 // TestBoundaries enforces the import rules: nothing under engine/ or
-// builtins/ depends (even indirectly) on internal/app, internal/cli or
+// builtins/ depends (even indirectly) on apps/, kit/, internal/cli or
 // Wails; and engine/ imports builtins/ only where it must: engine/session,
 // the front door, uses the default set when it is not given one (tests and
 // examples may import builtins freely).
 func TestBoundaries(t *testing.T) {
-	forbidden := []string{module + "internal/app", module + "internal/cli", "github.com/wailsapp/"}
+	forbidden := []string{module + "apps", module + "kit", module + "internal/cli", "github.com/wailsapp/"}
 	pkgs := goList(t, "./../engine/...", "./../builtins/...")
 	for _, pkg := range pkgs {
 		for _, dep := range goList(t, "-deps", pkg) {
@@ -107,6 +111,18 @@ func TestRuntimeStdlibOnly(t *testing.T) {
 	for _, imp := range goList(t, "-f", `{{join .Imports " "}}`, pkg) {
 		if strings.Contains(strings.Split(imp, "/")[0], ".") {
 			t.Errorf("%s imports %s: only the standard library is allowed", pkg, imp)
+		}
+	}
+}
+
+// TestKitDoesNotImportApps: the kit is below the apps (engine < kit < apps),
+// so no package under kit/ depends, even indirectly, on apps/.
+func TestKitDoesNotImportApps(t *testing.T) {
+	for _, pkg := range goList(t, "./../kit/...") {
+		for _, dep := range goList(t, "-deps", pkg) {
+			if strings.HasPrefix(dep, module+"apps") || dep == module+"internal/cli" {
+				t.Errorf("%s depends on %s", pkg, dep)
+			}
 		}
 	}
 }

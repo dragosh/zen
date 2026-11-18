@@ -1,0 +1,36 @@
+{
+  "compilerOptions": {
+    "allowJs": true,
+
+    "noEmit": true,
+    "skipLibCheck": true,
+
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "verbatimModuleSyntax": true,
+
+    "lib": [
+      "DOM",
+      "DOM.Iterable",
+      "ESNext",
+    ],
+
+    "paths": {
+      "vitest": ["./node_modules/vitest"],
+      "@zenmd/runtime": ["../../../runtime/src/index.ts"],
+      "@zenmd/runtime/*": ["../../../runtime/src/*"],
+      "@zenmd/kit": ["../../../kit/ui/src/index.ts"],
+      "@zenmd/kit/*": ["../../../kit/ui/src/*"]
+    },
+
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": false,
+    "noImplicitAny": false,
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+  },
+  "include": ["src", "../../../runtime/src", "../../../runtime/test", "../../../kit/ui/src", "../../../kit/ui/test"]
+}

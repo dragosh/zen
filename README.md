@@ -1,41 +1,117 @@
 # ⊹╰(⌣ʟ⌣)╯⊹ ☯ zen.md
 
-**zen.md** is a desktop markdown reader and editor with live reload and a runtime
-plugin system, built on [Wails v3](https://v3.wails.io). macOS first. Its
-command line tool is `zenmd` (`zen` still works until 0.4.0 and says so).
+[![ci](https://github.com/dragosh/zenmd/actions/workflows/ci.yml/badge.svg)](https://github.com/dragosh/zenmd/actions/workflows/ci.yml)
 
-- Plan and architecture: [docs/PLAN.md](docs/PLAN.md)
-- Feature specs, prompts and tests: [specs/](specs/README.md)
+**zen.md** is a desktop markdown reader and editor for folders of markdown:
+the sidebar is built from your links, pages render with plugins and layouts,
+and a folder can become a website, a printed document or a course. macOS first,
+built on [Wails v3](https://v3.wails.io).
 
-## Development
+Underneath is **zenmd**, the engine (format, rendering, plugins, layouts, build,
+print, templates), with the command line tool `zenmd`. zen.md is the first app
+built on it ([docs/ENGINE.md](docs/ENGINE.md)).
 
-Requires Go 1.26+, Node 22+ and the Wails CLI:
+Status: alpha (`0.1.0-alpha.1`, see [CHANGELOG.md](CHANGELOG.md)).
+
+## Quick start
+
+Requires macOS 13+, Go 1.26+, Node 22+, the Wails CLI and Task:
 
 ```sh
 go install github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0
+go install github.com/go-task/task/v3/cmd/task@latest
 ```
+
+```sh
+git clone https://github.com/dragosh/zenmd && cd zenmd
+task build            # frontend, runtime and bin/zenmd
+task install          # links zenmd (and the old name zen) into ~/.local/bin
+zenmd examples/demo   # open the user guide, which shows every feature
+```
+
+To get the app bundle:
+
+```sh
+task package                                # bin/Zen.app (downloads the pinned Vale once, checksum-checked)
+ditto bin/Zen.app /Applications/Zen.app
+INSTALL_DIR=~/.local/bin task install:cli   # point zenmd at the installed app instead
+```
+
+The build is not signed with a Developer ID yet, so macOS says it "could not
+verify" Zen.app when it comes from a download. Open it once with right-click →
+Open, or from System Settings → Privacy & Security → Open Anyway. Signing and
+notarisation are planned (see [Remaining work](#remaining-work)).
+
+## Everyday commands
 
 | Command | What it does |
 |---|---|
-| `wails3 dev` | Run the app with live reload |
-| `wails3 build` | Build `bin/zenmd` |
-| `wails3 package` | Build `bin/Zen.app` (macOS) |
-| `wails3 task darwin:package:dmg` | Build the `.dmg` (macOS) |
-| `wails3 task test` | Run Go and frontend tests |
+| `task build` | Build the frontend, the runtime and `bin/zenmd` |
+| `task dev` | Run the app with live reload |
+| `task test` | Go and frontend tests (what CI runs) |
+| `task package` | `bin/Zen.app` (Developer ID channel, ad-hoc signed) |
+| `task package:appstore` | The sandboxed Mac App Store build (needs Xcode and an Apple account) |
+| `task install` / `task uninstall` | Link `zenmd` to the development build in `~/.local/bin` |
+| `task install:cli` | Link `zenmd` to an installed `Zen.app` |
+| `task api:check` | Check the engine's Go API against the last tag (`apidiff`) |
+| `task version` | Print the version |
 
-## CLI
+## The `zenmd` command
 
 ```sh
-zenmd [file ...]   # open files in the app
-zenmd --version
-zenmd --help
+zenmd [folder|file.md]                 # open in the app
+zenmd edit page.md                     # open in the editor
+zenmd build [folder] [-o dir]          # a static website (portable by default; --hosted for a web server)
+zenmd init site --techdocs [folder]    # start a folder from a template (--learning, --planner)
+zenmd version
 ```
 
-## Try it
+## Layout
 
-`examples/demo` is a user guide written as a zen folder: it documents and
-shows every feature. Build the app, then:
-
-```bash
-cd examples/demo && zenmd
 ```
+engine/ builtins/ runtime/   zenmd: the engine, its built-in plugins/layouts/templates, the browser runtime (@zenmd/runtime)
+kit/desktop  kit/ui          the shared desktop shell: Go (windows, dialogs, print, Run) and TypeScript (@zenmd/kit)
+apps/zenmd-app               zen.md itself: menu, the Zen service, its dialogs, and its frontend
+build/                       packaging (macOS, Wails)
+main.go                      the zenmd binary
+examples/demo                the user guide
+```
+
+Imports point down: apps, then kit, then engine.
+
+## Documentation
+
+| | |
+|---|---|
+| [docs/ENGINE.md](docs/ENGINE.md) | The engine, the kit and the apps; the engine roadmap |
+| [docs/PLAN.md](docs/PLAN.md) | Architecture and the service API between Go and the frontend |
+| [docs/PLUGINS.md](docs/PLUGINS.md) | Writing plugins: Go, external programs, Tengo scripts, page scripts |
+| [docs/LAYOUTS.md](docs/LAYOUTS.md) | Writing layouts: templates, CSS, scripts |
+| [docs/TEMPLATES.md](docs/TEMPLATES.md) | Site templates for `zenmd init` |
+| [docs/BUILD.md](docs/BUILD.md) | Static websites and `print.html` |
+| [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md) | Signing, notarisation, the DMG and the Mac App Store |
+| [docs/VERSIONING.md](docs/VERSIONING.md) | SemVer for the app, the engine, plugins and config |
+| [docs/UI.md](docs/UI.md) | The design system |
+| [specs/README.md](specs/README.md) | Every feature spec, its wave and status |
+| [examples/demo](examples/demo/README.md) | The user guide, as a zen folder |
+
+## How work is done
+
+Every feature starts as a spec in `specs/<scope>/<feature>/spec.md`, made from
+[the template](specs/_template/spec.md). It covers behaviour, interfaces,
+tests, UI, security and a prompt for whoever builds it. Each spec is then built
+on its own branch (`feature/<scope>-<feature>`) in a git worktree, tests first,
+and merged when the checks pass. In Claude Code, `/add-spec <scope>/<feature>`
+does this ([.claude/skills/add-spec](.claude/skills/add-spec/SKILL.md)).
+
+## Remaining work
+
+| What | Where | State |
+|---|---|---|
+| Format spec and conformance tests, `zenmd check` | engine wave E3 in [docs/ENGINE.md](docs/ENGINE.md) | to specify |
+| Hardening: fuzzing, performance budgets, error codes | engine wave E3 | to specify |
+| `zenmd serve`, a live preview for other editors | engine wave E4 (optional) | to specify |
+| Developer ID signing and notarisation (no more "could not verify") | [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md) | tooling ready; needs the Developer ID certificate and a `notarytool` profile |
+| Mac App Store build: wire the plugin gate, folder bookmarks, CLI refusal; `Assets.car` | [specs/packaging/appstore](specs/packaging/appstore/spec.md) | in progress; needs full Xcode and owner decisions |
+| A second app on the engine (language learning: speech, glosses, flashcards) | [docs/ENGINE.md](docs/ENGINE.md) | idea |
+| More plugins and layouts | [docs/possible-plugins.md](docs/possible-plugins.md), [docs/possible-layouts.md](docs/possible-layouts.md) | ideas |
