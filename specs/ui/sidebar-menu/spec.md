@@ -2,12 +2,12 @@
 
 | | |
 |---|---|
-| Status | in progress |
+| Status | done |
 | Target version | 0.5.0 |
 | Branch | `feature/ui-sidebar-menu` |
 | Wave | 18 |
 | Depends on | engine/session, kit/desktop-ui, core/navmeta (`nav.order`, `nav.hidden`), ui/new-page |
-| Owns | `kit/ui/src/nav/{menu,reorder}.ts` (+ tests), `engine/config/frontmatter_edit.go`, `engine/session/nav.go`, `apps/zenmark/nav.go`, `specs/ui/sidebar-menu` |
+| Owns | `kit/ui/src/nav/{menu,entries,siblings,reorder}.ts` (+ tests), `engine/config/frontmatter_edit.go`, `engine/session/nav.go`, `apps/zenmark/nav.go`, `specs/ui/sidebar-menu` |
 
 ## Purpose
 
@@ -115,7 +115,7 @@ newPage?(folder: string): void;
 | 3 | 20 | `engine/session/nav_test.go: TestAbsPath`, `apps/zenmark/nav_test.go: TestRevealInFinder` |
 | 4 | service exposes the methods | `apps/zenmark/nav_test.go: TestNavService` |
 | 5 | 1-4 open, position, keyboard, dismiss | `kit/ui/src/nav/menu.test.ts` |
-| 6 | 5-9 items, omitted items, confirm | `kit/ui/src/nav/menu.items.test.ts` |
+| 6 | 5-9 items, omitted items; confirm | `kit/ui/src/nav/entries.test.ts`, `menu.test.ts` |
 | 7 | 10-13 drag, Move Up/Down | `kit/ui/src/nav/reorder.test.ts` |
 | 8 | 12 tree refresh keeps focus; fake api reorders | `apps/zenmark/frontend/src/shell/navmenu.test.ts`, `api/fake.test.ts` |
 
@@ -137,8 +137,8 @@ with a live-region message ("Moved Install above Usage"). Tokens only (`--bg`, `
 | Half-written file | atomic write; failure restores the earlier files | `TestReorderNavRollsBack` |
 | Corrupting a page | edit is frontmatter-only and parsed back; otherwise untouched | `TestSetNavKeyRefuses` |
 | `open -R` on any path | path resolved inside the folder first | `TestRevealInFinder` |
-| Text of titles/paths into the DOM | `textContent` only | `menu.items.test.ts` |
-| Copy Link breaking markdown | `[ ] ( )` in titles and spaces in paths are escaped | `menu.items.test.ts` |
+| Text of titles/paths into the DOM | `textContent` only | `menu.test.ts` |
+| Copy Link breaking markdown | `[ ] ( )` in titles and spaces in paths are escaped | `siblings.test.ts` |
 
 ## Notes
 

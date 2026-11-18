@@ -15,6 +15,10 @@ Image zoom, and the first release that is signed and notarised.
 - Image zoom: click an image in a page to see it large over the window. Click it again (or press `1`) for 100%, `+` and `-` or a trackpad pinch to zoom, scroll to pan, `0` or Fit to fit, Esc or a click outside to close. It works in built websites too. Images in links and plugins, and icons, are left alone. (specs/ui/image-zoom)
 - Signed and notarised releases: `task release` makes the universal `Zenmark-<version>.dmg` (Developer ID, notarised, stapled) and its `.sha256`; `task release:publish` puts it on the GitHub release with these notes; the `release` workflow does both on a `v*` tag. Notarisation also takes an App Store Connect API key (CI). The DMG opens without the "could not verify" warning.
 
+- Sidebar menu: right-click (or Control-click, the menu key, <kbd>⇧F10</kbd>) a page for Open, Open in Editor, New Page Here…, Move Up / Move Down, Copy Path, Copy Link, Reveal in Finder and Hide from Sidebar; a folder has New Page Here…, Copy Path and Reveal in Finder. (specs/ui/sidebar-menu)
+- Reorder the sidebar: drag a page among its siblings (a line shows where it lands, Esc cancels) or press <kbd>⌥↑</kbd> / <kbd>⌥↓</kbd>. The order is saved as `nav: order` (10, 20, 30…) in the frontmatter of the pages whose place changed; nothing else in the files is touched, and a failed save puts the files back. Hide from Sidebar writes `nav: hidden: true`.
+- The engine can do the same without the app: `session.ReorderNav`, `session.SetNavHidden` and `config.SetNavKey` (a careful frontmatter editor that keeps the rest of the file byte for byte).
+
 ### Changed
 
 - New Zenmark logo: the yin-yang with `#` (markdown) and `</>` (code), as the app icon, in the DMG, the README and the demo.
