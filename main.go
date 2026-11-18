@@ -7,7 +7,7 @@ import (
 	"os"
 
 	"github.com/dragosh/zenmd/engine/scriptplugins"
-	"github.com/dragosh/zenmd/internal/app"
+	"github.com/dragosh/zenmd/apps/zenmd-app"
 	"github.com/dragosh/zenmd/internal/cli"
 )
 

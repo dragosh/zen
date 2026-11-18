@@ -14,7 +14,7 @@ function binding(name: string) {
   };
 }
 
-vi.mock("../../bindings/github.com/dragosh/zenmd/internal/app/index.js", () => ({
+vi.mock("../../bindings/github.com/dragosh/zenmd/apps/zenmd-app/index.js", () => ({
   Zen: {
     Startup: binding("Startup"),
     PickFolder: binding("PickFolder"),

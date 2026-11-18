@@ -9,7 +9,7 @@
 // static site, makes the print document and lists site templates. It reports
 // changes as events through an Events sink.
 //
-// The zen.md app (internal/app) is a thin adapter over it: it binds the
+// The zen.md app (apps/zenmd-app) is a thin adapter over it: it binds the
 // session's methods to its frontend, forwards the events to Wails and
 // implements Prompter with native dialogs. A test, the command line or
 // another app can use the same session without any GUI.

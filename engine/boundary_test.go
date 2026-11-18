@@ -36,7 +36,8 @@ func TestPackageLayout(t *testing.T) {
 		"builtins/plugins/check", "builtins/plugins/codeblock", "builtins/plugins/diagram",
 		"builtins/plugins/quiz", "builtins/plugins/sandbox",
 	}
-	internal := []string{"internal/app", "internal/atomicfile", "internal/cli"}
+	internal := []string{"internal/atomicfile", "internal/cli"}
+	apps := []string{"apps/zenmd-app"}
 	got := func(patterns ...string) []string {
 		var out []string
 		for _, p := range goList(t, patterns...) {
@@ -52,6 +53,7 @@ func TestPackageLayout(t *testing.T) {
 	}{
 		{"public", public, got("./../engine/...", "./../builtins/...")},
 		{"internal", internal, got("./../internal/...")},
+		{"apps", apps, got("./../apps/...")},
 	} {
 		want := append([]string(nil), c.want...)
 		sort.Strings(want)
@@ -70,12 +72,12 @@ func TestPackageLayout(t *testing.T) {
 }
 
 // TestBoundaries enforces the import rules: nothing under engine/ or
-// builtins/ depends (even indirectly) on internal/app, internal/cli or
+// builtins/ depends (even indirectly) on apps/, internal/cli or
 // Wails; and engine/ imports builtins/ only where it must: engine/session,
 // the front door, uses the default set when it is not given one (tests and
 // examples may import builtins freely).
 func TestBoundaries(t *testing.T) {
-	forbidden := []string{module + "internal/app", module + "internal/cli", "github.com/wailsapp/"}
+	forbidden := []string{module + "apps", module + "internal/cli", "github.com/wailsapp/"}
 	pkgs := goList(t, "./../engine/...", "./../builtins/...")
 	for _, pkg := range pkgs {
 		for _, dep := range goList(t, "-deps", pkg) {
