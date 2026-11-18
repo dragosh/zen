@@ -261,7 +261,10 @@ func TestInitSite(t *testing.T) {
 		err := initSite(env.api(), i, &out, &errOut)
 		return out.String(), errOut.String(), err
 	}
-	cwd, _ := os.Getwd()
+	// A private working folder: the summary names the target relative to it,
+	// and nothing is created in the source tree (where go list may be looking).
+	cwd := t.TempDir()
+	t.Chdir(cwd)
 
 	out, _, err := run(cli.Init{List: true})
 	lines := strings.Split(strings.TrimSpace(out), "\n")
