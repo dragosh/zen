@@ -277,9 +277,6 @@ const api: Api = {
     const r: Raw = ((await call(Zen.PageInfo(path))) as Raw | null) ?? {};
     return { path: String(r.path ?? path), absPath: String(r.absPath ?? ""), size: Number(r.size) || 0, modTime: Number(r.modTime) || 0, birthTime: Number(r.birthTime) || 0 };
   },
-  async revealInFinder(path) {
-    await call(Zen.RevealInFinder(path));
-  },
   async plugins() {
     const list = (await call(Zen.Plugins())) as Raw[] | null;
     return (list ?? []).filter((p): p is Record<string, any> => Boolean(p)).map(pluginInfo);

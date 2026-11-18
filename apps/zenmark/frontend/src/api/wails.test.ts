@@ -38,7 +38,6 @@ vi.mock("../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/index.js", () 
     PluginStorageKeys: binding("PluginStorageKeys"),
     ReorderNav: binding("ReorderNav"),
     SetNavHidden: binding("SetNavHidden"),
-    RevealInFinder: binding("RevealInFinder"),
     Layouts: binding("Layouts"),
     LayoutTrust: binding("LayoutTrust"),
     LayoutStorageGet: binding("LayoutStorageGet"),
