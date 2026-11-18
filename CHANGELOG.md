@@ -13,6 +13,7 @@ Image zoom, and the first release that is signed and notarised.
 ### Added
 
 - Image zoom: click an image in a page to see it large over the window. Click it again (or press `1`) for 100%, `+` and `-` or a trackpad pinch to zoom, scroll to pan, `0` or Fit to fit, Esc or a click outside to close. It works in built websites too. Images in links and plugins, and icons, are left alone. (specs/ui/image-zoom)
+- Developer tab: switch on **Settings › Developer › Show developer tab** (off by default) and a Developer button appears next to the settings cog (also <kbd>⌥⌘J</kbd>). It opens a resizable panel below the page with the app's log, the plugins' errors and the console (`console.*`, uncaught errors), with level and text filters, Clear and Copy all. The Go side keeps the last 2000 log lines (`log/slog`, `Zen.Logs`, `log:entry`). (specs/ui/developer-tab)
 - Signed and notarised releases: `task release` makes the universal `Zenmark-<version>.dmg` (Developer ID, notarised, stapled) and its `.sha256`; `task release:publish` puts it on the GitHub release with these notes; the `release` workflow does both on a `v*` tag. Notarisation also takes an App Store Connect API key (CI). The DMG opens without the "could not verify" warning.
 
 ### Changed

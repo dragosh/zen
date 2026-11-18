@@ -35,6 +35,19 @@ The **Layouts** section next to Plugins works the same way for
 options and snippets, and an Allow or Block button for the ones that are not
 built in.
 
+### Developer
+
+The **Developer** section has one switch, **Show developer tab**, off by
+default. Turn it on and a **Developer** button (a small terminal) appears in
+the sidebar next to the cog; <kbd>⌥⌘J</kbd> opens and closes it too. The panel
+sits below the page; drag its top edge to resize it (zen remembers the
+height), and close it with **✕** or <kbd>Esc</kbd>. Its tabs are **App**
+(zen's own log), **Plugins** (a plugin that failed, its error text, streams
+that ended badly) and **Console** (what the page's scripts print, uncaught
+errors). Filter by level or text, **Clear** the list or **Copy all**; the list
+follows the newest line until you scroll up. Zen keeps the last 2000 lines.
+Logs hold file paths and error messages, never the text of your pages.
+
 A missing file is created from a template with every setting commented out,
 so opening it changes nothing. zen checks the YAML when you save: a mistake is
 reported and the file is not written.
