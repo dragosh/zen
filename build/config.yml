@@ -11,7 +11,7 @@ info:
   copyright: "© 2026 Zenmark Studios. All rights reserved."
   category: "public.app-category.productivity"
   comments: "Markdown reader and editor"
-  version: "0.4.0"
+  version: "0.5.0"
 
 # Dev mode configuration
 dev_mode:

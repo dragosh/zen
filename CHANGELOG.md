@@ -6,12 +6,23 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ## [Unreleased]
 
-- Developer ID signing and notarisation work end to end; `darwin:sign:notarize` also staples `bin/Zenmark.app`.
-- `task release` (notarised universal DMG, `Zenmark-<version>.dmg` and `.sha256`), `task release:publish` (GitHub release with the CHANGELOG notes), and the `release` workflow that does both on a `v*` tag; notarisation also takes an App Store Connect API key.
+## [0.5.0] - 2026-11-18
+
+Image zoom, and the first release that is signed and notarised.
+
+### Added
+
+- Image zoom: click an image in a page to see it large over the window. Click it again (or press `1`) for 100%, `+` and `-` or a trackpad pinch to zoom, scroll to pan, `0` or Fit to fit, Esc or a click outside to close. It works in built websites too. Images in links and plugins, and icons, are left alone. (specs/ui/image-zoom)
+- Signed and notarised releases: `task release` makes the universal `Zenmark-<version>.dmg` (Developer ID, notarised, stapled) and its `.sha256`; `task release:publish` puts it on the GitHub release with these notes; the `release` workflow does both on a `v*` tag. Notarisation also takes an App Store Connect API key (CI). The DMG opens without the "could not verify" warning.
 
 ### Changed
 
 - The author is Zenmark Studios: About Zenmark shows `© 2026 Zenmark Studios. All rights reserved.` The code is proprietary (LICENSE).
+- A built page with images now loads `_zen/zen.js` (for the zoom); text-only pages still have no script.
+
+### Fixed
+
+- `task build` after `task release` no longer fails on the universal `bin/zenmd`; the bundle test accepts a universal bundle left in `bin/`.
 
 ## [0.4.0] - 2026-11-18
 

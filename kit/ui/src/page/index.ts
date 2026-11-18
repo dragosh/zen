@@ -3,6 +3,7 @@
 import type { Alert, Page } from "../host";
 import { flash, markText, renderPanel } from "../lint";
 import { installRuntime } from "@zenmd/runtime/plugins";
+import { installImageZoom } from "@zenmd/runtime/zoom/zoom";
 import { button, el } from "../shell/dom";
 import type { Ctx, Feature } from "../shell/types";
 import { loadAssets } from "./assets";
@@ -215,6 +216,7 @@ export const pageFeature: Feature = {
     const onAux = (e: MouseEvent) => { if (e.button === 1) handleLinkClick(e, ctx); };
     article.addEventListener("click", onClick);
     article.addEventListener("auxclick", onAux);
+    const zoom = installImageZoom(article); // a click on an image shows it large (ui/image-zoom)
 
     const onKey = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "e") {
@@ -265,6 +267,7 @@ export const pageFeature: Feature = {
 
     return () => {
       seq++;
+      zoom.destroy();
       stopProgress();
       plugins.destroy();
       anchorListeners.clear();

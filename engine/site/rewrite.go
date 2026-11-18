@@ -26,7 +26,7 @@ type rewriter struct {
 	print *printMode
 
 	warns   []string
-	needsJS bool // the page has something zen.js must handle (print links)
+	needsJS bool // the page has something zen.js must handle (print links, images to zoom)
 }
 
 // printMode is the rewriter's mode for the print document. prefix is the id
@@ -109,6 +109,9 @@ func (r *rewriter) html(in string) string {
 				attrs = append(attrs, html.Attribute{Key: "open"})
 				changed = true
 			}
+		}
+		if r.print == nil && tok.Data == "img" {
+			r.needsJS = true // image zoom (ui/image-zoom)
 		}
 		if tok.Data == "a" {
 			var ch bool

@@ -99,6 +99,23 @@
 .zen-page th { background: var(--bg-subtle); font-weight: 600; }
 
 .zen-page img { max-width: 100%; height: auto; }
+.zen-page img { cursor: zoom-in; }
+.zen-page :is(a, button, [data-zen-plugin]) img, .zen-page img[data-zen-nozoom] { cursor: inherit; }
+
+/* Image zoom (ui/image-zoom): the image over the window, a bar at the bottom. */
+.zen-zoom { position: fixed; inset: 0; z-index: 1000; display: flex; flex-direction: column;
+  background: color-mix(in srgb, var(--bg) 88%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.zen-zoom-stage { flex: 1; min-height: 0; overflow: auto; display: flex; padding: 32px; box-sizing: border-box; cursor: zoom-out; }
+.zen-zoom-img { margin: auto; max-width: none; flex: none; cursor: zoom-in; border-radius: var(--radius);
+  box-shadow: 0 8px 40px color-mix(in srgb, var(--fg) 18%, transparent); user-select: none; }
+.zen-zoom-panning .zen-zoom-img { cursor: zoom-out; }
+.zen-zoom-bar { position: absolute; left: 50%; bottom: var(--space-4); transform: translateX(-50%); display: flex; align-items: center; gap: var(--space-1);
+  padding: var(--space-1); border: 1px solid var(--rule); border-radius: 999px; background: var(--bg); color: var(--fg); font: 13px/1 var(--font-ui);
+  box-shadow: 0 4px 20px color-mix(in srgb, var(--fg) 12%, transparent); }
+.zen-zoom-btn { min-width: 30px; height: 30px; padding: 0 var(--space-2); border: 0; border-radius: 999px; background: transparent; color: inherit; font: inherit; cursor: pointer; }
+.zen-zoom-btn:hover { background: var(--btn-bg-hover); }
+.zen-zoom-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.zen-zoom-scale { min-width: 4ch; text-align: center; color: var(--fg-muted); font-variant-numeric: tabular-nums; }
 .zen-page hr { border: 0; border-top: 1px solid var(--rule); margin: 2em 0; }
 
 .zen-page sup { line-height: 0; }
@@ -121,7 +138,7 @@
    may add their own rules for what they draw. */
 @media print {
   html, body, #app { height: auto; overflow: visible; }
-  .zen-sidebar, .zen-resizer, .zen-top, .zen-actions, .zen-progress, .zen-page-warnings, .zen-page-error { display: none !important; }
+  .zen-sidebar, .zen-resizer, .zen-top, .zen-actions, .zen-progress, .zen-page-warnings, .zen-page-error, .zen-zoom { display: none !important; }
   .zen-frame, .zen-content, .zen-main { display: block; height: auto; overflow: visible; }
   .zen-page { max-width: none; width: auto; padding: 0; }
   pre, blockquote, table, img { break-inside: avoid; }

@@ -9,3 +9,5 @@ export type { PagePrintApi, PagePrintOptions } from "./print/page";
 export { start, staticApi, staticHooks, HOSTED_FROM_DISK } from "./static/static";
 export type { StaticApi } from "./static/static";
 export type { LayoutCtx, LayoutHandler, PluginCtx, PluginHandler, PluginStreamEvent, RuntimeApi, RuntimeHost } from "./types";
+export { installImageZoom, zoomableImage, ZOOM_MAX, ZOOM_MIN } from "./zoom/zoom";
+export type { ImageZoom } from "./zoom/zoom";
