@@ -7,7 +7,7 @@
 // Api satisfies this type once it has siteTemplates, pickSiteFolder,
 // createSite, revealTemplates and the "menu:new-site" event.
 import type { Api, SiteTemplate, Startup } from "../api";
-import { button, el } from "./dom";
+import { button, el } from "@zenmd/kit";
 
 /** A site template as the Go service lists it. An invalid one has `error` set. */
 export type { SiteTemplate } from "../api";

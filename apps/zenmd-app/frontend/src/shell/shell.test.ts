@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, expect, test } from "vitest";
 import { createFakeApi, sampleWorkspace, type FakeApi } from "../api/fake";
 import { createShell, type Shell } from "./shell";
-import type { Ctx, Feature, Slots } from "./types";
+import type { Ctx, Feature, Slots } from "@zenmd/kit";
 
 let root: HTMLElement;
 let shell: Shell | undefined;

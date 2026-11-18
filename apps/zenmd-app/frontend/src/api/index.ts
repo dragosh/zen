@@ -1,20 +1,8 @@
 // The typed client for the Go services. Types and the Api interface mirror
 // docs/PLAN.md "Service API" exactly; UI features import only from here.
-import type { PluginStreamEvent, RuntimeHost } from "@zenmd/runtime";
+import type { Alert, Draft, KitHost, LayoutSource, LintResult, OpenProgress, Page, PluginStreamEvent, Workspace } from "@zenmd/kit";
 import { createFakeApi, sampleWorkspace, type FakeOptions } from "./fake";
 
-export type NavNode = { title: string; path: string; kind: "page" | "group"; children: NavNode[] };
-export type Workspace = { root: string; name: string; home: string; tree: NavNode[] }; // home: "" or "README.md"
-export type Crumb = { title: string; path: string };
-export type Page = {
-  path: string; title: string; html: string;
-  frontmatter: Record<string, unknown>; breadcrumb: Crumb[];
-  assets: { css: string[]; js: string[] }; warnings: string[];
-  /** The layout the page is shown with (core/layouts): "article" when it has none; source "" for article. */
-  layout: PageLayoutRef;
-};
-export type LayoutSource = "builtin" | "folder" | "user";
-export type PageLayoutRef = { name: string; source: LayoutSource | "" };
 /** One built-in or external plugin as Settings lists it (core/extplugins). */
 export type PluginSnippet = { title: string; markdown: string };
 /** One option a plugin reads from the config or a page's frontmatter. */
@@ -63,27 +51,14 @@ export type BuildOptions = { out: string; portable: boolean; drafts: boolean; cl
 export type BuildWarning = { path: string; message: string };
 export type BuildResult = { out: string; pages: number; files: number; warnings: BuildWarning[]; millis: number; cancelled: boolean };
 export type BuildProgress = { done: number; total: number };
-/** workspace:opening — progress while a folder opens; the last one has phase "done" or "failed". */
-export type OpenProgress = { name: string; phase: "reading" | "indexing" | "done" | "failed"; done: number; total: number };
-/** One Vale finding (ui/lint). line is 1-based; col and endCol are 1-based rune columns, endCol inclusive. */
-export type Alert = {
-  line: number; col: number; endCol: number;
-  severity: "error" | "warning" | "suggestion";
-  check: string; message: string; match: string;
-  /** Why the check flagged it ("" when Vale gives none) and an https link to read more (or ""). */
-  description: string; link: string;
-};
 /** The layout id File › New Page passes: "" is a plain page. */
 export type PageLayout = string;
 
-/** An editor's unsaved text shared with other windows; content null = draft gone. */
-export type Draft = { path: string; content: string | null };
-export type { PluginStreamEvent };
-/** available is false when Vale is missing or linting is switched off: show nothing. */
-export type LintResult = { available: boolean; alerts: Alert[] };
+/** The data types the kit declares (kit/ui/src/host.ts); the app's api speaks them. */
+export type { Alert, Crumb, Draft, LayoutSource, LintResult, NavNode, OpenProgress, Page, PageLayoutRef, PluginStreamEvent, Workspace } from "@zenmd/kit";
 
-/** The storage, invoke, stream, cancel and openExternal calls (and the plugin events of `on`) are RuntimeHost, the runtime's side of this API. */
-export interface Api extends RuntimeHost {
+/** The page, source, preview, save, lint, draft and openEditor calls are KitHost (the kit's side); the storage, invoke, stream, cancel and openExternal calls are RuntimeHost, the runtime's side. */
+export interface Api extends KitHost {
   startup(): Promise<Startup>;
   pickFolder(): Promise<Workspace | null>; // native folder dialog; null also when the opening was cancelled
   /** Stops the folder that is opening; the one open before stays. */

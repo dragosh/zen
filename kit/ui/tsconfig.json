@@ -1,0 +1,13 @@
+{
+  "extends": "../../apps/zenmd-app/frontend/tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "vitest": ["../../apps/zenmd-app/frontend/node_modules/vitest"],
+      "@zenmd/runtime": ["../../runtime/src/index.ts"],
+      "@zenmd/runtime/*": ["../../runtime/src/*"],
+      "@zenmd/kit": ["./src/index.ts"],
+      "@zenmd/kit/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "test"]
+}

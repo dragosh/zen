@@ -3,20 +3,16 @@
 // An editor window (?window=editor&path=…, ui/editor-window) gets only the
 // editor under a small header.
 import type { Api, NavNode, Workspace } from "../api";
-import { button, el, logo } from "./dom";
-import { createHistory } from "./history";
-import { createLayout, type Layout } from "./layout";
-import { createOpening } from "./opening";
+import {
+  button, closeWindowKey, createHistory, createLayout, createOpening, createStore, el, logo, mountPreview, reloadKey,
+  type Ctx, type Feature, type Layout, type Store,
+} from "@zenmd/kit";
 import { BRAND } from "../brand";
 import { registerBuildSite } from "./buildsite";
 import { installPagePrint } from "@zenmd/runtime/print/page";
-import { mountPreview } from "../print/preview";
 import { openNewPage, type NewPageDialog } from "./newpage";
 import { openNewSite, type NewSiteDialog, type SiteApi, type SiteTemplate } from "./newsite";
-import { closeWindowKey, reloadKey } from "./keys";
 import { createSettingsView, type SettingsView } from "./settings";
-import { createStore } from "./store";
-import type { Ctx, Feature, Store } from "./types";
 
 export type ShellOptions = {
   api: Api;
@@ -108,7 +104,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   let unsubscribeStore: (() => void) | null = null;
   let destroyed = false;
 
-  const ctx: Ctx = { api, store, navigate };
+  const ctx: Ctx = { api, store, navigate, brand: BRAND };
 
   function navigate(path: string, anchor = ""): void {
     closeSettings(); // choosing a page leaves Settings

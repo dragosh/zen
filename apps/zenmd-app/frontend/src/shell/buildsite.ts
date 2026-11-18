@@ -4,7 +4,7 @@
 // (createWebsiteSection). All text through textContent.
 import "./buildsite.css";
 import type { BuildOptions, BuildProgress, BuildResult } from "../api";
-import { button, el } from "./dom";
+import { button, el } from "@zenmd/kit";
 
 export type { BuildOptions, BuildProgress, BuildResult, BuildWarning } from "../api";
 

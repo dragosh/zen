@@ -4,7 +4,7 @@
 // offered); choosing one fills the new page with that layout's first help
 // snippet (frontmatter and body), or `layout: <id>` and a title.
 import type { Api, LayoutInfo } from "../api";
-import { button, el } from "./dom";
+import { button, el } from "@zenmd/kit";
 
 /** What a card needs: the plain page is the article layout. */
 type Choice = { id: string; label: string; hint: string };

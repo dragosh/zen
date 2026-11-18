@@ -4,7 +4,7 @@ import type { LayoutInfo, PluginInfo } from "../api";
 import { createFakeApi } from "../api/fake";
 import { rememberBuild, type BuildApi } from "./buildsite";
 import { createSettingsView, type SettingsView } from "./settings";
-import { followTheme, storedTheme, THEME_KEY } from "./theme";
+import { followTheme, storedTheme, THEME_KEY } from "@zenmd/kit";
 
 beforeEach(() => {
   localStorage.clear();

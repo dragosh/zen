@@ -6,9 +6,7 @@
 // All text goes in through textContent; the only HTML mounted is what
 // api.preview returned, through the page's own mountPage.
 import type { Api, LayoutInfo, PluginSnippet } from "../api";
-import { mountPage } from "../page";
-import { button, el } from "./dom";
-import { copyText } from "./clipboard";
+import { button, copyText, el, mountPage } from "@zenmd/kit";
 
 export type LayoutsSection = {
   el: HTMLElement;
