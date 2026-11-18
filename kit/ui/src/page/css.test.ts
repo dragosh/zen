@@ -89,3 +89,9 @@ test("the print document is not a reading column (screen)", () => {
   const c = readFileSync(new URL("../../../../runtime/src/css/print.css", import.meta.url), "utf8");
   expect(c).toMatch(/\.zen-page\.zen-print-doc\s*\{[^}]*max-width:\s*none/);
 });
+
+test("the image zoom view is on top of everything and never printed (ui/image-zoom)", () => {
+  expect(css).toMatch(/\.zen-zoom\s*\{[^}]*position:\s*fixed[^}]*inset:\s*0/);
+  expect(css).toMatch(/\.zen-page img\s*\{\s*cursor:\s*zoom-in/);
+  expect(printCss).toMatch(/\.zen-zoom\s*\{\s*display:\s*none\s*!important/);
+});

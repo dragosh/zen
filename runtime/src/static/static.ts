@@ -3,6 +3,7 @@
 // page with the same contract as the app (docs/PLUGINS.md, docs/LAYOUTS.md): it reuses
 // plugins.ts with a static `api`. No Wails bindings are imported; the app's backend does not
 // exist here, so invoke and stream reject with "runs in the zen app only".
+import { installImageZoom } from "../zoom/zoom";
 import { installRuntime } from "../plugins";
 import type { RuntimeApi } from "../types";
 import "./static.css";
@@ -194,13 +195,15 @@ export function start(doc: Document = document): void {
     }
   };
   doc.addEventListener("click", onClick);
+  const root = doc.querySelector<HTMLElement>(".zen-page") ?? doc.body;
+  const zoom = installImageZoom(root);
   stopPrevious = () => {
     doc.removeEventListener("click", onClick);
     win.removeEventListener("hashchange", onHash);
+    zoom.destroy();
     rt.destroy();
   };
 
-  const root = doc.querySelector<HTMLElement>(".zen-page") ?? doc.body;
   void rt.mountAll(root, { js: page.assets.js, css: page.assets.css });
 }
 

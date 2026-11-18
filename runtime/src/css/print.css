@@ -58,7 +58,7 @@
 
   /* No controls, only what they show. */
   .zen-page button, .zen-page input[type="button"], .zen-page input[type="submit"], .zen-page [data-zen-action],
-  .zen-codeblock-tools, .course-nav, .course-steps, .slides-bar, .slides-overview { display: none !important; }
+  .zen-codeblock-tools, .course-nav, .course-steps, .slides-bar, .slides-overview, .zen-zoom { display: none !important; }
 
   /* Breaks: a heading stays with what follows; blocks stay whole where they fit on a page. */
   h1, h2, h3, h4, h5, h6 { break-after: avoid; page-break-after: avoid; }

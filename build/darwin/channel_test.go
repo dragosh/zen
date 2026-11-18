@@ -435,7 +435,9 @@ func TestUniversal(t *testing.T) {
 	if runtime.GOARCH == "amd64" {
 		want = []string{"x86_64"}
 	}
-	if os.Getenv("ZEN_UNIVERSAL") == "1" {
+	// ZEN_UNIVERSAL=1 asks for a universal bundle; a universal bundle left in bin/ by
+	// `task release` is checked as one too: the app and every helper must match.
+	if os.Getenv("ZEN_UNIVERSAL") == "1" || strings.Join(archs(t, filepath.Join(bundle, "Contents/MacOS/zenmd")), ",") == "arm64,x86_64" {
 		want = []string{"arm64", "x86_64"}
 	}
 	for _, p := range all {
