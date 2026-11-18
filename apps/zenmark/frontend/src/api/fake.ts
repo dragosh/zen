@@ -1,5 +1,6 @@
 // In-memory Api for development in a browser and for tests: a three-page
 // sample workspace, emit() to simulate Go events, and a record of every call.
+import type { LogEntry } from "@zenmd/kit";
 import type { Api, BuildProgress, Crumb, Draft, SiteTemplate, LayoutInfo, LintResult, NavNode, OpenProgress, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
 
 type Method = "startup" | "pickFolder" | "cancelOpen"
@@ -7,7 +8,7 @@ type Method = "startup" | "pickFolder" | "cancelOpen"
   | "buildOptions" | "buildWebsite" | "cancelBuild" | "saveBuildDefaults" | "pickBuildFolder" | "openBuiltSite" | "revealBuiltSite"
   | "printPage" | "printSite" | "printWindow" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig" | "createPage"
   | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys"
-  | "layouts" | "layoutTrust" | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys";
+  | "logs" | "layouts" | "layoutTrust" | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys";
 type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "layouts:changed": undefined; "menu:new-page": undefined; "menu:settings": undefined; "workspace:opening": OpenProgress; "menu:new-site": undefined; "menu:build-website": undefined; "build:progress": BuildProgress; "menu:print-page": undefined };
 
 /** A plugin as tests write it: the help and what it adds default to nothing. */
@@ -65,6 +66,9 @@ export type FakeApi = Api & {
   calls: { method: Method; args: unknown[] }[];
   /** Arguments of every call to one method. */
   callsTo(method: Method): unknown[][];
+  /** What logs() returns, and a way to push new entries to onLog() listeners (the Developer panel). */
+  logList: LogEntry[];
+  emitLog(entries: LogEntry[]): void;
   /** Delivers an event to the listeners registered with on(). */
   emit<E extends keyof Events>(event: E, payload: Events[E]): void;
   /** Makes the next call to `method` reject with `error`. */
@@ -179,6 +183,8 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     "build:progress": new Set(),
     "menu:print-page": new Set(),
   };
+  const logListeners = new Set<(e: LogEntry[]) => void>();
+  const t0 = Date.now() - 60_000;
   let streamCount = 0;
   const failures = new Map<Method, Error>();
   let tree: NavNode[] = (startup.workspace ?? sampleWorkspace()).tree;
@@ -221,6 +227,15 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     pluginList: (options.plugins ?? []).map(plugin),
     layoutList: (options.layouts ?? []).map(layoutInfo),
     invokeResult: null,
+    logList: [
+      { seq: 1, time: t0, level: "info", source: "app", message: "opened folder=docs" },
+      { seq: 2, time: t0 + 1200, level: "debug", source: "app", message: "watching 12 pages" },
+      { seq: 3, time: t0 + 5400, level: "warn", source: "plugin", message: "plugin calc: exit code 2: division by zero" },
+      { seq: 4, time: t0 + 9000, level: "error", source: "plugin", message: "plugin progress: stream failed: timed out after 30s" },
+    ],
+    emitLog(entries) {
+      for (const fn of Array.from(logListeners)) fn(entries);
+    },
     callsTo: (method) => api.calls.filter((c) => c.method === method).map((c) => c.args),
     emit(event, payload) {
       for (const fn of Array.from(listeners[event])) fn(payload);
@@ -326,6 +341,11 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
       Array.from(storage.get(id)?.keys() ?? []).filter((k) => k.startsWith(prefix)).sort()),
     pluginStream: (id, page, json) => call("pluginStream", [id, page, json], () => `call-${++streamCount}`),
     pluginCancel: (callId) => call("pluginCancel", [callId], () => undefined),
+    logs: (since) => call("logs", [since], () => api.logList.filter((e) => e.seq > since)),
+    onLog(fn) {
+      logListeners.add(fn);
+      return () => void logListeners.delete(fn);
+    },
     on(event: keyof Events, fn: (p: never) => void) {
       const set = listeners[event] as Set<(p: never) => void>;
       set.add(fn);

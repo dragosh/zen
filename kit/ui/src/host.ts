@@ -31,6 +31,13 @@ export type LintResult = { available: boolean; alerts: Alert[] };
 export type Draft = { path: string; content: string | null };
 export type { PluginStreamEvent };
 
+export type LogLevel = "debug" | "info" | "warn" | "error";
+/**
+ * One line of the Developer panel (ui/developer-tab). "app" and "plugin" come from the Go side
+ * (seq counts there, time is Unix ms); "console" is the window's own console, counted in the window.
+ */
+export type LogEntry = { seq: number; time: number; level: LogLevel; source: "app" | "plugin" | "console"; message: string };
+
 /** The storage, invoke, stream, cancel and openExternal calls (and the plugin events of `on`) are RuntimeHost, the runtime's side of this API. */
 export interface KitHost extends RuntimeHost {
   page(path: string): Promise<Page>;
@@ -57,6 +64,10 @@ export interface KitHost extends RuntimeHost {
   /** The layout set or a layout trust decision changed: render the page again (core/layouts). */
   on(event: "layouts:changed", fn: () => void): () => void;
   on(event: "plugin:stream", fn: (e: PluginStreamEvent) => void): () => void;
+  /** The Developer panel's log from the Go side: the entries after sequence number `since`, oldest first. An app without it shows only the console. */
+  logs?(since: number): Promise<LogEntry[]>;
+  /** New Go-side log entries, in batches (ui/developer-tab). */
+  onLog?(fn: (entries: LogEntry[]) => void): () => void;
   /** Zen › Print Page… in the app menu. */
   on(event: "menu:print-page", fn: () => void): () => void;
 }

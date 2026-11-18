@@ -282,3 +282,15 @@ test("layouts:changed is an event like the others", () => {
   api.emit("layouts:changed", undefined);
   expect(n).toBe(1);
 });
+
+test("fake logs(since) and onLog feed the Developer panel", async () => {
+  const api = createFakeApi();
+  expect((await api.logs!(0)).length).toBe(api.logList.length);
+  expect((await api.logs!(3)).map((e) => e.seq)).toEqual([4]);
+  const got: number[] = [];
+  const off = api.onLog!((b) => got.push(...b.map((e) => e.seq)));
+  api.emitLog([{ seq: 5, time: 1, level: "info", source: "app", message: "m" }]);
+  off();
+  api.emitLog([{ seq: 6, time: 1, level: "info", source: "app", message: "m" }]);
+  expect(got).toEqual([5]);
+});

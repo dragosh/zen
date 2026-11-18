@@ -13,8 +13,8 @@ let push: (e: LogEntry[]) => void;
 beforeEach(() => {
   n = 0;
   document.body.replaceChildren();
+  vi.spyOn(console, "log").mockImplementation(() => {}); // before the capture wraps it
   cap = installConsoleCapture(window, 50);
-  vi.spyOn(console, "log").mockImplementation(() => {});
 });
 afterEach(() => { panel?.destroy(); cap.uninstall(); vi.restoreAllMocks(); });
 

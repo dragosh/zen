@@ -476,7 +476,7 @@ test("Settings shows the plugins and its sections", async () => {
   await s.start();
   cog().click();
   await tick();
-  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Website"]);
+  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Website", "Developer"]);
   expect(api.callsTo("plugins")).toHaveLength(1);
 });
 
@@ -592,4 +592,25 @@ test("creating a site from the welcome screen opens it", async () => {
   expect(api.siteCalls.find((c) => c[0] === "createSite")).toEqual(["createSite", "a", "/tmp/x/Docs", { title: "Docs" }]);
   expect(root.querySelector(".zen-welcome")).toBeNull();
   expect(s.store.get().workspace?.root).toBe("/sample-docs");
+});
+
+// ---- Developer tab (ui/developer-tab)
+
+test("Developer: no button by default; with the setting on, the button and the panel show the Go-side log", async () => {
+  const api = withWorkspace("README.md");
+  const s = boot(api);
+  await s.start();
+  expect(root.querySelector<HTMLElement>(".zen-developer-button")!.hidden).toBe(true);
+  s.destroy();
+  localStorage.setItem("zen.developer", "1");
+  const s2 = boot(withWorkspace("README.md"));
+  await s2.start();
+  const btn = root.querySelector<HTMLButtonElement>(".zen-developer-button")!;
+  expect(btn.hidden).toBe(false);
+  btn.click();
+  await tick();
+  expect(root.querySelector(".zen-dev")).not.toBeNull();
+  expect(root.querySelectorAll(".zen-dev-row").length).toBeGreaterThanOrEqual(4); // the fake's Go-side entries
+  document.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyJ", key: "∆", altKey: true, metaKey: true, bubbles: true, cancelable: true }));
+  expect(root.querySelector(".zen-dev")).toBeNull();
 });

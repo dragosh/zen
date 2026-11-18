@@ -69,10 +69,10 @@ async function plugins(plugins: PluginInfo[] = PLUGINS, hasWorkspace = true): Pr
 
 // ---- the page and its sections
 
-test("it is a page with a section list on the left: Appearance, Configuration files, Plugins, Layouts, Website", () => {
+test("it is a page with a section list on the left: Appearance, Configuration files, Plugins, Layouts, Website, Developer", () => {
   const { s } = setup();
   const names = Array.from(s.el.querySelectorAll(".zen-settings-section")).map((b) => b.textContent);
-  expect(names).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Website"]);
+  expect(names).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Website", "Developer"]);
   expect(s.el.querySelector("h1")!.textContent).toBe("Settings");
   expect(s.el.getAttribute("aria-label")).toBe("Settings");
   expect(s.el.classList.contains("zen-settings-page")).toBe(true);
@@ -95,10 +95,12 @@ test("one section shows at a time; the first is Appearance; arrow keys and click
   expect(shown()).toEqual(["layouts"]);
   key(list, "ArrowDown");
   expect(shown()).toEqual(["website"]);
+  key(list, "ArrowDown");
+  expect(shown()).toEqual(["developer"]);
   key(list, "ArrowDown"); // wraps
   expect(shown()).toEqual(["appearance"]);
   key(list, "ArrowUp");
-  expect(shown()).toEqual(["website"]);
+  expect(shown()).toEqual(["developer"]);
 });
 
 // ---- appearance

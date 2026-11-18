@@ -2,6 +2,7 @@
 // getApi() only inside the Wails webview.
 import { Events, Window } from "@wailsio/runtime";
 import { Zen } from "../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/index.js";
+import type { LogEntry } from "@zenmd/kit";
 import type { Alert, Api, BuildOptions, Crumb, LayoutField, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
 
 type Raw = Record<string, any> | null | undefined;
@@ -140,6 +141,21 @@ function ownWindowName(): string {
 const ownName = ownWindowName();
 
 /** Single-argument Emit data arrives as is; several arguments as an array. */
+const LOG_LEVELS = ["debug", "info", "warn", "error"];
+const LOG_SOURCES = ["app", "plugin"];
+
+/** Log entries from the Go side; anything that is not an entry is dropped. */
+function logEntries(list: unknown): LogEntry[] {
+  if (!Array.isArray(list)) return [];
+  return list.filter((e): e is Record<string, any> => Boolean(e) && typeof e === "object" && typeof e.seq === "number").map((e) => ({
+    seq: e.seq,
+    time: typeof e.time === "number" ? e.time : 0,
+    level: LOG_LEVELS.includes(e.level) ? e.level : "info",
+    source: LOG_SOURCES.includes(e.source) ? e.source : "app",
+    message: String(e.message ?? ""),
+  }));
+}
+
 function payload(data: unknown): unknown {
   return Array.isArray(data) && data.length === 1 ? data[0] : data;
 }
@@ -290,6 +306,17 @@ const api: Api = {
   },
   async pluginCancel(callId) {
     await call(Zen.PluginCancel(callId));
+  },
+  async logs(since) {
+    return logEntries((await call(Zen.Logs(since))) as Raw[] | null);
+  },
+  onLog(fn) {
+    // The Go side sends a batch (an array); the runtime hands a one-entry batch over unwrapped.
+    return Events.On("log:entry", (e: { data: unknown }) => {
+      const d = e.data;
+      const list = logEntries(Array.isArray(d) && d.length === 1 && Array.isArray(d[0]) ? d[0] : Array.isArray(d) ? d : d ? [d] : []);
+      if (list.length) fn(list);
+    });
   },
   on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "layouts:changed" | "menu:new-page" | "menu:settings" | "workspace:opening" | "menu:new-site" | "menu:build-website" | "build:progress" | "menu:print-page", fn: (p: any) => void): () => void {
     if (event === "menu:new-page") return Events.On("menu:new-page", () => fn(undefined));

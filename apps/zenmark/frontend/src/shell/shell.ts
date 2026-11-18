@@ -4,8 +4,8 @@
 // editor under a small header.
 import type { Api, NavNode, Workspace } from "../api";
 import {
-  button, closeWindowKey, createHistory, createLayout, createOpening, createStore, el, logo, mountPreview, reloadKey,
-  type Ctx, type Feature, type Layout, type Store,
+  button, closeWindowKey, createDeveloper, createHistory, createLayout, createOpening, createStore, el, logo, mountPreview, reloadKey,
+  type Ctx, type Developer, type Feature, type Layout, type Store,
 } from "@zenmd/kit";
 import { BRAND } from "../brand";
 import { registerBuildSite } from "./buildsite";
@@ -97,6 +97,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   const feature = (id: Feature["id"]) => features.find((f) => f.id === id);
 
   let layout: Layout | null = null;
+  let developer: Developer | null = null;
   let unmountNav: (() => void) | null = null;
   let unmountMain: (() => void) | null = null;
   let mainId: "page" | null = null;
@@ -156,6 +157,8 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     mainId = null;
     unmountNav?.();
     unmountNav = null;
+    developer?.destroy();
+    developer = null;
     settings?.destroy();
     settings = null;
     newPage?.close();
@@ -233,8 +236,9 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     const path = page || workspace.home;
     if (path) navigate(path, page ? anchor : "");
 
-    layout = createLayout({ onBack: back, onForward: forward, onOpenFolder: () => void openFolder(), onSettings: () => toggleSettings() });
+    layout = createLayout({ onBack: back, onForward: forward, onOpenFolder: () => void openFolder(), onSettings: () => toggleSettings(), onDeveloper: () => developer?.toggle() });
     root.replaceChildren(layout.el);
+    developer = createDeveloper(layout, api, doc); // the button and ⌥⌘J, while "Show developer tab" is on (ui/developer-tab)
     doc.title = `${workspace.name} — ${BRAND}`;
     unmountNav = feature("nav")?.mount(layout.slots, ctx) ?? null;
     syncMain();
