@@ -4,6 +4,7 @@
 // app gives the other sections (configuration files, plugins, website, …).
 // All text through textContent.
 import { button, el } from "./dom";
+import { developerEnabled, setDeveloperEnabled } from "./developer";
 import { setTheme, storedTheme, type Theme } from "./theme";
 
 export type SettingsView = {
@@ -68,6 +69,20 @@ export function appearanceSection(doc: () => Document): SettingsSection {
   }
   section.append(themeLabel, seg);
   return { id: "appearance", label: "Appearance", el: section, show: renderTheme };
+}
+
+/** Developer: the "Show developer tab" switch (ui/developer-tab). It applies to this machine and all windows. */
+export function developerSection(): SettingsSection {
+  const section = el("div");
+  const row = el("label", "zen-settings-check");
+  const box = el("input");
+  box.type = "checkbox";
+  box.id = "zen-settings-developer";
+  box.addEventListener("change", () => setDeveloperEnabled(box.checked));
+  row.append(box, el("span", "", "Show developer tab"));
+  const hint = el("p", "zen-settings-hint", "Adds a Developer button next to the settings cog (⌥⌘J): a panel with the app's log, the plugins' errors and the console.");
+  section.append(row, hint);
+  return { id: "developer", label: "Developer", el: section, show: () => { box.checked = developerEnabled(); } };
 }
 
 /** The page: sections in the order given; the first one shows first. */

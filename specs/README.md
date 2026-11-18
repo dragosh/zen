@@ -56,6 +56,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 17 | [ui/image-zoom](ui/image-zoom/spec.md) | click an image to see it large: zoom, pan, fit, close; in the app and built sites; `runtime/src/zoom`, page.css, built pages with images load zen.js | engine/runtime, ui/page | done |
 | 18 | [ui/home](ui/home/spec.md) | a calmer home screen with the new logo, no Open… button in the sidebar, chevrons on the groups of built sites: `apps/zenmark/frontend/src/assets`, welcome rules in `kit/ui` shell.css, group rules in `runtime/src/static/static.css` | ui/shell, core/static-build | done |
 | 18 | [ui/inspector](ui/inspector/spec.md) | the Inspector: a right-hand panel with the page's Vale issues, file details and content statistics, ⌥⌘I; `kit/ui/src/inspector`, `engine/session/pageinfo*.go`, `apps/zenmark/inspector.go` | ui/page, ui/lint, engine/session | done |
+| 18 | [ui/developer-tab](ui/developer-tab/spec.md) | Developer tab: a bottom log panel (App, Plugins, Console) behind Settings › Developer, ⌥⌘J; `kit/desktop/logs.go`, `kit/ui/src/shell/{developer,devpanel,console}.ts`, `Zen.Logs` | kit/desktop-ui | done |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 

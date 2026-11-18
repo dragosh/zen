@@ -3,7 +3,7 @@
 // preview and the Settings frame. It imports @zenmd/runtime and its own files only
 // (kit/ui/test/boundary.test.ts); an app gives it a KitHost.
 export type {
-  Alert, Crumb, Draft, KitHost, LayoutSource, LintResult, NavNode, OpenProgress, Page, PageInfo, PageLayoutRef, PluginStreamEvent, Workspace,
+  Alert, Crumb, Draft, KitHost, LayoutSource, LintResult, LogEntry, LogLevel, NavNode, OpenProgress, Page, PageInfo, PageLayoutRef, PluginStreamEvent, Workspace,
 } from "./host";
 export { button, el, logo } from "./shell/dom";
 export { copyText } from "./shell/clipboard";
@@ -11,7 +11,9 @@ export { createHistory, type Entry, type History } from "./shell/history";
 export { closeWindowKey, reloadKey } from "./shell/keys";
 export { createLayout, type Layout, type LayoutHandlers } from "./shell/layout";
 export { createOpening, type Opening, type OpeningOptions } from "./shell/opening";
-export { appearanceSection, createSettingsFrame, type SettingsSection, type SettingsView } from "./shell/settings";
+export { installConsoleCapture, type ConsoleCapture } from "./shell/console";
+export { createDeveloper, developerEnabled, followDeveloper, setDeveloperEnabled, type Developer } from "./shell/developer";
+export { appearanceSection, createSettingsFrame, developerSection, type SettingsSection, type SettingsView } from "./shell/settings";
 export { createStore } from "./shell/store";
 export { applyTheme, followTheme, setTheme, storedTheme, THEME_KEY, type Theme } from "./shell/theme";
 export type { AppState, Ctx, Feature, Slots, Store } from "./shell/types";

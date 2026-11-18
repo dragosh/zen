@@ -39,6 +39,8 @@ func Run(opts Options) error {
 		configDir = filepath.Dir(globalPath)
 	}
 	sink := desktop.NewSink()
+	logs, stopLogs := installLogging(sink)
+	defer stopLogs()
 	dialogs := desktop.Dialogs(nil) // bound to the application by desktop.Run
 	windows := desktop.NewWindows(desktop.WindowsOptions{Title: Name})
 	// The main window always reads; `zenmd edit` opens an editor window once
@@ -47,7 +49,7 @@ func Run(opts Options) error {
 		Registry: reg, GlobalPath: globalPath,
 		Dir: opts.Dir, Page: opts.Page, Mode: "read",
 		ConfigDir: configDir,
-		Events:    sink, Dialogs: dialogs,
+		Events:    sink, Dialogs: dialogs, Logs: logs,
 		DeferOpen: true, // opened once the window can show progress
 	})
 	if err != nil {

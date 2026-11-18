@@ -493,3 +493,96 @@ h4.zen-plugin-help-title { font-size: 14px; }
 .zen-newsite-actions { display: flex; align-items: center; justify-content: flex-end; gap: var(--space-2); margin-top: var(--space-4); }
 .zen-newsite-link { margin-right: auto; padding: 0; border: 0; background: none; color: var(--fg-muted); text-decoration: underline; cursor: pointer; font: inherit; }
 .zen-newsite-link:hover { color: var(--fg); }
+
+/* Developer tab (shell/developer.ts, shell/devpanel.ts): the sidebar button, the bottom panel below
+   the page, its drag handle, filters and log rows. Level colours reuse the lint signal colours. */
+.zen-developer-button[hidden] { display: none; }
+.zen-developer-button[aria-expanded="true"] { color: var(--fg); }
+.zen-settings-check { display: flex; align-items: center; gap: var(--space-2); cursor: pointer; }
+.zen-settings-hint { margin: var(--space-2) 0 0; color: var(--fg-muted); font-size: 12px; max-width: 46ch; }
+
+.zen-dev {
+  flex: none;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-top: 1px solid var(--rule);
+  background: var(--bg);
+}
+.zen-frame.is-resizing-dev { cursor: row-resize; user-select: none; }
+/* A 7px grab area centred on the panel's top border. */
+.zen-dev-resizer {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  right: 0;
+  height: 7px;
+  cursor: row-resize;
+  z-index: 1;
+}
+.zen-dev-resizer:hover, .zen-frame.is-resizing-dev .zen-dev-resizer {
+  background: linear-gradient(to bottom, transparent 3px, var(--fg-muted) 3px, var(--fg-muted) 4px, transparent 4px);
+}
+.zen-dev-resizer:focus-visible { outline-offset: -2px; }
+.zen-dev-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  color: var(--fg);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  outline: none;
+}
+.zen-dev-head {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px var(--space-3);
+  border-bottom: 1px solid var(--rule);
+  background: var(--bg-subtle);
+}
+.zen-dev-tabs { display: flex; gap: 2px; margin-right: auto; }
+.zen-dev-tab { background: none; padding: 3px 10px; color: var(--fg-muted); }
+.zen-dev-tab[aria-selected="true"] { color: var(--fg); background: var(--bg); box-shadow: 0 0 0 1px var(--rule); font-weight: 600; }
+.zen-dev-head select, .zen-dev-head input[type="search"] {
+  height: 24px;
+  font: inherit;
+  color: var(--fg);
+  background: var(--bg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 0 var(--space-2);
+}
+.zen-dev-text-filter { width: 160px; }
+.zen-dev-head button { padding: 3px 10px; font-size: 12px; }
+.zen-dev-status { min-width: 6em; color: var(--fg-muted); }
+.zen-dev-list {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  user-select: text;
+}
+.zen-dev-row {
+  display: flex;
+  gap: var(--space-2);
+  padding: 1px var(--space-3);
+  border-bottom: 1px solid color-mix(in srgb, var(--rule) 50%, transparent);
+}
+.zen-dev-time, .zen-dev-source { flex: none; color: var(--fg-muted); }
+.zen-dev-level { flex: none; width: 4.5em; text-transform: uppercase; color: var(--fg-muted); }
+.zen-dev-source { width: 5.5em; }
+.zen-dev-msg { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.zen-dev-row[data-level="warn"] .zen-dev-level, .zen-dev-row[data-level="warn"] .zen-dev-msg { color: var(--lint-warning, #b8860b); }
+.zen-dev-row[data-level="error"] .zen-dev-level, .zen-dev-row[data-level="error"] .zen-dev-msg { color: var(--lint-error, #d1242f); }
+.zen-dev-row[data-level="debug"] .zen-dev-msg { color: var(--fg-muted); }
+.zen-dev-empty { margin: 0; padding: var(--space-4) var(--space-3); color: var(--fg-muted); font-family: var(--font-ui); }
+.zen-dev-jump { position: absolute; right: var(--space-4); bottom: var(--space-3); font-size: 12px; box-shadow: 0 0 0 1px var(--rule); }
+.zen-dev-jump[hidden] { display: none; }
+@media print { .zen-dev { display: none; } }

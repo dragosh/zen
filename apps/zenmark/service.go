@@ -30,6 +30,7 @@ type zenOptions struct {
 	Page       string
 	Mode       string
 	Events     EventSink
+	Logs       *desktop.LogRing // the Developer panel's log, nil for none
 	Dialogs    Dialogs
 	Open       func(url string) error
 	// DeferOpen leaves Dir to the first Startup call (or OpenInitial), so the
@@ -48,6 +49,7 @@ type Zen struct {
 	dialogs Dialogs
 	open    func(string) error
 	windows *desktop.Windows // nil until the GUI runs (ui/editor-window)
+	logs    *desktop.LogRing // nil without the Developer panel's log (tests, headless)
 
 	initialDir  string // opened by openInitial when DeferOpen
 	initialOnce sync.Once
@@ -87,6 +89,7 @@ func newZen(o zenOptions) (*Zen, error) {
 		mode:    o.Mode,
 		dialogs: o.Dialogs,
 		open:    o.Open,
+		logs:    o.Logs,
 	}
 	if z.mode != "edit" {
 		z.mode = "read"

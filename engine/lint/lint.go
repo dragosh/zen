@@ -14,7 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"log"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -123,7 +123,7 @@ func (l *Linter) Lint(ctx context.Context, root, path string, content []byte) ([
 		return nil, ErrUnavailable
 	}
 	if len(content) > MaxContent {
-		log.Printf("lint: %s is larger than %d bytes; not linted", path, MaxContent)
+		slog.Warn(fmt.Sprintf("lint: %s is larger than %d bytes; not linted", path, MaxContent))
 		return []Alert{}, nil
 	}
 	if fi, err := os.Stat(root); root == "" || err != nil || !fi.IsDir() {

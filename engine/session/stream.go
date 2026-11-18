@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"strings"
 	"sync"
 	"time"
@@ -186,7 +187,13 @@ func (s *Session) PluginStream(id, page, payload string) (string, error) {
 		delete(st.calls, call) // free the slot before the frontend hears about the end
 		st.mu.Unlock()
 		b.finish(!wasCancelled) // the last lines go out before the end of the stream
-		s.events.Emit(EventPluginStream, PluginStreamEvent{Call: call, Done: true, Error: streamError(err, c, wasCancelled, b.limited())})
+		msg := streamError(err, c, wasCancelled, b.limited())
+		if msg == "" || msg == "cancelled" {
+			slog.Debug("plugin "+id+": stream ended"+map[bool]string{true: " (cancelled)"}[msg != ""], "source", "plugin")
+		} else {
+			slog.Warn("plugin "+id+": stream failed: "+msg, "source", "plugin")
+		}
+		s.events.Emit(EventPluginStream, PluginStreamEvent{Call: call, Done: true, Error: msg})
 	}()
 	return call, nil
 }

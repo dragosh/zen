@@ -41,6 +41,7 @@ vi.mock("../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/index.js", () 
     LayoutStorageGet: binding("LayoutStorageGet"),
     LayoutStorageSet: binding("LayoutStorageSet"),
     LayoutStorageKeys: binding("LayoutStorageKeys"),
+    Logs: binding("Logs"),
   },
 }));
 
@@ -360,6 +361,34 @@ describe("wails api", () => {
     ]);
     off();
     fire("plugin:stream", { call: "abc123", chunk: "late", done: false, error: "" });
+    expect(got).toHaveLength(3);
+  });
+
+  it("logs(since) and the log:entry batches (ui/developer-tab)", async () => {
+    const api = (await import("./wails")).default;
+    results.Logs = [
+      { seq: 5, time: 1000, level: "warn", source: "plugin", message: "calc failed" },
+      { seq: 6, time: 1001, level: "weird", source: "other" },
+      { nope: true },
+    ];
+    expect(await api.logs!(4)).toEqual([
+      { seq: 5, time: 1000, level: "warn", source: "plugin", message: "calc failed" },
+      { seq: 6, time: 1001, level: "info", source: "app", message: "" },
+    ]);
+    results.Logs = null;
+    expect(await api.logs!(0)).toEqual([]);
+    expect(calls.map((c) => [c.name, ...c.args]).slice(-2)).toEqual([["Logs", 4], ["Logs", 0]]);
+
+    const got: unknown[][] = [];
+    const off = api.onLog!((b) => got.push(b.map((e) => e.seq)));
+    const entry = (seq: number) => ({ seq, time: 1, level: "info", source: "app", message: "m" });
+    fire("log:entry", [entry(1), entry(2)]);   // a batch
+    fire("log:entry", [entry(3)]);             // a batch of one
+    fire("log:entry", [[entry(4)]]);           // a batch of one, wrapped
+    fire("log:entry", []);                     // nothing: no call
+    expect(got).toEqual([[1, 2], [3], [4]]);
+    off();
+    fire("log:entry", [entry(9)]);
     expect(got).toHaveLength(3);
   });
 
