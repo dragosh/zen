@@ -18,7 +18,7 @@ var delegating = []string{
 	"PluginInvoke", "PluginStream", "PluginCancel",
 	"Layouts", "LayoutTrust", "LayoutStorageGet", "LayoutStorageSet", "LayoutStorageKeys",
 	"BuildOptions", "BuildWebsite", "CancelBuild", "SaveBuildDefaults",
-	"SiteTemplates", "TemplatesDir",
+	"SiteTemplates", "TemplatesDir", "ReorderNav", "SetNavHidden",
 }
 
 func TestAppIsThin(t *testing.T) {

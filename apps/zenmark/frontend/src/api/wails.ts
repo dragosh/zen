@@ -232,6 +232,15 @@ const api: Api = {
   async printWindow(title) {
     await call(Zen.PrintWindow(title));
   },
+  async reorderNav(parent, paths) {
+    await call(Zen.ReorderNav(parent, paths));
+  },
+  async setNavHidden(path, hidden) {
+    await call(Zen.SetNavHidden(path, hidden));
+  },
+  async revealInFinder(path) {
+    await call(Zen.RevealInFinder(path));
+  },
   async page(path) {
     return page((await call(Zen.Page(path))) as Raw);
   },

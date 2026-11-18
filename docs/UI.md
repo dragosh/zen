@@ -79,6 +79,12 @@ Spacing scale 4/8/12/16/24/32/48. Radius 6px. No shadows except the modal.
   a disclosure triangle and is itself a page. Current page is marked with a
   filled background (`--btn-bg`) and `aria-current="page"`. "Other pages"
   lists files nothing links to. Arrow keys move, Enter opens, ←/→ collapse/expand.
+  Right-click, ⌃-click, the context-menu key or ⇧F10 on a row opens an in-page
+  menu (`role="menu"`: Open, Open in Editor, New Page Here…, Move Up/Down, Copy
+  Path, Copy Link, Reveal in Finder, Hide from Sidebar; items the host lacks are
+  left out). Pages drag within their siblings (a drop line, Esc cancels) and ⌥↑/⌥↓
+  move one place; the order is saved as `nav.order` in the pages' frontmatter
+  (ui/sidebar-menu).
 - **Breadcrumb.** `Page.breadcrumb`, each crumb is a link, last one is plain
   text. Collapses the middle to `…` when it does not fit.
 - **Page.** Rendered HTML in `<article class="zen-page">`. Internal links

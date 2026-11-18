@@ -14,7 +14,7 @@
 .zen-nav-ws-name { overflow: hidden; text-overflow: ellipsis; }
 .zen-nav-logo { width: 18px; height: 18px; flex: none; }
 
-.zen-nav-tree { flex: 1; min-height: 0; overflow: auto; padding: var(--space-2); font-family: var(--font-ui); }
+.zen-nav-tree { flex: 1; min-height: 0; overflow: auto; padding: var(--space-2); font-family: var(--font-ui); position: relative; }
 .zen-nav-list, .zen-nav-group { list-style: none; margin: 0; padding: 0; }
 .zen-nav-item[aria-expanded="false"] > .zen-nav-group { display: none; }
 
@@ -124,3 +124,79 @@
 .zen-crumb-menu[hidden] { display: none; }
 .zen-crumb-item { background: none; border: 0; text-align: left; padding: var(--space-1) var(--space-2); border-radius: var(--radius); font: inherit; color: var(--fg); }
 .zen-crumb-item:hover, .zen-crumb-item:focus-visible { background: var(--btn-bg); }
+
+/* ui/sidebar-menu: the context menu, the drop line while a page is dragged, the status line and the confirm dialog. */
+.zen-menu {
+  position: fixed;
+  z-index: 50;
+  min-width: 190px;
+  max-height: calc(100vh - 8px);
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-1);
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 24px color-mix(in srgb, var(--fg) 16%, transparent);
+  font-family: var(--font-ui);
+  font-size: 13px;
+}
+.zen-menu-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  white-space: nowrap;
+  padding: var(--space-1) var(--space-3);
+  background: none;
+  border: 0;
+  border-radius: var(--radius);
+  font: inherit;
+  color: var(--fg);
+  cursor: default;
+}
+.zen-menu-item:hover:not([aria-disabled="true"]), .zen-menu-item:focus-visible { background: var(--btn-bg); }
+.zen-menu-item:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.zen-menu-item[aria-disabled="true"] { color: var(--fg-muted); opacity: 0.6; }
+.zen-menu-sep { height: 1px; margin: var(--space-1) 0; background: var(--rule); }
+
+.zen-nav-dragging { cursor: grabbing; }
+.zen-nav-dragging .zen-nav-row { cursor: grabbing; }
+.zen-nav-drag-source > .zen-nav-row { opacity: 0.5; }
+.zen-nav-drop {
+  position: absolute;
+  height: 2px;
+  margin-top: -1px;
+  background: var(--fg);
+  border-radius: 1px;
+  pointer-events: none;
+}
+
+.zen-nav-status {
+  flex: none;
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  color: var(--fg-muted);
+}
+.zen-nav-status-error { color: var(--fg); font-weight: 600; }
+
+.zen-confirm-backdrop {
+  position: fixed; inset: 0; z-index: 60;
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 16vh 16px 16px;
+  background: color-mix(in srgb, var(--fg) 18%, transparent);
+}
+.zen-confirm {
+  width: min(420px, 100%);
+  padding: var(--space-4);
+  background: var(--bg); color: var(--fg);
+  border: 1px solid var(--rule); border-radius: var(--radius);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--fg) 18%, transparent);
+  font-family: var(--font-ui); font-size: 13px;
+}
+.zen-confirm-title { margin: 0 0 var(--space-2); font-size: 15px; font-weight: 600; }
+.zen-confirm-message { margin: 0 0 var(--space-4); color: var(--fg-muted); line-height: 1.5; }
+.zen-confirm-actions { display: flex; justify-content: flex-end; gap: var(--space-2); }

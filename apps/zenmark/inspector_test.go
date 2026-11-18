@@ -6,7 +6,7 @@ import (
 	"testing"
 )
 
-func TestRevealInFinder(t *testing.T) {
+func TestRevealInFinderPage(t *testing.T) {
 	dir := tree(t, map[string]string{"README.md": "# Home\n", "notes/a.txt": "x"})
 	var shown []string
 	old := revealFile

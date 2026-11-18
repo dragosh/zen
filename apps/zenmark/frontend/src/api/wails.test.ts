@@ -36,6 +36,9 @@ vi.mock("../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/index.js", () 
     PluginStream: binding("PluginStream"),
     PluginCancel: binding("PluginCancel"),
     PluginStorageKeys: binding("PluginStorageKeys"),
+    ReorderNav: binding("ReorderNav"),
+    SetNavHidden: binding("SetNavHidden"),
+    RevealInFinder: binding("RevealInFinder"),
     Layouts: binding("Layouts"),
     LayoutTrust: binding("LayoutTrust"),
     LayoutStorageGet: binding("LayoutStorageGet"),
@@ -474,5 +477,19 @@ describe("wails api", () => {
     off();
     for (const fn of listeners.get("layouts:changed") ?? []) fn({ name: "layouts:changed", data: null });
     expect(n).toBe(1);
+  });
+
+  it("maps the sidebar menu calls and keeps Go's messages", async () => {
+    const api = (await import("./wails")).default;
+    await api.reorderNav("README.md", ["b.md", "a.md"]);
+    await api.setNavHidden("a.md", true);
+    await api.revealInFinder("a.md");
+    expect(calls).toEqual([
+      { name: "ReorderNav", args: ["README.md", ["b.md", "a.md"]] },
+      { name: "SetNavHidden", args: ["a.md", true] },
+      { name: "RevealInFinder", args: ["a.md"] },
+    ]);
+    results.ReorderNav = new Error("a.md: permission denied");
+    await expect(api.reorderNav("", ["a.md"])).rejects.toThrow("permission denied");
   });
 });

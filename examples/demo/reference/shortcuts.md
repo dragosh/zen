@@ -13,6 +13,8 @@
 | <kbd>⌘,</kbd> | settings, from any window (<kbd>Esc</kbd> goes back) |
 | <kbd>⌘W</kbd> | close the window |
 | <kbd>↑</kbd> <kbd>↓</kbd> <kbd>←</kbd> <kbd>→</kbd> | move in the sidebar, close and open branches |
+| <kbd>⌥↑</kbd> / <kbd>⌥↓</kbd> | move the selected page up / down among its siblings in the sidebar |
+| <kbd>⇧F10</kbd> or the menu key | the selected page's menu in the sidebar |
 
 ## Editor window
 

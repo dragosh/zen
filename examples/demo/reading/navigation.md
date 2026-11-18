@@ -15,6 +15,32 @@ asks to stay out of the sidebar.
 To change a page's place, label or order, use
 [frontmatter](frontmatter.md#navigation).
 
+## Rearranging the sidebar
+
+Right-click a page in the sidebar (or Control-click it, or press the menu key
+or <kbd>⇧F10</kbd> on the selected row) for a menu:
+
+| Item | What it does |
+|---|---|
+| Open, Open in Editor | the page, or its editor window |
+| New Page Here… | the New Page dialog, in that page's folder |
+| Move Up, Move Down | one place among the pages next to it (<kbd>⌥↑</kbd> and <kbd>⌥↓</kbd> do the same) |
+| Copy Path, Copy Link | `guides/install.md`, or `[Install](install.md)` ready to paste |
+| Reveal in Finder | the file, selected in Finder |
+| Hide from Sidebar | leaves the page (and the pages under it) out of the sidebar, after asking |
+
+You can also drag a page up or down among its siblings. A line shows where it
+will land; <kbd>Esc</kbd> cancels. Pages can be moved within their group only;
+to put a page under another one, use `nav: parent` in its
+[frontmatter](frontmatter.md#navigation).
+
+The order is saved in the pages themselves: zen numbers the pages of the group
+10, 20, 30… in `nav: order` and changes **only the frontmatter** of the files
+whose number changed. The text below it, the line endings and your other keys
+and comments are left as they were. A page without frontmatter gets a small
+block at the top. Hiding writes `nav: hidden: true`; to show the page again,
+remove that line (the page is still reachable by links).
+
 ## Links
 
 | Link | What happens |

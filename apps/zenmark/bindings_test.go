@@ -15,8 +15,8 @@ var serviceMethods = []string{
 	"OpenBuiltSite", "OpenConfig", "OpenEditor", "OpenExternal", "Page", "PageInfo", "PickBuildFolder",
 	"PickFolder", "PickSiteFolder", "PluginCancel", "PluginInvoke", "PluginStorageGet",
 	"PluginStorageKeys", "PluginStorageSet", "PluginStream", "PluginTrust", "Plugins", "Preview",
-	"PrintPage", "PrintSite", "PrintWindow", "RevealBuiltSite", "RevealInFinder", "RevealTemplates", "Save", "SaveBuildDefaults",
-	"SiteTemplates", "Source", "Startup", "TemplatesDir",
+	"PrintPage", "PrintSite", "PrintWindow", "ReorderNav", "RevealBuiltSite", "RevealInFinder", "RevealTemplates", "Save", "SaveBuildDefaults",
+	"SetNavHidden", "SiteTemplates", "Source", "Startup", "TemplatesDir",
 }
 
 func TestServiceMethodsUnchanged(t *testing.T) {

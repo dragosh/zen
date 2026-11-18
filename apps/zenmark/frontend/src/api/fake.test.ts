@@ -305,3 +305,29 @@ test("fake logs(since) and onLog feed the Developer panel", async () => {
   api.emitLog([{ seq: 6, time: 1, level: "info", source: "app", message: "m" }]);
   expect(got).toEqual([5]);
 });
+
+const flat = (nodes: NavNode[]): string[] => nodes.flatMap((n) => [n.path, ...flat(n.children)]);
+
+test("fake reorderNav reorders the in-memory tree and sends workspace:changed", async () => {
+  const api = createFakeApi({ startup: { workspace: sampleWorkspace(), page: "README.md", mode: "read" } });
+  const seen: NavNode[][] = [];
+  api.on("workspace:changed", (w) => seen.push(w.tree));
+  await api.reorderNav("guides", ["guides/usage.md", "guides/install.md"]);
+  expect(api.callsTo("reorderNav")).toEqual([["guides", ["guides/usage.md", "guides/install.md"]]]);
+  expect(seen).toHaveLength(1);
+  expect(flat(seen[0])).toEqual(["README.md", "guides", "guides/usage.md", "guides/install.md"]);
+  await expect(api.reorderNav("guides", ["guides/usage.md"])).rejects.toThrow(/every page/);
+  await expect(api.reorderNav("", ["guides/usage.md", "guides/install.md"])).rejects.toThrow(/not under/);
+  await expect(api.reorderNav("guides", ["guides/usage.md", "nope.md"])).rejects.toThrow(/not a page/);
+});
+
+test("fake setNavHidden removes the page (and what is under it); revealInFinder is recorded", async () => {
+  const api = createFakeApi({ startup: { workspace: sampleWorkspace(), page: "README.md", mode: "read" } });
+  const seen: NavNode[][] = [];
+  api.on("workspace:changed", (w) => seen.push(w.tree));
+  await api.setNavHidden("guides/usage.md", true);
+  expect(flat(seen[0])).toEqual(["README.md", "guides", "guides/install.md"]);
+  await expect(api.setNavHidden("nope.md", true)).rejects.toThrow();
+  await api.revealInFinder("guides/install.md");
+  expect(api.callsTo("revealInFinder")).toEqual([["guides/install.md"]]);
+});
