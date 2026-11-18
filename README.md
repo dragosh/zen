@@ -107,6 +107,9 @@ tests, UI, security and a prompt for whoever builds it. Each spec is then built
 on its own branch (`feature/<scope>-<feature>`) in a git worktree, tests first,
 and merged when the checks pass. In Claude Code, `/add-spec <scope>/<feature>`
 does this ([.claude/skills/add-spec](.claude/skills/add-spec/SKILL.md)).
+Bugs and ideas go to [GitHub issues](https://github.com/zenmark-org/zenmd/issues);
+`/add-issue <notes>` drafts them from a list and files them after one confirmation
+([.claude/skills/add-issue](.claude/skills/add-issue/SKILL.md)).
 
 ## Remaining work
 
