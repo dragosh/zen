@@ -21,7 +21,8 @@ func TestRevealInFinderPage(t *testing.T) {
 	if len(shown) != 1 || shown[0] != want {
 		t.Fatalf("shown %v, want [%s]", shown, want)
 	}
-	for _, p := range []string{"../x.md", "/etc/hosts", "notes/a.txt", "missing.md", ""} {
+	// Outside the folder or missing; folders and other files inside it may be revealed (ui/sidebar-menu).
+	for _, p := range []string{"../x.md", "/etc/hosts", "missing.md"} {
 		if err := z.RevealInFinder(p); err == nil {
 			t.Errorf("RevealInFinder(%q) succeeded", p)
 		} else if strings.Contains(err.Error(), dir) {
