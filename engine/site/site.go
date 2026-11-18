@@ -48,7 +48,7 @@ type Input interface {
 	Slug(slug string) (string, bool)            // frontmatter slug -> page
 	WorkspaceFile(path string) (fs.File, error) // inside the root only, no symlinks out
 	Asset(url string) (fs.File, error)          // /_plugins/… and /_layouts/… as the app serves them
-	Runtime() (js, css []byte)                  // frontend/dist/static
+	Runtime() (js, css []byte)                  // zen.js and zen.css (package runtime)
 }
 
 // rooter is implemented by an Input that knows the folder it reads; a build
