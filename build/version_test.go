@@ -77,7 +77,7 @@ func TestBuildStampsVersion(t *testing.T) {
 		t.Fatalf("task version:ldflags: %v", err)
 	}
 	ldflags := strings.TrimSpace(string(out))
-	want := "-X github.com/dragosh/zenmd/internal/cli.Version=" + version
+	want := "-X github.com/zenmark-org/zenmd/internal/cli.Version=" + version
 	if ldflags != want {
 		t.Fatalf("task version:ldflags = %q, want %q", ldflags, want)
 	}
@@ -94,7 +94,7 @@ func TestBuildStampsVersion(t *testing.T) {
 import (
 	"os"
 
-	"github.com/dragosh/zenmd/internal/cli"
+	"github.com/zenmark-org/zenmd/internal/cli"
 )
 
 func main() {

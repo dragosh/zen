@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zenmd/engine/plugins"
-	"github.com/dragosh/zenmd/engine/workspace"
+	"github.com/zenmark-org/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/workspace"
 )
 
 func TestOpenPath(t *testing.T) {

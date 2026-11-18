@@ -1,6 +1,6 @@
 # zenmd: the engine
 
-Status: E1, E2a, E2b and E2c done (November 2026): the command is `zenmd`, the module is `github.com/dragosh/zenmd`, the engine is public under `engine/`, the built-ins under `builtins/`, and the browser runtime is `runtime/` (`@zenmd/runtime`, embedded in Go), the desktop shell is `kit/` and zen.md is `apps/zenmd-app`. This document plans the rest before it is specified in `specs/engine/*`.
+Status: E1, E2a, E2b and E2c done (November 2026): the command is `zenmd`, the module is `github.com/zenmark-org/zenmd`, the engine is public under `engine/`, the built-ins under `builtins/`, and the browser runtime is `runtime/` (`@zenmd/runtime`, embedded in Go), the desktop shell is `kit/` and zen.md is `apps/zenmd-app`. This document plans the rest before it is specified in `specs/engine/*`.
 
 zen.md becomes two layers:
 
@@ -54,7 +54,7 @@ kit or an app, and the kit never imports an app; tests enforce both.
 ## The engine's shape
 
 ```
-github.com/dragosh/zenmd (module)
+github.com/zenmark-org/zenmd (module)
   engine/                       public Go API (was internal/core + the headless half of internal/app)
     session/                    Open, Page, Preview, Save, Watch, Trust, Build, Print, Templates; events as a Go interface
     format/                     render, frontmatter, directives, sanitising
@@ -109,7 +109,7 @@ through a Vite alias and a `tsconfig` `paths` entry.
 
 One build serves everyone: `npm run build` in `runtime/` (the frontend's build
 runs it first) writes `runtime/dist/zen.js`, a classic IIFE, and `zen.css`.
-The Go package `github.com/dragosh/zenmd/runtime` embeds them (`FS()`), which
+The Go package `github.com/zenmark-org/zenmd/runtime` embeds them (`FS()`), which
 is `engine/session`'s default `Options.Runtime`, so `zenmd build` needs no
 frontend. `runtime/dist` is git-ignored: build it (`task build:frontend`)
 before any Go build or test.
@@ -127,7 +127,7 @@ file locks.
 
 ## The Go API (E2a, built)
 
-The module is `github.com/dragosh/zenmd`. What a program may import:
+The module is `github.com/zenmark-org/zenmd`. What a program may import:
 
 | Package | What |
 |---|---|
@@ -154,7 +154,7 @@ when `apidiff` is installed. Before the first tag the job only reports.
 
 ## The kit and the app (E2c, built)
 
-`kit/desktop` (Go, `github.com/dragosh/zenmd/kit/desktop`) is the window shell:
+`kit/desktop` (Go, `github.com/zenmark-org/zenmd/kit/desktop`) is the window shell:
 `Run(Options)` (the Wails application, the main window, maximising, Open With
 and the startup hook), `Windows` (the window manager and the close handshake),
 `Sink` (events to the frontend), `DialogSet` (native dialogs as a
@@ -194,7 +194,7 @@ imports only `@zenmd/runtime`, the app imports both).
 |---|---|---|---|
 | E1 ✓ | `engine/cli-rename` | The command and executable become `zenmd`, and `zen` stays as an alias for one minor release, printing a notice. Updates the CLI install, Taskfile, docs and demo. | `zenmd build/init/version` work; `zen` still works with a notice |
 | E1 ✓ | `engine/session` | Extract the headless session from `internal/app` into `engine/session`, with no Wails import. The app's `Zen` service becomes a thin adapter (bindings, dialogs, events). | `internal/app` contains only Wails glue; the session has its own tests; behaviour unchanged |
-| E2a ✓ | `engine/public-api` | Rename the module to `github.com/dragosh/zenmd`; move `internal/core/*` to `engine/*` and the built-ins to `builtins/*`; document the Go API, add an `apidiff` check in CI and an "embed zenmd" example. | `go doc` reads well; an example renders a folder in 20 lines |
+| E2a ✓ | `engine/public-api` | Rename the module to `github.com/zenmark-org/zenmd`; move `internal/core/*` to `engine/*` and the built-ins to `builtins/*`; document the Go API, add an `apidiff` check in CI and an "embed zenmd" example. | `go doc` reads well; an example renders a folder in 20 lines |
 | E2b ✓ | `engine/runtime` | Split the frontend into `runtime/` (page, plugin runtime, static, print) and the app's UI. One build of the runtime is used by the app and by `zenmd build`. | Built sites and the app load the same runtime; the app bundle imports it |
 | E2c ✓ | `kit/desktop` + `kit/ui` | Move the reusable desktop parts out of `internal/app` and `frontend/src` into `kit/`; today's app becomes `apps/zenmd-app` (main, menu, `Zen` service, its features, packaging). | A second app is a main, a menu and its features; zen.md behaves the same |
 | E3 | `engine/format-spec` | Write `spec/`: frontmatter keys, directives, inline attributes, plugin blocks, layouts and links. Add conformance fixtures (`.md` in, normalised HTML out) and `zenmd check` for a folder (render warnings, broken links, Vale). | Every documented feature has a fixture; `zenmd check examples/demo` is clean |
@@ -212,7 +212,7 @@ After E3, the engine gets its own version (`zenmd 1.0.0-beta`) and apps depend o
 ## Decisions
 
 1. **One repository**, holding the engine, the kit, the apps and the spec, with one Go module. Split when a second app has its own release rhythm.
-2. **The repository is renamed to `zenmd`** on GitHub by the owner; the module path follows in E2a (`github.com/dragosh/zenmd`).
+2. **The repository is renamed to `zenmd`** on GitHub by the owner; the module path follows in E2a (`github.com/zenmark-org/zenmd`).
 3. **A kit layer** between the engine and the apps (E2c), so a second app does not copy zen.md's shell.
 4. **The config folder.** `~/Library/Application Support/zen/` stays (a migration later, if ever), so existing settings, trust and plugin data keep working.
 5. **App Store packaging** belongs to each app (packaging/appstore stays with zen.md); the engine stays free of app-only entitlements.

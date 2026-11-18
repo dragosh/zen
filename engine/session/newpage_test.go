@@ -7,9 +7,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zenmd/builtins/plugins/check"
-	"github.com/dragosh/zenmd/builtins/plugins/codeblock"
-	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/builtins/plugins/check"
+	"github.com/zenmark-org/zenmd/builtins/plugins/codeblock"
+	"github.com/zenmark-org/zenmd/engine/plugins"
 )
 
 func TestCreatePage(t *testing.T) {

@@ -16,10 +16,10 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dragosh/zenmd/engine/extplugins"
-	"github.com/dragosh/zenmd/engine/plugins"
-	"github.com/dragosh/zenmd/engine/scriptplugins"
-	"github.com/dragosh/zenmd/internal/atomicfile"
+	"github.com/zenmark-org/zenmd/engine/extplugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/scriptplugins"
+	"github.com/zenmark-org/zenmd/internal/atomicfile"
 )
 
 // PluginInfo is one row of Settings › Plugins.

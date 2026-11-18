@@ -7,8 +7,8 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dragosh/zenmd/engine/config"
-	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/config"
+	"github.com/zenmark-org/zenmd/engine/plugins"
 )
 
 // Default is the name of the layout of a page that chooses none: the built-in

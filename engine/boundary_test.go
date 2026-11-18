@@ -7,7 +7,7 @@ import (
 	"testing"
 )
 
-const module = "github.com/dragosh/zenmd/"
+const module = "github.com/zenmark-org/zenmd/"
 
 // goList runs go list and returns its output lines.
 func goList(t *testing.T, args ...string) []string {

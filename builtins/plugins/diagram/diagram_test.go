@@ -10,8 +10,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zenmd/engine/plugins"
-	"github.com/dragosh/zenmd/engine/render"
+	"github.com/zenmark-org/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/render"
 )
 
 func TestManifest(t *testing.T) {

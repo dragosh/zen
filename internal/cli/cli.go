@@ -38,7 +38,7 @@ func Notice(w io.Writer, invokedAs string) {
 }
 
 // Version is set at build time with
-// -ldflags "-X github.com/dragosh/zenmd/internal/cli.Version=<v>".
+// -ldflags "-X github.com/zenmark-org/zenmd/internal/cli.Version=<v>".
 var Version = "dev"
 
 // Launch describes what the GUI opens.

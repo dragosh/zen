@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zenmd/engine/site"
+	"github.com/zenmark-org/zenmd/engine/site"
 )
 
 func printZen(t *testing.T, files map[string]string) *Session {

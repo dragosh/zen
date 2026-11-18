@@ -8,7 +8,7 @@ import (
 	"os/exec"
 	"sync"
 
-	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
 )
 
 // Stream runs the stream hook (ZEN_HOOK=stream): the payload goes to stdin and

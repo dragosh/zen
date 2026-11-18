@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing/fstest"
 
-	"github.com/dragosh/zenmd/builtins"
-	"github.com/dragosh/zenmd/engine/session"
+	"github.com/zenmark-org/zenmd/builtins"
+	"github.com/zenmark-org/zenmd/engine/session"
 )
 
 // Example_embed opens a folder with the built-in plugins and layouts, lists

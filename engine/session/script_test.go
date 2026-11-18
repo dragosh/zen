@@ -11,7 +11,7 @@ import (
 	"testing/fstest"
 	"time"
 
-	"github.com/dragosh/zenmd/engine/scriptplugins"
+	"github.com/zenmark-org/zenmd/engine/scriptplugins"
 )
 
 const shoutSrc = `plugin := {

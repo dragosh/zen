@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
 )
 
 func mkfile(t *testing.T, dir, name, body string, mode os.FileMode) {

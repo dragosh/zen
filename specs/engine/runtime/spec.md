@@ -44,7 +44,7 @@ so the engine can build sites without the app's frontend.
    - The app bundle imports the runtime's sources, so they are tree-shaken into the app.
    - `frontend/dist/static/` is no longer produced.
 5. **The Go side:**
-   - new package `github.com/dragosh/zenmd/runtime` (`runtime/embed.go`, `//go:embed dist`), with `func FS() fs.FS` returning `zen.js` and `zen.css`;
+   - new package `github.com/zenmark-org/zenmd/runtime` (`runtime/embed.go`, `//go:embed dist`), with `func FS() fs.FS` returning `zen.js` and `zen.css`;
    - `engine/session` uses it as the default `Options.Runtime` when none is given;
    - `main.go` no longer sets `app.StaticAssets` from `frontend/dist`, and `app.StaticAssets` goes away;
    - `zenmd build` works from a plain `go build` once `runtime/dist` exists (built by the Taskfile).
@@ -78,7 +78,7 @@ export type { PluginCtx, LayoutCtx, PluginHandler, LayoutHandler } from "./plugi
 ```
 
 ```go
-// package runtime (github.com/dragosh/zenmd/runtime)
+// package runtime (github.com/zenmark-org/zenmd/runtime)
 func FS() fs.FS // zen.js, zen.css
 ```
 

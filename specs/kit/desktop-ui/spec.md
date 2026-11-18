@@ -19,7 +19,7 @@ A second app then needs a main, a menu and its own features, and copies nothing.
 
 ## Behaviour
 
-1. **Go: `kit/desktop`** (`github.com/dragosh/zenmd/kit/desktop`) takes the reusable parts of `internal/app`:
+1. **Go: `kit/desktop`** (`github.com/zenmark-org/zenmd/kit/desktop`) takes the reusable parts of `internal/app`:
    - the window manager and close handshake (`windows.go`);
    - the event sink to Wails;
    - Wails dialogs as a `session.Prompter` and the folder pickers;

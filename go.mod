@@ -1,4 +1,4 @@
-module github.com/dragosh/zenmd
+module github.com/zenmark-org/zenmd
 
 go 1.26.0
 

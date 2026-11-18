@@ -10,7 +10,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/dragosh/zenmd/engine/lint"
+	"github.com/zenmark-org/zenmd/engine/lint"
 )
 
 // fakeLinter records its calls and returns canned alerts.

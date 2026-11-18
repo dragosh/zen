@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
 )
 
 // EventPluginStream carries the output of a plugin stream to the frontend:

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zenmd/engine/session"
-	"github.com/dragosh/zenmd/engine/session/sessiontest"
+	"github.com/zenmark-org/zenmd/engine/session"
+	"github.com/zenmark-org/zenmd/engine/session/sessiontest"
 )
 
 func names(evs []sessiontest.Event) map[string]int {

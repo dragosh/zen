@@ -16,7 +16,7 @@ import (
 
 	"golang.org/x/net/html"
 
-	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
 )
 
 // maxOutput caps what a template may write.

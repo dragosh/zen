@@ -12,10 +12,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/dragosh/zenmd/engine/config"
-	"github.com/dragosh/zenmd/engine/plugins"
-	"github.com/dragosh/zenmd/engine/site"
-	zenruntime "github.com/dragosh/zenmd/runtime"
+	"github.com/zenmark-org/zenmd/engine/config"
+	"github.com/zenmark-org/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/site"
+	zenruntime "github.com/zenmark-org/zenmd/runtime"
 )
 
 // SiteOptions are the options of a site build, the flags of `zenmd build`.

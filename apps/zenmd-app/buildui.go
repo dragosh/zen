@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"path/filepath"
 
-	"github.com/dragosh/zenmd/kit/desktop"
+	"github.com/zenmark-org/zenmd/kit/desktop"
 )
 
 // revealPath shows a folder in Finder; tests replace it.

@@ -13,7 +13,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
 )
 
 // scripted loads a plugin "p" whose backend is run.sh with the given body.

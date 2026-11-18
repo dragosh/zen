@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zenmd/engine/scriptplugins"
+	"github.com/zenmark-org/zenmd/engine/scriptplugins"
 )
 
 // TestMain lets the test binary act as the program: with ZENMD_TEST_MAIN set

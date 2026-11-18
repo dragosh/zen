@@ -5,8 +5,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/dragosh/zenmd/engine/session"
-	"github.com/dragosh/zenmd/engine/session/sessiontest"
+	"github.com/zenmark-org/zenmd/engine/session"
+	"github.com/zenmark-org/zenmd/engine/session/sessiontest"
 )
 
 const helloPlugin = `id: hello

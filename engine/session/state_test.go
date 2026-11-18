@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zenmd/engine/watch"
+	"github.com/zenmark-org/zenmd/engine/watch"
 )
 
 func TestPageLifecycle(t *testing.T) {

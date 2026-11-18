@@ -9,7 +9,7 @@ import (
 	"html"
 	"strings"
 
-	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/renderer"
 	"github.com/yuin/goldmark/text"

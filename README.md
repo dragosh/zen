@@ -1,6 +1,6 @@
 # ⊹╰(⌣ʟ⌣)╯⊹ ☯ zen.md
 
-[![ci](https://github.com/dragosh/zenmd/actions/workflows/ci.yml/badge.svg)](https://github.com/dragosh/zenmd/actions/workflows/ci.yml)
+[![ci](https://github.com/zenmark-org/zenmd/actions/workflows/ci.yml/badge.svg)](https://github.com/zenmark-org/zenmd/actions/workflows/ci.yml)
 
 **zen.md** is a desktop markdown reader and editor for folders of markdown:
 the sidebar is built from your links, pages render with plugins and layouts,
@@ -23,7 +23,7 @@ go install github.com/go-task/task/v3/cmd/task@latest
 ```
 
 ```sh
-git clone https://github.com/dragosh/zenmd && cd zenmd
+git clone https://github.com/zenmark-org/zenmd && cd zenmd
 task build            # frontend, runtime and bin/zenmd
 task install          # links zenmd (and the old name zen) into ~/.local/bin
 zenmd examples/demo   # open the user guide, which shows every feature

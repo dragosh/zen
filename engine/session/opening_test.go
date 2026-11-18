@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
 )
 
 // bigTree is a folder with n pages (plus a README).

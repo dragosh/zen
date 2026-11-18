@@ -27,7 +27,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
 )
 
 // Limits of a plugin folder.

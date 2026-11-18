@@ -8,7 +8,7 @@ import (
 	"html"
 	"io/fs"
 
-	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
 )
 
 //go:embed assets/diagram.js assets/diagram.css assets/mermaid.min.js

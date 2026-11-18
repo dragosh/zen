@@ -23,7 +23,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 - Engine: the browser runtime (plugin and layout mounting, built sites, print, page CSS) is `runtime/` (`@zenmd/runtime`), embedded in Go as package `runtime`; the app and `zenmd build` use one build of it. Built sites are byte for byte the same. CI runs on actions v7 and Node 24.
 
-- Engine: the Go module is `github.com/dragosh/zenmd` (the repository was renamed); the engine packages are public under `engine/` (documented, with an "embed zenmd" example) and the default plugins, layouts and site templates under `builtins/`. CI checks the API with apidiff. No visible change.
+- Engine: the Go module is `github.com/zenmark-org/zenmd` (the repository was renamed); the engine packages are public under `engine/` (documented, with an "embed zenmd" example) and the default plugins, layouts and site templates under `builtins/`. CI checks the API with apidiff. No visible change.
 
 - The command is now `zenmd`, the zen.md engine. `zen` still works until 0.4.0 and says so on stderr. Run `task install` again for both links (`task install:cli` for /usr/local/bin needs sudo).
 - Engine: the folder session (opening, rendering, plugins, layouts, build, print, templates) is a headless Go package, `engine/session`; the app is a thin layer over it. No visible change.

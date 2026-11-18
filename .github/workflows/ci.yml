@@ -66,8 +66,8 @@ jobs:
           fi
           git worktree add --detach ../base "$tag"
           for d in frontend/dist apps/zenmd-app/frontend/dist runtime/dist; do mkdir -p "../base/$d" && echo placeholder > "../base/$d/placeholder.txt"; done
-          (cd ../base && apidiff -m -w "$RUNNER_TEMP/base.api" github.com/dragosh/zenmd)
-          apidiff -m -incompatible "$RUNNER_TEMP/base.api" github.com/dragosh/zenmd | tee "$RUNNER_TEMP/api.out"
+          (cd ../base && apidiff -m -w "$RUNNER_TEMP/base.api" github.com/zenmark-org/zenmd)
+          apidiff -m -incompatible "$RUNNER_TEMP/base.api" github.com/zenmark-org/zenmd | tee "$RUNNER_TEMP/api.out"
           [ -s "$RUNNER_TEMP/api.out" ] || exit 0
           range="$tag..HEAD"
           if printf '%s\n' "$PR_BODY" | grep -q 'api-break:' || git log --format=%B "$range" | grep -q 'api-break:'; then

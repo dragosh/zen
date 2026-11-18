@@ -1,16 +1,16 @@
 package app
 
 import (
-	"github.com/dragosh/zenmd/engine/sitetemplates"
+	"github.com/zenmark-org/zenmd/engine/sitetemplates"
 	"io/fs"
 
-	"github.com/dragosh/zenmd/engine/session"
+	"github.com/zenmark-org/zenmd/engine/session"
 	"os"
 	"path/filepath"
 	"sync"
 	"testing"
 
-	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
 )
 
 type event struct {

@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zenmd/engine/plugins"
-	"github.com/dragosh/zenmd/kit/desktop"
+	"github.com/zenmark-org/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/kit/desktop"
 )
 
 // fakeWindow behaves like a Wails window: Close runs the closing hook and,

@@ -8,13 +8,13 @@ import (
 	"sync"
 	"time"
 
-	"github.com/dragosh/zenmd/engine/config"
-	"github.com/dragosh/zenmd/engine/index"
-	"github.com/dragosh/zenmd/engine/layouts"
-	"github.com/dragosh/zenmd/engine/plugins"
-	"github.com/dragosh/zenmd/engine/render"
-	"github.com/dragosh/zenmd/engine/watch"
-	"github.com/dragosh/zenmd/engine/workspace"
+	"github.com/zenmark-org/zenmd/engine/config"
+	"github.com/zenmark-org/zenmd/engine/index"
+	"github.com/zenmark-org/zenmd/engine/layouts"
+	"github.com/zenmark-org/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/render"
+	"github.com/zenmark-org/zenmd/engine/watch"
+	"github.com/zenmark-org/zenmd/engine/workspace"
 )
 
 // EventWorkspaceOpening reports progress while a folder opens, payload

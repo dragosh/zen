@@ -21,7 +21,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
 )
 
 //go:embed assets/quiz.js assets/quiz.css

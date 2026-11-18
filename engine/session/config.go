@@ -9,7 +9,7 @@ import (
 
 	"gopkg.in/yaml.v3"
 
-	"github.com/dragosh/zenmd/engine/config"
+	"github.com/zenmark-org/zenmd/engine/config"
 )
 
 // ConfigPrefix marks the two config files as editor "pages":

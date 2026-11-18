@@ -15,7 +15,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/dragosh/zenmd/engine/layouts"
+	"github.com/zenmark-org/zenmd/engine/layouts"
 )
 
 // Page is one rendered page, as the app shows it.

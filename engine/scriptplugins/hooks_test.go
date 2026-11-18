@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/dragosh/zenmd/engine/plugins"
-	"github.com/dragosh/zenmd/engine/scriptplugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/scriptplugins"
 )
 
 func TestManifestFromThePluginMap(t *testing.T) {

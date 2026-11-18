@@ -10,7 +10,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/dragosh/zenmd/engine/layouts"
+	"github.com/zenmark-org/zenmd/engine/layouts"
 )
 
 // errPageExists is returned by CreatePage when the file is already there.

@@ -3,7 +3,7 @@
 // wraps its task list; course.js does the work in the page.
 package check
 
-import "github.com/dragosh/zenmd/engine/plugins"
+import "github.com/zenmark-org/zenmd/engine/plugins"
 
 type plugin struct{}
 

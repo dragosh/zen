@@ -4,7 +4,7 @@ import (
 	"context"
 	"net/url"
 
-	"github.com/dragosh/zenmd/kit/desktop"
+	"github.com/zenmark-org/zenmd/kit/desktop"
 )
 
 // EventPrintPage asks the main window to print the page it shows (File ›

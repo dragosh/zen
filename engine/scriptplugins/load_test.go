@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zenmd/engine/scriptplugins"
+	"github.com/zenmark-org/zenmd/engine/scriptplugins"
 )
 
 func TestInvalidPluginMaps(t *testing.T) {

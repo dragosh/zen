@@ -8,9 +8,9 @@ import (
 	"io/fs"
 	"path/filepath"
 
-	"github.com/dragosh/zenmd/builtins"
-	"github.com/dragosh/zenmd/engine/config"
-	"github.com/dragosh/zenmd/kit/desktop"
+	"github.com/zenmark-org/zenmd/builtins"
+	"github.com/zenmark-org/zenmd/engine/config"
+	"github.com/zenmark-org/zenmd/kit/desktop"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 

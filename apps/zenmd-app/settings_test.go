@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zenmd/engine/config"
-	"github.com/dragosh/zenmd/engine/plugins"
-	"github.com/dragosh/zenmd/kit/desktop"
+	"github.com/zenmark-org/zenmd/engine/config"
+	"github.com/zenmark-org/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/kit/desktop"
 )
 
 func TestOpenConfig(t *testing.T) {

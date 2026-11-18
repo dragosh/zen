@@ -14,7 +14,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zenmd/engine/scriptplugins"
+	"github.com/zenmark-org/zenmd/engine/scriptplugins"
 )
 
 // crasher is a plugin that is fine for most input and makes Tengo recurse

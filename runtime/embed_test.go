@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	zenruntime "github.com/dragosh/zenmd/runtime"
+	zenruntime "github.com/zenmark-org/zenmd/runtime"
 )
 
 // TestFS: the embedded runtime has both files, and the script is a classic

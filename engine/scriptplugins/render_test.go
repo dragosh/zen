@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zenmd/engine/plugins"
-	"github.com/dragosh/zenmd/engine/render"
-	"github.com/dragosh/zenmd/engine/scriptplugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/render"
+	"github.com/zenmark-org/zenmd/engine/scriptplugins"
 )
 
 // renderPage renders src with the given script plugins registered.

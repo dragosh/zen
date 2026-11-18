@@ -3,9 +3,9 @@ package app
 import (
 	"io"
 
-	"github.com/dragosh/zenmd/engine/config"
-	"github.com/dragosh/zenmd/engine/session"
-	"github.com/dragosh/zenmd/internal/cli"
+	"github.com/zenmark-org/zenmd/engine/config"
+	"github.com/zenmark-org/zenmd/engine/session"
+	"github.com/zenmark-org/zenmd/internal/cli"
 )
 
 // BuildSite is `zenmd build`: it writes the static site of b.Dir and prints the

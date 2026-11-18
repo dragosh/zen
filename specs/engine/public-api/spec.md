@@ -12,7 +12,7 @@
 ## Purpose
 
 Make zenmd a Go engine other programs can import:
-- the module is `github.com/dragosh/zenmd`, after the repository rename;
+- the module is `github.com/zenmark-org/zenmd`, after the repository rename;
 - the engine packages are public under `engine/`, and the default plugins, layouts and site templates under `builtins/`;
 - every exported name is documented;
 - CI fails when a change breaks the API without saying so.
@@ -21,7 +21,7 @@ No behaviour changes.
 
 ## Behaviour
 
-1. **The module path** is `github.com/dragosh/zenmd`. Every import, the `-ldflags -X …/internal/cli.Version` path in the Taskfiles, the Wails binding output path (`frontend/bindings/github.com/dragosh/zenmd/...`) and its import in `frontend/src/api/wails.ts` follow.
+1. **The module path** is `github.com/zenmark-org/zenmd`. Every import, the `-ldflags -X …/internal/cli.Version` path in the Taskfiles, the Wails binding output path (`frontend/bindings/github.com/zenmark-org/zenmd/...`) and its import in `frontend/src/api/wails.ts` follow.
 2. **Package moves** (names unchanged, so the move is mechanical):
 
    | From | To | Public |
@@ -101,7 +101,7 @@ None.
 
 ## Notes
 
-- **Owner first:** rename the repository on GitHub to `zenmd`. GitHub redirects the old URL; update the remote with `git remote set-url origin git@github.com:dragosh/zenmd.git`.
+- **Owner first:** rename the repository on GitHub to `zenmd`. GitHub redirects the old URL; update the remote with `git remote set-url origin git@github.com:zenmark-org/zenmd.git`.
 - **Out of scope:**
   - renaming packages (singular names, merging `index` into `workspace`): this is a move, not a redesign;
   - `runtime/` (E2b);
@@ -110,7 +110,7 @@ None.
   - the changelog line;
   - mark E2a done in `docs/ENGINE.md` and `specs/README.md`;
   - a `v0.4.0` tag after release, so apidiff has a baseline.
-- **Changelog:** `Changed (engine): the module is github.com/dragosh/zenmd; the engine packages are public under engine/ and the default plugins, layouts and site templates under builtins/. No visible change.`
+- **Changelog:** `Changed (engine): the module is github.com/zenmark-org/zenmd; the engine packages are public under engine/ and the default plugins, layouts and site templates under builtins/. No visible change.`
 
 ## Prompt
 

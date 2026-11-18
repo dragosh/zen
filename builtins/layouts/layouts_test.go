@@ -5,11 +5,11 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zenmd/builtins/plugins/check"
-	"github.com/dragosh/zenmd/engine/config"
-	core "github.com/dragosh/zenmd/engine/layouts"
-	"github.com/dragosh/zenmd/engine/plugins"
-	"github.com/dragosh/zenmd/engine/render"
+	"github.com/zenmark-org/zenmd/builtins/plugins/check"
+	"github.com/zenmark-org/zenmd/engine/config"
+	core "github.com/zenmark-org/zenmd/engine/layouts"
+	"github.com/zenmark-org/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/render"
 )
 
 func renderer(t *testing.T, site core.Site, cfg *config.Config) *render.Renderer {

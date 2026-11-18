@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"os"
 
-	app "github.com/dragosh/zenmd/apps/zenmd-app"
-	"github.com/dragosh/zenmd/engine/scriptplugins"
-	"github.com/dragosh/zenmd/internal/cli"
+	app "github.com/zenmark-org/zenmd/apps/zenmd-app"
+	"github.com/zenmark-org/zenmd/engine/scriptplugins"
+	"github.com/zenmark-org/zenmd/internal/cli"
 )
 
 func main() {

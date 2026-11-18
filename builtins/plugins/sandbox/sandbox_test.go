@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
 )
 
 // fake writes a fake `container` script into a temp dir and points the plugin

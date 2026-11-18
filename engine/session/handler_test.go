@@ -4,8 +4,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/dragosh/zenmd/engine/session"
-	"github.com/dragosh/zenmd/engine/session/sessiontest"
+	"github.com/zenmark-org/zenmd/engine/session"
+	"github.com/zenmark-org/zenmd/engine/session/sessiontest"
 )
 
 // Handler serves the four asset routes and nothing else.

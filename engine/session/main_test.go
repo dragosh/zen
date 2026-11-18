@@ -4,7 +4,7 @@ import (
 	"os"
 	"testing"
 
-	"github.com/dragosh/zenmd/engine/scriptplugins"
+	"github.com/zenmark-org/zenmd/engine/scriptplugins"
 )
 
 // The test binary is its own script helper (`<test binary> __script-host`).

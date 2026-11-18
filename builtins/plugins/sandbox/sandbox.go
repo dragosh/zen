@@ -36,7 +36,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
 )
 
 //go:embed assets/sandbox.js assets/sandbox.css

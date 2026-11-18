@@ -14,7 +14,7 @@ import (
 	"path/filepath"
 	"sync/atomic"
 
-	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/plugins"
 )
 
 // Subject is what the user allows or blocks: a plugin folder or a plugin

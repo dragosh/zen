@@ -4,7 +4,7 @@ import (
 	"embed"
 	"io/fs"
 
-	"github.com/dragosh/zenmd/internal/cli"
+	"github.com/zenmark-org/zenmd/internal/cli"
 )
 
 // The built frontend (apps/zenmd-app/frontend, built by `task build`).

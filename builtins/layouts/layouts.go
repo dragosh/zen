@@ -10,7 +10,7 @@ import (
 	"fmt"
 	"io/fs"
 
-	core "github.com/dragosh/zenmd/engine/layouts"
+	core "github.com/zenmark-org/zenmd/engine/layouts"
 )
 
 //go:embed article slides course docs post landing wide handout

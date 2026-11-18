@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/dragosh/zenmd/engine/config"
-	"github.com/dragosh/zenmd/engine/plugins"
-	"github.com/dragosh/zenmd/engine/render"
-	"github.com/dragosh/zenmd/engine/workspace"
+	"github.com/zenmark-org/zenmd/engine/config"
+	"github.com/zenmark-org/zenmd/engine/plugins"
+	"github.com/zenmark-org/zenmd/engine/render"
+	"github.com/zenmark-org/zenmd/engine/workspace"
 )
 
 func hook(t *testing.T) plugins.HTMLHook {

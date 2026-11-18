@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/dragosh/zenmd/kit/desktop"
+	"github.com/zenmark-org/zenmd/kit/desktop"
 )
 
 // fakePrintWindow is a preview window that is just counted.
