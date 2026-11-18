@@ -1,4 +1,4 @@
-package app
+package desktop
 
 import (
 	"errors"
@@ -279,7 +279,7 @@ var execAllowed = map[string]string{
 	"engine/scriptplugins/pool.go":        "zen's own executable as the Tengo helper (Contents/MacOS/zenmd)",
 	"engine/extplugins/exec.go":           "program backends: refused by extplugins.Available(\"program\") in the App Store build",
 	"builtins/plugins/sandbox/sandbox.go": "the container plugin: refused by extplugins.Available(\"sandbox\") in the App Store build",
-	"apps/zenmd-app/finder.go":            "/usr/bin/open for Show in Finder and the settings fallback, only on chosen or container paths; to become NSWorkspace before submission",
+	"kit/desktop/finder.go":               "/usr/bin/open for Show in Finder and the settings fallback, only on chosen or container paths; to become NSWorkspace before submission",
 }
 
 // TestNoExecOutsideBundle scans the sources for process starts. A new caller
@@ -288,7 +288,7 @@ var execAllowed = map[string]string{
 func TestNoExecOutsideBundle(t *testing.T) {
 	call := regexp.MustCompile(`\bexec\.Command(Context)?\(`)
 	found := map[string]bool{}
-	for _, root := range []string{"internal", "apps", "engine", "builtins"} {
+	for _, root := range []string{"internal", "apps", "kit", "engine", "builtins"} {
 		err := filepath.WalkDir(filepath.Join("..", "..", root), func(p string, d os.DirEntry, err error) error {
 			if err != nil {
 				return err

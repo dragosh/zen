@@ -1,6 +1,6 @@
 //go:build appstore && !darwin
 
-package app
+package desktop
 
 // cocoaBookmarks has no meaning off macOS; the App Store build is macOS only.
 // This keeps `go vet -tags appstore ./...` working on other hosts.

@@ -1,4 +1,8 @@
-package app
+// Package desktop is the reusable window shell for a zenmd desktop app (Wails):
+// the window manager with its close handshake, events to the frontend, native
+// dialogs as a session.Prompter, native print, Finder, the App Store channel
+// and a Run helper. It imports the engine and Wails, never an app.
+package desktop
 
 import (
 	"errors"
@@ -13,10 +17,20 @@ import (
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
 
+// Close handshake with the frontend (ui/editor answers through api/wails.ts),
+// per window: the payload names the window, replies carry it as the sender.
+const (
+	eventBeforeClose  = "app:before-close"  // Go -> frontend: may this window close?
+	eventClose        = "app:close"         // frontend -> Go: yes
+	eventClosePending = "app:close-pending" // frontend -> Go: asking the user
+	closeReplyTimeout = 3 * time.Second     // no reply at all: the frontend is gone
+)
+
 // Window names. The frontend derives the same names from its URL
 // (api/wails.ts) to tell which close request is meant for it.
 const (
-	mainWindowName    = "main"
+	// MainWindowName is the name of the main window.
+	MainWindowName    = "main"
 	editorWindowName  = "editor:"          // + workspace-relative page path
 	eventCloseCancel  = "app:close-cancel" // frontend -> Go: the user cancelled
 	editorWidth       = 1000               // without a main window to size against
@@ -27,23 +41,24 @@ const (
 	editorCascadeStep = 24
 )
 
-// closeRequest is the payload of app:before-close: which window should answer.
-type closeRequest struct {
+// CloseRequest is the payload of app:before-close: which window should answer.
+type CloseRequest struct {
 	Window string `json:"window"`
 }
 
-// closeReply is a window's answer to app:before-close.
-type closeReply int
+// Reply is a window's answer to app:before-close.
+type Reply int
 
 const (
-	replyClose   closeReply = iota // close now
-	replyPending                   // the user is being asked
-	replyCancel                    // the user said no
+	// ReplyClose: close now.
+	ReplyClose   Reply = iota // close now
+	ReplyPending              // the user is being asked
+	ReplyCancel               // the user said no
 )
 
-// appWindow is the part of a native window the manager uses.
+// Window is the part of a native window the manager uses.
 // *application.WebviewWindow satisfies it.
-type appWindow interface {
+type Window interface {
 	Focus()
 	// Close asks the window to close; it runs the closing hook first.
 	Close()
@@ -51,17 +66,19 @@ type appWindow interface {
 	Size() (int, int)
 }
 
-// windowSpec describes a new editor window.
-type windowSpec struct {
+// WindowSpec describes a new window.
+type WindowSpec struct {
 	Name, Title, URL string
 	Width, Height    int
 	X, Y             int // absolute, top-left origin
 }
 
-type windowManagerOptions struct {
+type WindowsOptions struct {
+	// Title is the product name that ends an editor window's title.
+	Title string
 	// New creates and shows a window; its closing hook must call closing and
 	// closed (see wailsWindowFactory).
-	New func(windowSpec) appWindow
+	New func(WindowSpec) Window
 	// Emit sends an event to every window.
 	Emit func(name string, data any)
 	// After runs f once after d (time.AfterFunc).
@@ -78,49 +95,51 @@ type closeAll struct {
 	then    func(ok bool)
 }
 
-// windowManager tracks the main window and one editor window per page, and
+// Windows tracks the main window and one editor window per page, and
 // runs the close handshake for each of them (docs: specs/ui/editor-window).
-type windowManager struct {
-	o      windowManagerOptions
-	openMu sync.Mutex // serialises openEditor
+type Windows struct {
+	o      WindowsOptions
+	openMu sync.Mutex // serialises OpenEditor
 
 	mu       sync.Mutex
-	main     appWindow
+	main     Window
 	mainGone bool
-	editors  map[string]appWindow // by page path
-	allowed  map[string]bool      // window name -> may close without asking
-	attempt  map[string]int       // window name -> handshake number
-	answered map[string]int       // window name -> last handshake answered
+	editors  map[string]Window // by page path
+	allowed  map[string]bool   // window name -> may close without asking
+	attempt  map[string]int    // window name -> handshake number
+	answered map[string]int    // window name -> last handshake answered
 	seq      *closeAll
 }
 
-func newWindowManager(o windowManagerOptions) *windowManager {
+// NewWindows returns the window manager; Run supplies the parts that need the
+// application (New, Emit).
+func NewWindows(o WindowsOptions) *Windows {
 	if o.After == nil {
 		o.After = func(d time.Duration, f func()) { time.AfterFunc(d, f) }
 	}
 	if o.Go == nil {
 		o.Go = func(f func()) { go f() }
 	}
-	return &windowManager{
+	return &Windows{
 		o:        o,
-		editors:  map[string]appWindow{},
+		editors:  map[string]Window{},
 		allowed:  map[string]bool{},
 		attempt:  map[string]int{},
 		answered: map[string]int{},
 	}
 }
 
-func (m *windowManager) setMain(w appWindow) {
+func (m *Windows) SetMain(w Window) {
 	m.mu.Lock()
 	m.main = w
 	m.mu.Unlock()
 }
 
-func editorName(p string) string { return editorWindowName + p }
+func EditorName(p string) string { return editorWindowName + p }
 
 // window returns the window with that name, nil when it is gone.
-func (m *windowManager) windowLocked(name string) appWindow {
-	if name == mainWindowName {
+func (m *Windows) windowLocked(name string) Window {
+	if name == MainWindowName {
 		return m.main
 	}
 	if p, ok := strings.CutPrefix(name, editorWindowName); ok {
@@ -129,15 +148,15 @@ func (m *windowManager) windowLocked(name string) appWindow {
 	return nil
 }
 
-func (m *windowManager) editorCount() int {
+func (m *Windows) EditorCount() int {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	return len(m.editors)
 }
 
-// openEditor opens an editor window for p, or focuses the one already open.
+// OpenEditor opens an editor window for p, or focuses the one already open.
 // p must already be validated.
-func (m *windowManager) openEditor(p, title string) error {
+func (m *Windows) OpenEditor(p, title string) error {
 	m.openMu.Lock()
 	defer m.openMu.Unlock()
 
@@ -162,9 +181,9 @@ func (m *windowManager) openEditor(p, title string) error {
 	if title == "" {
 		title = path.Base(p)
 	}
-	w := m.o.New(windowSpec{
-		Name:   editorName(p),
-		Title:  title + " — Edit — " + Name,
+	w := m.o.New(WindowSpec{
+		Name:   EditorName(p),
+		Title:  title + " — Edit — " + m.o.Title,
 		URL:    "/?window=editor&path=" + url.QueryEscape(p),
 		Width:  width,
 		Height: height,
@@ -182,13 +201,13 @@ func (m *windowManager) openEditor(p, title string) error {
 
 // closing is the window's closing hook: true lets it close now, false
 // cancels and starts asking (the window is closed later through Close).
-func (m *windowManager) closing(name string) bool {
+func (m *Windows) Closing(name string) bool {
 	m.mu.Lock()
 	if m.allowed[name] {
 		m.mu.Unlock()
 		return true
 	}
-	if name == mainWindowName {
+	if name == MainWindowName {
 		if m.seq != nil { // already closing the editors
 			m.mu.Unlock()
 			return false
@@ -197,7 +216,7 @@ func (m *windowManager) closing(name string) bool {
 			m.startCloseAllLocked(func(ok bool) {
 				if ok {
 					m.mu.Lock()
-					m.askLocked(mainWindowName)
+					m.askLocked(MainWindowName)
 				}
 			})
 			return false
@@ -209,11 +228,11 @@ func (m *windowManager) closing(name string) bool {
 
 // askLocked sends app:before-close to one window and closes it anyway when
 // it does not answer in time. It unlocks m.mu.
-func (m *windowManager) askLocked(name string) {
+func (m *Windows) askLocked(name string) {
 	m.attempt[name]++
 	n := m.attempt[name]
 	m.mu.Unlock()
-	m.o.Emit(eventBeforeClose, closeRequest{Window: name})
+	m.o.Emit(eventBeforeClose, CloseRequest{Window: name})
 	m.o.After(closeReplyTimeout, func() {
 		m.mu.Lock()
 		if m.answered[name] >= n || m.attempt[name] != n {
@@ -225,7 +244,7 @@ func (m *windowManager) askLocked(name string) {
 }
 
 // allowLocked lets the window close and closes it. It unlocks m.mu.
-func (m *windowManager) allowLocked(name string) {
+func (m *Windows) allowLocked(name string) {
 	w := m.windowLocked(name)
 	if w == nil {
 		m.mu.Unlock()
@@ -237,13 +256,13 @@ func (m *windowManager) allowLocked(name string) {
 }
 
 // reply handles a window's answer to app:before-close.
-func (m *windowManager) reply(name string, r closeReply) {
+func (m *Windows) Reply(name string, r Reply) {
 	m.mu.Lock()
 	m.answered[name] = m.attempt[name]
 	switch r {
-	case replyClose:
+	case ReplyClose:
 		m.allowLocked(name)
-	case replyCancel:
+	case ReplyCancel:
 		if m.seq != nil && m.seq.current == name {
 			then := m.seq.then
 			m.seq = nil
@@ -258,10 +277,10 @@ func (m *windowManager) reply(name string, r closeReply) {
 }
 
 // closed is called once a window has really closed.
-func (m *windowManager) closed(name string) {
+func (m *Windows) Closed(name string) {
 	m.mu.Lock()
 	delete(m.allowed, name)
-	if name == mainWindowName {
+	if name == MainWindowName {
 		m.main = nil
 		m.mainGone = true
 		m.mu.Unlock()
@@ -292,7 +311,7 @@ func removeString(list []string, s string) []string {
 }
 
 // startCloseAllLocked closes every editor in path order. It unlocks m.mu.
-func (m *windowManager) startCloseAllLocked(then func(ok bool)) {
+func (m *Windows) startCloseAllLocked(then func(ok bool)) {
 	paths := make([]string, 0, len(m.editors))
 	for p := range m.editors {
 		paths = append(paths, p)
@@ -303,7 +322,7 @@ func (m *windowManager) startCloseAllLocked(then func(ok bool)) {
 }
 
 // nextLocked asks the next editor of the running closeAll. It unlocks m.mu.
-func (m *windowManager) nextLocked() {
+func (m *Windows) nextLocked() {
 	for len(m.seq.queue) > 0 {
 		p := m.seq.queue[0]
 		m.seq.queue = m.seq.queue[1:]
@@ -311,7 +330,7 @@ func (m *windowManager) nextLocked() {
 		if w == nil {
 			continue
 		}
-		m.seq.current = editorName(p)
+		m.seq.current = EditorName(p)
 		m.mu.Unlock()
 		m.o.Go(w.Close)
 		return
@@ -322,10 +341,10 @@ func (m *windowManager) nextLocked() {
 	then(true)
 }
 
-// closeEditorsWait closes every editor window, each with its own prompt,
+// CloseEditorsWait closes every editor window, each with its own prompt,
 // and reports whether all closed (false: one was cancelled, or windows are
 // already closing).
-func (m *windowManager) closeEditorsWait() bool {
+func (m *Windows) CloseEditorsWait() bool {
 	m.mu.Lock()
 	if m.seq != nil {
 		m.mu.Unlock()
@@ -340,12 +359,12 @@ func (m *windowManager) closeEditorsWait() bool {
 	return <-done
 }
 
-// shouldQuit is the application's quit hook (⌘Q): quitting closes the main
+// ShouldQuit is the application's quit hook (⌘Q): quitting closes the main
 // window the usual way, editors first.
-func (m *windowManager) shouldQuit() bool {
+func (m *Windows) ShouldQuit() bool {
 	m.mu.Lock()
 	main := m.main
-	if m.mainGone || main == nil || m.allowed[mainWindowName] {
+	if m.mainGone || main == nil || m.allowed[MainWindowName] {
 		m.mu.Unlock()
 		return true
 	}
@@ -354,59 +373,10 @@ func (m *windowManager) shouldQuit() bool {
 	return false
 }
 
-// OpenEditor opens the page in its own editor window, or focuses the one
-// already open for it.
-func (z *Zen) OpenEditor(p string) error {
-	if p == "" || p != path.Clean(p) || path.IsAbs(p) || strings.HasPrefix(p, "../") {
-		return errors.New(p + ": not a page in this folder")
-	}
-	if _, err := z.s.PageSource(p); err != nil { // markdown, inside the workspace, readable
-		return err
-	}
-	if z.windows == nil {
-		return errors.New("editor windows are not available")
-	}
-	return z.windows.openEditor(p, z.pageTitle(p))
-}
-
-// pageTitle is the page's title in the navigation tree, "" when absent.
-func (z *Zen) pageTitle(p string) string {
-	ws := z.s.Workspace()
-	if ws == nil {
-		return ""
-	}
-	var find func([]NavNode) string
-	find = func(ns []NavNode) string {
-		for _, n := range ns {
-			if n.Path == p && n.Kind == "page" {
-				return n.Title
-			}
-			if t := find(n.Children); t != "" {
-				return t
-			}
-		}
-		return ""
-	}
-	return find(ws.Tree)
-}
-
-// openStartupEditor opens the editor window `zenmd edit <path>` asked for; the
-// main window itself always starts in read mode.
-func (z *Zen) openStartupEditor(mode string) error {
-	if mode != "edit" {
-		return nil
-	}
-	p := z.Startup().Page
-	if p == "" {
-		return nil
-	}
-	return z.OpenEditor(p)
-}
-
 // wailsWindowFactory creates editor windows in the running application and
 // wires their close handshake to m.
-func wailsWindowFactory(a *application.App, m *windowManager) func(windowSpec) appWindow {
-	return func(s windowSpec) appWindow {
+func wailsWindowFactory(a *application.App, m *Windows) func(WindowSpec) Window {
+	return func(s WindowSpec) Window {
 		w := a.Window.NewWithOptions(application.WebviewWindowOptions{
 			Name:   s.Name,
 			Title:  s.Title,
@@ -424,24 +394,24 @@ func wailsWindowFactory(a *application.App, m *windowManager) func(windowSpec) a
 }
 
 // wireWindow routes a window's closing through the manager.
-func wireWindow(w *application.WebviewWindow, name string, m *windowManager) {
+func wireWindow(w *application.WebviewWindow, name string, m *Windows) {
 	w.RegisterHook(events.Common.WindowClosing, func(e *application.WindowEvent) {
-		if !m.closing(name) {
+		if !m.Closing(name) {
 			e.Cancel()
 		}
 	})
 	// Listeners only run when no hook cancelled: the window is going away.
 	w.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) {
-		m.closed(name)
+		m.Closed(name)
 	})
 }
 
 // replyHandler turns the frontend's close answers into manager replies.
-func replyHandler(m *windowManager, r closeReply) func(*application.CustomEvent) {
+func replyHandler(m *Windows, r Reply) func(*application.CustomEvent) {
 	return func(e *application.CustomEvent) {
 		// Sender is set by Wails from the window that emitted the event.
 		if e.Sender != "" {
-			m.reply(e.Sender, r)
+			m.Reply(e.Sender, r)
 		}
 	}
 }

@@ -1,6 +1,6 @@
 //go:build appstore && darwin
 
-package app
+package desktop
 
 /*
 #cgo CFLAGS: -x objective-c -fobjc-arc

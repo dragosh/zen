@@ -5,12 +5,13 @@ import (
 	"path/filepath"
 
 	"github.com/dragosh/zenmd/engine/session"
+	"github.com/dragosh/zenmd/kit/desktop"
 )
 
 // openFile opens a file in the system's default text editor. It is only the
 // fallback when there are no editor windows (tests, headless use).
 var openFile = func(path string) error {
-	return macOpen("-t", path)
+	return desktop.OpenFile("-t", path)
 }
 
 // OpenConfig opens the global config file ("global") or the current
@@ -27,5 +28,5 @@ func (z *Zen) OpenConfig(which string) error {
 		}
 		return nil
 	}
-	return z.windows.openEditor(session.ConfigPrefix+which, filepath.Base(path))
+	return z.windows.OpenEditor(session.ConfigPrefix+which, filepath.Base(path))
 }

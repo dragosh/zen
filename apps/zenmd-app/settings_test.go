@@ -8,6 +8,7 @@ import (
 
 	"github.com/dragosh/zenmd/engine/config"
 	"github.com/dragosh/zenmd/engine/plugins"
+	"github.com/dragosh/zenmd/kit/desktop"
 )
 
 func TestOpenConfig(t *testing.T) {
@@ -85,7 +86,7 @@ func TestConfigInEditorWindow(t *testing.T) {
 	if err := z.OpenConfig("global"); err != nil {
 		t.Fatal(err)
 	}
-	if len(rig.specs) != 1 || rig.specs[0].Name != editorName("zen:config/global") ||
+	if len(rig.specs) != 1 || rig.specs[0].Name != desktop.EditorName("zen:config/global") ||
 		!strings.Contains(rig.specs[0].URL, "path=zen%3Aconfig%2Fglobal") || !strings.HasPrefix(rig.specs[0].Title, "config.yml") {
 		t.Fatalf("specs = %+v", rig.specs)
 	}

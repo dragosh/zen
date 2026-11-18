@@ -1,6 +1,6 @@
 //go:build darwin && cgo
 
-package app
+package desktop
 
 /*
 #cgo CFLAGS: -x objective-c -fobjc-arc

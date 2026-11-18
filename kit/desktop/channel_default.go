@@ -1,6 +1,6 @@
 //go:build !appstore
 
-package app
+package desktop
 
 // appStore is true in the Mac App Store build (go build -tags appstore).
 const appStore = false

@@ -22,6 +22,7 @@ import (
 	"github.com/dragosh/zenmd/engine/session"
 	"github.com/dragosh/zenmd/engine/sitetemplates"
 	"github.com/dragosh/zenmd/internal/cli"
+	"github.com/dragosh/zenmd/kit/desktop"
 )
 
 // siteRig is a settings folder with a global config, and an env that uses
@@ -201,8 +202,8 @@ func TestCreateSiteClosesEditors(t *testing.T) {
 	done := make(chan result, 1)
 	go func() { st, err := z.CreateSite("learning", target, nil); done <- result{st, err} }()
 	waitAsked(t, r, 1)
-	r.m.reply("editor:a.md", replyPending)
-	r.m.reply("editor:a.md", replyCancel)
+	r.m.Reply("editor:a.md", desktop.ReplyPending)
+	r.m.Reply("editor:a.md", desktop.ReplyCancel)
 	res := <-done
 	if res.err == nil || !strings.Contains(res.err.Error(), "nothing was created") || !strings.Contains(res.err.Error(), "unsaved") {
 		t.Fatalf("cancelled: %+v", res)
@@ -218,12 +219,12 @@ func TestCreateSiteClosesEditors(t *testing.T) {
 	target2 := filepath.Join(t.TempDir(), "second")
 	go func() { st, err := z.CreateSite("learning", target2, nil); done <- result{st, err} }()
 	waitAsked(t, r, 2)
-	r.m.reply("editor:a.md", replyClose)
+	r.m.Reply("editor:a.md", desktop.ReplyClose)
 	waitAsked(t, r, 3)
-	r.m.reply("editor:b.md", replyClose)
+	r.m.Reply("editor:b.md", desktop.ReplyClose)
 	res = <-done
-	if res.err != nil || res.st.Workspace == nil || !sameDir(res.st.Workspace.Root, target2) || res.st.Page != "README.md" || r.m.editorCount() != 0 {
-		t.Fatalf("closed: %+v editors %d", res, r.m.editorCount())
+	if res.err != nil || res.st.Workspace == nil || !sameDir(res.st.Workspace.Root, target2) || res.st.Page != "README.md" || r.m.EditorCount() != 0 {
+		t.Fatalf("closed: %+v editors %d", res, r.m.EditorCount())
 	}
 }
 

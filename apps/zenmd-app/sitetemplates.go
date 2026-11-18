@@ -14,6 +14,7 @@ import (
 	"github.com/dragosh/zenmd/engine/session"
 	"github.com/dragosh/zenmd/engine/sitetemplates"
 	"github.com/dragosh/zenmd/internal/cli"
+	"github.com/dragosh/zenmd/kit/desktop"
 )
 
 // EventNewSite asks the main window to show the New Site dialog (File > New
@@ -24,7 +25,7 @@ const EventNewSite = "menu:new-site"
 var siteBuiltins fs.FS = presets.FS
 
 // revealInFinder shows a folder in Finder; tests replace it.
-var revealInFinder = func(dir string) error { return macOpen(dir) }
+var revealInFinder = func(dir string) error { return desktop.Reveal(dir) }
 
 // SiteTemplates lists the site templates for the New Site dialog and the
 // welcome screen, installing the built-in presets on first use.
@@ -40,18 +41,10 @@ func (z *Zen) PickSiteFolder() (string, error) {
 	if p, ok := z.dialogs.(siteFolderPicker); ok {
 		return p.PickSiteFolder()
 	}
+	if d, ok := z.dialogs.(*desktop.DialogSet); ok {
+		return d.PickFolderTitled("Choose a Folder for the Site")
+	}
 	return z.dialogs.PickFolder()
-}
-
-// PickSiteFolder is the folder panel of the New Site dialog.
-func (d *wailsDialogs) PickSiteFolder() (string, error) {
-	return d.app.Dialog.OpenFile().
-		SetTitle("Choose a Folder for the Site").
-		CanChooseDirectories(true).
-		CanChooseFiles(false).
-		CanCreateDirectories(true).
-		AttachToWindow(d.win).
-		PromptForSingleSelection()
 }
 
 // CreateSite makes a site from template id in dir (new or existing; nothing
@@ -65,7 +58,7 @@ func (z *Zen) CreateSite(id, dir string, values map[string]string) (Startup, err
 	}
 	// Unsaved editors are asked first, as with Open Folder: nothing is
 	// written when one keeps its changes.
-	if z.windows != nil && !z.windows.closeEditorsWait() {
+	if z.windows != nil && !z.windows.CloseEditorsWait() {
 		return Startup{}, errors.New("nothing was created: an editor window kept its unsaved changes")
 	}
 	if err := plan.Create(values); err != nil {

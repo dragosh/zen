@@ -1,6 +1,6 @@
 //go:build !(darwin && cgo)
 
-package app
+package desktop
 
 import "github.com/wailsapp/wails/v3/pkg/application"
 

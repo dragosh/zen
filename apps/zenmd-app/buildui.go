@@ -8,24 +8,19 @@ import (
 	"errors"
 	"net/url"
 	"path/filepath"
+
+	"github.com/dragosh/zenmd/kit/desktop"
 )
 
 // revealPath shows a folder in Finder; tests replace it.
-var revealPath = func(p string) error { return macOpen(p) }
+var revealPath = func(p string) error { return desktop.Reveal(p) }
 
 // PickBuildFolder shows the folder panel (New Folder allowed) and returns the
 // chosen folder, "" on cancel. It does not open the folder; the build still
 // checks it like any other output.
 func (z *Zen) PickBuildFolder() (string, error) {
-	if d, ok := z.dialogs.(*wailsDialogs); ok && d.app != nil && d.win != nil {
-		dir, err := d.app.Dialog.OpenFile().
-			SetTitle("Choose Output Folder").
-			CanChooseDirectories(true).
-			CanChooseFiles(false).
-			CanCreateDirectories(true).
-			AttachToWindow(d.win).
-			PromptForSingleSelection()
-		return dir, err
+	if d, ok := z.dialogs.(*desktop.DialogSet); ok && d.Ready() {
+		return d.PickFolderTitled("Choose Output Folder")
 	}
 	if z.dialogs == nil {
 		return "", errors.New("no dialogs available")

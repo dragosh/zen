@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/dragosh/zenmd/kit/desktop"
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -175,7 +176,7 @@ func TestMenuSettings(t *testing.T) {
 
 func TestDevBuildFlag(t *testing.T) {
 	// `go test` is not a production build.
-	if !devBuild {
+	if !desktop.DevBuild {
 		t.Fatal("devBuild must be true without -tags production")
 	}
 }

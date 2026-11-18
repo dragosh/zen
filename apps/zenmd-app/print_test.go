@@ -4,6 +4,8 @@ import (
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/dragosh/zenmd/kit/desktop"
 )
 
 // fakePrintWindow is a preview window that is just counted.
@@ -18,15 +20,15 @@ func (w *fakePrintWindow) Position() (int, int) { return 0, 0 }
 func (w *fakePrintWindow) Size() (int, int)     { return 0, 0 }
 
 func TestPrintWindowAndMenuActions(t *testing.T) {
-	var specs []windowSpec
+	var specs []desktop.WindowSpec
 	var wins []*fakePrintWindow
-	old := newPrintWindow
-	newPrintWindow = func(s windowSpec, onClose func()) appWindow {
+	old := desktop.NewPrintWindow
+	desktop.NewPrintWindow = func(s desktop.WindowSpec, onClose func(), _ func()) desktop.Window {
 		w := &fakePrintWindow{onClose: onClose}
 		specs, wins = append(specs, s), append(wins, w)
 		return w
 	}
-	t.Cleanup(func() { newPrintWindow = old })
+	t.Cleanup(func() { desktop.NewPrintWindow = old })
 
 	files := map[string]string{"README.md": "# Home\n", "docs/a b.md": "# A\n"}
 	z, ev, _, _ := newTestZen(t, tree(t, files), "", "")

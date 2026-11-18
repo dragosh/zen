@@ -2,13 +2,9 @@ package app
 
 import (
 	"context"
-	"errors"
 	"net/url"
-	"strings"
-	"sync"
 
-	"github.com/wailsapp/wails/v3/pkg/application"
-	"github.com/wailsapp/wails/v3/pkg/events"
+	"github.com/dragosh/zenmd/kit/desktop"
 )
 
 // EventPrintPage asks the main window to print the page it shows (File ›
@@ -39,14 +35,7 @@ func (z *Zen) PrintPage() error {
 // window.print() does nothing in the macOS web view, so the frontend calls
 // this instead. title becomes the job name (and the suggested PDF file name).
 func (z *Zen) PrintWindow(ctx context.Context, title string) error {
-	w, ok := ctx.Value(application.WindowKey).(application.Window)
-	if !ok || w == nil {
-		return errors.New("no window to print")
-	}
-	if title = strings.TrimSpace(title); title == "" {
-		title = Name
-	}
-	return nativePrint(w, title)
+	return desktop.PrintFromContext(ctx, title, Name)
 }
 
 // PrintSite opens the Print Preview window for the whole folder, or focuses
@@ -55,12 +44,6 @@ func (z *Zen) PrintSite() error {
 	ws := z.s.Workspace()
 	if ws == nil {
 		return errNoWorkspace
-	}
-	printWins.mu.Lock()
-	defer printWins.mu.Unlock()
-	if w, ok := printWins.m[z]; ok {
-		w.Focus()
-		return nil
 	}
 	current := z.s.Current()
 	u := "/?window=" + printWindowName
@@ -71,62 +54,11 @@ func (z *Zen) PrintSite() error {
 	if name == "" {
 		name = Name
 	}
-	w := newPrintWindow(windowSpec{
+	return printWins.Open(z, desktop.WindowSpec{
 		Name: printWindowName, Title: name + " — Print", URL: u,
 		Width: printWindowWidth, Height: printWindowHeight, X: 60, Y: 60,
-	}, func() {
-		printWins.mu.Lock()
-		delete(printWins.m, z)
-		printWins.mu.Unlock()
 	})
-	if w == nil {
-		return errors.New("could not open the print preview window")
-	}
-	printWins.m[z] = w
-	return nil
 }
 
 // printWins tracks the open preview window of each running service.
-var printWins = struct {
-	mu sync.Mutex
-	m  map[*Zen]appWindow
-}{m: map[*Zen]appWindow{}}
-
-// closePrintWindows closes the preview windows: they go with the main window.
-func closePrintWindows() {
-	printWins.mu.Lock()
-	var ws []appWindow
-	for _, w := range printWins.m {
-		ws = append(ws, w)
-	}
-	printWins.mu.Unlock()
-	for _, w := range ws {
-		w.Close()
-	}
-}
-
-var hookMain sync.Once
-
-// newPrintWindow creates and shows the preview window; onClose runs when it
-// closes. It has no close handshake: nothing in it can be lost. Tests replace it.
-var newPrintWindow = func(s windowSpec, onClose func()) appWindow {
-	a := application.Get()
-	if a == nil {
-		return nil
-	}
-	w := a.Window.NewWithOptions(application.WebviewWindowOptions{
-		Name: s.Name, Title: s.Title, Width: s.Width, Height: s.Height, URL: s.URL, Hidden: true,
-	})
-	w.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) { onClose() })
-	hookMain.Do(func() {
-		if m, ok := a.Window.GetByName(mainWindowName); ok {
-			if mw, ok := m.(*application.WebviewWindow); ok {
-				mw.OnWindowEvent(events.Common.WindowClosing, func(*application.WindowEvent) { closePrintWindows() })
-			}
-		}
-	})
-	w.SetPosition(s.X, s.Y)
-	w.Show()
-	w.Focus()
-	return w
-}
+var printWins = &desktop.PrintWindows{}

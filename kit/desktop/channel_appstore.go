@@ -1,6 +1,6 @@
 //go:build appstore
 
-package app
+package desktop
 
 import (
 	"os"

@@ -11,6 +11,7 @@ import (
 	"github.com/dragosh/zenmd/engine/plugins"
 	"github.com/dragosh/zenmd/engine/session"
 	"github.com/dragosh/zenmd/internal/cli"
+	"github.com/dragosh/zenmd/kit/desktop"
 )
 
 // Dialogs are the native dialogs the service needs.
@@ -46,7 +47,7 @@ type Zen struct {
 	mode    string
 	dialogs Dialogs
 	open    func(string) error
-	windows *windowManager // nil until the GUI runs (ui/editor-window)
+	windows *desktop.Windows // nil until the GUI runs (ui/editor-window)
 
 	initialDir  string // opened by openInitial when DeferOpen
 	initialOnce sync.Once
