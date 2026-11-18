@@ -77,15 +77,6 @@
   position: relative;
 }
 .zen-sidebar-body { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-/* Open… sits in the sidebar header's top-right corner (the header is 44px). */
-.zen-sidebar-open {
-  position: absolute;
-  top: 8px;
-  right: 8px;
-  height: 28px;
-  padding: 0 10px;
-  font-size: 12px;
-}
 .zen-sidebar-foot {
   flex: none;
   display: flex;
@@ -422,19 +413,29 @@ h4.zen-plugin-help-title { font-size: 14px; }
   .zen-opening-indeterminate .zen-opening-fill { animation: none; left: 0; width: 100%; opacity: 0.4; }
 }
 
-/* Welcome: Start from a template (core/init). */
-.zen-welcome { overflow: auto; }
-.zen-welcome-templates { width: min(720px, 100%); margin-top: var(--space-6); text-align: left; }
-.zen-welcome-templates { display: flex; flex-direction: column; align-items: center; }
+/* Welcome: logo, Open a folder, Start from a template (core/init). */
+.zen-welcome { overflow: auto; justify-content: flex-start; gap: 0; padding: var(--space-6) var(--space-4); }
+/* auto margins centre the content when it is short and let it scroll when it is tall */
+.zen-welcome > :first-child { margin-top: auto; }
+.zen-welcome > :last-child { margin-bottom: auto; }
+.zen-welcome-logo { width: 112px; height: 112px; margin-bottom: var(--space-4); user-select: none; }
+.zen-welcome h1 { margin: 0; letter-spacing: 0.01em; }
+.zen-welcome .zen-welcome-tagline { margin: var(--space-2) 0 var(--space-5); font: 15px/1.5 var(--font-body); }
+.zen-welcome-open { display: flex; flex-direction: column; align-items: center; }
+.zen-welcome .primary:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.zen-welcome-status { margin-top: var(--space-3); }
+.zen-welcome-templates { width: min(760px, 100%); margin-top: var(--space-6); text-align: left; display: flex; flex-direction: column; align-items: center; }
 .zen-welcome-templates > h2 { margin: 0 0 var(--space-3); font: 600 13px var(--font-ui); color: var(--fg-muted); }
 .zen-welcome-templates > .zen-welcome-cards { align-self: stretch; }
 .zen-welcome-templates > button:last-child { margin-top: var(--space-3); }
-.zen-welcome-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: var(--space-3); }
+.zen-welcome-cards { display: grid; grid-template-columns: 1fr; gap: var(--space-3); }
+@media (min-width: 560px) { .zen-welcome-cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 860px) { .zen-welcome-cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 .zen-welcome-card {
   display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
   padding: var(--space-3) var(--space-4); text-align: left;
   border: 1px solid var(--rule); border-radius: var(--radius); background: var(--bg); color: var(--fg);
-  cursor: pointer;
+  cursor: pointer; transition: border-color 0.12s ease, background-color 0.12s ease;
 }
 .zen-welcome-card:hover { border-color: var(--fg-muted); background: var(--bg-subtle); }
 .zen-welcome-card:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
@@ -443,6 +444,8 @@ h4.zen-plugin-help-title { font-size: 14px; }
   margin: 0; color: var(--fg-muted); font: 12px/1.4 var(--font-ui);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
+.zen-welcome .zen-welcome-foot { margin: var(--space-6) 0 0; font: 12px/1.4 var(--font-ui); }
+@media (prefers-reduced-motion: reduce) { .zen-welcome-card { transition: none; } }
 
 /* New Site dialog (core/init); the frame matches New Page. */
 .zen-newsite-backdrop {
