@@ -4,7 +4,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { createFakeApi, type FakeApi } from "../../frontend/src/api/fake";
+import { createFakeApi, type FakeApi } from "../../apps/zenmd-app/frontend/src/api/fake";
 import { installRuntime } from "../src/plugins";
 
 const DIR = join(dirname(fileURLToPath(import.meta.url)), "../../builtins/plugins/sandbox/assets");

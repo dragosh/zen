@@ -70,7 +70,7 @@ tasks:
 
   test:frontend:
     summary: Type-checks and tests the frontend
-    dir: frontend
+    dir: apps/zenmd-app/frontend
     deps:
       - task: common:install:frontend:deps
     cmds:

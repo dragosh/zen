@@ -1,7 +1,7 @@
 import { expect, test } from "vitest";
 import { readFileSync } from "node:fs";
 
-const css = readFileSync(new URL("../../../runtime/src/css/tokens.css", import.meta.url), "utf8");
+const css = readFileSync(new URL("../../../../../runtime/src/css/tokens.css", import.meta.url), "utf8");
 
 // docs/UI.md "Tokens"
 const light: Record<string, string> = {

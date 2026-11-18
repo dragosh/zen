@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build:runtime": "npm --prefix ../runtime run build",
-    "build:dev": "npm --prefix ../runtime run build:dev && vite build --minify false --mode development",
+    "build:runtime": "npm --prefix ../../../runtime run build",
+    "build:dev": "npm --prefix ../../../runtime run build:dev && vite build --minify false --mode development",
     "build": "npm run build:runtime && vite build --mode production",
     "preview": "vite preview",
     "test": "vitest run"

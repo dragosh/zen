@@ -19,8 +19,8 @@
 
     "paths": {
       "vitest": ["./node_modules/vitest"],
-      "@zenmd/runtime": ["../runtime/src/index.ts"],
-      "@zenmd/runtime/*": ["../runtime/src/*"]
+      "@zenmd/runtime": ["../../../runtime/src/index.ts"],
+      "@zenmd/runtime/*": ["../../../runtime/src/*"]
     },
 
     "strict": true,
@@ -30,5 +30,5 @@
     "noImplicitReturns": true,
     "noFallthroughCasesInSwitch": true,
   },
-  "include": ["src", "../runtime/src", "../runtime/test"]
+  "include": ["src", "../../../runtime/src", "../../../runtime/test"]
 }
