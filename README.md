@@ -11,7 +11,7 @@ Underneath is **zenmd**, the engine (format, rendering, plugins, layouts, build,
 print, templates), with the command line tool `zenmd`. Zenmark is the first app
 built on it ([docs/ENGINE.md](docs/ENGINE.md)).
 
-Website: [zenmark.org](https://zenmark.org) · Code: [github.com/zenmark-org/zenmd](https://github.com/zenmark-org/zenmd) · Status: alpha (`0.1.0-alpha.1`, see [CHANGELOG.md](CHANGELOG.md)).
+Website: [zenmark.org](https://zenmark.org) · Code: [github.com/zenmark-org/zenmd](https://github.com/zenmark-org/zenmd) · Status: alpha, `0.4.0` (see [CHANGELOG.md](CHANGELOG.md)).
 
 ## Quick start
 

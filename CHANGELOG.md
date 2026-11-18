@@ -1,10 +1,14 @@
 # Changelog
 
-All notable changes to zen are recorded here. The format follows
+All notable changes to Zenmark and the zenmd engine are recorded here. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and the project
 follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ## [Unreleased]
+
+## [0.4.0] - 2026-11-18
+
+The first tagged release: the app is Zenmark, built on the zenmd engine (`github.com/zenmark-org/zenmd`).
 
 ### Fixed
 
