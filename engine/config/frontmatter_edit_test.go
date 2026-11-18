@@ -134,3 +134,11 @@ func TestSetNavKeyIsIdempotent(t *testing.T) {
 		t.Fatalf("%q", once)
 	}
 }
+
+func TestSetNavKeyRemoveFromEmptyFlow(t *testing.T) {
+	src := "---\nnav: {}\n---\n"
+	got, err := SetNavKey([]byte(src), "hidden", nil)
+	if err != nil || string(got) != src {
+		t.Fatalf("%q %v", got, err)
+	}
+}
