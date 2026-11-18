@@ -18,6 +18,9 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Changed
 
+- Engine: `kit/desktop` (Go) and `kit/ui` (`@zenmd/kit`) hold the shared desktop shell; zen.md lives in `apps/zenmd-app`. No visible change. Run `task install` again after updating.
+- README: quick start, everyday commands, the `zenmd` command, documentation links and the remaining work.
+
 - Engine: the browser runtime (plugin and layout mounting, built sites, print, page CSS) is `runtime/` (`@zenmd/runtime`), embedded in Go as package `runtime`; the app and `zenmd build` use one build of it. Built sites are byte for byte the same. CI runs on actions v7 and Node 24.
 
 - Engine: the Go module is `github.com/dragosh/zenmd` (the repository was renamed); the engine packages are public under `engine/` (documented, with an "embed zenmd" example) and the default plugins, layouts and site templates under `builtins/`. CI checks the API with apidiff. No visible change.
