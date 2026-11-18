@@ -90,8 +90,27 @@ CLI package (a test enforces it).
 An app gives the session two optional things: `Events` (the app forwards them
 to its frontend) and `Prompter` (the app implements it with native dialogs; a
 nil prompter never asks and never allows). `Options.Watch` turns live reload
-on, `Options.Runtime` is the static runtime that `Build` and `WriteSite` copy
-into a site.
+on, `Options.Runtime` is the browser runtime (`zen.js`, `zen.css`) that `Build`
+and `WriteSite` copy into a site; nil means the embedded Go package `runtime`
+(see below).
+
+### The browser runtime (`runtime/`)
+
+`runtime/` is `@zenmd/runtime`: the `ctx` contract for plugin and layout
+scripts (`src/plugins.ts`), the runtime of built sites (`src/static/`), print
+(`src/print/`) and the page, token and base CSS (`src/css/`). It needs a host
+that implements `RuntimeHost` (`src/types.ts`): the app's `Api` extends it, a
+built site gives it localStorage. It imports nothing from `frontend/`
+(`runtime/test/boundary.test.ts`) and has no dependencies of its own; there is
+one `node_modules`, the frontend's, and the frontend imports the package
+through a Vite alias and a `tsconfig` `paths` entry.
+
+One build serves everyone: `npm run build` in `runtime/` (the frontend's build
+runs it first) writes `runtime/dist/zen.js`, a classic IIFE, and `zen.css`.
+The Go package `github.com/dragosh/zenmd/runtime` embeds them (`FS()`), which
+is `engine/session`'s default `Options.Runtime`, so `zenmd build` needs no
+frontend. `runtime/dist` is git-ignored: build it (`task build:frontend`)
+before any Go build or test.
 
 zen.md's `internal/app` keeps `Run`, windows, menus, the close handshake, the
 pickers, Finder and the App Store channel. Its `Zen` service is one-line

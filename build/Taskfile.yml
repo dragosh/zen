@@ -79,11 +79,17 @@ tasks:
     # 'Could not resolve "./bindings/<pkg>"' (#4637).
     run: once
     dir: frontend
+    # `npm run build` builds the browser runtime (../runtime, embedded by the
+    # Go package runtime) before the app bundle, so Go builds find runtime/dist.
     sources:
       - "**/*"
       - exclude: node_modules/**/*
+      - ../runtime/src/**/*
+      - ../runtime/package.json
+      - ../runtime/vite.config.ts
     generates:
       - dist/**/*
+      - ../runtime/dist/*
     deps:
       - task: install:frontend:deps
       - task: generate:bindings
