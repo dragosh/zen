@@ -2,6 +2,7 @@
 // docs/PLAN.md "Service API" exactly; UI features import only from here.
 import type { Alert, Draft, KitHost, LayoutSource, LintResult, OpenProgress, Page, PageInfo, PluginStreamEvent, Workspace } from "@zenmd/kit";
 import { createFakeApi, sampleWorkspace, type FakeOptions } from "./fake";
+import { inApp, wailsReady } from "./detect";
 
 /** One built-in or external plugin as Settings lists it (core/extplugins). */
 export type PluginSnippet = { title: string; markdown: string };
@@ -168,13 +169,20 @@ type WailsModule = { default?: Api; wailsApi?: Api; api?: Api; createWailsApi?: 
 // and lazy so the generated bindings are only loaded inside the Wails webview.
 const wailsModules = import.meta.glob<WailsModule>("./wails.ts");
 
-/** The Wails implementation inside the app, the in-memory fake elsewhere. */
+/**
+ * The Wails implementation inside the app, the in-memory fake in a browser.
+ * Inside the app it waits for Wails to be ready and never falls back to the
+ * fake (zenmark-org/zenmd#1): it fails instead, and main.ts says so.
+ */
 export async function getApi(): Promise<Api> {
   const load = wailsModules["./wails.ts"];
-  if (load && typeof window !== "undefined" && "_wails" in window) {
+  if (inApp()) {
+    if (!(await wailsReady())) console.warn("zen: Wails was not ready after 5 s; trying anyway");
+    if (!load) throw new Error("this build has no Wails backend (api/wails.ts)");
     const m = await load();
     const api = m.default ?? m.wailsApi ?? m.api ?? m.createWailsApi?.();
-    if (api) return api;
+    if (!api) throw new Error("api/wails.ts exports no api");
+    return api;
   }
   return createFakeApi(devOptions());
 }

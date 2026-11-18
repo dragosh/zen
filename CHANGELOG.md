@@ -6,6 +6,10 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ## [Unreleased]
 
+### Fixed
+
+- The app downloaded from a release could show the built-in "Sample docs" instead of opening folders: it chose its backend by looking for `window._wails`, which Wails on macOS only adds once the page has loaded. It now recognises the app by the web view's message handler (there from the start), waits until Wails is ready, and inside the app never falls back to the sample (it says what went wrong instead). ([zenmark-org/zenmd#1](https://github.com/zenmark-org/zenmd/issues/1))
+
 ## [0.5.0] - 2026-11-18
 
 A new home screen and logo, the Inspector, a sidebar menu with reordering, a Developer tab, image zoom; the first release that is signed and notarised.
