@@ -1,0 +1,160 @@
+# ui/inspector
+
+| | |
+|---|---|
+| Status | in progress |
+| Target version | 0.5.0 (MINOR) |
+| Branch | `feature/ui-inspector` |
+| Wave | 18 |
+| Depends on | ui/page, ui/lint, engine/session, kit/desktop-ui |
+| Owns | `kit/ui/src/inspector/`, `engine/session/pageinfo*.go`, `apps/zenmark/inspector.go`; additive lines in `kit/ui/src/{host.ts,index.ts,page/index.ts,lint/panel.ts,styles/shell.css}`, `apps/zenmark/{service.go,thin_test.go}`, `apps/zenmark/frontend/src/api/*` |
+
+## Purpose
+
+A panel on the right of the reading view that shows what is known about the page
+that is open: its Vale issues, its file and its content. One button next to Edit
+opens it; the issue count stays visible on that button when the panel is closed.
+
+## Behaviour
+
+1. An "Inspector" button sits in the page actions between the Vale count and Edit.
+   It toggles the panel (`aria-expanded`, `aria-controls`); ⌥⌘I does the same.
+2. Open or closed is remembered per user (`localStorage` key `zen.inspector.open`,
+   every access in try/catch; unavailable storage means closed). The collapsed
+   state of each section is remembered too (`zen.inspector.collapsed`).
+3. The panel is 280 px wide, not resizable. When the window is wider than 900 px
+   it takes room from the page; narrower, it overlays the page (opaque, with a
+   left border). Esc closes it when focus is inside it and returns focus to the button.
+4. Neither the button nor the panel exists while no page is open (home screen,
+   Settings), and they follow the open page: navigation, live reload
+   (`page:changed`) and editor drafts (`page:draft`) all refresh them.
+5. Three collapsible sections, all open by default: Issues, File, Page.
+6. **Issues** lists the Vale alerts of the page with the same items as before
+   (line, severity, message, match). Choosing one scrolls to its mark and flashes
+   it. States: "No issues" (Vale ran, nothing found) and "Linting off" (Vale
+   unavailable or linting disabled). The button shows a count badge ("3") when
+   there are issues, also with the panel closed; the old floating "N issues"
+   button and panel are gone from the reader (the editor's console is unchanged).
+7. **File** shows: path in the folder, full path with *Copy path* (copies the
+   full path, button text becomes "Copied" briefly) and *Reveal in Finder* (only
+   when the host offers it), size ("1.5 KB"), modified and created (created only
+   when the system knows it). While loading it shows "…"; when the call fails it
+   shows "Not available" and never throws. The data is fetched when the panel is
+   open (and on opening), once per refresh; stale answers are dropped.
+8. **Page** shows: title, layout (name and source: built-in, folder, user),
+   words, reading time (words / 200, rounded, at least 1 min when there are
+   words), headings, links (internal and external), images, plugins used (ids of
+   `[data-zen-plugin]` in the article) and front matter keys. All counted in the
+   frontend from `Page` and the rendered article.
+9. All text goes in through `textContent`; nothing from the page is parsed as HTML.
+10. Backend: `PageInfo(path)` returns size, modification time, creation time
+    (macOS; 0 elsewhere) and the absolute path of a markdown file inside the
+    open folder. `RevealInFinder(path)` shows that file in Finder.
+
+## Architecture
+
+`kit/ui/src/inspector/` holds `stats.ts` (pure counting), `format.ts` (size, date,
+reading time), `index.ts` (`createInspector`, the DOM) and `inspector.css`. The
+page feature (`kit/ui/src/page/index.ts`) creates it, appends its button to
+`slots.actions`, puts the panel in `.zen-content` (the parent of the main pane;
+the panel is hidden whenever the main pane is, for Settings) and feeds it after
+each render, lint and navigation. The list of issues is `issueList()`, extracted
+from `lint/panel.ts` and shared with `renderPanel`, which stays for other hosts.
+The kit stays independent of the app: file data comes from the optional
+`KitHost.pageInfo` and `KitHost.revealInFinder`; without them the File section
+shows the path in the folder only.
+
+Go: `engine/session/pageinfo.go` (`Session.PageInfo`, resolves the path through
+the workspace like `Page` and `Source`), `pageinfo_darwin.go` / `pageinfo_other.go`
+(creation time). The app: `Zen.PageInfo` is a one-line delegation in `service.go`;
+`Zen.RevealInFinder` in `apps/zenmark/inspector.go` asks the session for the
+validated path and calls `open -R` through `kit/desktop`.
+
+## Interfaces
+
+```go
+// engine/session
+type PageInfo struct {
+	Path      string `json:"path"`      // as asked, slash separated, relative to the folder
+	AbsPath   string `json:"absPath"`   // symlinks resolved
+	Size      int64  `json:"size"`      // bytes
+	ModTime   int64  `json:"modTime"`   // Unix milliseconds
+	BirthTime int64  `json:"birthTime"` // Unix milliseconds, 0 when unknown
+}
+func (s *Session) PageInfo(path string) (PageInfo, error)
+
+// apps/zenmark
+func (z *Zen) PageInfo(path string) (PageInfo, error)
+func (z *Zen) RevealInFinder(path string) error
+```
+
+```ts
+// kit/ui/src/host.ts
+export type PageInfo = { path: string; absPath: string; size: number; modTime: number; birthTime: number };
+interface KitHost {
+  pageInfo?(path: string): Promise<PageInfo>;
+  revealInFinder?(path: string): Promise<void>;
+}
+// kit/ui/src/inspector
+export type PageStats = { words: number; minutes: number; headings: number; links: { internal: number; external: number }; images: number; plugins: string[]; frontmatter: string[] };
+export function pageStats(root: ParentNode, page: Page): PageStats;
+export const formatSize: (bytes: number) => string;
+export const readingMinutes: (words: number) => number;
+export function createInspector(o: InspectorOptions): Inspector;
+```
+
+## Tests
+
+| # | Behaviour | Test |
+|---|---|---|
+| 1 | PageInfo size, times, absolute path, nested page | `engine/session/pageinfo_test.go: TestPageInfo` |
+| 2 | PageInfo rejects `..`, absolute, NUL, non-markdown, missing, symlink out, no folder; errors carry no absolute path | `TestPageInfoValidation` |
+| 3 | JSON shape | `TestPageInfoJSON` |
+| 4 | `Zen.PageInfo` delegates; `RevealInFinder` reveals the validated file only | `apps/zenmark/thin_test.go`, `inspector_test.go: TestRevealInFinder` |
+| 5 | Counting: words, headings, links, images, plugins, keys | `kit/ui/src/inspector/stats.test.ts` |
+| 6 | Size, reading time | `format.test.ts` |
+| 7 | Toggle, aria, persistence, broken storage, Esc, ⌥⌘I | `inspector.test.ts` |
+| 8 | Sections collapse and are remembered | `inspector.test.ts` |
+| 9 | Issues: list, select, "No issues", "Linting off", badge while closed | `inspector.test.ts`, `page/lint.test.ts` |
+| 10 | File: fields, copy, reveal present/absent, failure, stale answer dropped | `inspector.test.ts` |
+| 11 | Page section values; updates on navigation, `page:changed`, `page:draft`; hidden without a page | `page/inspector.test.ts` |
+| 12 | Wails adapter calls and maps `PageInfo`, `RevealInFinder` | `api/wails.test.ts` |
+| 13 | CSS uses tokens only; overlay rule under 900 px | `inspector/css.test.ts` |
+
+Edge cases: page with zero words, missing front matter, a file without creation
+time, storage that throws, a page changed while the file call is in flight,
+a path with spaces or non-ASCII characters.
+
+## UI
+
+States: closed (button only, count badge when there are issues), open with loading
+file data, populated, file data unavailable. Compact rows (12 px, label left in
+`--fg-muted`, value right), section headers are buttons with a ▸/▾ marker.
+Tokens from docs/UI.md only (`--bg`, `--bg-subtle`, `--fg`, `--fg-muted`, `--rule`,
+`--btn-bg`, `--focus`, `--space-*`, `--radius`, fonts); the lint severity tokens
+for the issue list as today. Keyboard: ⌥⌘I, Tab through headers and buttons,
+Esc closes. The panel is `aside[aria-label="Inspector"]`; sections are
+`role=region` labelled by their header. ⌥⌘I is also the *Toggle DevTools*
+accelerator of the Develop menu in dev builds only (`apps/zenmark/menu.go`); there
+the menu takes it, in release builds the shortcut is free.
+
+## Security
+
+| Risk | Mitigation | Test |
+|---|---|---|
+| A path from the frontend escapes the folder | `PageInfo` resolves through `workspace.Resolve` and accepts markdown files only | test 2 |
+| `RevealInFinder` shows or opens an arbitrary path | takes a workspace-relative path, validated by `PageInfo`, passes `-R` and the resolved path as separate arguments | test 4 |
+| Error messages leak absolute paths | errors go through `cleanErr` | test 2 |
+| Page data (title, plugin ids, front matter keys) as HTML | `textContent` only | test 7, 11 |
+
+## Notes
+
+- **Out of scope:** resizing, editing front matter from the panel, a table of contents, the editor window.
+- **Integration (done by the lead at merge):** `PageInfo` joins `delegating` in `apps/zenmark/thin_test.go` (done here); other branches adding methods to `service.go`, bindings or `fake.ts` merge additively.
+- **App Store / sandbox:** `open -R` goes through `kit/desktop` like the other Finder calls and only receives paths inside the folder the user opened.
+- **Changelog:** Inspector: a side panel with the page's issues, file details and content statistics (⌥⌘I).
+
+## Prompt
+
+> Implement `specs/ui/inspector/spec.md` following the rules in `specs/README.md`.
+> Done when `task test` passes and `npx tsc --noEmit -p apps/zenmark/frontend` is clean.
