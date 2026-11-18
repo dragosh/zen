@@ -35,7 +35,7 @@ async function boot(page = "README.md", mutate?: (a: FakeApi) => void) {
   await shell.start();
   await tick();
 }
-beforeEach(() => { localStorage.clear(); document.body.replaceChildren(); root = document.createElement("div"); document.body.append(root); });
+beforeEach(() => { localStorage.clear(); sessionStorage.clear(); document.body.replaceChildren(); root = document.createElement("div"); document.body.append(root); });
 afterEach(() => { shell?.destroy(); root.remove(); vi.restoreAllMocks(); });
 
 test("right-click shows the menu with every item the api supports; the page is not opened", async () => {

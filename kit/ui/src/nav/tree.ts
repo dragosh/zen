@@ -1,6 +1,7 @@
 // The sidebar tree: role="tree", roving tabindex, text via textContent only.
 import type { NavNode } from "../host";
 import { el } from "../shell/dom";
+import { attachReorder } from "./reorder";
 
 export type TreeOptions = {
   current: string;
@@ -9,6 +10,15 @@ export type TreeOptions = {
   onToggle(path: string, open: boolean): void;
   /** Short labels shown muted after a page's title (plugins' ctx.badge), by path. */
   badges?: Record<string, string>;
+  /**
+   * The context menu was asked for on a row (right-click, ⌃-click, the context-menu key, ⇧F10): where to
+   * put it, and the row to give the focus back to. Without it the browser's own menu stays.
+   */
+  onContextMenu?(path: string, at: { x: number; y: number }, row: HTMLElement): void;
+  /** Alt+↑ / Alt+↓ on a focused page row. */
+  onMove?(path: string, delta: -1 | 1): void;
+  /** A page was dragged to a new place among its siblings; `order` is every page sibling. Without it rows cannot be dragged. */
+  onReorder?(parent: string, order: string[], moved: string): void;
 };
 
 const BADGE_MAX = 12;
@@ -46,7 +56,24 @@ function setActive(host: HTMLElement, item: HTMLElement, focus: boolean): void {
 function onKey(host: HTMLElement, e: KeyboardEvent): void {
   const st = states.get(host);
   const item = itemOf(e.target as Element);
-  if (!st || !item || e.metaKey || e.ctrlKey || e.altKey) return;
+  if (!st || !item || e.metaKey || e.ctrlKey) return;
+  if (e.altKey) {
+    // Alt+↑ / Alt+↓ move a page among its siblings.
+    if ((e.key === "ArrowUp" || e.key === "ArrowDown") && item.dataset.kind === "page" && st.opts.onMove) {
+      st.opts.onMove(item.dataset.path ?? "", e.key === "ArrowUp" ? -1 : 1);
+      e.preventDefault();
+    }
+    return;
+  }
+  if (e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) {
+    if (st.opts.onContextMenu) {
+      const row = rowOf(item);
+      const r = row.getBoundingClientRect();
+      st.opts.onContextMenu(item.dataset.path ?? "", { x: r.left + 24, y: r.bottom }, row);
+      e.preventDefault();
+    }
+    return;
+  }
   const list = visibleItems(host);
   const i = list.indexOf(item);
   const path = item.dataset.path ?? "";
@@ -118,7 +145,8 @@ function build(st: State, nodes: NavNode[], level: number, role: "tree" | "group
       row.append(b);
     }
     if (n.kind === "page" && n.path === st.opts.current) li.setAttribute("aria-current", "page");
-    row.addEventListener("click", () => {
+    row.addEventListener("click", (e) => {
+      if (e.ctrlKey && st.opts.onContextMenu) return; // ⌃-click is the context menu (macOS sends contextmenu instead)
       const host = li.closest<HTMLElement>(".zen-nav-host");
       if (host) setActive(host, li, false);
       activate(st, li);
@@ -137,6 +165,19 @@ export function renderTree(host: HTMLElement, tree: NavNode[], opts: TreeOptions
     st = { tree, opts, active: "", current: "" };
     states.set(host, st);
     host.addEventListener("keydown", (e) => onKey(host, e));
+    host.addEventListener("contextmenu", (e) => {
+      const item = itemOf(e.target as Element);
+      const cur = states.get(host);
+      if (!item || !cur?.opts.onContextMenu) return;
+      e.preventDefault();
+      setActive(host, item, false);
+      cur.opts.onContextMenu(item.dataset.path ?? "", { x: e.clientX, y: e.clientY }, rowOf(item));
+    });
+    attachReorder(host, {
+      tree: () => states.get(host)?.tree ?? [],
+      enabled: () => !!states.get(host)?.opts.onReorder,
+      drop: (parent, order, moved) => states.get(host)?.opts.onReorder?.(parent, order, moved),
+    });
     host.addEventListener("focusin", (e) => {
       const item = itemOf(e.target as Element);
       if (item && rowOf(item) === e.target) setActive(host, item, false);
@@ -163,4 +204,12 @@ export function renderTree(host: HTMLElement, tree: NavNode[], opts: TreeOptions
     const cur = find(opts.current);
     if (cur) rowOf(cur).scrollIntoView?.({ block: "nearest" });
   }
+}
+
+/** Gives the focus to the row of `path` when it is shown; false when it is not (a collapsed branch, a page that is gone). */
+export function focusPath(host: HTMLElement, path: string): boolean {
+  const item = visibleItems(host).find((i) => i.dataset.path === path);
+  if (!item) return false;
+  setActive(host, item, true);
+  return true;
 }

@@ -15,5 +15,7 @@ export type Ctx = {
   api: KitHost; store: Store; navigate(path: string, anchor?: string): void;
   /** The product's name: the suffix of the window title ("Page — Zenmark"). */
   brand: string;
+  /** Shows the New Page dialog for a new page in `folder` ("" or ending in "/"); the sidebar menu's New Page Here… is left out without it. */
+  newPage?(folder: string): void;
 };
 export type Feature = { id: "nav" | "page" | "editor"; mount(slots: Slots, ctx: Ctx): () => void }; // returns unmount

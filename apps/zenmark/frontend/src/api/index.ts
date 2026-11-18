@@ -86,6 +86,13 @@ export interface Api extends KitHost {
   printSite(): Promise<void>;
   /** Opens the print panel for the calling window (window.print() does nothing in the macOS web view). */
   printWindow(title: string): Promise<void>;
+  // Sidebar menu and reordering (ui/sidebar-menu)
+  /** Saves the order of the page siblings under `parent` ("" for the top level) in their frontmatter (nav.order); the new tree arrives as workspace:changed. */
+  reorderNav(parent: string, paths: string[]): Promise<void>;
+  /** Writes nav.hidden: true (or removes it) in the page's frontmatter. */
+  setNavHidden(path: string, hidden: boolean): Promise<void>;
+  /** Shows a page or folder of the open folder in Finder. */
+  revealInFinder(path: string): Promise<void>;
   page(path: string): Promise<Page>;
   source(path: string): Promise<string>;
   preview(path: string, content: string): Promise<Page>; // render unsaved text

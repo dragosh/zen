@@ -7,6 +7,7 @@ type Method = "startup" | "pickFolder" | "cancelOpen"
   | "buildOptions" | "buildWebsite" | "cancelBuild" | "saveBuildDefaults" | "pickBuildFolder" | "openBuiltSite" | "revealBuiltSite"
   | "printPage" | "printSite" | "printWindow" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "openConfig" | "createPage"
   | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys"
+  | "reorderNav" | "setNavHidden" | "revealInFinder"
   | "layouts" | "layoutTrust" | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys";
 type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "layouts:changed": undefined; "menu:new-page": undefined; "menu:settings": undefined; "workspace:opening": OpenProgress; "menu:new-site": undefined; "menu:build-website": undefined; "build:progress": BuildProgress; "menu:print-page": undefined };
 
@@ -116,6 +117,18 @@ export function sampleWorkspace(): Workspace {
   };
 }
 
+/** The sibling list that holds the page at `path`, and the path of the node that owns it ("" at the top). */
+function listOf(nodes: NavNode[], path: string, owner = ""): { list: NavNode[]; owner: string } | null {
+  if (nodes.some((n) => n.kind === "page" && n.path === path)) return { list: nodes, owner };
+  for (const n of nodes) {
+    const below = listOf(n.children, path, n.path);
+    if (below) return below;
+  }
+  return null;
+}
+
+const copyTree = (nodes: NavNode[]): NavNode[] => nodes.map((n) => ({ ...n, children: copyTree(n.children) }));
+
 const escape = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
@@ -181,7 +194,13 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
   };
   let streamCount = 0;
   const failures = new Map<Method, Error>();
-  let tree: NavNode[] = (startup.workspace ?? sampleWorkspace()).tree;
+  let base: Workspace = startup.workspace ?? sampleWorkspace();
+  let tree: NavNode[] = copyTree(base.tree); // reorderNav and setNavHidden change this copy
+
+  /** Sends the tree as the Go side does after a write: a new workspace object, so the sidebar draws it again. */
+  const changed = () => {
+    api.emit("workspace:changed", { ...base, tree: copyTree(tree) });
+  };
 
   /** Plugin storage: plugin id -> key -> JSON text. */
   const storage = new Map<string, Map<string, string>>();
@@ -231,7 +250,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
 
     startup: () => call("startup", [], () => startup),
     pickFolder: () => call("pickFolder", [], () => {
-      if (api.pick) tree = api.pick.tree;
+      if (api.pick) { base = api.pick; tree = copyTree(base.tree); }
       return api.pick;
     }),
     cancelOpen: () => call("cancelOpen", [], () => undefined),
@@ -239,7 +258,8 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     pickSiteFolder: () => call("pickSiteFolder", [], () => "/Users/me/new-site"),
     createSite: (id, dir, values) => call("createSite", [id, dir, values], () => {
       const ws = sampleWorkspace();
-      tree = ws.tree;
+      base = ws;
+      tree = copyTree(ws.tree);
       return { workspace: ws, page: ws.home, mode: "read" as const };
     }),
     revealTemplates: () => call("revealTemplates", [], () => undefined),
@@ -275,6 +295,27 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
       sources[path] = `---\ntitle: ${title}\n${layout ? `layout: ${layout}\n` : ""}---\n# ${title}\n`;
       return path;
     }),
+    reorderNav: (parent, paths) => call("reorderNav", [parent, paths], () => {
+      const found = paths.length ? listOf(tree, paths[0]) : null;
+      if (!found) throw new Error(`${paths[0] ?? ""}: not a page in the sidebar`);
+      if (found.owner !== parent) throw new Error(`${paths[0]}: not under "${parent}"`);
+      const pages = found.list.filter((n) => n.kind === "page");
+      for (const p of paths) {
+        if (!pages.some((n) => n.path === p)) throw new Error(`${p}: not a page next to ${paths[0]}`);
+      }
+      if (new Set(paths).size !== paths.length || paths.length !== pages.length) throw new Error("give every page of the group, in the new order");
+      // Like the engine: the numbered pages come first, folders after them.
+      const ordered = paths.map((p) => pages.find((n) => n.path === p)!);
+      found.list.splice(0, found.list.length, ...ordered, ...found.list.filter((n) => n.kind !== "page"));
+      changed();
+    }),
+    setNavHidden: (path, hidden) => call("setNavHidden", [path, hidden], () => {
+      const found = listOf(tree, path);
+      if (!found) throw new Error(`${path}: not a page in the sidebar`);
+      if (hidden) found.list.splice(found.list.findIndex((n) => n.path === path), 1);
+      changed();
+    }),
+    revealInFinder: (path) => call("revealInFinder", [path], () => undefined),
     draft(path, content) {
       api.broadcasts.push({ event: "editor:draft", payload: { path, content } });
     },

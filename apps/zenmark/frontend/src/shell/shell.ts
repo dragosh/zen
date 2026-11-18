@@ -104,7 +104,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   let unsubscribeStore: (() => void) | null = null;
   let destroyed = false;
 
-  const ctx: Ctx = { api, store, navigate, brand: BRAND };
+  const ctx: Ctx = { api, store, navigate, brand: BRAND, newPage: (folder) => showNewPage(folder) };
 
   function navigate(path: string, anchor = ""): void {
     closeSettings(); // choosing a page leaves Settings
@@ -166,10 +166,10 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
 
   let newPage: NewPageDialog | null = null;
   /** File › New Page… (⌘N): ask for a name and layout, then open the new page in the editor. */
-  function showNewPage(): void {
+  function showNewPage(inFolder?: string): void {
     if (kind.kind !== "main" || !layout || newPage) return;
     const path = store.get().path;
-    const folder = path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "";
+    const folder = inFolder ?? (path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "");
     newPage = openNewPage({
       api, doc, folder,
       onCreated: (created) => {
@@ -414,7 +414,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     if (editorTitle) titleEditor(workspace, store.get().path);
   });
   // Go closes the editor windows before it opens another folder.
-  const offNewPage = api.on("menu:new-page", showNewPage);
+  const offNewPage = api.on("menu:new-page", () => showNewPage());
   // File › New Site from Template… works from the welcome screen and from an open folder.
   const offNewSite = siteApi ? siteApi.on("menu:new-site", () => showNewSite()) : () => {};
   // Zen › Settings… (⌘,) from any window: Go shows the main window first.

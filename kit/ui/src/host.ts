@@ -48,6 +48,15 @@ export interface KitHost extends RuntimeHost {
   draft(path: string, content: string | null): void;
   /** Opens the print panel for the calling window (window.print() does nothing in the macOS web view). */
   printWindow?(title: string): Promise<void>;
+  /**
+   * The sidebar's context menu and drag reordering (ui/sidebar-menu); an app that leaves one out does not
+   * get its menu item. reorderNav puts the page siblings under `parent` (the parent node's path, "" for the
+   * top level and for "Other pages") in the order of `paths` and saves it in their frontmatter; the new
+   * tree arrives as workspace:changed. setNavHidden writes nav.hidden. revealInFinder shows a page or folder.
+   */
+  reorderNav?(parent: string, paths: string[]): Promise<void>;
+  setNavHidden?(path: string, hidden: boolean): Promise<void>;
+  revealInFinder?(path: string): Promise<void>;
   /** Also delivered when another window saved the page ("editor:saved"). */
   on(event: "page:changed", fn: (e: { path: string }) => void): () => void;
   /** Another window's unsaved text for a page (see draft); content null = draft gone. */

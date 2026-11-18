@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, expect, test, vi, type Mock } from "vitest";
 import type { NavNode } from "../host";
 import { renderTree } from "./tree";
 import { item } from "./fixtures";
@@ -12,8 +12,8 @@ const tree = (): NavNode[] => [
 
 const ROW = 26;
 let host: HTMLElement;
-let onReorder: ReturnType<typeof vi.fn>;
-let onMove: ReturnType<typeof vi.fn>;
+let onReorder: Mock<(parent: string, order: string[], moved: string) => void>;
+let onMove: Mock<(path: string, delta: -1 | 1) => void>;
 
 /** Rows are 26px tall, one under the other in document order (hidden ones skipped); a list item spans its row and its children. */
 function layout() {
