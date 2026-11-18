@@ -28,9 +28,6 @@ func main() {
 		fmt.Fprintf(os.Stderr, "zenmd: %v\n", err)
 		os.Exit(1)
 	}
-	if sub, err := fs.Sub(dist, "frontend/dist"); err == nil {
-		app.StaticAssets = sub // zenmd build: the static page runtime (dist/static)
-	}
 	os.Exit(cli.Run(os.Args[1:], cwd, os.Stdout, os.Stderr, launch, app.BuildSite, app.InitSite))
 }
 

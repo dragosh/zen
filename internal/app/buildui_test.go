@@ -26,9 +26,6 @@ type buildApp struct {
 // newBuildApp opens a folder of five pages with the static runtime in place.
 func newBuildApp(t *testing.T) *buildApp {
 	t.Helper()
-	prev := StaticAssets
-	StaticAssets = stubAssets()
-	t.Cleanup(func() { StaticAssets = prev })
 	dir, _ := filepath.EvalSymlinks(tree(t, map[string]string{
 		"README.md": "# Home\n\n[B](b.md)\n", "b.md": "# B\n", "c.md": "# C\n", "d.md": "# D\n", "e.md": "# E\n",
 	}))

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | specified |
+| Status | done |
 | Target version | zenmd 0.4.0 |
 | Branch | `feature/engine-runtime` |
 | Wave | 15 (E2b) |

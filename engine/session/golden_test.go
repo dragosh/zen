@@ -12,30 +12,9 @@ import (
 	"sort"
 	"strings"
 	"testing"
-	"testing/fstest"
 )
 
 var updateGolden = flag.Bool("update-golden", false, "rewrite testdata/demo-build.golden from the current build")
-
-// builtRuntime is the real browser runtime (zen.js and zen.css), as built by
-// the Taskfile. Skips the test when it was not built.
-func builtRuntime(t *testing.T) fs.FS {
-	t.Helper()
-	_, file, _, _ := runtime.Caller(0)
-	root := filepath.Join(filepath.Dir(file), "..", "..")
-	for _, dir := range builtRuntimeDirs {
-		js, err1 := os.ReadFile(filepath.Join(root, filepath.FromSlash(dir), "zen.js"))
-		css, err2 := os.ReadFile(filepath.Join(root, filepath.FromSlash(dir), "zen.css"))
-		if err1 == nil && err2 == nil {
-			return fstest.MapFS{"static/zen.js": {Data: js}, "static/zen.css": {Data: css}}
-		}
-	}
-	t.Skip("the browser runtime is not built (task build:frontend)")
-	return nil
-}
-
-// builtRuntimeDirs are where the built runtime lives, newest layout first.
-var builtRuntimeDirs = []string{"runtime/dist", "frontend/dist/static"}
 
 // TestDemoBuildUnchanged builds examples/demo (portable and hosted) with the
 // real runtime and compares the file list and the SHA-256 of every file with
@@ -43,13 +22,12 @@ var builtRuntimeDirs = []string{"runtime/dist", "frontend/dist/static"}
 // runtime/. Regenerate on purpose with: go test ./engine/session -run
 // TestDemoBuildUnchanged -update-golden
 func TestDemoBuildUnchanged(t *testing.T) {
-	rt := builtRuntime(t)
 	_, file, _, _ := runtime.Caller(0)
 	demo := filepath.Join(filepath.Dir(file), "..", "..", "examples", "demo")
 	var lines []string
 	for _, mode := range []string{"portable", "hosted"} {
 		out := filepath.Join(t.TempDir(), "site")
-		r := runBuild(t, demo, t.TempDir(), SiteOptions{Out: out, Portable: mode == "portable", Hosted: mode == "hosted"}, func(e *SiteEnv) { e.Runtime = rt; e.Version = "0.0.0-golden" })
+		r := runBuild(t, demo, t.TempDir(), SiteOptions{Out: out, Portable: mode == "portable", Hosted: mode == "hosted"}, func(e *SiteEnv) { e.Runtime = nil; e.Version = "0.0.0-golden" }) // nil: the embedded runtime package
 		if r.err != nil {
 			t.Fatalf("%s: %v\n%s", mode, r.err, r.stderr)
 		}
