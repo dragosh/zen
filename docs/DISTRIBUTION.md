@@ -33,7 +33,7 @@ in the DMG art comes from `info.productName`; regenerate the art with `task darw
 ## Developer ID
 
 ```sh
-task darwin:package:universal SIGN_IDENTITY="Developer ID Application: ..."   # arm64 + x86_64, helpers too
+task darwin:package:universal SIGN_IDENTITY="Developer ID Application: ..."   # arm64 + x86_64, helpers too (task release does all of it)
 task darwin:sign:notarize     SIGN_IDENTITY="..." KEYCHAIN_PROFILE=zenmark-notary # dmg, notarytool, stapler, spctl
 task darwin:package:test ARCH=universal                                       # checks the bundle
 ```
@@ -94,6 +94,51 @@ The app-specific password is made at [account.apple.com](https://account.apple.c
    ("Unnotarized Developer ID" is expected at this point).
 2. `task darwin:sign:notarize SIGN_IDENTITY="…" KEYCHAIN_PROFILE=zenmark-notary`
    (DMG, notarytool, stapler, spctl: "Notarized Developer ID").
+
+## Releasing
+
+```sh
+task version:bump PART=patch      # or minor; add the ## [x.y.z] section to CHANGELOG.md
+git commit -am "Release x.y.z" && git tag vx.y.z && git push origin main vx.y.z
+```
+
+The tag runs `.github/workflows/release.yml`: a universal DMG, signed, notarised
+and stapled, published on the GitHub release `vx.y.z` with the CHANGELOG section
+as notes. The same by hand, from this Mac:
+
+```sh
+task release SIGN_IDENTITY="Developer ID Application: ..." KEYCHAIN_PROFILE=zenmark-notary
+task release:publish              # needs the tag and gh signed in
+```
+
+Running the workflow by hand (Actions → release → Run workflow) is a dry run:
+it signs and notarises, keeps the DMG as a workflow artifact, and publishes nothing.
+
+### Signing in CI (once)
+
+Add these in GitHub → zenmark-org/zenmd → Settings → Secrets and variables →
+Actions. Paste the values there only, never in an issue, a commit or a chat.
+
+| Name | Kind | Value |
+|---|---|---|
+| `SIGN_IDENTITY` | variable | `Developer ID Application: Dragos Oancea (2688WQJ53W)` |
+| `MACOS_CERT_P12_BASE64` | secret | `base64 -i DeveloperID.p12 \| pbcopy`, then paste |
+| `MACOS_CERT_PASSWORD` | secret | the password set when exporting the `.p12` |
+| `NOTARY_KEY_P8_BASE64` | secret | `base64 -i AuthKey_XXXXXXXXXX.p8 \| pbcopy`, then paste |
+| `NOTARY_KEY_ID` | secret | the key ID (the `XXXXXXXXXX` in the file name) |
+| `NOTARY_ISSUER` | secret | the issuer ID shown above the keys list |
+
+- **The `.p12`:** Keychain Access → login → My Certificates → "Developer ID
+  Application: …" (with its key) → Export… → `.p12` with a password (see
+  "Made on another Mac").
+- **The API key:** [App Store Connect](https://appstoreconnect.apple.com) → Users
+  and Access → Integrations → App Store Connect API → Team Keys → **+**, access
+  *Developer*. Download the `.p8` (only once possible) and note the key ID and
+  the issuer ID. The first time, the account holder may have to request API access.
+- Delete the local `.p12` and `.p8` copies you do not keep as a backup.
+
+The workflow imports the certificate into a throwaway keychain and deletes it,
+and the `.p8`, at the end. Without the secrets it stops with "Missing signing inputs".
 
 ## Mac App Store
 

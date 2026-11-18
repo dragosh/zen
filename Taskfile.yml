@@ -173,6 +173,37 @@ tasks:
         sed -i.bak -E "s/^  version: \"[^\"]*\"/  version: \"${new%%-*}\"/" build/config.yml && rm -f build/config.yml.bak
         echo "$v -> $new"
 
+  release:
+    summary: Builds the notarised universal DMG for VERSION as bin/Zenmark-<version>.dmg and its .sha256 (needs SIGN_IDENTITY and KEYCHAIN_PROFILE, or NOTARY_KEY, NOTARY_KEY_ID and NOTARY_ISSUER; see docs/DISTRIBUTION.md)
+    cmds:
+      - task: version:check
+      - task: darwin:sign:notarize
+        vars: {ARCH: universal}
+      - cp "{{.BIN_DIR}}/Zenmark.dmg" "{{.BIN_DIR}}/Zenmark-{{.VERSION}}.dmg"
+      - cd "{{.BIN_DIR}}" && shasum -a 256 "Zenmark-{{.VERSION}}.dmg" > "Zenmark-{{.VERSION}}.dmg.sha256"
+      - echo "{{.BIN_DIR}}/Zenmark-{{.VERSION}}.dmg is ready (task release:publish uploads it)"
+
+  release:notes:
+    summary: Writes the CHANGELOG.md section of VERSION (the GitHub release notes) to bin/release-notes.md
+    dir: '{{.ROOT_DIR}}'
+    cmds:
+      - mkdir -p "{{.BIN_DIR}}"
+      - awk -v v="{{.VERSION}}" 'index($0, "## [" v "]") == 1 {f=1; next} f && /^## \[/ {exit} f' CHANGELOG.md > "{{.BIN_DIR}}/release-notes.md"
+      - grep -q '[^[:space:]]' "{{.BIN_DIR}}/release-notes.md" || { echo "CHANGELOG.md has no '## [{{.VERSION}}]' section" >&2; exit 1; }
+
+  release:publish:
+    summary: Uploads bin/Zenmark-<version>.dmg to the GitHub release v<version>, creating it from the tag with the CHANGELOG section as notes
+    dir: '{{.ROOT_DIR}}'
+    preconditions:
+      - sh: test -f "{{.BIN_DIR}}/Zenmark-{{.VERSION}}.dmg"
+        msg: "Run task release first."
+      - sh: git rev-parse -q --verify "refs/tags/v{{.VERSION}}" >/dev/null
+        msg: "Tag v{{.VERSION}} does not exist (git tag v{{.VERSION}} && git push origin v{{.VERSION}})."
+    cmds:
+      - task: release:notes
+      - gh release view "v{{.VERSION}}" >/dev/null 2>&1 || gh release create "v{{.VERSION}}" --verify-tag --title "Zenmark {{.VERSION}}" --notes-file "{{.BIN_DIR}}/release-notes.md"
+      - gh release upload "v{{.VERSION}}" "{{.BIN_DIR}}/Zenmark-{{.VERSION}}.dmg" "{{.BIN_DIR}}/Zenmark-{{.VERSION}}.dmg.sha256" --clobber
+
   install:cli:
     summary: Links the zenmd command (and the zen alias) from the installed Zenmark.app (INSTALL_DIR, APP_PATH override)
     cmds:

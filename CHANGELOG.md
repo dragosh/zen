@@ -7,6 +7,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 ## [Unreleased]
 
 - Developer ID signing and notarisation work end to end; `darwin:sign:notarize` also staples `bin/Zenmark.app`.
+- `task release` (notarised universal DMG, `Zenmark-<version>.dmg` and `.sha256`), `task release:publish` (GitHub release with the CHANGELOG notes), and the `release` workflow that does both on a `v*` tag; notarisation also takes an App Store Connect API key.
 
 ### Changed
 

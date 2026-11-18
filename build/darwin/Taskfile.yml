@@ -162,7 +162,8 @@ tasks:
       - sh: test "{{.CHANNEL}}" = devid
         msg: "A .dmg is the Developer ID package; the App Store build is a .pkg (task package:appstore)."
     cmds:
-      - task: package
+      # ARCH=universal for releases (arm64 + x86_64, universal helpers).
+      - task: '{{if eq .ARCH "universal"}}package:universal{{else}}package{{end}}'
       - task: create:dmg
 
   package:appstore:
@@ -374,17 +375,20 @@ tasks:
       `xcrun notarytool store-credentials`. Nothing secret is in the repository.
     vars:
       DMG: '{{.BIN_DIR}}/{{.BUNDLE_NAME}}.dmg'
+      # A keychain profile locally; an App Store Connect API key (a .p8 file) in CI.
+      NOTARY_AUTH: '{{if .KEYCHAIN_PROFILE}}--keychain-profile "{{.KEYCHAIN_PROFILE}}"{{else}}--key "{{.NOTARY_KEY}}" --key-id "{{.NOTARY_KEY_ID}}" --issuer "{{.NOTARY_ISSUER}}"{{end}}'
     preconditions:
       - sh: test "{{.CHANNEL}}" = devid
         msg: "Notarisation is for the Developer ID build; the App Store build goes through Transporter."
       - sh: test "{{.SIGN_IDENTITY}}" != "-"
         msg: "Set SIGN_IDENTITY to your \"Developer ID Application: ...\" identity."
-      - sh: test -n "{{.KEYCHAIN_PROFILE}}"
-        msg: "Set KEYCHAIN_PROFILE to a notarytool keychain profile (xcrun notarytool store-credentials)."
+      - sh: test -n "{{.KEYCHAIN_PROFILE}}" || { test -f "{{.NOTARY_KEY}}" && test -n "{{.NOTARY_KEY_ID}}" && test -n "{{.NOTARY_ISSUER}}"; }
+        msg: "Set KEYCHAIN_PROFILE (xcrun notarytool store-credentials), or NOTARY_KEY (.p8 file), NOTARY_KEY_ID and NOTARY_ISSUER."
     cmds:
       - task: package:dmg
+        vars: {ARCH: '{{.ARCH}}'}
       - codesign --force --sign "{{.SIGN_IDENTITY}}" --timestamp "{{.DMG}}"
-      - xcrun notarytool submit "{{.DMG}}" --keychain-profile "{{.KEYCHAIN_PROFILE}}" --wait
+      - xcrun notarytool submit "{{.DMG}}" {{.NOTARY_AUTH}} --wait
       - xcrun stapler staple "{{.DMG}}"
       # The app inside was notarised with the DMG; staple bin/ too, for copies made with ditto.
       - xcrun stapler staple "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.app"

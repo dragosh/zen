@@ -54,6 +54,7 @@ verify" warning: `task darwin:sign:notarize` (see [docs/DISTRIBUTION.md](docs/DI
 | `task package:appstore` | The sandboxed Mac App Store build (needs Xcode and an Apple account) |
 | `task install` / `task uninstall` | Link `zenmd` to the development build in `~/.local/bin` |
 | `task install:cli` | Link `zenmd` to an installed `Zenmark.app` |
+| `task release` / `task release:publish` | The notarised universal DMG for `VERSION`, and its upload to the GitHub release (a `v*` tag does both in CI) |
 | `task api:check` | Check the engine's Go API against the last tag (`apidiff`) |
 | `task version` | Print the version |
 
@@ -112,7 +113,7 @@ does this ([.claude/skills/add-spec](.claude/skills/add-spec/SKILL.md)).
 | Format spec and conformance tests, `zenmd check` | engine wave E3 in [docs/ENGINE.md](docs/ENGINE.md) | to specify |
 | Hardening: fuzzing, performance budgets, error codes | engine wave E3 | to specify |
 | `zenmd serve`, a live preview for other editors | engine wave E4 (optional) | to specify |
-| Developer ID signing and notarisation in CI (an API key and the `.p12` as GitHub secrets), a `task release` | [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md) | to do; local signing and notarisation work (0.4.0 DMG accepted) |
+| Signed releases from CI: add the GitHub secrets, then the first tagged release | [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md#signing-in-ci-once) | workflow ready; needs the secrets (owner) |
 | Mac App Store build: wire the plugin gate, folder bookmarks, CLI refusal; `Assets.car` | [specs/packaging/appstore](specs/packaging/appstore/spec.md) | in progress; needs full Xcode and owner decisions |
 | A second app on the engine (language learning: speech, glosses, flashcards) | [docs/ENGINE.md](docs/ENGINE.md) | idea |
 | More plugins and layouts | [docs/possible-plugins.md](docs/possible-plugins.md), [docs/possible-layouts.md](docs/possible-layouts.md) | ideas |
