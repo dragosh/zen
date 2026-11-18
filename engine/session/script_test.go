@@ -207,9 +207,8 @@ func TestEditingAScriptPluginAsksAgain(t *testing.T) {
 				t.Fatalf("an edited script ran: %s", pg.HTML)
 			}
 			waitFor(t, "status undecided", func() bool { return infoOf(t, z, id).Status == "undecided" })
-			if !hasEvent(ev, EventPluginsChanged) {
-				t.Error("no plugins:changed after the edit")
-			}
+			// The status is checked live; the event comes from the watcher's reload, a moment later.
+			waitFor(t, "plugins:changed after the edit", func() bool { return hasEvent(ev, EventPluginsChanged) })
 			if pg, _ := z.Page("README.md"); strings.Contains(pg.HTML, "EVIL") || !hasWarning(pg, `plugin "`+id+`" is not allowed (Settings › Plugins)`) {
 				t.Errorf("after reload: %v %s", pg.Warnings, pg.HTML)
 			}
