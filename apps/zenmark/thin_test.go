@@ -13,7 +13,7 @@ import (
 // Each one must be a one-line delegation: a single statement that calls a
 // method of the session (z.s) and returns its result.
 var delegating = []string{
-	"Page", "Source", "Preview", "Save", "Lint", "CancelOpen", "CreatePage",
+	"Page", "PageInfo", "Source", "Preview", "Save", "Lint", "CancelOpen", "CreatePage",
 	"Plugins", "PluginTrust", "PluginStorageGet", "PluginStorageSet", "PluginStorageKeys",
 	"PluginInvoke", "PluginStream", "PluginCancel",
 	"Layouts", "LayoutTrust", "LayoutStorageGet", "LayoutStorageSet", "LayoutStorageKeys",
