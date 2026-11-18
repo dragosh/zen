@@ -17,6 +17,7 @@ import (
 // Kind is the kind of change: "changed", "created" or "removed".
 type Kind string
 
+// The kinds of change.
 const (
 	Changed Kind = "changed"
 	Created Kind = "created"

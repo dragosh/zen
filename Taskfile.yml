@@ -12,6 +12,8 @@ vars:
     sh: cat "{{.ROOT_DIR}}/VERSION"
   # Linker flag that stamps the version into every `go build`.
   VERSION_LDFLAGS: '-X github.com/dragosh/zenmd/internal/cli.Version={{.VERSION}}'
+  # Pinned in .github/workflows/ci.yml too.
+  APIDIFF_VERSION: 'v0.0.0-20250106191152-7588d65b2ba8'
   SEMVER_RE: '^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*)(\.(0|[1-9][0-9]*|[0-9]*[a-zA-Z-][0-9a-zA-Z-]*))*)?(\+[0-9a-zA-Z-]+(\.[0-9a-zA-Z-]+)*)?$'
 
 includes:
@@ -73,6 +75,30 @@ tasks:
     cmds:
       - npx tsc
       - npm test
+
+  api:check:
+    summary: Lists incompatible changes to the public Go API (engine/..., builtins/...) since the latest v* tag; skips when apidiff is not installed
+    cmds:
+      - |
+        if ! command -v apidiff >/dev/null 2>&1; then
+          echo "apidiff is not installed, skipping. Install it with:"
+          echo "  go install golang.org/x/exp/cmd/apidiff@{{.APIDIFF_VERSION}}"
+          exit 0
+        fi
+        tag=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
+        if [ -z "$tag" ]; then
+          echo "no v* tag yet: nothing to compare against"
+          exit 0
+        fi
+        tmp=$(mktemp -d)
+        trap 'git worktree remove --force "$tmp/base" 2>/dev/null; rm -rf "$tmp"' EXIT
+        git worktree add --detach "$tmp/base" "$tag" >/dev/null
+        (cd "$tmp/base" && apidiff -m -w "$tmp/base.api" github.com/dragosh/zenmd)
+        apidiff -m -incompatible "$tmp/base.api" github.com/dragosh/zenmd | tee "$tmp/out"
+        if [ -s "$tmp/out" ]; then
+          echo "incompatible API changes since $tag: say why with 'api-break: <reason>' in the commit message or PR body"
+          exit 1
+        fi
 
   install:
     summary: Builds zenmd and links it (and the zen alias, until 0.4.0) into ~/.local/bin (override with INSTALL_DIR) so `zenmd` works from any directory

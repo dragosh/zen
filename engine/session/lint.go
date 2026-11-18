@@ -27,6 +27,7 @@ type LintAlert struct {
 	Link        string `json:"link"`
 }
 
+// LintResult is what Lint returns: whether the linter is available and its alerts.
 type LintResult struct {
 	Available bool        `json:"available"`
 	Alerts    []LintAlert `json:"alerts"`

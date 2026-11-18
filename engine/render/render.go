@@ -2,6 +2,13 @@
 // reader shows, running the plugin pipeline described in docs/PLAN.md:
 // frontmatter, source hooks, parse, block/inline hooks, links, HTML hooks,
 // sanitise. Sanitising is last and unconditional.
+//
+// A program that calls render directly instead of going through
+// engine/session must keep that guarantee: show only the HTML Render
+// returns, never the markdown or a plugin's output on its own, and never
+// disable or reorder the sanitising step. session also decides which of a
+// folder's own plugins and layouts may run; a bare Renderer trusts the
+// registry it is given.
 package render
 
 import (

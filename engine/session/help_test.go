@@ -16,14 +16,14 @@ import (
 	"github.com/dragosh/zenmd/engine/render"
 )
 
-func builtins() []plugins.Plugin {
+func builtinPlugins() []plugins.Plugin {
 	return []plugins.Plugin{codeblock.New(), diagram.New(), check.New(), quiz.New(), sandbox.New()}
 }
 
 // Every built-in plugin documents itself: a summary and snippets that
 // render without warnings through the real pipeline with the plugin on.
 func TestBuiltinHelp(t *testing.T) {
-	for _, p := range builtins() {
+	for _, p := range builtinPlugins() {
 		m := p.Manifest()
 		t.Run(m.ID, func(t *testing.T) {
 			if strings.TrimSpace(m.Help.Summary) == "" {
@@ -36,7 +36,7 @@ func TestBuiltinHelp(t *testing.T) {
 				t.Fatal(err)
 			}
 			reg := plugins.NewRegistry()
-			for _, q := range builtins() {
+			for _, q := range builtinPlugins() {
 				if err := reg.Register(q); err != nil {
 					t.Fatal(err)
 				}
@@ -71,7 +71,7 @@ func TestBuiltinHelp(t *testing.T) {
 func TestPluginsHelpAndAdds(t *testing.T) {
 	demo := filepath.Join("..", "..", "examples", "demo")
 	reg := plugins.NewRegistry()
-	for _, p := range builtins() {
+	for _, p := range builtinPlugins() {
 		if err := reg.Register(p); err != nil {
 			t.Fatal(err)
 		}

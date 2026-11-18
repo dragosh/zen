@@ -9,6 +9,7 @@ import (
 // Kind is the type of a question.
 type Kind string
 
+// The kinds of question.
 const (
 	Single Kind = "single" // one right option: - ( ) / - (x)
 	Multi  Kind = "multi"  // several right options: - [ ] / - [x]

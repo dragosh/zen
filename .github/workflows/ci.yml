@@ -36,3 +36,37 @@ jobs:
         with:
           name: zen-macos
           path: bin/*.dmg
+
+  # Public Go API (engine/..., builtins/...): fail on an incompatible change
+  # since the latest v* tag unless a commit message or the PR body says
+  # "api-break: <reason>". Before the first tag it only reports.
+  api:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go install golang.org/x/exp/cmd/apidiff@v0.0.0-20250106191152-7588d65b2ba8
+      - name: apidiff
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          tag=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)
+          if [ -z "$tag" ]; then
+            echo "No v* tag yet: nothing to compare against (reporting only)."
+            exit 0
+          fi
+          git worktree add --detach ../base "$tag"
+          (cd ../base && apidiff -m -w "$RUNNER_TEMP/base.api" github.com/dragosh/zenmd)
+          apidiff -m -incompatible "$RUNNER_TEMP/base.api" github.com/dragosh/zenmd | tee "$RUNNER_TEMP/api.out"
+          [ -s "$RUNNER_TEMP/api.out" ] || exit 0
+          range="$tag..HEAD"
+          if printf '%s\n' "$PR_BODY" | grep -q 'api-break:' || git log --format=%B "$range" | grep -q 'api-break:'; then
+            echo "Incompatible API changes, declared with api-break:."
+            exit 0
+          fi
+          echo "::error::Incompatible API changes since $tag. Say why with 'api-break: <reason>' in a commit message or the PR body."
+          exit 1

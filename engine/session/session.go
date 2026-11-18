@@ -11,13 +11,7 @@ import (
 	"sync"
 	"time"
 
-	builtinlayouts "github.com/dragosh/zenmd/builtins/layouts"
-	"github.com/dragosh/zenmd/builtins/plugins/check"
-	"github.com/dragosh/zenmd/builtins/plugins/codeblock"
-	"github.com/dragosh/zenmd/builtins/plugins/diagram"
-	"github.com/dragosh/zenmd/builtins/plugins/quiz"
-	"github.com/dragosh/zenmd/builtins/plugins/sandbox"
-	sitepresets "github.com/dragosh/zenmd/builtins/sitetemplates"
+	"github.com/dragosh/zenmd/builtins"
 	"github.com/dragosh/zenmd/engine/config"
 	"github.com/dragosh/zenmd/engine/extplugins"
 	"github.com/dragosh/zenmd/engine/index"
@@ -70,6 +64,7 @@ type NavNode struct {
 	Children []NavNode `json:"children"`
 }
 
+// Workspace is the open folder: its name, home page and sidebar tree.
 type Workspace struct {
 	Root string    `json:"root"`
 	Name string    `json:"name"`
@@ -77,11 +72,13 @@ type Workspace struct {
 	Tree []NavNode `json:"tree"`
 }
 
+// Crumb is one step of a page's breadcrumb.
 type Crumb struct {
 	Title string `json:"title"`
 	Path  string `json:"path"`
 }
 
+// PageAssets are the stylesheets and scripts a page loads, as URLs.
 type PageAssets struct {
 	CSS []string `json:"css"`
 	JS  []string `json:"js"`
@@ -94,6 +91,7 @@ type PageLayout struct {
 	Source string `json:"source"` // builtin | folder | user
 }
 
+// Page is a rendered page: its HTML, frontmatter, layout, breadcrumb, assets and warnings.
 type Page struct {
 	Layout      PageLayout     `json:"layout"`
 	Path        string         `json:"path"`
@@ -105,6 +103,8 @@ type Page struct {
 	Warnings    []string       `json:"warnings"`
 }
 
+// Startup is what an app shows first: the workspace, the page, the mode and,
+// when the folder given at launch did not open, why.
 type Startup struct {
 	Workspace *Workspace `json:"workspace"`
 	Page      string     `json:"page"`
@@ -207,11 +207,11 @@ func New(o Options) *Session {
 	}
 	lbase := o.Layouts
 	if lbase == nil {
-		lbase = builtinlayouts.Registry(version)
+		lbase = builtins.Layouts(version)
 	}
 	presets := o.Presets
 	if presets == nil {
-		presets = sitepresets.FS
+		presets = builtins.SiteTemplates()
 	}
 	life, stop := context.WithCancel(context.Background())
 	s := &Session{
@@ -228,17 +228,9 @@ func New(o Options) *Session {
 	return s
 }
 
-// DefaultPlugins is the built-in plugin set, in order: codeblock, diagram,
-// check, quiz, sandbox.
-func DefaultPlugins() *plugins.Registry {
-	r := plugins.NewRegistry()
-	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New(), check.New(), quiz.New(), sandbox.New()} {
-		if err := r.Register(p); err != nil {
-			panic(err) // the built-ins are fixed: a clash is a programming error
-		}
-	}
-	return r
-}
+// DefaultPlugins is the built-in plugin set (builtins.Plugins), in order:
+// codeblock, diagram, check, quiz, sandbox.
+func DefaultPlugins() *plugins.Registry { return builtins.Plugins() }
 
 // Close stops the watcher, every plugin call, the streams and the script
 // helpers. The session is not used afterwards.

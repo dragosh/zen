@@ -93,13 +93,13 @@ func (r *Registry) Plugins() []Plugin {
 // warning. Names owned by a registered plugin are never reported as denied.
 func (r *Registry) Deny(m Manifest) { r.denied = append(r.denied, m) }
 
-// Register validates p's manifest and adds the plugin. Nothing is stored
-// when an error is returned.
 // Reserved ids are switches under `plugins:` handled by the app rather than
 // the render pipeline (e.g. `lint` for the Vale linter). They never produce
 // an "unknown plugin" warning and cannot be registered.
 var Reserved = map[string]bool{"lint": true}
 
+// Register validates p's manifest and adds the plugin. Nothing is stored
+// when an error is returned.
 func (r *Registry) Register(p Plugin) error {
 	if p == nil {
 		return errors.New("plugins: cannot register a nil plugin")

@@ -3,6 +3,12 @@
 // frontend is scripts and styles served to the page. See docs/PLUGINS.md,
 // "Writing your own plugin". Nothing here runs a plugin before the app has
 // asked the user (see Trust).
+//
+// A program that uses this package directly instead of going through
+// engine/session must keep that rule: ask through its own prompt before it
+// records a decision in the trust store, treat an undecided folder as not
+// allowed, and never write the store without the user's answer. session does
+// this with a Prompter, and a nil Prompter never allows.
 package extplugins
 
 import (

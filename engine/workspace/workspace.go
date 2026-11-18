@@ -47,6 +47,7 @@ type TooManyFilesError struct {
 	Limit    int
 }
 
+// Error says which limit was hit.
 func (e *TooManyFilesError) Error() string {
 	if e.Markdown {
 		return fmt.Sprintf("this folder has more than %d markdown files; open a smaller folder", e.Limit)
@@ -54,6 +55,7 @@ func (e *TooManyFilesError) Error() string {
 	return fmt.Sprintf("this folder is too large to open (more than %d files and folders); open a smaller folder", e.Limit)
 }
 
+// Is reports whether target is ErrTooManyFiles.
 func (e *TooManyFilesError) Is(target error) bool { return target == ErrTooManyFiles }
 
 // maxFileSize is the largest file Read returns.

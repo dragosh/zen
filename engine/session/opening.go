@@ -39,6 +39,7 @@ type OpenTimeoutError struct {
 	Timeout time.Duration
 }
 
+// Error describes the timeout and how to raise it.
 func (e *OpenTimeoutError) Error() string {
 	return fmt.Sprintf("Opening %s took longer than %s. Open a smaller folder, or raise limits.openTimeout (seconds) in config.yml.",
 		e.Name, e.Timeout.Round(time.Second))

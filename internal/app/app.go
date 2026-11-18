@@ -11,8 +11,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/dragosh/zenmd/builtins"
 	"github.com/dragosh/zenmd/engine/config"
-	"github.com/dragosh/zenmd/engine/session"
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/wailsapp/wails/v3/pkg/events"
 )
@@ -125,7 +125,7 @@ func launchArg(path string, args []string) bool {
 
 // Run starts the GUI and blocks until the application exits.
 func Run(opts Options) error {
-	reg := session.DefaultPlugins()
+	reg := builtins.Plugins()
 	globalPath, _ := config.GlobalPath()
 	configDir := ""
 	if globalPath != "" {
