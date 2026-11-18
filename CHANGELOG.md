@@ -18,6 +18,8 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ### Changed
 
+- The app is now **Zenmark** (zenmark.org): window titles, menus, About, the welcome screen, the DMG art and Info.plist; the bundle is `Zenmark.app` with the bundle id `org.zenmark.app`; the app's code lives in `apps/zenmark`. The engine and the `zenmd` command keep their names. The repository moved to `github.com/zenmark-org/zenmd`, and the Go module path follows. After updating: delete the old `/Applications/Zen.app`, install `Zenmark.app`, and run `task install` (or `task install:cli`); the app's saved theme and panel layout reset once (new bundle id).
+
 - Engine: `kit/desktop` (Go) and `kit/ui` (`@zenmd/kit`) hold the shared desktop shell; zen.md lives in `apps/zenmd-app`. No visible change. Run `task install` again after updating.
 - README: quick start, everyday commands, the `zenmd` command, documentation links and the remaining work.
 

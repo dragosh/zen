@@ -1,17 +1,17 @@
-# ⊹╰(⌣ʟ⌣)╯⊹ ☯ zen.md
+# ⊹╰(⌣ʟ⌣)╯⊹ ☯ Zenmark
 
 [![ci](https://github.com/zenmark-org/zenmd/actions/workflows/ci.yml/badge.svg)](https://github.com/zenmark-org/zenmd/actions/workflows/ci.yml)
 
-**zen.md** is a desktop markdown reader and editor for folders of markdown:
+**Zenmark** is a desktop markdown reader and editor for folders of markdown:
 the sidebar is built from your links, pages render with plugins and layouts,
 and a folder can become a website, a printed document or a course. macOS first,
 built on [Wails v3](https://v3.wails.io).
 
 Underneath is **zenmd**, the engine (format, rendering, plugins, layouts, build,
-print, templates), with the command line tool `zenmd`. zen.md is the first app
+print, templates), with the command line tool `zenmd`. Zenmark is the first app
 built on it ([docs/ENGINE.md](docs/ENGINE.md)).
 
-Status: alpha (`0.1.0-alpha.1`, see [CHANGELOG.md](CHANGELOG.md)).
+Website: [zenmark.org](https://zenmark.org) · Code: [github.com/zenmark-org/zenmd](https://github.com/zenmark-org/zenmd) · Status: alpha (`0.1.0-alpha.1`, see [CHANGELOG.md](CHANGELOG.md)).
 
 ## Quick start
 
@@ -32,13 +32,13 @@ zenmd examples/demo   # open the user guide, which shows every feature
 To get the app bundle:
 
 ```sh
-task package                                # bin/Zen.app (downloads the pinned Vale once, checksum-checked)
-ditto bin/Zen.app /Applications/Zen.app
+task package                                # bin/Zenmark.app (downloads the pinned Vale once, checksum-checked)
+ditto bin/Zenmark.app /Applications/Zenmark.app
 INSTALL_DIR=~/.local/bin task install:cli   # point zenmd at the installed app instead
 ```
 
 The build is not signed with a Developer ID yet, so macOS says it "could not
-verify" Zen.app when it comes from a download. Open it once with right-click →
+verify" Zenmark.app when it comes from a download. Open it once with right-click →
 Open, or from System Settings → Privacy & Security → Open Anyway. Signing and
 notarisation are planned (see [Remaining work](#remaining-work)).
 
@@ -49,10 +49,10 @@ notarisation are planned (see [Remaining work](#remaining-work)).
 | `task build` | Build the frontend, the runtime and `bin/zenmd` |
 | `task dev` | Run the app with live reload |
 | `task test` | Go and frontend tests (what CI runs) |
-| `task package` | `bin/Zen.app` (Developer ID channel, ad-hoc signed) |
+| `task package` | `bin/Zenmark.app` (Developer ID channel, ad-hoc signed) |
 | `task package:appstore` | The sandboxed Mac App Store build (needs Xcode and an Apple account) |
 | `task install` / `task uninstall` | Link `zenmd` to the development build in `~/.local/bin` |
-| `task install:cli` | Link `zenmd` to an installed `Zen.app` |
+| `task install:cli` | Link `zenmd` to an installed `Zenmark.app` |
 | `task api:check` | Check the engine's Go API against the last tag (`apidiff`) |
 | `task version` | Print the version |
 
@@ -71,7 +71,7 @@ zenmd version
 ```
 engine/ builtins/ runtime/   zenmd: the engine, its built-in plugins/layouts/templates, the browser runtime (@zenmd/runtime)
 kit/desktop  kit/ui          the shared desktop shell: Go (windows, dialogs, print, Run) and TypeScript (@zenmd/kit)
-apps/zenmd-app               zen.md itself: menu, the Zen service, its dialogs, and its frontend
+apps/zenmark               Zenmark itself: menu, the Zen service, its dialogs, and its frontend
 build/                       packaging (macOS, Wails)
 main.go                      the zenmd binary
 examples/demo                the user guide

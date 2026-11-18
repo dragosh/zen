@@ -1,7 +1,7 @@
 // The Api over the generated Wails bindings (app/services). Loaded by
 // getApi() only inside the Wails webview.
 import { Events, Window } from "@wailsio/runtime";
-import { Zen } from "../../bindings/github.com/zenmark-org/zenmd/apps/zenmd-app/index.js";
+import { Zen } from "../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/index.js";
 import type { Alert, Api, BuildOptions, Crumb, LayoutField, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
 
 type Raw = Record<string, any> | null | undefined;
@@ -129,7 +129,7 @@ async function call<T>(p: PromiseLike<T>): Promise<T> {
 }
 
 /**
- * This window's name as Go knows it (apps/zenmd-app/windows.go): "main", or
+ * This window's name as Go knows it (apps/zenmark/windows.go): "main", or
  * "editor:<path>" for an editor window (shell windowKind reads the same URL).
  */
 function ownWindowName(): string {

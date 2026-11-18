@@ -33,8 +33,8 @@ func noPath(string) (string, error) { return "", errors.New("not found") }
 func TestFind(t *testing.T) {
 	dir := t.TempDir()
 
-	// Bundle: Zen.app/Contents/MacOS/zenmd next to Contents/Helpers/vale.
-	app := filepath.Join(dir, "Zen.app", "Contents")
+	// Bundle: Zenmark.app/Contents/MacOS/zenmd next to Contents/Helpers/vale.
+	app := filepath.Join(dir, "Zenmark.app", "Contents")
 	appExe := exe(t, filepath.Join(app, "MacOS", "zen"), "")
 	bundled := exe(t, filepath.Join(app, "Helpers", "vale"), "")
 

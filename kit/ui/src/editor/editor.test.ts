@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createFakeApi, type FakeApi } from "../../../../apps/zenmd-app/frontend/src/api/fake";
+import { createFakeApi, type FakeApi } from "../../../../apps/zenmark/frontend/src/api/fake";
 import { createStore } from "../shell/store";
 import type { Ctx, Slots, Store } from "../shell/types";
 import { editorFeature } from "./index";
@@ -18,7 +18,7 @@ async function setup(path = "README.md"): Promise<Setup> {
     actions: document.createElement("div"), main: document.createElement("main"),
   };
   document.body.append(slots.actions, slots.main);
-  const ctx: Ctx = { api, store, brand: "zen.md", navigate: (p) => store.set({ path: p, anchor: "" }) };
+  const ctx: Ctx = { api, store, brand: "Zenmark", navigate: (p) => store.set({ path: p, anchor: "" }) };
   const unmount = editorFeature.mount(slots, ctx);
   await tick();
   const ta = slots.main.querySelector("textarea")!;
@@ -389,7 +389,7 @@ describe("editor: lint", () => {
       actions: document.createElement("div"), main: document.createElement("main"),
     };
     document.body.append(slots.actions, slots.main);
-    const ctx: Ctx = { api, store, brand: "zen.md", navigate: () => {} };
+    const ctx: Ctx = { api, store, brand: "Zenmark", navigate: () => {} };
     const unmount = editorFeature.mount(slots, ctx);
     for (let i = 0; i < 5; i++) await tick();
     const ta = slots.main.querySelector("textarea")!;
@@ -477,7 +477,7 @@ describe("editor: lint", () => {
       actions: document.createElement("div"), main: document.createElement("main"),
     };
     document.body.append(slots.actions, slots.main);
-    const unmount = editorFeature.mount(slots, { api, store, brand: "zen.md", navigate: () => {} });
+    const unmount = editorFeature.mount(slots, { api, store, brand: "Zenmark", navigate: () => {} });
     for (let i = 0; i < 5; i++) await tick();
     s = { api, store, slots, ta: slots.main.querySelector("textarea")!, unmount };
     expect(s.slots.main.querySelector<HTMLElement>(".zen-lint-console")!.hidden).toBe(true);
@@ -497,7 +497,7 @@ describe("editor: settings files", () => {
       actions: document.createElement("div"), main: document.createElement("main"),
     };
     document.body.append(slots.actions, slots.main);
-    const unmount = editorFeature.mount(slots, { api, store, brand: "zen.md", navigate: () => {} });
+    const unmount = editorFeature.mount(slots, { api, store, brand: "Zenmark", navigate: () => {} });
     for (let i = 0; i < 5; i++) await tick();
     const ta = slots.main.querySelector("textarea")!;
     s = { api, store, slots, ta, unmount };

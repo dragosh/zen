@@ -5,17 +5,17 @@ nav:
 ---
 # Install zen
 
-zen.md is one application, `Zen.app`, with the `zenmd` command inside it.
+Zenmark is one application, `Zenmark.app`, with the `zenmd` command inside it.
 
 ## From the source
 
 ```sh
 git clone https://github.com/zenmark-org/zenmd
 cd zenmd
-task package          # builds bin/Zen.app (downloads Vale once)
+task package          # builds bin/Zenmark.app (downloads Vale once)
 ```
 
-Drag `bin/Zen.app` into `/Applications`.
+Drag `bin/Zenmark.app` into `/Applications`.
 
 ## The `zenmd` command
 

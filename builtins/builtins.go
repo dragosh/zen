@@ -3,7 +3,7 @@
 //
 // The sub-packages hold the pieces (plugins/codeblock, plugins/diagram,
 // plugins/check, plugins/quiz, plugins/sandbox, layouts and sitetemplates);
-// this package assembles them, so there is one list that the zen.md app, the
+// this package assembles them, so there is one list that the Zenmark app, the
 // zenmd command and an embedding program all use:
 //
 //	reg := builtins.Plugins()

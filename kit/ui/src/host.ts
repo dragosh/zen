@@ -1,5 +1,5 @@
 // What the kit needs from an app: the data types of a folder session and the
-// host interface the shared UI calls. An app's own Api (apps/zenmd-app/frontend/src/api)
+// host interface the shared UI calls. An app's own Api (apps/zenmark/frontend/src/api)
 // extends KitHost with its own methods; the kit imports nothing from an app.
 import type { PluginStreamEvent, RuntimeHost } from "@zenmd/runtime";
 

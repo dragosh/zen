@@ -1,4 +1,4 @@
-// What the runtime needs from its host: the app's service API (apps/zenmd-app/frontend/src/api, whose `Api` extends this)
+// What the runtime needs from its host: the app's service API (apps/zenmark/frontend/src/api, whose `Api` extends this)
 // or the storage of a built site (static/static.ts). The runtime imports nothing from the app.
 
 /** One piece of a plugin stream (core/plugin-extras): a chunk, or the end (`done`, with `error` "" on success). */

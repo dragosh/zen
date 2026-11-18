@@ -411,7 +411,7 @@ func TestInitExitCodes(t *testing.T) {
 
 func TestUsageNamesZenmd(t *testing.T) {
 	r := run(t, t.TempDir(), nil, "help")
-	if !strings.HasPrefix(r.stdout, "zenmd - the zen.md engine: markdown folders as pages, sites and print\n") {
+	if !strings.HasPrefix(r.stdout, "zenmd - the Zenmark engine: markdown folders as pages, sites and print\n") {
 		t.Fatalf("usage starts with %q", strings.SplitN(r.stdout, "\n", 2)[0])
 	}
 	for _, line := range strings.Split(r.stdout, "\n") {
@@ -437,7 +437,7 @@ func TestProgramName(t *testing.T) {
 		"ZEN":                    "zen",
 		"/tmp/go-build123/exe/x": "zenmd", // go run .
 		"":                       "zenmd",
-		"/Applications/Zen.app/Contents/MacOS/zenmd": "zenmd",
+		"/Applications/Zenmark.app/Contents/MacOS/zenmd": "zenmd",
 	} {
 		if got := ProgramName(argv0); got != want {
 			t.Errorf("ProgramName(%q) = %q, want %q", argv0, got, want)

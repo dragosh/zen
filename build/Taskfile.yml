@@ -17,7 +17,7 @@ tasks:
       - task: install:frontend:deps:{{.PACKAGE_MANAGER}}
 
   install:frontend:deps:npm:
-    dir: apps/zenmd-app/frontend
+    dir: apps/zenmark/frontend
     sources:
       - package.json
       - package-lock.json
@@ -30,7 +30,7 @@ tasks:
       - npm install
 
   install:frontend:deps:bun:
-    dir: apps/zenmd-app/frontend
+    dir: apps/zenmark/frontend
     sources:
       - package.json
       - bun.lock
@@ -44,7 +44,7 @@ tasks:
       - bun install
 
   install:frontend:deps:pnpm:
-    dir: apps/zenmd-app/frontend
+    dir: apps/zenmark/frontend
     sources:
       - package.json
       - pnpm-lock.yaml
@@ -57,7 +57,7 @@ tasks:
       - pnpm install
 
   install:frontend:deps:yarn:
-    dir: apps/zenmd-app/frontend
+    dir: apps/zenmark/frontend
     sources:
       - package.json
       - yarn.lock
@@ -78,7 +78,7 @@ tasks:
     # other's bundler is reading it, failing intermittently with
     # 'Could not resolve "./bindings/<pkg>"' (#4637).
     run: once
-    dir: apps/zenmd-app/frontend
+    dir: apps/zenmark/frontend
     # `npm run build` builds the browser runtime (../runtime, embedded by the
     # Go package runtime) before the app bundle, so Go builds find runtime/dist.
     sources:
@@ -115,28 +115,28 @@ tasks:
       SCRIPT: "{{.SCRIPT}}"
 
   frontend:run:npm:
-    dir: apps/zenmd-app/frontend
+    dir: apps/zenmark/frontend
     cmds:
       - npm run {{.SCRIPT}} -q
     vars:
       SCRIPT: "{{.SCRIPT}}"
 
   frontend:run:yarn:
-    dir: apps/zenmd-app/frontend
+    dir: apps/zenmark/frontend
     cmds:
       - yarn {{.SCRIPT}}
     vars:
       SCRIPT: "{{.SCRIPT}}"
 
   frontend:run:pnpm:
-    dir: apps/zenmd-app/frontend
+    dir: apps/zenmark/frontend
     cmds:
       - pnpm run {{.SCRIPT}}
     vars:
       SCRIPT: "{{.SCRIPT}}"
 
   frontend:run:bun:
-    dir: apps/zenmd-app/frontend
+    dir: apps/zenmark/frontend
     cmds:
       - bun run {{.SCRIPT}}
     vars:
@@ -145,27 +145,27 @@ tasks:
   frontend:vendor:puppertino:
     summary: Fetches Puppertino CSS into frontend/public for consistent mobile styling
     sources:
-      - apps/zenmd-app/frontend/public/puppertino/puppertino.css
+      - apps/zenmark/frontend/public/puppertino/puppertino.css
     generates:
-      - apps/zenmd-app/frontend/public/puppertino/puppertino.css
+      - apps/zenmark/frontend/public/puppertino/puppertino.css
     cmds:
       - |
         set -euo pipefail
-        mkdir -p apps/zenmd-app/frontend/public/puppertino
+        mkdir -p apps/zenmark/frontend/public/puppertino
         # If bundled Puppertino exists, prefer it. Otherwise, try to fetch, but don't fail build on error.
-        if [ ! -f apps/zenmd-app/frontend/public/puppertino/puppertino.css ]; then
+        if [ ! -f apps/zenmark/frontend/public/puppertino/puppertino.css ]; then
           echo "No bundled Puppertino found. Attempting to fetch from GitHub..."
-          if curl -fsSL https://raw.githubusercontent.com/codedgar/Puppertino/main/dist/css/full.css -o apps/zenmd-app/frontend/public/puppertino/puppertino.css; then
-            curl -fsSL https://raw.githubusercontent.com/codedgar/Puppertino/main/LICENSE -o apps/zenmd-app/frontend/public/puppertino/LICENSE || true
-            echo "Puppertino CSS downloaded to apps/zenmd-app/frontend/public/puppertino/puppertino.css"
+          if curl -fsSL https://raw.githubusercontent.com/codedgar/Puppertino/main/dist/css/full.css -o apps/zenmark/frontend/public/puppertino/puppertino.css; then
+            curl -fsSL https://raw.githubusercontent.com/codedgar/Puppertino/main/LICENSE -o apps/zenmark/frontend/public/puppertino/LICENSE || true
+            echo "Puppertino CSS downloaded to apps/zenmark/frontend/public/puppertino/puppertino.css"
           else
             echo "Warning: Could not fetch Puppertino CSS. Proceeding without download since template may bundle it."
           fi
         else
-          echo "Using bundled Puppertino at apps/zenmd-app/frontend/public/puppertino/puppertino.css"
+          echo "Using bundled Puppertino at apps/zenmark/frontend/public/puppertino/puppertino.css"
         fi
         # Ensure index.html includes Puppertino CSS and button classes
-        INDEX_HTML=apps/zenmd-app/frontend/index.html
+        INDEX_HTML=apps/zenmark/frontend/index.html
         if [ -f "$INDEX_HTML" ]; then
           if ! grep -q 'href="/puppertino/puppertino.css"' "$INDEX_HTML"; then
             # Insert Puppertino link tag after style.css link
@@ -186,15 +186,15 @@ tasks:
       - task: go:mod:tidy
     sources:
       - "**/*.[jt]s"
-      - exclude: apps/zenmd-app/frontend/**/*
-      - apps/zenmd-app/frontend/bindings/**/*  # Rerun when switching between dev/production mode causes changes in output
+      - exclude: apps/zenmark/frontend/**/*
+      - apps/zenmark/frontend/bindings/**/*  # Rerun when switching between dev/production mode causes changes in output
       - "**/*.go"
       - go.mod
       - go.sum
     generates:
-      - apps/zenmd-app/frontend/bindings/**/*
+      - apps/zenmark/frontend/bindings/**/*
     cmds:
-      - wails3 generate bindings -f '{{.BUILD_FLAGS}}' -d apps/zenmd-app/frontend/bindings -clean=true{{if eq .OBFUSCATED "true"}} -obfuscated{{end}} -ts -i ./apps/zenmd-app
+      - wails3 generate bindings -f '{{.BUILD_FLAGS}}' -d apps/zenmark/frontend/bindings -clean=true{{if eq .OBFUSCATED "true"}} -obfuscated{{end}} -ts -i ./apps/zenmark
 
   generate:icons:
     summary: Generates Mac `.icns` from an image; on macOS, `-iconcomposerinput appicon.icon -macassetdir darwin` also produces `Assets.car` from a `.icon` file (skipped on other platforms).
@@ -216,22 +216,22 @@ tasks:
       - task: frontend:dev:{{.PACKAGE_MANAGER}}
 
   frontend:dev:npm:
-    dir: apps/zenmd-app/frontend
+    dir: apps/zenmark/frontend
     cmds:
       - npm run dev -- --port {{.VITE_PORT}} --strictPort
 
   frontend:dev:yarn:
-    dir: apps/zenmd-app/frontend
+    dir: apps/zenmark/frontend
     cmds:
       - yarn dev --port {{.VITE_PORT}} --strictPort
 
   frontend:dev:pnpm:
-    dir: apps/zenmd-app/frontend
+    dir: apps/zenmark/frontend
     cmds:
       - pnpm dev --port {{.VITE_PORT}} --strictPort
 
   frontend:dev:bun:
-    dir: apps/zenmd-app/frontend
+    dir: apps/zenmark/frontend
     cmds:
       - bun run dev --port {{.VITE_PORT}} --strictPort
 

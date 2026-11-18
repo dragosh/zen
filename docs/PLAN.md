@@ -5,7 +5,7 @@ Companion documents: [UI.md](UI.md) (views, tokens, mockup), [PLUGINS.md](PLUGIN
 (plugin API and syntax), [VERSIONING.md](VERSIONING.md), [../specs/README.md](../specs/README.md)
 (feature list, waves, rules for feature agents).
 
-`Zen.app` is a desktop markdown reader and editor for **folders** of markdown.
+`Zenmark.app` is a desktop markdown reader and editor for **folders** of markdown.
 `zen` is the same binary used from a terminal. Wails v3, macOS first.
 
 ## Product, v0.1.0-alpha
@@ -38,7 +38,7 @@ Companion documents: [UI.md](UI.md) (views, tokens, mockup), [PLUGINS.md](PLUGIN
 | Editor | Dependency-free source editor with toolbar, live Go-rendered preview, split view. True WYSIWYG is **open question 1** |
 | Versioning | SemVer, single `VERSION` file, see VERSIONING.md |
 | Sandbox | None in the alpha, so `zen` can open any folder from a terminal. The App Store build (beta) needs a sandboxed app plus an unsandboxed CLI helper; entitlements kept in `build/darwin/*.sandbox.plist` |
-| Distribution | One `Zen.app` bundling the `zen` binary and helper binaries. Bundle ID placeholder `io.github.dragosh.zen` |
+| Distribution | One `Zenmark.app` bundling the `zen` binary and helper binaries. Bundle ID placeholder `org.zenmark.app` |
 
 ## Open questions (need the owner's answer, none block wave 1)
 
@@ -163,6 +163,6 @@ Paths are always workspace-relative with `/` separators. Workspace files
 
 | Version | Content |
 |---|---|
-| `0.1.0-alpha.1` | Waves 1–4: folder workspace, navigation, Go rendering, plugins `highlight` + `diagram`, editor with split view, CLI, unsigned `Zen.app` |
+| `0.1.0-alpha.1` | Waves 1–4: folder workspace, navigation, Go rendering, plugins `highlight` + `diagram`, editor with split view, CLI, unsigned `Zenmark.app` |
 | `0.1.0-beta.1` | Signing, notarisation, "Install command line tool", recent folders, search |
 | `0.2.0` | External WASM plugins, `slides`, `polls`, WYSIWYG decision |

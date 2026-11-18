@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { createFakeApi } from "../../../../apps/zenmd-app/frontend/src/api/fake";
+import { createFakeApi } from "../../../../apps/zenmark/frontend/src/api/fake";
 import type { Page } from "../host";
 import { pageFeature } from "./index";
 import { setup, tick, type Env } from "./helpers.test-util";
@@ -31,7 +31,7 @@ test("loads, mounts, sets title and stores the page", async () => {
   mount();
   await tick();
   expect(article().querySelector("h1")?.textContent).toBe("Sample docs");
-  expect(document.title).toBe("Sample docs — zen.md");
+  expect(document.title).toBe("Sample docs — Zenmark");
   expect(env.ctx.store.get().page?.path).toBe("README.md");
 
   env.ctx.navigate("b.md");

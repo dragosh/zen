@@ -1,4 +1,4 @@
-// The Settings page of zen.md: the kit's frame (kit/ui shell/settings.ts, with Appearance) and
+// The Settings page of Zenmark: the kit's frame (kit/ui shell/settings.ts, with Appearance) and
 // zen's sections: Configuration files (the two config files open in zen's own editor window),
 // Plugins (shell/pluginhelp.ts), Layouts and Website. All text through textContent.
 import { appearanceSection, button, createSettingsFrame, el, type SettingsSection, type SettingsView } from "@zenmd/kit";

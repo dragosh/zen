@@ -5,10 +5,10 @@ version: '3'
 
 info:
   companyName: "zen"
-  productName: "zen.md"
-  bundleId: "io.github.dragosh.zen" # not final: the owner decides (docs/DISTRIBUTION.md)
+  productName: "Zenmark"
+  bundleId: "org.zenmark.app"
   description: "Markdown reader and editor"
-  copyright: "© 2026 zen.md authors" # placeholder until the copyright holder is decided
+  copyright: "© 2026 Zenmark authors" # placeholder until the copyright holder is decided
   category: "public.app-category.productivity"
   comments: "Markdown reader and editor"
   version: "0.1.0"

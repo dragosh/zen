@@ -48,7 +48,7 @@ func newWindowRig(t *testing.T) *windowRig {
 	t.Helper()
 	r := &windowRig{wins: map[string]*fakeWindow{}}
 	r.m = NewWindows(WindowsOptions{
-		Title: "zen.md",
+		Title: "Zenmark",
 		New: func(s WindowSpec) Window {
 			r.specs = append(r.specs, s)
 			w := &fakeWindow{name: s.Name, m: r.m, x: s.X, y: s.Y}
@@ -326,7 +326,7 @@ func TestEditorWindowSpec(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := WindowSpec{
-		Name: "editor:README.md", Title: "Home — Edit — zen.md",
+		Name: "editor:README.md", Title: "Home — Edit — Zenmark",
 		URL:   "/?window=editor&path=README.md",
 		Width: 1000, Height: 720, X: 124, Y: 74,
 	}
@@ -345,7 +345,7 @@ func TestEditorWindowSpec(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := r.specs[1]
-	if got.Name != "editor:docs/a b.md" || got.URL != "/?window=editor&path=docs%2Fa+b.md" || got.Title != "Alpha — Edit — zen.md" || got.X != 148 || got.Y != 98 {
+	if got.Name != "editor:docs/a b.md" || got.URL != "/?window=editor&path=docs%2Fa+b.md" || got.Title != "Alpha — Edit — Zenmark" || got.X != 148 || got.Y != 98 {
 		t.Fatalf("second spec = %+v", got)
 	}
 }

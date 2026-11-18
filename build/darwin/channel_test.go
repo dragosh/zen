@@ -271,7 +271,7 @@ func TestInfoPlist(t *testing.T) {
 	if configValue(t, "bundleId") != bundleID {
 		t.Errorf("bundle id %q changed; the owner has not decided yet", configValue(t, "bundleId"))
 	}
-	if c := configValue(t, "copyright"); c != "© 2026 zen.md authors" {
+	if c := configValue(t, "copyright"); c != "© 2026 Zenmark authors" {
 		t.Errorf("copyright placeholder = %q", c)
 	}
 	if configValue(t, "category") != "public.app-category.productivity" {
@@ -606,7 +606,7 @@ func TestSignatureAppStore(t *testing.T) {
 	requireBundle(t)
 
 	// Re-sign a copy of the built bundle the App Store way, ad hoc.
-	cp := filepath.Join(t.TempDir(), "Zen.app")
+	cp := filepath.Join(t.TempDir(), "Zenmark.app")
 	if out, err := exec.Command("cp", "-R", bundle, cp).CombinedOutput(); err != nil {
 		t.Fatalf("%v\n%s", err, out)
 	}
@@ -648,11 +648,11 @@ func TestSignatureAppStore(t *testing.T) {
 		if _, err := os.Stat(filepath.Join(bundle, "Contents/embedded.provisionprofile")); err != nil {
 			t.Errorf("no embedded provisioning profile: %v", err)
 		}
-		if _, err := os.Stat("../../bin/Zen.pkg"); err != nil {
-			t.Errorf("no bin/Zen.pkg: %v", err)
+		if _, err := os.Stat("../../bin/Zenmark.pkg"); err != nil {
+			t.Errorf("no bin/Zenmark.pkg: %v", err)
 		}
 	} else if channel() == "appstore" {
-		t.Log("ad-hoc App Store build: profile embedding and Zen.pkg need real identities")
+		t.Log("ad-hoc App Store build: profile embedding and Zenmark.pkg need real identities")
 	}
 }
 

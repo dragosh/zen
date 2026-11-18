@@ -15,11 +15,11 @@ import (
 )
 
 func TestBackgroundSVG(t *testing.T) {
-	a, b := backgroundSVG("zen.md"), backgroundSVG("zen.md")
+	a, b := backgroundSVG("Zenmark"), backgroundSVG("Zenmark")
 	if a != b {
 		t.Fatal("backgroundSVG is not deterministic")
 	}
-	if !strings.Contains(a, "Drag zen.md to Applications") {
+	if !strings.Contains(a, "Drag Zenmark to Applications") {
 		t.Error("the DMG background lacks the instruction")
 	}
 	if strings.Contains(strings.ToLower(a), "wails") {
@@ -91,7 +91,7 @@ func TestArt(t *testing.T) {
 	}
 	render := func() string {
 		out := t.TempDir()
-		if err := run(options{svg: "../../appicon.svg", icon: "../../appicon.png", out: out, name: "zen.md"}); err != nil {
+		if err := run(options{svg: "../../appicon.svg", icon: "../../appicon.png", out: out, name: "Zenmark"}); err != nil {
 			t.Fatal(err)
 		}
 		return out

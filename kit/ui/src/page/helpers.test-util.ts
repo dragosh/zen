@@ -1,4 +1,4 @@
-import { createFakeApi, sampleWorkspace, type FakeApi } from "../../../../apps/zenmd-app/frontend/src/api/fake";
+import { createFakeApi, sampleWorkspace, type FakeApi } from "../../../../apps/zenmark/frontend/src/api/fake";
 import { createStore } from "../shell/store";
 import type { Ctx, Slots } from "../shell/types";
 
@@ -8,7 +8,7 @@ export function setup(api: FakeApi = createFakeApi()): Env {
   const store = createStore({ workspace: sampleWorkspace() });
   const navigations: [string, string | undefined][] = [];
   const ctx: Ctx = {
-    api, store, brand: "zen.md",
+    api, store, brand: "Zenmark",
     navigate(path, anchor) {
       navigations.push([path, anchor]);
       store.set({ path, anchor: anchor ?? "" });

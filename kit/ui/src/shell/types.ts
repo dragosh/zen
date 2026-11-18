@@ -13,7 +13,7 @@ export type Store = { get(): AppState; set(p: Partial<AppState>): void; subscrib
 export type Slots = { nav: HTMLElement; breadcrumb: HTMLElement; actions: HTMLElement; main: HTMLElement };
 export type Ctx = {
   api: KitHost; store: Store; navigate(path: string, anchor?: string): void;
-  /** The product's name: the suffix of the window title ("Page — zen.md"). */
+  /** The product's name: the suffix of the window title ("Page — Zenmark"). */
   brand: string;
 };
 export type Feature = { id: "nav" | "page" | "editor"; mount(slots: Slots, ctx: Ctx): () => void }; // returns unmount

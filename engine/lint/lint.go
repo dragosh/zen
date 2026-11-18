@@ -1,4 +1,4 @@
-// Package lint runs the Vale prose linter (bundled in Zen.app as
+// Package lint runs the Vale prose linter (bundled in Zenmark.app as
 // Contents/Helpers/vale) on markdown content and returns its alerts with
 // positions in the original content.
 //
@@ -67,7 +67,7 @@ type Linter struct {
 }
 
 // Find locates vale: Contents/Helpers/vale next to the running executable
-// (Zen.app), else $ZEN_VALE, else build/darwin/helpers/<arch>/vale in the
+// (Zenmark.app), else $ZEN_VALE, else build/darwin/helpers/<arch>/vale in the
 // repository of a dev build (bin/zen), else vale on PATH.
 func Find() (string, error) {
 	exe, err := os.Executable()

@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import { expect, test } from "vitest";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const frontend = resolve(root, "..", "apps", "zenmd-app", "frontend");
+const frontend = resolve(root, "..", "apps", "zenmark", "frontend");
 
 // One build of the runtime: runtime/dist/zen.js is a classic IIFE (no module
 // syntax, loadable by <script src>), next to zen.css; the app build no

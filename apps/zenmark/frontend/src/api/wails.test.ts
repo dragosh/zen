@@ -14,7 +14,7 @@ function binding(name: string) {
   };
 }
 
-vi.mock("../../bindings/github.com/zenmark-org/zenmd/apps/zenmd-app/index.js", () => ({
+vi.mock("../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/index.js", () => ({
   Zen: {
     Startup: binding("Startup"),
     PickFolder: binding("PickFolder"),

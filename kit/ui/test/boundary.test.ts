@@ -55,7 +55,7 @@ test("the runtime does not import the kit", () => {
 });
 
 test("the app imports both the runtime and the kit", () => {
-  const app = join(repo, "apps", "zenmd-app", "frontend", "src");
+  const app = join(repo, "apps", "zenmark", "frontend", "src");
   const all = files(app).flatMap((f) => specifiers(readFileSync(f, "utf8")));
   expect(all.some((s) => s === "@zenmd/kit" || s.startsWith("@zenmd/kit/"))).toBe(true);
   expect(all.some((s) => s.startsWith("@zenmd/runtime"))).toBe(true);

@@ -7,7 +7,7 @@ import (
 	"github.com/zenmark-org/zenmd/internal/cli"
 )
 
-// The built frontend (apps/zenmd-app/frontend, built by `task build`).
+// The built frontend (apps/zenmark/frontend, built by `task build`).
 //
 //go:embed all:frontend/dist
 var dist embed.FS

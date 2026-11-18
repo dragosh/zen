@@ -131,7 +131,7 @@ func TestOpenEditor(t *testing.T) {
 		t.Fatal(err)
 	}
 	want := desktop.WindowSpec{
-		Name: "editor:README.md", Title: "Home — Edit — zen.md",
+		Name: "editor:README.md", Title: "Home — Edit — Zenmark",
 		URL:   "/?window=editor&path=README.md",
 		Width: 1000, Height: 720, X: 124, Y: 74,
 	}
@@ -153,7 +153,7 @@ func TestOpenEditor(t *testing.T) {
 	}
 	got := r.specs[1]
 	if got.Name != "editor:docs/a b.md" || got.URL != "/?window=editor&path=docs%2Fa+b.md" ||
-		z.pageTitle("docs/a b.md") == "" || got.Title != z.pageTitle("docs/a b.md")+" — Edit — zen.md" || got.X != 148 || got.Y != 98 {
+		z.pageTitle("docs/a b.md") == "" || got.Title != z.pageTitle("docs/a b.md")+" — Edit — Zenmark" || got.X != 148 || got.Y != 98 {
 		t.Fatalf("second spec = %+v", got)
 	}
 
@@ -161,7 +161,7 @@ func TestOpenEditor(t *testing.T) {
 	if err := z.OpenEditor("docs/plain.md"); err != nil {
 		t.Fatal(err)
 	}
-	if title := r.specs[2].Title; !strings.HasSuffix(title, " — Edit — zen.md") || title == " — Edit — zen.md" {
+	if title := r.specs[2].Title; !strings.HasSuffix(title, " — Edit — Zenmark") || title == " — Edit — Zenmark" {
 		t.Fatalf("plain title = %q", title)
 	}
 

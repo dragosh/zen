@@ -1,7 +1,7 @@
 // Command resources verifies the helper binaries listed in resources.yml and
 // copies those for one architecture into an app bundle's Contents/Helpers.
 //
-//	go run ./build/darwin/resources -manifest resources.yml -arch arm64 -dest bin/Zen.app/Contents/Helpers [-licenses bin/Zen.app/Contents/Resources/licenses]
+//	go run ./build/darwin/resources -manifest resources.yml -arch arm64 -dest bin/Zenmark.app/Contents/Helpers [-licenses bin/Zenmark.app/Contents/Resources/licenses]
 //	go run ./build/darwin/resources -manifest resources.yml -arch arm64 -fetch
 //	go run ./build/darwin/resources -manifest resources.yml -arch arm64 -validate
 //

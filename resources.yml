@@ -1,4 +1,4 @@
-# Helper binaries bundled into Zen.app/Contents/Helpers (see
+# Helper binaries bundled into Zenmark.app/Contents/Helpers (see
 # specs/packaging/macos/spec.md and specs/core/lint/spec.md). Each entry:
 #
 #   - name: helper-name            # file name inside Contents/Helpers

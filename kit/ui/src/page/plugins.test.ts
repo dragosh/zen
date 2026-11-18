@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { createFakeApi, type FakeApi } from "../../../../apps/zenmd-app/frontend/src/api/fake";
+import { createFakeApi, type FakeApi } from "../../../../apps/zenmark/frontend/src/api/fake";
 import type { PluginCtx } from "@zenmd/runtime/plugins";
 import { mountPage, pageFeature, pageHooks } from "./index";
 import { setup, tick, type Env } from "./helpers.test-util";

@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { afterEach, beforeEach, expect, test } from "vitest";
-import { createFakeApi, type FakeApi } from "../../apps/zenmd-app/frontend/src/api/fake";
+import { createFakeApi, type FakeApi } from "../../apps/zenmark/frontend/src/api/fake";
 import { installRuntime } from "../src/plugins";
 
 // The built-in layouts live in builtins/layouts/ (they were plugins before core/layouts).

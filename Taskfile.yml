@@ -70,7 +70,7 @@ tasks:
 
   test:frontend:
     summary: Type-checks and tests the frontend
-    dir: apps/zenmd-app/frontend
+    dir: apps/zenmark/frontend
     deps:
       - task: common:install:frontend:deps
     cmds:
@@ -174,11 +174,11 @@ tasks:
         echo "$v -> $new"
 
   install:cli:
-    summary: Links the zenmd command (and the zen alias) from the installed Zen.app (INSTALL_DIR, APP_PATH override)
+    summary: Links the zenmd command (and the zen alias) from the installed Zenmark.app (INSTALL_DIR, APP_PATH override)
     cmds:
       - task: "{{.GOOS}}:install:cli"
 
   uninstall:cli:
-    summary: Removes the zenmd and zen links, only when they point into Zen.app (INSTALL_DIR, APP_PATH override)
+    summary: Removes the zenmd and zen links, only when they point into Zenmark.app (INSTALL_DIR, APP_PATH override)
     cmds:
       - task: "{{.GOOS}}:uninstall:cli"

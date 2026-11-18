@@ -8,7 +8,7 @@ import { button, el } from "@zenmd/kit";
 
 export type { BuildOptions, BuildProgress, BuildResult, BuildWarning } from "../api";
 
-/** The services behind the dialog (apps/zenmd-app/buildui.go); `on` is the event side of the api. */
+/** The services behind the dialog (apps/zenmark/buildui.go); `on` is the event side of the api. */
 export interface BuildApi {
   buildOptions(): Promise<BuildOptions>;
   buildWebsite(o: BuildOptions): Promise<BuildResult>;

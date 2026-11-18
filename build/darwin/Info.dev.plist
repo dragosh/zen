@@ -42,7 +42,7 @@
 		<key>CFBundleIconName</key>
 		<string>appicon</string>
 		<key>CFBundleIdentifier</key>
-		<string>io.github.dragosh.zen</string>
+		<string>org.zenmark.app</string>
 		<key>CFBundleName</key>
 		<string>zen</string>
 		<key>CFBundlePackageType</key>

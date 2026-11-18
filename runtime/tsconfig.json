@@ -1,8 +1,8 @@
 {
-  "extends": "../apps/zenmd-app/frontend/tsconfig.json",
+  "extends": "../apps/zenmark/frontend/tsconfig.json",
   "compilerOptions": {
     "paths": {
-      "vitest": ["../apps/zenmd-app/frontend/node_modules/vitest"],
+      "vitest": ["../apps/zenmark/frontend/node_modules/vitest"],
       "@zenmd/runtime": ["./src/index.ts"],
       "@zenmd/runtime/*": ["./src/*"]
     }

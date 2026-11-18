@@ -1,6 +1,6 @@
 #!/bin/sh
-# Signs a Zen.app bundle for the channel (inner to outer: helpers, then the app).
-#   CHANNEL=devid|appstore SIGN_IDENTITY=... [TEAM_ID=...] [PROFILE=...] [ADHOC=1] sh build/darwin/sign.sh bin/Zen.app
+# Signs a Zenmark.app bundle for the channel (inner to outer: helpers, then the app).
+#   CHANNEL=devid|appstore SIGN_IDENTITY=... [TEAM_ID=...] [PROFILE=...] [ADHOC=1] sh build/darwin/sign.sh bin/Zenmark.app
 # devid:    entitlements.plist (no sandbox); with a real identity: hardened runtime + timestamp.
 # appstore: entitlements.sandbox.plist for the app, helper.entitlements.sandbox.plist
 #           (app-sandbox + inherit) for the helpers, the provisioning profile embedded.

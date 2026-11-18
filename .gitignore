@@ -1,9 +1,9 @@
 .task
 .wails
 bin
-apps/zenmd-app/frontend/dist
-apps/zenmd-app/frontend/node_modules
-apps/zenmd-app/frontend/bindings
+apps/zenmark/frontend/dist
+apps/zenmark/frontend/node_modules
+apps/zenmark/frontend/bindings
 .env
 .vscode
 .DS_Store

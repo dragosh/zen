@@ -40,7 +40,7 @@ func Example_embed() {
 	res, err := s.Build(context.Background(), session.BuildOptions{Out: filepath.Join(out, "site"), Portable: true}, nil)
 	fmt.Println(err, res.Pages > 0)
 	// Output:
-	// zen.md user guide
+	// Zenmark user guide
 	// Other pages
 	// <nil> true
 	// <nil> true

@@ -3,7 +3,7 @@
 // block of build/config.yml, so the product name, bundle id, copyright and
 // category live in one place.
 //
-//	go run ./build/darwin/plist -config build/config.yml -template build/darwin/Info.plist -version 0.2.0 -build 123 -out bin/Zen.app/Contents/Info.plist
+//	go run ./build/darwin/plist -config build/config.yml -template build/darwin/Info.plist -version 0.2.0 -build 123 -out bin/Zenmark.app/Contents/Info.plist
 package main
 
 import (

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createFakeApi, type FakeApi } from "../../../../apps/zenmd-app/frontend/src/api/fake";
+import { createFakeApi, type FakeApi } from "../../../../apps/zenmark/frontend/src/api/fake";
 import type { Page } from "../host";
 import { pageHooks } from "../page";
 import { createStore } from "../shell/store";
@@ -22,7 +22,7 @@ async function setup(path = "README.md", api = createFakeApi()): Promise<Setup> 
   };
   document.body.append(slots.actions, slots.main);
   const navs: string[] = [];
-  const ctx: Ctx = { api, store, brand: "zen.md", navigate: (p) => { navs.push(p); } };
+  const ctx: Ctx = { api, store, brand: "Zenmark", navigate: (p) => { navs.push(p); } };
   const unmount = editorFeature.mount(slots, ctx);
   await tick();
   return { api, store, slots, ta: slots.main.querySelector("textarea")!, unmount, navs };

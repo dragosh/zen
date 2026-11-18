@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	app "github.com/zenmark-org/zenmd/apps/zenmd-app"
+	app "github.com/zenmark-org/zenmd/apps/zenmark"
 	"github.com/zenmark-org/zenmd/engine/scriptplugins"
 	"github.com/zenmark-org/zenmd/internal/cli"
 )

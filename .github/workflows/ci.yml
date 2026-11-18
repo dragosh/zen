@@ -50,11 +50,11 @@ jobs:
         with:
           go-version-file: go.mod
       - run: go install golang.org/x/exp/cmd/apidiff@v0.0.0-20250106191152-7588d65b2ba8
-      # The app and the runtime embed built folders (apps/zenmd-app/frontend/dist, runtime/dist);
+      # The app and the runtime embed built folders (apps/zenmark/frontend/dist, runtime/dist);
       # apidiff only type-checks, so placeholders are enough (here and in ../base).
       - name: placeholder build folders
         run: |
-          for d in apps/zenmd-app/frontend/dist runtime/dist; do mkdir -p "$d" && echo placeholder > "$d/placeholder.txt"; done
+          for d in apps/zenmark/frontend/dist runtime/dist; do mkdir -p "$d" && echo placeholder > "$d/placeholder.txt"; done
       - name: apidiff
         env:
           PR_BODY: ${{ github.event.pull_request.body }}
@@ -65,7 +65,7 @@ jobs:
             exit 0
           fi
           git worktree add --detach ../base "$tag"
-          for d in frontend/dist apps/zenmd-app/frontend/dist runtime/dist; do mkdir -p "../base/$d" && echo placeholder > "../base/$d/placeholder.txt"; done
+          for d in frontend/dist apps/zenmark/frontend/dist runtime/dist; do mkdir -p "../base/$d" && echo placeholder > "../base/$d/placeholder.txt"; done
           (cd ../base && apidiff -m -w "$RUNNER_TEMP/base.api" github.com/zenmark-org/zenmd)
           apidiff -m -incompatible "$RUNNER_TEMP/base.api" github.com/zenmark-org/zenmd | tee "$RUNNER_TEMP/api.out"
           [ -s "$RUNNER_TEMP/api.out" ] || exit 0

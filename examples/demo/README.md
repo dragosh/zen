@@ -1,9 +1,9 @@
 ---
-title: zen.md user guide
+title: Zenmark user guide
 ---
-# zen.md user guide
+# Zenmark user guide
 
-**zen.md** turns a folder of markdown into a small site you can read, edit and
+**Zenmark** turns a folder of markdown into a small site you can read, edit and
 check, entirely on your Mac. This folder is a working example: every page
 documents one feature while showing it off. Open it with:
 

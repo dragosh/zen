@@ -1,12 +1,12 @@
 # zenmd: the engine
 
-Status: E1, E2a, E2b and E2c done (November 2026): the command is `zenmd`, the module is `github.com/zenmark-org/zenmd`, the engine is public under `engine/`, the built-ins under `builtins/`, and the browser runtime is `runtime/` (`@zenmd/runtime`, embedded in Go), the desktop shell is `kit/` and zen.md is `apps/zenmd-app`. This document plans the rest before it is specified in `specs/engine/*`.
+Status: E1, E2a, E2b and E2c done (November 2026): the command is `zenmd`, the module is `github.com/zenmark-org/zenmd`, the engine is public under `engine/`, the built-ins under `builtins/`, and the browser runtime is `runtime/` (`@zenmd/runtime`, embedded in Go), the desktop shell is `kit/` and Zenmark is `apps/zenmark`. This document plans the rest before it is specified in `specs/engine/*`.
 
-zen.md becomes two layers:
+Zenmark becomes two layers:
 
 ```
 zenmd                    the engine: format, rendering, plugins, layouts, build, print, templates, CLI
- ├─ zen.md (app)         reading, editing and publishing folders (today's app)
+ ├─ Zenmark (app)         reading, editing and publishing folders (today's app)
  └─ <language app>       lessons, speech, flashcards (later)
  └─ …                    more apps, all "built on zenmd"
 ```
@@ -17,7 +17,7 @@ dialogs, the close handshake, the editor, the sidebar, settings). An app is
 then its main, its menu and its own features.
 
 ```
-apps/      zen.md, <language app>, …          what makes each product itself
+apps/      Zenmark, <language app>, …          what makes each product itself
 kit/       desktop (Go, Wails) + ui (TS)       shared desktop shell
 engine/    + runtime/ + builtins/ + cmd/zenmd  zenmd: no windows, no Wails
 ```
@@ -45,11 +45,11 @@ kit or an app, and the kit never imports an app; tests enforce both.
 | `internal/plugins/*`, `internal/layouts/*`, `internal/sitetemplates/*` | Built-ins | **Engine** (default set; apps may add or leave out) |
 | `internal/app/state.go`, `opening.go`, `build.go`, `buildui.go` (core part), `print.go` (document), `extplugins.go`, `layouts.go`, `stream.go`, `assets.go`, `slugs.go`, `sitetemplates.go` (core part) | Mixed with Wails types and events | **Engine:** becomes `session`, a headless folder session |
 | `internal/app/windows.go`, dialogs, native print, Finder, `channel*`, bookmarks, the `Run` helper | Wails | **Kit** (`kit/desktop`) |
-| `internal/app/app.go`, `menu.go`, `service.go` bindings, settings, New Site, Build Website | Wails | **App** (`apps/zenmd-app`) |
+| `internal/app/app.go`, `menu.go`, `service.go` bindings, settings, New Site, Build Website | Wails | **App** (`apps/zenmark`) |
 | `internal/cli` | One CLI for app and engine | **Engine CLI** (`zenmd`) plus a tiny app launcher |
 | `frontend/src/plugins/runtime.ts`, `page/`, `static/`, `print/` | Mixed into the app bundle | **Engine runtime** (`@zenmd/runtime`), shared by apps and built sites |
 | `frontend/src/shell` (frame, store, theme, keys, opening, settings frame), `nav`, `page`, `editor`, `lint`, `print/preview` | App | **Kit** (`kit/ui`, `@zenmd/kit`) |
-| `frontend/src/main.ts`, `api/`, `shell/shell.ts`, `features.ts`, the dialogs and Settings sections | App | **App** (`apps/zenmd-app/frontend`) |
+| `frontend/src/main.ts`, `api/`, `shell/shell.ts`, `features.ts`, the dialogs and Settings sections | App | **App** (`apps/zenmark/frontend`) |
 
 ## The engine's shape
 
@@ -68,7 +68,7 @@ github.com/zenmark-org/zenmd (module)
                                 events to the frontend, print window, Finder, App Store channel, bookmarks
     ui/                         TS: frame, sidebar, editor, settings, dialogs, the opening loader, lint UI
   apps/
-    zenmd-app/                  today's zen.md app: main, menu, the Zen service, its features, packaging
+    zenmark/                  today's Zenmark app: main, menu, the Zen service, its features, packaging
     <next app>/
   spec/                         the format spec and the conformance fixtures
 ```
@@ -104,7 +104,7 @@ scripts (`src/plugins.ts`), the runtime of built sites (`src/static/`), print
 that implements `RuntimeHost` (`src/types.ts`): the app's `Api` extends it, a
 built site gives it localStorage. It imports nothing from `frontend/`
 (`runtime/test/boundary.test.ts`) and has no dependencies of its own; there is
-one `node_modules`, the app frontend's (`apps/zenmd-app/frontend`), and the frontend imports the package
+one `node_modules`, the app frontend's (`apps/zenmark/frontend`), and the frontend imports the package
 through a Vite alias and a `tsconfig` `paths` entry.
 
 One build serves everyone: `npm run build` in `runtime/` (the frontend's build
@@ -114,7 +114,7 @@ is `engine/session`'s default `Options.Runtime`, so `zenmd build` needs no
 frontend. `runtime/dist` is git-ignored: build it (`task build:frontend`)
 before any Go build or test.
 
-zen.md's `apps/zenmd-app` keeps `Run`, the menu and the `Zen` service; the window
+Zenmark's `apps/zenmark` keeps `Run`, the menu and the `Zen` service; the window
 manager and close handshake, the pickers, Finder and the App Store channel are
 `kit/desktop`. Its `Zen` service is one-line
 delegations to the session, and the JSON types are aliases of the session's,
@@ -138,7 +138,7 @@ The module is `github.com/zenmark-org/zenmd`. What a program may import:
 | `builtins/{layouts,sitetemplates}`, `builtins/plugins/{check,codeblock,diagram,quiz,sandbox}` | the pieces of that set |
 
 Private, under `internal/`: `cli` (the command) and `atomicfile` (a helper). The
-zen.md app is `apps/zenmd-app`. `engine/boundary_test.go` pins this list and the
+Zenmark app is `apps/zenmark`. `engine/boundary_test.go` pins this list and the
 rules: nothing under `engine/` or `builtins/` imports `apps/`, `kit/`,
 `internal/cli` or Wails; `engine/` imports `builtins/` only in tests and
 examples, with one exception: `engine/session` uses `builtins` for the
@@ -171,16 +171,16 @@ own files only; what it needs from an app is the `KitHost` interface it
 declares in `src/host.ts`, which the app's `Api` extends. The kit's tests use
 the app's fake api as a ready-made host, as the runtime's tests do.
 
-`apps/zenmd-app` is zen.md: `Run`, the menu, the `Zen` service with its
+`apps/zenmark` is Zenmark: `Run`, the menu, the `Zen` service with its
 aliases and one-line delegations, New Site, Build Website, Print Page and Site,
 settings, the CLI adapters (`BuildSite`, `InitSite`, `Launch`) and its own
-frontend in `apps/zenmd-app/frontend` (main, brand, the Wails and fake api,
+frontend in `apps/zenmark/frontend` (main, brand, the Wails and fake api,
 `shell/shell.ts` as the composition, the New Page, New Site and Build Website
 dialogs, the plugin and layout help, the Settings sections). It embeds its
 frontend (`//go:embed all:frontend/dist`); the root `main.go` is the `zenmd`
 binary and only calls `app.Launch`, `app.BuildSite` and `app.InitSite`.
 `build/` (packaging) stays at the root. `node_modules` is one install, in
-`apps/zenmd-app/frontend`; `runtime/` and `kit/ui` use it through their
+`apps/zenmark/frontend`; `runtime/` and `kit/ui` use it through their
 configs.
 
 Tests pin the direction: `engine/boundary_test.go` (nothing under `engine/` or
@@ -196,7 +196,7 @@ imports only `@zenmd/runtime`, the app imports both).
 | E1 ✓ | `engine/session` | Extract the headless session from `internal/app` into `engine/session`, with no Wails import. The app's `Zen` service becomes a thin adapter (bindings, dialogs, events). | `internal/app` contains only Wails glue; the session has its own tests; behaviour unchanged |
 | E2a ✓ | `engine/public-api` | Rename the module to `github.com/zenmark-org/zenmd`; move `internal/core/*` to `engine/*` and the built-ins to `builtins/*`; document the Go API, add an `apidiff` check in CI and an "embed zenmd" example. | `go doc` reads well; an example renders a folder in 20 lines |
 | E2b ✓ | `engine/runtime` | Split the frontend into `runtime/` (page, plugin runtime, static, print) and the app's UI. One build of the runtime is used by the app and by `zenmd build`. | Built sites and the app load the same runtime; the app bundle imports it |
-| E2c ✓ | `kit/desktop` + `kit/ui` | Move the reusable desktop parts out of `internal/app` and `frontend/src` into `kit/`; today's app becomes `apps/zenmd-app` (main, menu, `Zen` service, its features, packaging). | A second app is a main, a menu and its features; zen.md behaves the same |
+| E2c ✓ | `kit/desktop` + `kit/ui` | Move the reusable desktop parts out of `internal/app` and `frontend/src` into `kit/`; today's app becomes `apps/zenmark` (main, menu, `Zen` service, its features, packaging). | A second app is a main, a menu and its features; Zenmark behaves the same |
 | E3 | `engine/format-spec` | Write `spec/`: frontmatter keys, directives, inline attributes, plugin blocks, layouts and links. Add conformance fixtures (`.md` in, normalised HTML out) and `zenmd check` for a folder (render warnings, broken links, Vale). | Every documented feature has a fixture; `zenmd check examples/demo` is clean |
 | E3 | `engine/hardening` | Fuzz the renderer, sanitiser, frontmatter and template placeholders. Add benchmarks with budgets (open 1,000 pages, render 5 MB, build 1,000 pages), and race tests in CI. Errors carry a code and a fix hint. | Fuzzers run in CI without findings; the budgets are enforced |
 | E4 | `engine/serve` (optional) | `zenmd serve`: a local preview server with live reload, for editors other than the app (VS Code, the terminal). | `zenmd serve examples/demo` previews in a browser and reloads on save |
@@ -206,13 +206,13 @@ After E3, the engine gets its own version (`zenmd 1.0.0-beta`) and apps depend o
 ## Versioning
 
 - **Engine:** SemVer, starting at `0.x`. A breaking change to the Go API, the CLI, the format, the plugin API (`apiVersion`) or the layout API bumps the minor version before 1.0 and the major version after.
-- **Apps:** their own versions, each naming the zenmd version it is built on, for example "zen.md 0.3 (zenmd 0.5)".
+- **Apps:** their own versions, each naming the zenmd version it is built on, for example "Zenmark 0.3 (zenmd 0.5)".
 - **Content:** a folder may pin a minimum engine version in `.zen.yml` (`zenmd: ">=0.5"`), and older engines say so instead of rendering it wrongly.
 
 ## Decisions
 
 1. **One repository**, holding the engine, the kit, the apps and the spec, with one Go module. Split when a second app has its own release rhythm.
 2. **The repository is renamed to `zenmd`** on GitHub by the owner; the module path follows in E2a (`github.com/zenmark-org/zenmd`).
-3. **A kit layer** between the engine and the apps (E2c), so a second app does not copy zen.md's shell.
+3. **A kit layer** between the engine and the apps (E2c), so a second app does not copy Zenmark's shell.
 4. **The config folder.** `~/Library/Application Support/zen/` stays (a migration later, if ever), so existing settings, trust and plugin data keep working.
-5. **App Store packaging** belongs to each app (packaging/appstore stays with zen.md); the engine stays free of app-only entitlements.
+5. **App Store packaging** belongs to each app (packaging/appstore stays with Zenmark); the engine stays free of app-only entitlements.

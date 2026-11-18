@@ -8,10 +8,10 @@ import (
 	"testing"
 )
 
-// fakeApp makes <tmp>/Zen.app/Contents/MacOS/zenmd and returns the app path.
+// fakeApp makes <tmp>/Zenmark.app/Contents/MacOS/zenmd and returns the app path.
 func fakeApp(t *testing.T, root string) string {
 	t.Helper()
-	app := filepath.Join(root, "Zen.app")
+	app := filepath.Join(root, "Zenmark.app")
 	macos := filepath.Join(app, "Contents", "MacOS")
 	if err := os.MkdirAll(macos, 0o755); err != nil {
 		t.Fatal(err)
@@ -59,7 +59,7 @@ func TestInstallLinks(t *testing.T) {
 
 func TestInstallNeedsTheApp(t *testing.T) {
 	root := t.TempDir()
-	if code, _, errOut := do(t, "-app", filepath.Join(root, "Zen.app"), "-dir", filepath.Join(root, "bin")); code == 0 || !strings.Contains(errOut, "Zen.app") {
+	if code, _, errOut := do(t, "-app", filepath.Join(root, "Zenmark.app"), "-dir", filepath.Join(root, "bin")); code == 0 || !strings.Contains(errOut, "Zenmark.app") {
 		t.Fatalf("code %d, stderr %q", code, errOut)
 	}
 	if _, err := os.Lstat(filepath.Join(root, "bin", "zenmd")); err == nil {
@@ -70,7 +70,7 @@ func TestInstallNeedsTheApp(t *testing.T) {
 func TestInstallReplacesOldLinks(t *testing.T) {
 	root := t.TempDir()
 	app := fakeApp(t, root)
-	oldApp := filepath.Join(root, "old", "Zen.app") // gone: a dangling link
+	oldApp := filepath.Join(root, "old", "Zenmark.app") // gone: a dangling link
 	dir := filepath.Join(root, "bin")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
@@ -225,6 +225,38 @@ func TestDevLinksAreOurs(t *testing.T) {
 	}
 	if err := os.Symlink(filepath.Join(checkout, "bin", "zen"), filepath.Join(dir, "zen")); err != nil {
 		t.Fatal(err)
+	}
+	code, _, errOut := do(t, "-app", app, "-dir", dir)
+	if code != 0 || strings.Contains(strings.ToLower(errOut), "warning") {
+		t.Fatalf("code %d, stderr %q", code, errOut)
+	}
+	want := filepath.Join(app, "Contents", "MacOS", "zenmd")
+	for _, n := range []string{"zenmd", "zen"} {
+		if got := target(t, filepath.Join(dir, n)); got != want {
+			t.Errorf("%s -> %s, want %s", n, got, want)
+		}
+	}
+}
+
+// Links into the bundle's old name (Zen.app, before the Zenmark rename) are replaced.
+func TestOldBundleNameIsOurs(t *testing.T) {
+	root := t.TempDir()
+	app := fakeApp(t, root)
+	old := filepath.Join(root, "Zen.app", "Contents", "MacOS", "zenmd")
+	if err := os.MkdirAll(filepath.Dir(old), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(old, []byte("#!/bin/sh\n"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	dir := filepath.Join(root, "bin")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, n := range []string{"zenmd", "zen"} {
+		if err := os.Symlink(old, filepath.Join(dir, n)); err != nil {
+			t.Fatal(err)
+		}
 	}
 	code, _, errOut := do(t, "-app", app, "-dir", dir)
 	if code != 0 || strings.Contains(strings.ToLower(errOut), "warning") {

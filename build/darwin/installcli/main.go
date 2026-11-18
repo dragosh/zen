@@ -1,10 +1,10 @@
 // Command installcli links the zenmd command (and its zen alias, which stops
 // working in 0.4.0) into a folder on the PATH, or removes those links.
 //
-//	go run ./build/darwin/installcli -app /Applications/Zen.app -dir /usr/local/bin [-uninstall]
+//	go run ./build/darwin/installcli -app /Applications/Zenmark.app -dir /usr/local/bin [-uninstall]
 //	go run ./build/darwin/installcli -exe bin/zenmd -dir ~/.local/bin   # a development build
 //
-// It only replaces or removes links that point at zen.md: into a Zen.app
+// It only replaces or removes links that point at Zenmark: into a Zenmark.app
 // bundle, at any zenmd executable (a development build), or at the old bin/zen
 // of a zen checkout. A different tool called zen is left alone with a warning.
 package main
@@ -31,7 +31,7 @@ func main() {
 func run(args []string, stdout, stderr io.Writer) int {
 	fs := flag.NewFlagSet("installcli", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	app := fs.String("app", "/Applications/Zen.app", "the installed Zen.app")
+	app := fs.String("app", "/Applications/Zenmark.app", "the installed Zenmark.app")
 	exe := fs.String("exe", "", "link this executable instead of the one in -app (a development build)")
 	dir := fs.String("dir", "/usr/local/bin", "the folder for the links")
 	uninstall := fs.Bool("uninstall", false, "remove the links instead")
@@ -64,7 +64,7 @@ func (l linker) install() int {
 		if !l.dev {
 			where = filepath.Dir(filepath.Dir(filepath.Dir(l.target))) // the .app
 		}
-		fmt.Fprintf(l.stderr, "installcli: %s not found. Copy bin/Zen.app to /Applications first (or set APP_PATH).\n", where)
+		fmt.Fprintf(l.stderr, "installcli: %s not found. Copy bin/Zenmark.app to /Applications first (or set APP_PATH).\n", where)
 		return 1
 	}
 	if err := os.MkdirAll(l.dir, 0o755); err != nil {
@@ -90,7 +90,7 @@ func (l linker) install() int {
 			}
 			fmt.Fprintf(l.stdout, "Linked %s -> %s\n", link, l.target)
 		default:
-			fmt.Fprintf(l.stderr, "installcli: warning: %s is not a link into Zen.app (another tool?); left alone\n", link)
+			fmt.Fprintf(l.stderr, "installcli: warning: %s is not a link into Zenmark.app (another tool?); left alone\n", link)
 		}
 	}
 	return code
@@ -111,7 +111,7 @@ func (l linker) uninstall() int {
 			}
 			fmt.Fprintf(l.stdout, "Removed %s\n", link)
 		case foreign:
-			fmt.Fprintf(l.stderr, "installcli: warning: %s is not a link into Zen.app; left alone\n", link)
+			fmt.Fprintf(l.stderr, "installcli: warning: %s is not a link into Zenmark.app; left alone\n", link)
 		}
 	}
 	return code
@@ -125,7 +125,7 @@ const (
 	foreign
 )
 
-// state classifies path: missing, a link into Zen.app (possibly through other
+// state classifies path: missing, a link into Zenmark.app (possibly through other
 // links, such as zen -> zenmd -> the bundle, or dangling), or anything else.
 func (l linker) state(path string) linkState {
 	fi, err := os.Lstat(path)
@@ -155,7 +155,7 @@ func (l linker) state(path string) linkState {
 	return foreign
 }
 
-// isZen reports whether p is one of zen.md's executables: inside a Zen.app
+// isZen reports whether p is one of Zenmark's executables: inside a Zenmark.app
 // bundle, the development executable this run links (or its zen sibling), any
 // executable named zenmd (a development build of a checkout; switching between
 // it and the app needs no manual rm), or the bin/zen of a zen checkout (the
@@ -174,7 +174,8 @@ func (l linker) isZen(p string) bool {
 	}
 	parts := strings.Split(p, string(filepath.Separator))
 	for i := 0; i+3 < len(parts); i++ {
-		if strings.EqualFold(parts[i], "Zen.app") && parts[i+1] == "Contents" && parts[i+2] == "MacOS" {
+		// Zen.app is the bundle's name before the Zenmark rename: its links are ours to replace.
+		if (strings.EqualFold(parts[i], "Zenmark.app") || strings.EqualFold(parts[i], "Zen.app")) && parts[i+1] == "Contents" && parts[i+2] == "MacOS" {
 			return true
 		}
 	}

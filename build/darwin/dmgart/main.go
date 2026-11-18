@@ -2,7 +2,7 @@
 // build/appicon.png, so it can be regenerated whenever the icon changes
 // (`task icon` runs it):
 //
-//	go run ./build/darwin/dmgart [-name zen.md] [-svg build/appicon.svg] [-icon build/appicon.png] [-out build/darwin]
+//	go run ./build/darwin/dmgart [-name Zenmark] [-svg build/appicon.svg] [-icon build/appicon.png] [-out build/darwin]
 //
 // It writes dmg-background.png (540x380), dmg-background@2x.png (1080x760) and
 // dmg-file-icon.icns. The background is black type and an arrow on white; the
@@ -56,7 +56,7 @@ func main() {
 func productName(cfg string) string {
 	b, err := os.ReadFile(cfg)
 	if err != nil {
-		return "zen.md"
+		return "Zenmark"
 	}
 	for _, l := range bytes.Split(b, []byte("\n")) {
 		t := bytes.TrimSpace(l)
@@ -68,7 +68,7 @@ func productName(cfg string) string {
 			return string(bytes.Trim(v, `"`))
 		}
 	}
-	return "zen.md"
+	return "Zenmark"
 }
 
 // backgroundSVG is the art on a square canvas (QuickLook renders SVG onto a

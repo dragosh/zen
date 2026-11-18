@@ -59,7 +59,7 @@ config comments), so nothing a user sees says Wails.
     - Open Folder… and Finder "Open With" grant access.
     - zen stores a security-scoped bookmark for each opened folder. Reopening the last folder at launch resolves it (`startAccessingSecurityScopedResource`), and a stale bookmark asks again with the folder panel preselected.
     - Opening a single `.md` file grants that file only, so zen asks once for its folder (panel preselected, "Allow zen to show the pages next to this file") so it can build the sidebar. If the user declines, zen shows the file alone.
-11. **Features in the App Store build:** a build-time channel (`go build -tags appstore`) switches off what the sandbox or App Review does not allow. Each switched-off feature shows a clear note in Settings and on the page ("Not available in the App Store version of zen"), never an error.
+11. **Features in the App Store build:** a build-time channel (`go build -tags appstore`) switches off what the sandbox or App Review does not allow. Each switched-off feature shows a clear note in Settings and on the page ("Not available in the App Store version"), never an error.
     - **Off:**
       - external **program backends**, which run a binary from the folder;
       - the **sandbox** plugin (`container`);
@@ -108,7 +108,7 @@ type folderAccess interface {
 }
 
 // internal/core/extplugins
-var ErrUnavailable = errors.New("not available in the App Store version of zen")
+var ErrUnavailable = errors.New("not available in the App Store version")
 func Available(kind string) error                 // "program" | "tool" | "sandbox" → ErrUnavailable in appstore builds
 ```
 
@@ -147,7 +147,7 @@ Edge cases to cover:
 ## UI
 
 - The DMG window shows the zen art: icon left, Applications right, an arrow between them, white background, black type.
-- In the App Store build, a feature that is switched off shows a muted note in Settings › Plugins and in the page's plugin box: "Not available in the App Store version of zen". There is no Allow button for it.
+- In the App Store build, a feature that is switched off shows a muted note in Settings › Plugins and in the page's plugin box: "Not available in the App Store version". There is no Allow button for it.
 - The folder-access prompt is the native open panel, preselected, with a message line.
 
 ## Security

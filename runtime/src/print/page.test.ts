@@ -128,14 +128,14 @@ test("a second request while one is waiting is ignored", async () => {
 
 test("in the app, printing goes through the native service with the page title, not window.print()", async () => {
   article('<details><summary>s</summary>x</details>');
-  document.title = "Install — zen.md";
+  document.title = "Install — Zenmark";
   const printWindow = vi.fn(async () => {});
   let menu: (() => void) | undefined;
   const off = installPagePrint(document, { on: (_e, fn) => { menu = fn; return () => {}; }, printWindow }, { quiet: 0 });
   vi.spyOn(document, "hasFocus").mockReturnValue(true);
   menu!();
   await advance(200);
-  expect(printWindow).toHaveBeenCalledWith("Install — zen.md");
+  expect(printWindow).toHaveBeenCalledWith("Install — Zenmark");
   expect(print).not.toHaveBeenCalled();
   // the page stays prepared while the sheet is up, and is put back on the next interaction
   expect(document.querySelector("details")!.open).toBe(true);

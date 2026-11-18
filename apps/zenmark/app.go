@@ -1,4 +1,4 @@
-// Package app is zen.md itself: its menu, the Zen service bound to the
+// Package app is Zenmark itself: its menu, the Zen service bound to the
 // frontend, its dialogs and its settings. The window shell (windows, the close
 // handshake, dialogs, print, Finder, the App Store channel) is kit/desktop.
 package app
@@ -16,7 +16,7 @@ import (
 
 // Name is the product's name as people see it: window titles, the app menu.
 // The command and executable stay `zen`.
-const Name = "zen.md"
+const Name = "Zenmark"
 
 // Options configures a GUI run.
 type Options struct {

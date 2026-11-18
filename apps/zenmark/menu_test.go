@@ -38,15 +38,15 @@ func eq(t *testing.T, got, want []string) {
 
 func TestMenuSpecProduction(t *testing.T) {
 	eq(t, rows(menuSpec(false)), []string{
-		"# zen.md",
-		"About zen.md",
+		"# Zenmark",
+		"About Zenmark",
 		"Settings… [CmdOrCtrl+,]",
 		"-",
-		"Hide zen.md [CmdOrCtrl+H]",
+		"Hide Zenmark [CmdOrCtrl+H]",
 		"Hide Others [CmdOrCtrl+OptionOrAlt+H]",
 		"Show All",
 		"-",
-		"Quit zen.md [CmdOrCtrl+Q]",
+		"Quit Zenmark [CmdOrCtrl+Q]",
 		"# File",
 		"New Site from Template… [CmdOrCtrl+Shift+N]",
 		"-",
@@ -112,7 +112,7 @@ func TestMenuRolesAndCustomItems(t *testing.T) {
 		}
 	}
 	for label, role := range map[string]string{
-		"About zen.md": "About", "Hide zen.md": "Hide", "Hide Others": "HideOthers", "Show All": "UnHide", "Quit zen.md": "Quit",
+		"About Zenmark": "About", "Hide Zenmark": "Hide", "Hide Others": "HideOthers", "Show All": "UnHide", "Quit Zenmark": "Quit",
 		"Undo": "Undo", "Redo": "Redo", "Cut": "Cut", "Copy": "Copy", "Paste": "Paste", "Select All": "SelectAll",
 		"Minimise": "Minimise", "Zoom": "Zoom",
 		"Settings…": "", "New Page…": "", "Open Folder…": "",
@@ -144,7 +144,7 @@ func TestMenuActions(t *testing.T) {
 	if got := strings.Join(calls, ","); got != "new,open,settings,site,build,print-page,print-site" {
 		t.Fatalf("calls = %s", got)
 	}
-	if act.forLabel("Quit zen.md") != nil {
+	if act.forLabel("Quit Zenmark") != nil {
 		t.Fatal("role items have no custom action")
 	}
 }

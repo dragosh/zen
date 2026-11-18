@@ -85,7 +85,7 @@ type Initer func(Init, io.Writer, io.Writer) error
 // UsageError is an error that makes zenmd print the usage and exit with 2.
 func UsageError(msg string) error { return usageError(msg) }
 
-const usage = `zenmd - the zen.md engine: markdown folders as pages, sites and print
+const usage = `zenmd - the Zenmark engine: markdown folders as pages, sites and print
 
 Usage:
   zenmd [path]          open a folder or markdown file (default: current folder)

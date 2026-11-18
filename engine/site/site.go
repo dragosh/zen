@@ -1,7 +1,7 @@
 // Package site turns the pages of a folder into a static website: one HTML
 // page per markdown page inside a static shell (sidebar, breadcrumb), with the
 // files the pages use copied next to it. It is pure: pages and files come
-// through Input, and it does not import apps/zenmd-app.
+// through Input, and it does not import apps/zenmark.
 package site
 
 import (

@@ -1,7 +1,7 @@
 // Package darwin_test inspects the macOS bundle produced by `task package`
-// (bin/Zen.app) and checks the helper-binary manifest (resources.yml).
+// (bin/Zenmark.app) and checks the helper-binary manifest (resources.yml).
 //
-// The bundle tests are skipped with -short, off macOS, or when bin/Zen.app
+// The bundle tests are skipped with -short, off macOS, or when bin/Zenmark.app
 // does not exist, unless ZEN_REQUIRE_BUNDLE=1 (set by `task darwin:package:test`).
 package darwin_test
 
@@ -21,8 +21,8 @@ import (
 )
 
 const (
-	bundle   = "../../bin/Zen.app"
-	bundleID = "io.github.dragosh.zen"
+	bundle   = "../../bin/Zenmark.app"
+	bundleID = "org.zenmark.app"
 )
 
 func requireBundle(t *testing.T) {
@@ -37,7 +37,7 @@ func requireBundle(t *testing.T) {
 		if os.Getenv("ZEN_REQUIRE_BUNDLE") == "1" {
 			t.Fatalf("bundle missing: %v (run `task package`)", err)
 		}
-		t.Skip("bin/Zen.app not built; run `task package` (or `task darwin:package:test`)")
+		t.Skip("bin/Zenmark.app not built; run `task package` (or `task darwin:package:test`)")
 	}
 }
 
@@ -79,8 +79,8 @@ func TestBundleLayout(t *testing.T) {
 	v := readVersion(t)
 	short := regexp.MustCompile(`^\d+\.\d+\.\d+`).FindString(v)
 	want := map[string]string{
-		"CFBundleName":               "zen.md",
-		"CFBundleDisplayName":        "zen.md",
+		"CFBundleName":               "Zenmark",
+		"CFBundleDisplayName":        "Zenmark",
 		"CFBundleExecutable":         "zenmd",
 		"CFBundleIdentifier":         bundleID,
 		"CFBundlePackageType":        "APPL",

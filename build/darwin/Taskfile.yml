@@ -6,8 +6,8 @@ includes:
 vars:
   # Docker image for cross-compilation (used when building on non-macOS)
   CROSS_IMAGE: wails-cross
-  # The bundle is Zen.app; the executable inside is `zenmd` (APP_NAME).
-  BUNDLE_NAME: Zen
+  # The bundle is Zenmark.app; the executable inside is `zenmd` (APP_NAME).
+  BUNDLE_NAME: Zenmark
   BUNDLE: '{{.BIN_DIR}}/{{.BUNDLE_NAME}}.app'
   # Signing identity. "-" = ad-hoc (alpha). For a Developer ID build:
   #   task package SIGN_IDENTITY="Developer ID Application: Name (TEAMID)"
@@ -22,7 +22,7 @@ vars:
   CHANNEL: '{{.CHANNEL | default "devid"}}'
   CHANNEL_TAGS: '{{if eq .CHANNEL "appstore"}}appstore{{end}}'
   # The product name shown to users comes from build/config.yml (info.productName).
-  # The bundle (bin/Zen.app) and the DMG name keep BUNDLE_NAME.
+  # The bundle (bin/Zenmark.app) and the DMG name keep BUNDLE_NAME.
 
 tasks:
   build:
@@ -166,7 +166,7 @@ tasks:
       - task: create:dmg
 
   package:appstore:
-    summary: Builds the sandboxed Mac App Store bundle and bin/Zen.pkg for Transporter (needs SIGN_IDENTITY, TEAM_ID, PROFILE, INSTALLER_IDENTITY, or ADHOC=1 for a dry run)
+    summary: Builds the sandboxed Mac App Store bundle and bin/Zenmark.pkg for Transporter (needs SIGN_IDENTITY, TEAM_ID, PROFILE, INSTALLER_IDENTITY, or ADHOC=1 for a dry run)
     cmds:
       # A child task process: CHANNEL on its command line reaches every task.
       - '{{.TASK_EXE}} darwin:package:universal CHANNEL=appstore ADHOC="{{.ADHOC}}"'
@@ -175,7 +175,7 @@ tasks:
 
   appstore:pkg:
     internal: true
-    summary: productbuild makes bin/Zen.pkg from the signed bundle (skipped for ADHOC=1)
+    summary: productbuild makes bin/Zenmark.pkg from the signed bundle (skipped for ADHOC=1)
     cmds:
       - |
         if [ "{{.ADHOC}}" = "1" ]; then
@@ -214,7 +214,7 @@ tasks:
 
 
   create:app:bundle:
-    summary: Creates bin/Zen.app (binary, Info.plist from VERSION, icon, helpers from resources.yml) and signs it
+    summary: Creates bin/Zenmark.app (binary, Info.plist from VERSION, icon, helpers from resources.yml) and signs it
     vars:
       # docs/VERSIONING.md: short version = MAJOR.MINOR.PATCH, build = commit count.
       SHORT_VERSION:
@@ -289,7 +289,7 @@ tasks:
       - go run ./build/darwin/resources -manifest resources.yml -arch "{{.HELPER_ARCH}}" -fetch
 
   codesign:
-    summary: Signs Zen.app for CHANNEL with SIGN_IDENTITY (default ad-hoc); see build/darwin/sign.sh (macOS only)
+    summary: Signs Zenmark.app for CHANNEL with SIGN_IDENTITY (default ad-hoc); see build/darwin/sign.sh (macOS only)
     internal: true
     cmds:
       - CHANNEL="{{.CHANNEL}}" SIGN_IDENTITY="{{.SIGN_IDENTITY}}" TEAM_ID="{{.TEAM_ID}}" PROFILE="{{.PROFILE}}" ADHOC="{{.ADHOC}}" sh build/darwin/sign.sh "{{.BUNDLE}}"
@@ -301,7 +301,7 @@ tasks:
       - 'echo "Skipping codesign (not available on {{OS}}). Sign the .app on macOS before distribution."'
 
   package:test:
-    summary: Packages Zen.app for CHANNEL and runs the bundle tests against it (ZEN_UNIVERSAL=1 with ARCH=universal)
+    summary: Packages Zenmark.app for CHANNEL and runs the bundle tests against it (ZEN_UNIVERSAL=1 with ARCH=universal)
     cmds:
       - task: '{{if eq .CHANNEL "appstore"}}package:universal{{else if eq .ARCH "universal"}}package:universal{{else}}package{{end}}'
       - ZEN_CHANNEL="{{.CHANNEL}}" ZEN_ADHOC="{{.ADHOC}}" ZEN_UNIVERSAL="{{if or (eq .CHANNEL "appstore") (eq .ARCH "universal")}}1{{end}}" ZEN_REQUIRE_BUNDLE=1 go test -count=1 ./build/darwin
@@ -317,18 +317,18 @@ tasks:
       - task: art
 
   install:cli:
-    summary: Links INSTALL_DIR/zenmd and INSTALL_DIR/zen (default /usr/local/bin) to the zenmd binary inside the installed Zen.app (APP_PATH, default /Applications/Zen.app)
+    summary: Links INSTALL_DIR/zenmd and INSTALL_DIR/zen (default /usr/local/bin) to the zenmd binary inside the installed Zenmark.app (APP_PATH, default /Applications/Zenmark.app)
     vars:
       INSTALL_DIR: '{{.INSTALL_DIR | default "/usr/local/bin"}}'
-      APP_PATH: '{{.APP_PATH | default "/Applications/Zen.app"}}'
+      APP_PATH: '{{.APP_PATH | default "/Applications/Zenmark.app"}}'
     cmds:
       - go run ./build/darwin/installcli -app "{{.APP_PATH}}" -dir "{{.INSTALL_DIR}}"
 
   uninstall:cli:
-    summary: Removes INSTALL_DIR/zenmd and INSTALL_DIR/zen, only when they point into Zen.app
+    summary: Removes INSTALL_DIR/zenmd and INSTALL_DIR/zen, only when they point into Zenmark.app
     vars:
       INSTALL_DIR: '{{.INSTALL_DIR | default "/usr/local/bin"}}'
-      APP_PATH: '{{.APP_PATH | default "/Applications/Zen.app"}}'
+      APP_PATH: '{{.APP_PATH | default "/Applications/Zenmark.app"}}'
     cmds:
       - go run ./build/darwin/installcli -app "{{.APP_PATH}}" -dir "{{.INSTALL_DIR}}" -uninstall
 
@@ -351,7 +351,7 @@ tasks:
       - '"{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS/{{.APP_NAME}}"'
 
   sign:
-    summary: Re-signs Zen.app with SIGN_IDENTITY (default "-", ad-hoc)
+    summary: Re-signs Zenmark.app with SIGN_IDENTITY (default "-", ad-hoc)
     desc: |
       The alpha is ad-hoc signed by `task package`. For a Developer ID signature:
         task darwin:sign SIGN_IDENTITY="Developer ID Application: Name (TEAMID)"
@@ -360,7 +360,7 @@ tasks:
       - task: codesign
 
   sign:appstore:
-    summary: Re-signs Zen.app for the Mac App Store (sandbox entitlements, "Apple Distribution" identity, embedded profile)
+    summary: Re-signs Zenmark.app for the Mac App Store (sandbox entitlements, "Apple Distribution" identity, embedded profile)
     desc: |
       task darwin:sign:appstore SIGN_IDENTITY="Apple Distribution: Name (TEAMID)" TEAM_ID=... PROFILE=path/to/zen.provisionprofile
     cmds:
