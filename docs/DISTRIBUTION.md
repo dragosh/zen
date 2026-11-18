@@ -111,7 +111,7 @@ without `actool` only warns and keeps `icons.icns`.
 
 - Name **Zenmark** (trademark search clear; no App Store app by that name), bundle `Zenmark.app`, bundle id `org.zenmark.app`, domain [zenmark.org](https://zenmark.org), GitHub organisation [zenmark-org](https://github.com/zenmark-org).
 - Author **Zenmark Studios**: `© 2026 Zenmark Studios. All rights reserved.` in Info.plist (About Zenmark). The code is proprietary (LICENSE).
-- Apple Developer account: yes (Developer ID signing is being set up).
+- Apple Developer account (individual, Team ID `2688WQJ53W`): Developer ID signing and notarisation work locally; the first notarised DMG (0.4.0) was accepted on 2026-11-18. Gatekeeper shows the developer as the account holder; "Zenmark Studios" there needs an Organization account (D-U-N-S).
 
 ## Decisions still open (owner)
 

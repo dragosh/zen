@@ -6,6 +6,8 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ## [Unreleased]
 
+- Developer ID signing and notarisation work end to end; `darwin:sign:notarize` also staples `bin/Zenmark.app`.
+
 ### Changed
 
 - The author is Zenmark Studios: About Zenmark shows `© 2026 Zenmark Studios. All rights reserved.` The code is proprietary (LICENSE).

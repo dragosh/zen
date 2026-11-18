@@ -39,10 +39,9 @@ ditto bin/Zenmark.app /Applications/Zenmark.app
 INSTALL_DIR=~/.local/bin task install:cli   # point zenmd at the installed app instead
 ```
 
-The build is not signed with a Developer ID yet, so macOS says it "could not
-verify" Zenmark.app when it comes from a download. Open it once with right-click →
-Open, or from System Settings → Privacy & Security → Open Anyway. Signing and
-notarisation are planned (see [Remaining work](#remaining-work)).
+A local `task package` is ad-hoc signed and is for this Mac. Releases are signed
+with a Developer ID and notarised by Apple, so they open without the "could not
+verify" warning: `task darwin:sign:notarize` (see [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md)).
 
 ## Everyday commands
 
@@ -113,7 +112,7 @@ does this ([.claude/skills/add-spec](.claude/skills/add-spec/SKILL.md)).
 | Format spec and conformance tests, `zenmd check` | engine wave E3 in [docs/ENGINE.md](docs/ENGINE.md) | to specify |
 | Hardening: fuzzing, performance budgets, error codes | engine wave E3 | to specify |
 | `zenmd serve`, a live preview for other editors | engine wave E4 (optional) | to specify |
-| Developer ID signing and notarisation (no more "could not verify") | [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md) | tooling ready; needs the Developer ID certificate and a `notarytool` profile |
+| Developer ID signing and notarisation in CI (an API key and the `.p12` as GitHub secrets), a `task release` | [docs/DISTRIBUTION.md](docs/DISTRIBUTION.md) | to do; local signing and notarisation work (0.4.0 DMG accepted) |
 | Mac App Store build: wire the plugin gate, folder bookmarks, CLI refusal; `Assets.car` | [specs/packaging/appstore](specs/packaging/appstore/spec.md) | in progress; needs full Xcode and owner decisions |
 | A second app on the engine (language learning: speech, glosses, flashcards) | [docs/ENGINE.md](docs/ENGINE.md) | idea |
 | More plugins and layouts | [docs/possible-plugins.md](docs/possible-plugins.md), [docs/possible-layouts.md](docs/possible-layouts.md) | ideas |

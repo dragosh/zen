@@ -386,4 +386,7 @@ tasks:
       - codesign --force --sign "{{.SIGN_IDENTITY}}" --timestamp "{{.DMG}}"
       - xcrun notarytool submit "{{.DMG}}" --keychain-profile "{{.KEYCHAIN_PROFILE}}" --wait
       - xcrun stapler staple "{{.DMG}}"
+      # The app inside was notarised with the DMG; staple bin/ too, for copies made with ditto.
+      - xcrun stapler staple "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.app"
       - spctl -a -t open --context context:primary-signature -v "{{.DMG}}"
+      - spctl -a -v "{{.BIN_DIR}}/{{.BUNDLE_NAME}}.app"
