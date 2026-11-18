@@ -254,6 +254,7 @@ tasks:
     cmds:
       - |
         res="{{.BUNDLE}}/Contents/Resources"
+        missing=""
         if [ -f build/darwin/Assets.car ]; then
           cp build/darwin/Assets.car "$res"
         elif xcrun --find actool >/dev/null 2>&1; then
@@ -261,14 +262,23 @@ tasks:
           xcrun actool build/appicon.icon --compile "$out" --output-format human-readable-text \
             --output-partial-info-plist /dev/null --app-icon appicon --include-all-app-icons \
             --enable-on-demand-resources NO --development-region en --target-device mac \
-            --minimum-deployment-target 13.0 --platform macosx
-          cp "$out/Assets.car" "$res/Assets.car"
+            --minimum-deployment-target 13.0 --platform macosx || true
+          if [ -f "$out/Assets.car" ]; then
+            cp "$out/Assets.car" "$res/Assets.car"
+          else
+            # An Xcode older than 26 runs but cannot compile an Icon Composer .icon.
+            missing="actool produced no Assets.car (an Xcode older than 26 cannot compile build/appicon.icon)"
+          fi
           rm -rf "$out"
-        elif [ "{{.CHANNEL}}" = "appstore" ]; then
-          echo "zen: CHANNEL=appstore needs Assets.car, and actool is not available (install full Xcode)." >&2
-          exit 1
         else
-          echo "zen: warning: actool is not available (full Xcode); the bundle has icons.icns but no Assets.car." >&2
+          missing="actool is not available (full Xcode)"
+        fi
+        if [ -n "$missing" ]; then
+          if [ "{{.CHANNEL}}" = "appstore" ]; then
+            echo "zenmd: CHANNEL=appstore needs Assets.car: $missing." >&2
+            exit 1
+          fi
+          echo "zenmd: warning: $missing; the bundle has icons.icns but no Assets.car." >&2
         fi
 
   fetch:helpers:

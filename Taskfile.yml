@@ -59,9 +59,10 @@ tasks:
       - task: common:build:frontend
     env:
       # Same macOS minimum as the app build (build/darwin/Taskfile.yml),
-      # so the linker does not warn about newer object files.
-      CGO_CFLAGS: "-mmacosx-version-min=13.0"
-      CGO_LDFLAGS: "-mmacosx-version-min=13.0"
+      # so the linker does not warn about newer object files. macOS only:
+      # gcc on Linux rejects the flag.
+      CGO_CFLAGS: '{{if eq OS "darwin"}}-mmacosx-version-min=13.0{{end}}'
+      CGO_LDFLAGS: '{{if eq OS "darwin"}}-mmacosx-version-min=13.0{{end}}'
       MACOSX_DEPLOYMENT_TARGET: "13.0"
     cmds:
       - go vet ./...
