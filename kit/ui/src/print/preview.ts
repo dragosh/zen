@@ -243,6 +243,7 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
         return;
       }
       say(`Saved ${path.split(/[\\/]/).pop()}`, false, true);
+      try { win.localStorage.setItem("zen.lastPdfExport", JSON.stringify({ path, at: Date.now() })); } catch { /* no storage: Settings just shows no last file */ }
       if (api.revealExport) note.append(" ", button("Show in Finder", () => void api.revealExport!().catch((e) => showNote(message(e))), { className: "link" }));
     } catch (err) {
       if (!stopped) {
