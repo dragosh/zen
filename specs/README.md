@@ -61,6 +61,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 19 | [ui/find](ui/find/spec.md) | Find in page: ⌘F, ⌘G, ⇧⌘G and Edit › Find open a find bar in the reader (highlights via the CSS Custom Highlight API) and the editor (match selected in the source); `kit/ui/src/find`, page/editor wiring, `apps/zenmark/menu.go` | ui/page, ui/editor, app/menu | done |
 | 20 | [app/export](app/export/spec.md) | Export: File › Export › Website… / PDF…, Settings › Export, `zenmd export site\|pdf`; the PDF saved through macOS printing without the panel, also headless from the CLI; `kit/desktop/pdf*.go`, `apps/zenmark/{exportpdf,headless}.go`, `internal/cli/export.go`, print preview, buildsite/settings | ui/static-build, ui/print, app/menu, cli/commands | done |
 | 20 | [ui/panel](ui/panel/spec.md) | the tabbed bottom panel (tabs with count chips, close, resizable top edge, empty state and property grid) the Inspector is built on; `kit/ui/src/panel` | ui/inspector, ui/developer-tab | done |
+| 21 | [kit/addons](kit/addons/spec.md) | add-ons: optional capabilities chosen at build time (`ADDONS=vale`, tags `addon_<id>`, helpers bundled per add-on); Vale linting becomes the first add-on, off by default; Settings › Add-ons; `kit/addons`, `addons/vale`, `engine/session.SetLinter`, Taskfiles, resources | core/lint, ui/lint, ui/inspector, ui/panel, packaging/macos | specified |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 
