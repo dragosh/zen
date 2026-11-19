@@ -11,6 +11,7 @@ func (z *Zen) CloseFolder() (bool, error) {
 		return false, err
 	}
 	z.page = ""
+	z.folderOpened(false)
 	z.setLaunchErr(nil)
 	return true, nil
 }

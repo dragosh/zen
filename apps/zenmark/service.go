@@ -50,6 +50,7 @@ type Zen struct {
 	open    func(string) error
 	windows *desktop.Windows // nil until the GUI runs (ui/editor-window)
 	logs    *desktop.LogRing // nil without the Developer panel's log (tests, headless)
+	menu    *menuState       // enabled state of the folder-only menu items; nil headless
 
 	initialDir  string // opened by openInitial when DeferOpen
 	initialOnce sync.Once
@@ -153,6 +154,7 @@ func (z *Zen) openInitial() {
 		if err := z.s.Open(z.initialDir); err != nil && !errors.Is(err, ErrOpenCancelled) {
 			z.setLaunchErr(z.s.OpenError(err))
 		}
+		z.folderOpened(z.s.Workspace() != nil)
 	})
 }
 
@@ -170,6 +172,7 @@ func (z *Zen) PickFolder() (*Workspace, error) {
 		return nil, z.s.OpenError(err)
 	}
 	z.setLaunchErr(nil) // a folder is open now
+	z.folderOpened(true)
 	z.page = ""
 	return z.s.Workspace(), nil
 }
@@ -190,6 +193,7 @@ func (z *Zen) openPath(path string) (Startup, error) {
 		return Startup{}, z.s.OpenError(err)
 	}
 	z.setLaunchErr(nil)
+	z.folderOpened(true)
 	z.page = l.Page
 	return z.Startup(), nil
 }

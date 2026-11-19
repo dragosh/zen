@@ -32,7 +32,8 @@ that came with Wails (Reload, Force Reload, Toggle DevTools, Speech, Services, �
    - ⌘P prints the page in read mode. The page view already handles it; behaviour is unchanged.
    - ⌘R does nothing in production builds.
 7. Dev builds (`DEV=true`) add a **Develop** menu with Reload (⌘R) and Toggle DevTools (⌥⌘I), so day-to-day work isn't slowed down. Production builds never show it.
-8. The menu is built by one function, `buildMenu(app, actions) *application.Menu`, and its structure is checked by a test that lists every label and accelerator.
+8. **Folder-only items are greyed out without a folder.** On the home screen New Page…, Close Folder, Build Website…, Print Page… and Print Site… are disabled; they are enabled again as soon as a folder opens (Open Folder, Open With, New Site from Template, the folder given at launch) and disabled again by Close Folder. New Site from Template…, Open Folder… and Settings… are always enabled. The state at launch matches whether a folder was given. `menuState.setFolderOpen(bool)` (`apps/zenmark/menustate.go`) holds the items; `Zen.folderOpened` calls it where a folder opens or closes.
+9. The menu is built by one function, `buildMenu(app, actions) *application.Menu`, and its structure is checked by a test that lists every label and accelerator.
 
 ## Architecture
 
@@ -75,7 +76,8 @@ export function closeWindowKey(e: KeyboardEvent): boolean; // ⌘W, no other mod
 | 5 | About uses the bundle name, version and icon | `build/darwin/package_test.go: TestAboutPanel` (Info.plist keys, no "wails" in the bundle's strings and resources) |
 | 6 | ⌘W closes the focused window; the editor guard runs; ⌘R does nothing | `frontend/src/shell/keys.test.ts`; `frontend/src/shell/window.test.ts: "⌘W asks before closing a dirty editor"` |
 | 7 | Develop menu only when dev | `menu_test.go: TestMenuSpecDev` |
-| 8 | app.go has no menu code left | `menu_test.go: TestAppGoBuildsMenuOnce` (source scan for `Menu.New`) |
+| 8 | folder-only labels; items follow the open folder, start state, nil-safe, `Zen.folderOpened` | `apps/zenmark/menustate_test.go: TestFolderOnlyLabels`, `TestMenuStateFollowsFolder`, `TestMenuStateInitiallyOpen`, `TestMenuStateNilSafe`, `TestFolderChangedUpdatesMenu` |
+| 9 | app.go has no menu code left | `menu_test.go: TestAppGoBuildsMenuOnce` (source scan for `Menu.New`) |
 
 Edge cases to cover:
 - the shortcuts on the welcome screen: New Page is disabled there, as today, and Open Folder works;
