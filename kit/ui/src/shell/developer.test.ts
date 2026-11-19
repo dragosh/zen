@@ -110,6 +110,17 @@ test("one bottom panel at a time: opening asks the Inspector to close, an open I
   document.removeEventListener(INSPECTOR_CLOSE, asked);
 });
 
+test("the Developer panel and the Inspector share one height: a change by either is used by the other", () => {
+  setDeveloperEnabled(true);
+  dev = createDeveloper(layout, host, document);
+  dev.toggle();
+  expect(dev.height()).toBe(DEV_HEIGHT_DEFAULT);
+  dev.toggle();
+  localStorage.setItem("zen.panel.height", "300"); // the Inspector was resized
+  dev.toggle();
+  expect(dev.height()).toBe(300);
+});
+
 test("turning the setting off closes the panel", () => {
   setDeveloperEnabled(true);
   dev = createDeveloper(layout, host, document);

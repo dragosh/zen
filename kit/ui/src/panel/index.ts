@@ -34,8 +34,13 @@ export type TabbedPanel = {
   setCount(id: string, n: number | null, tone?: CountTone): void;
   readonly height: number;
   setHeight(px: number): void;
+  /** Reads the remembered height again (another panel may have changed it). */
+  reload(): void;
   destroy(): void;
 };
+
+/** The one height of the bottom panels (the Inspector and the Developer panel): resizing either sets both. */
+export const BOTTOM_PANEL_HEIGHT = { key: "zen.panel.height", initial: 240, min: 120 } as const;
 
 /** Share of the parent the panel may take when it is resized. */
 export const PANEL_MAX_SHARE = 0.7;
@@ -166,9 +171,12 @@ export function createTabbedPanel(o: TabbedPanelOptions): TabbedPanel {
     o.doc.body.classList.remove("zen-panel-resizing");
     if (o.resize) write(o.resize.key, String(height));
   };
+  const stored = () => {
+    const n = Number.parseFloat(read(o.resize!.key) ?? "");
+    return Math.max(o.resize!.min, Math.round(Number.isFinite(n) ? n : o.resize!.initial));
+  };
   if (o.resize) {
-    const n = Number.parseFloat(read(o.resize.key) ?? "");
-    height = Math.max(o.resize.min, Math.round(Number.isFinite(n) ? n : o.resize.initial));
+    height = stored();
     resizer = el("div", "zen-panel-resizer");
     resizer.setAttribute("role", "separator");
     resizer.setAttribute("aria-orientation", "horizontal");
@@ -214,6 +222,11 @@ export function createTabbedPanel(o: TabbedPanelOptions): TabbedPanel {
     },
     get height() { return height; },
     setHeight,
+    reload() {
+      if (!o.resize) return;
+      height = stored();
+      apply();
+    },
     destroy() {
       tablist.removeEventListener("keydown", onTabKey);
       view?.removeEventListener("mousemove", onMove);

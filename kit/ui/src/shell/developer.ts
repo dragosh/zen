@@ -1,6 +1,7 @@
 // The Developer tab (ui/developer-tab): the "Show developer tab" setting, the sidebar button, ⌥⌘J and
 // the bottom panel below the page with its drag handle. The setting is per machine (localStorage, like
 // the theme) and every window follows it.
+import { BOTTOM_PANEL_HEIGHT } from "../panel";
 import { INSPECTOR_CLOSE, INSPECTOR_STATE, type InspectorState } from "../inspector/events";
 import type { KitHost } from "../host";
 import { installConsoleCapture } from "./console";
@@ -9,9 +10,9 @@ import { el } from "./dom";
 import type { Layout } from "./layout";
 
 export const DEV_KEY = "zen.developer";
-export const DEV_HEIGHT_KEY = "zen.developer.height";
-export const DEV_HEIGHT_DEFAULT = 240;
-export const DEV_HEIGHT_MIN = 120;
+export const DEV_HEIGHT_KEY = BOTTOM_PANEL_HEIGHT.key;
+export const DEV_HEIGHT_DEFAULT = BOTTOM_PANEL_HEIGHT.initial;
+export const DEV_HEIGHT_MIN = BOTTOM_PANEL_HEIGHT.min;
 const DEV_MAX_SHARE = 0.7; // of the content area
 const KEY_STEP = 16;
 const EVENT = "zen:developer";
@@ -153,6 +154,7 @@ export function createDeveloper(layout: Layout, host: Pick<KitHost, "logs" | "on
       wrap.append(handle, panel.el);
     }
     open = true;
+    height = clamp(storedHeight()); // shared with the Inspector, which may have been resized meanwhile
     // One bottom panel at a time: the Inspector closes when this one opens, and the other way round.
     doc.dispatchEvent(new CustomEvent(INSPECTOR_CLOSE));
     layout.setBottomPanel(wrap);

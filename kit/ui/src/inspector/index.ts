@@ -7,7 +7,7 @@ import type { Alert, KitHost, Page, PageInfo } from "../host";
 import { issueList } from "../lint";
 import { copyText } from "../shell/clipboard";
 import { button, el } from "../shell/dom";
-import { createTabbedPanel, panelEmpty, panelProps } from "../panel";
+import { BOTTOM_PANEL_HEIGHT, createTabbedPanel, panelEmpty, panelProps } from "../panel";
 import { INSPECTOR_CLOSE, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorIcon, inspectorLabel, type InspectorState } from "./events";
 import { formatDate, formatSize, readingLabel } from "./format";
 import { pageStats, type PageStats } from "./stats";
@@ -18,10 +18,7 @@ export { INSPECTOR_CLOSE, INSPECTOR_STATE, INSPECTOR_TOGGLE, type InspectorState
 export const OPEN_KEY = "zen.inspector.open";
 /** The last tab, by id. */
 export const TAB_KEY = "zen.inspector.tab";
-/** The panel's height, remembered across launches; drag its top edge to change it. */
-export const HEIGHT_KEY = "zen.inspector.height";
-export const HEIGHT_DEFAULT = 220;
-export const HEIGHT_MIN = 120;
+/** The panel's height is the one shared with the Developer panel (ui/panel BOTTOM_PANEL_HEIGHT). */
 
 export type InspectorOptions = {
   doc: Document;
@@ -111,7 +108,7 @@ export function createInspector(o: InspectorOptions): Inspector {
       inspector.close();
       (o.external ? o.doc.querySelector<HTMLElement>(".zen-inspector-button") : toggle)?.focus();
     },
-    resize: { key: HEIGHT_KEY, initial: HEIGHT_DEFAULT, min: HEIGHT_MIN },
+    resize: BOTTOM_PANEL_HEIGHT,
   });
   const panel = frame.el;
   panel.classList.add("zen-inspector");
@@ -282,6 +279,7 @@ export function createInspector(o: InspectorOptions): Inspector {
       if (isOpen) return;
       isOpen = true;
       write(OPEN_KEY, "1");
+      frame.reload(); // the Developer panel may have been resized meanwhile
       sync();
       fetchFile();
       o.onOpenChange?.(true);

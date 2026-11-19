@@ -87,6 +87,14 @@ test("resizable: starts at the remembered height (or the initial one), arrows re
   expect(make().el.querySelector('[role="separator"]')).toBeNull();
 });
 
+test("reload picks up a height another panel stored under the same key", () => {
+  const p = make({ resize: { key: "k.h", initial: 200, min: 120 } });
+  localStorage.setItem("k.h", "260");
+  p.reload();
+  expect(p.height).toBe(260);
+  expect(p.el.style.height).toBe("260px");
+});
+
 test("broken storage: the panel still works and starts on the first tab", () => {
   vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("no"); });
   vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("no"); });

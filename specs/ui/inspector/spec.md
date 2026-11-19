@@ -27,7 +27,7 @@ opens it; the issue count stays visible on that button when the panel is closed.
    from page to page), every access in try/catch; unavailable storage means closed. The last
    tab is remembered too (`zen.inspector.tab`: `issues`, `file` or `page`; anything else means Linting).
 3. The panel is the tabbed bottom panel of [ui/panel](../panel/spec.md): full width under the page,
-   220 px high by default, resizable from its top edge (remembered as `zen.inspector.height`),
+   the same height as the Developer panel (240 px by default, resizable from its top edge, shared as `zen.panel.height`),
    with a ✕ close button and a count chip on Linting (red with errors).
    Only one bottom panel shows at a time: opening the Inspector closes the Developer panel, and
    opening the Developer panel closes the Inspector (`zen:inspector-close`). It takes
