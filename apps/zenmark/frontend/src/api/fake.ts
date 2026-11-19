@@ -6,7 +6,7 @@ import type { Api, BuildProgress, Crumb, Draft, SiteTemplate, LayoutInfo, LintRe
 type Method = "startup" | "pickFolder" | "cancelOpen" | "closeFolder"
   | "siteTemplates" | "pickSiteFolder" | "createSite" | "revealTemplates" | "templatesDir"
   | "buildOptions" | "buildWebsite" | "cancelBuild" | "saveBuildDefaults" | "pickBuildFolder" | "openBuiltSite" | "revealBuiltSite"
-  | "printPage" | "printSite" | "printWindow" | "exportPdf" | "revealExport" | "printReady" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "pageInfo" | "revealInFinder" | "openConfig" | "createPage"
+  | "printPage" | "printSite" | "printWindow" | "exportPdf" | "revealExport" | "printReady" | "printFailed" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "pageInfo" | "revealInFinder" | "openConfig" | "createPage"
   | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys"
   | "reorderNav" | "setNavHidden"
   | "logs" | "layouts" | "layoutTrust" | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys";
@@ -300,6 +300,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     exportPdf: (title) => call("exportPdf", [title], () => (typeof api.exportPath === "function" ? api.exportPath() : api.exportPath)).then((p) => p),
     revealExport: () => call("revealExport", [], () => undefined),
     printReady: (late) => call("printReady", [late], () => undefined),
+    printFailed: (message) => call("printFailed", [message], () => undefined),
     page: (path) => call("page", [path], () => render(path, need(path))),
     source: (path) => call("source", [path], () => need(path)),
     preview: (path, content) => call("preview", [path, content], () => render(path, content)),

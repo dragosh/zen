@@ -17,7 +17,7 @@ export type PreviewApi = Pick<
   | "pluginStorageGet" | "pluginStorageSet" | "pluginStorageKeys"
   | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys"
   | "pluginInvoke" | "pluginStream" | "pluginCancel" | "openExternal" | "on"
-> & Partial<Pick<KitHost, "printWindow" | "exportPdf" | "revealExport" | "printReady">>;
+> & Partial<Pick<KitHost, "printWindow" | "exportPdf" | "revealExport" | "printReady" | "printFailed">>;
 
 type FetchLike = (url: string, init?: { headers?: Record<string, string> }) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>;
 
@@ -128,7 +128,15 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
     paper.replaceChildren();
   }
 
+  /** Export mode: the app is told why there will be no document, instead of waiting for the timeout. */
+  function failExport(text: string): void {
+    if (told) return;
+    told = true;
+    void api.printFailed?.(text.trim().split("\n")[0] || "the document could not be prepared")?.catch((err) => console.error("zen: export failed", err));
+  }
+
   function showError(text: string): void {
+    if (exportMode) return failExport(text);
     setReady(false);
     say("Could not prepare the document");
     const box = el("div", "zen-print-error-box");
@@ -154,6 +162,7 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
       return;
     }
     if (mine !== seq || stopped) return;
+    if (exportMode && !res.ok) return failExport(text || `The app answered ${res.status}`);
     if (res.status === 413) {
       say(text.trim() || "Too many pages to print at once; print a section");
       return;

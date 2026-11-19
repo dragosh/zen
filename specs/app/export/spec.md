@@ -70,6 +70,7 @@ func ExportPDF(e cli.ExportPDF, stdout, stderr io.Writer) error            // he
 func (z *Zen) ExportPDF(ctx context.Context, title string) (string, error) // save panel + SavePDF; "" when cancelled
 func (z *Zen) RevealExport() error                                          // Finder on the last exported file
 func (h *headlessService) PrintReady(late []string)                          // export mode only
+func (h *headlessService) PrintFailed(message string)                        // export mode: the document could not be prepared; ends the export with an error
 ```
 
 ```ts
@@ -77,6 +78,7 @@ func (h *headlessService) PrintReady(late []string)                          // 
 exportPdf?(title: string): Promise<string>;   // path, "" when cancelled
 revealExport?(): Promise<void>;
 printReady?(late: string[]): Promise<void>;   // export mode
+printFailed?(message: string): Promise<void>; // export mode: the document could not be prepared
 ```
 
 ## Tests
@@ -97,6 +99,7 @@ printReady?(late: string[]): Promise<void>;   // export mode
 | 11 | Headless export: hidden accessory app, export mode URL, PrintReady triggers save and quit | `apps/zenmark/headless_test.go: TestHeadlessPlan` (pure: the window spec and options), `TestPrintReadySaves` (fake saver) |
 | 11 | Export mode preview: no buttons, calls printReady once with the late blocks | `preview.test.ts: "export mode calls printReady"` |
 | 12 | Usage errors exit 2; missing folder, no pages, unwritable output, non-macOS, timeout exit 1 with one line | `export_test.go: TestExportErrors`; `headless_test.go: TestHeadlessTimeout` |
+| 12 | Export mode: a preview that cannot load calls `printFailed(message)` (not `printReady`); the CLI ends at once with `zenmd: export pdf: <message>`, exit 1 | `preview.test.ts: "export mode: a failed load calls printFailed and not printReady"`; `headless_test.go: TestPrintFailedEndsExport` |
 | 13 | Late blocks become stderr warnings | `headless_test.go: TestLateBlocksWarn` |
 
 Edge cases: a folder name with spaces or `/`-like characters in the default PDF name (sanitised: no path separators); `-o` pointing at a folder (error, not a file inside it); an output file that exists (overwritten, like `build` overwrites); an empty folder; `export pdf` given a single `.md` file (error: export takes a folder).

@@ -247,6 +247,9 @@ const api: Api = {
   async printReady(late) {
     await call(HeadlessService.PrintReady(late));
   },
+  async printFailed(message) {
+    await call(HeadlessService.PrintFailed(message));
+  },
   async reorderNav(parent, paths) {
     await call(Zen.ReorderNav(parent, paths));
   },

@@ -67,6 +67,8 @@ export interface KitHost extends RuntimeHost {
   revealExport?(): Promise<void>;
   /** Export mode of the preview (`zenmd export pdf`): the document is laid out; late names the blocks that were not ready in time. */
   printReady?(late: string[]): Promise<void>;
+  /** Export mode: the document could not be prepared; message is one short plain line. */
+  printFailed?(message: string): Promise<void>;
   /**
    * The sidebar's context menu and drag reordering (ui/sidebar-menu); an app that leaves one out does not
    * get its menu item. reorderNav puts the page siblings under `parent` (the parent node's path, "" for the

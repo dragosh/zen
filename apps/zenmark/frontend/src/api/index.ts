@@ -96,6 +96,8 @@ export interface Api extends KitHost {
   revealExport(): Promise<void>;
   /** Export mode of the preview: the document is laid out (late: blocks not ready in time). */
   printReady(late: string[]): Promise<void>;
+  /** Export mode of the preview: the document could not be prepared. */
+  printFailed(message: string): Promise<void>;
   // Sidebar menu and reordering (ui/sidebar-menu)
   /** Saves the order of the page siblings under `parent` ("" for the top level) in their frontmatter (nav.order); the new tree arrives as workspace:changed. */
   reorderNav(parent: string, paths: string[]): Promise<void>;

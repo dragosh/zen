@@ -174,3 +174,19 @@ func TestHeadlessChecksFolder(t *testing.T) {
 		t.Errorf("empty folder: %v", err)
 	}
 }
+
+// A preview that cannot load ends the export at once with its message (behaviour 12).
+func TestPrintFailedEndsExport(t *testing.T) {
+	var out bytes.Buffer
+	h := newHeadlessService(func(string, string) (int, error) { t.Error("nothing to save"); return 0, nil }, "/x/a.pdf", "t", &out, io.Discard)
+	start := time.Now()
+	h.PrintFailed("the app answered 500\nsecond line")
+	h.PrintReady(nil) // too late: ignored
+	err := h.wait(10 * time.Second)
+	if err == nil || err.Error() != "export pdf: the app answered 500 second line" || out.Len() != 0 {
+		t.Fatalf("err %v, stdout %q", err, out.String())
+	}
+	if time.Since(start) > time.Second {
+		t.Error("the failure must not wait for the timeout")
+	}
+}

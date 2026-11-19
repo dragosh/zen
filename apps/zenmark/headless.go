@@ -125,6 +125,22 @@ func (h *headlessService) PrintReady(late []string) {
 	h.done <- nil
 }
 
+// PrintFailed is called once by the preview when it could not prepare the document; it ends the
+// export at once with that message.
+func (h *headlessService) PrintFailed(message string) {
+	h.mu.Lock()
+	if h.state != 0 {
+		h.mu.Unlock()
+		return
+	}
+	h.state = 1
+	h.mu.Unlock()
+	if message = oneLine(message); message == "" {
+		message = "the document could not be prepared"
+	}
+	h.done <- errors.New("export pdf: " + message)
+}
+
 func oneLine(s string) string { return strings.Join(strings.Fields(s), " ") }
 
 // wait returns when the PDF is written or has failed, or when d has passed.

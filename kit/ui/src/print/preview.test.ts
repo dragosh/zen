@@ -327,3 +327,11 @@ test("styles of the plugins and layouts come along; links open through the app; 
   expect(root.childElementCount).toBe(0);
   expect(Array.from(document.head.querySelectorAll("style")).some((s) => s.textContent?.includes(".zl-x"))).toBe(false);
 });
+
+test("export mode: a failed load calls printFailed and not printReady", async () => {
+  open(fetcher(() => ({ status: 500, body: "render failed: bad block\nmore detail" })), "?window=print&export=1&page=");
+  await flush();
+  expect(api.callsTo("printFailed")).toEqual([["render failed: bad block"]]);
+  expect(api.callsTo("printReady")).toHaveLength(0);
+  expect(root.querySelectorAll("button")).toHaveLength(0);
+});
