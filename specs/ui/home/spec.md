@@ -23,9 +23,12 @@ the app.
    template" cards with "Show all…".
 2. The templates sit in a grid: one column on narrow windows, two from 560 px,
    three from 860 px.
-3. A quiet footer names the other ways to start: File › Open Folder and
-   ⇧⌘N for a new site. The app has no recent-folders or version API, so neither
-   is shown (nothing is invented).
+3. A small hint at the top-left of the welcome view points up to the menu bar:
+   "↖ File menu: Open Folder… · New Site… (⇧⌘N)", followed by the Settings ⌘,
+   link (`.zen-welcome-settings`). There is no footer line. The app has no
+   recent-folders or version API, so neither is shown (nothing is invented).
+3a. In the New Site dialog, "Open templates folder" (and the empty state's
+   "Reveal in Finder") show only when developer mode is on (`developerEnabled()`).
 4. All existing welcome behaviour stays: the status message for a launch folder
    that failed, template cards, Show all…, Open a folder.
 5. The sidebar has no "Open…" button. Opening stays on the welcome screen, ⌘O
@@ -47,13 +50,15 @@ imports `src/assets/logo.svg` (the bare mark, copied from
 ## Interfaces
 
 No API change. New classes: `.zen-welcome-logo`, `.zen-welcome-tagline`,
-`.zen-welcome-foot`. Removed: `.zen-sidebar-open`.
+`.zen-welcome-menuhint`. Removed: `.zen-welcome-foot`, `.zen-sidebar-open`.
 
 ## Tests
 
 | # | Behaviour | Test |
 |---|---|---|
-| 1 | logo, heading, tagline, button, hint, footer | `apps/zenmark/frontend/src/shell/shell.test.ts: welcome has the logo, tagline and footer` |
+| 1 | logo, heading, tagline, button, hint | `apps/zenmark/frontend/src/shell/shell.test.ts: welcome has the logo, tagline and footer` |
+| 1a | menu hint with ↖, File menu, ⇧⌘N and the Settings link; no footer | `shell.test.ts: welcome has a hint pointing up to the menu bar, and Settings stays reachable` |
+| 1b | templates button hidden by default, shown in developer mode | `newsite.test.ts: Open templates folder is hidden unless developer mode is on`, `empty state: Reveal in Finder only in developer mode` |
 | 2 | existing welcome behaviour | the existing welcome tests in the same file |
 | 3 | no Open… in the sidebar | `kit/ui/src/shell/layout.test.ts: the sidebar has no Open button; the cog at the bottom reports itself` |
 | 4 | chevron, marker hidden, open state | `runtime/src/static/static.test.ts: group summaries get a chevron and no native marker` |

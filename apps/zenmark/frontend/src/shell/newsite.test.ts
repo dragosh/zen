@@ -59,7 +59,7 @@ function rig(templates = TEMPLATES, startup?: Startup): Rig {
 const settle = async () => { for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0)); };
 let dialogs: NewSiteDialog[] = [];
 beforeEach(() => { document.body.replaceChildren(); dialogs = []; });
-afterEach(() => { for (const d of dialogs) d.close(); });
+afterEach(() => { for (const d of dialogs) d.close(); localStorage.removeItem("zen.developer"); });
 
 function open(api: Rig, preselect?: string) {
   const onCreated = vi.fn();
@@ -248,6 +248,7 @@ test("an error while writing is shown too, and the dialog can be used again", as
 });
 
 test("no templates: says so and offers to reveal the folder", async () => {
+  localStorage.setItem("zen.developer", "1");
   const api = rig([]);
   const o = open(api);
   await settle();
@@ -267,7 +268,33 @@ test("only invalid templates: nothing can be chosen", async () => {
   expect((o.btn("Create") as HTMLButtonElement).disabled).toBe(true);
 });
 
+test("Open templates folder is hidden unless developer mode is on", async () => {
+  let o = open(rig());
+  await settle();
+  expect(o.d.el.textContent).not.toContain("Open templates folder");
+  o.d.close();
+  localStorage.setItem("zen.developer", "1");
+  o = open(rig());
+  await settle();
+  expect(o.d.el.textContent).toContain("Open templates folder");
+  localStorage.removeItem("zen.developer");
+});
+
+test("empty state: Reveal in Finder only in developer mode", async () => {
+  let o = open(rig([]));
+  await settle();
+  expect(o.d.el.textContent).toContain("No templates");
+  expect(o.d.el.textContent).not.toContain("Reveal in Finder");
+  o.d.close();
+  localStorage.setItem("zen.developer", "1");
+  o = open(rig([]));
+  await settle();
+  expect(o.d.el.textContent).toContain("Reveal in Finder");
+  localStorage.removeItem("zen.developer");
+});
+
 test("a failing list is an error, and Open templates folder reveals the folder", async () => {
+  localStorage.setItem("zen.developer", "1");
   const api = rig();
   api.fail.siteTemplates = new Error("cannot read");
   const o = open(api);

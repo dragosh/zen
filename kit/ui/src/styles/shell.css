@@ -415,9 +415,9 @@ h4.zen-plugin-help-title { font-size: 14px; }
 }
 
 /* Welcome: logo, Open a folder, Start from a template (core/init). */
-.zen-welcome { overflow: auto; justify-content: flex-start; gap: 0; padding: var(--space-6) var(--space-4); }
+.zen-welcome { position: relative; overflow: auto; justify-content: flex-start; gap: 0; padding: var(--space-6) var(--space-4); }
 /* auto margins centre the content when it is short and let it scroll when it is tall */
-.zen-welcome > :first-child { margin-top: auto; }
+.zen-welcome > :first-child, .zen-welcome > .zen-welcome-menuhint + * { margin-top: auto; }
 .zen-welcome > :last-child { margin-bottom: auto; }
 .zen-welcome-logo { width: 112px; height: 112px; margin-bottom: var(--space-4); user-select: none; }
 .zen-welcome h1 { margin: 0; letter-spacing: 0.01em; }
@@ -445,7 +445,7 @@ h4.zen-plugin-help-title { font-size: 14px; }
   margin: 0; color: var(--fg-muted); font: 12px/1.4 var(--font-ui);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.zen-welcome .zen-welcome-foot { margin: var(--space-6) 0 0; font: 12px/1.4 var(--font-ui); }
+.zen-welcome .zen-welcome-menuhint { position: absolute; top: var(--space-3); left: var(--space-4); margin: 0; color: var(--fg-muted); font: 12px/1.4 var(--font-ui); }
 @media (prefers-reduced-motion: reduce) { .zen-welcome-card { transition: none; } }
 
 /* New Site dialog (core/init); the frame matches New Page. */
@@ -591,5 +591,5 @@ h4.zen-plugin-help-title { font-size: 14px; }
 .zen-home-settings { height: 100vh; display: flex; flex-direction: column; background: var(--bg); }
 .zen-home-settings-top { flex: none; display: flex; align-items: center; height: 44px; padding: 0 var(--space-3); border-bottom: 1px solid var(--rule); }
 .zen-home-settings > :last-child { flex: 1; min-height: 0; }
-.zen-welcome-foot .zen-welcome-settings { background: none; border: 0; padding: 0; min-height: 0; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
-.zen-welcome-foot .zen-welcome-settings:hover { color: var(--fg); }
+.zen-welcome-menuhint .zen-welcome-settings { background: none; border: 0; padding: 0; min-height: 0; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
+.zen-welcome-menuhint .zen-welcome-settings:hover { color: var(--fg); }
