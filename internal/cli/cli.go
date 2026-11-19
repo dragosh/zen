@@ -10,6 +10,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/zenmark-org/zenmd/kit/addons"
 )
 
 // Name is the command and executable: the name of the engine.
@@ -40,6 +42,23 @@ func Notice(w io.Writer, invokedAs string) {
 // Version is set at build time with
 // -ldflags "-X github.com/zenmark-org/zenmd/internal/cli.Version=<v>".
 var Version = "dev"
+
+// addonList is the add-ons of this build (kit/addons); tests replace it.
+var addonList = addons.List
+
+// VersionLine is "zenmd 0.6.0", followed by the add-ons of the build when it has
+// some: "zenmd 0.6.0 (add-ons: vale, voice)". The About panel shows the same.
+func VersionLine() string {
+	line := "zenmd " + Version
+	var ids []string
+	for _, a := range addonList() {
+		ids = append(ids, a.ID)
+	}
+	if len(ids) > 0 {
+		line += " (add-ons: " + strings.Join(ids, ", ") + ")"
+	}
+	return line
+}
 
 // Launch describes what the GUI opens.
 type Launch struct {
@@ -141,7 +160,7 @@ func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher, b
 			fmt.Fprint(stdout, usage)
 			return 0
 		case flags && (arg == "-v" || arg == "--version"):
-			fmt.Fprintf(stdout, "zenmd %s\n", Version)
+			fmt.Fprintln(stdout, VersionLine())
 			return 0
 		case flags && strings.HasPrefix(arg, "-") && arg != "-":
 			return fail(stderr, usageError("unknown option "+arg))
@@ -149,7 +168,7 @@ func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher, b
 			fmt.Fprint(stdout, usage)
 			return 0
 		case flags && first && arg == "version":
-			fmt.Fprintf(stdout, "zenmd %s\n", Version)
+			fmt.Fprintln(stdout, VersionLine())
 			return 0
 		case flags && first && arg == "build":
 			return runBuild(args[i+1:], cwd, stdout, stderr, build)
