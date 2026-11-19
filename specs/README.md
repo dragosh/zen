@@ -58,6 +58,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 18 | [ui/inspector](ui/inspector/spec.md) | the Inspector: a right-hand panel with the page's Vale issues, file details and content statistics, ⌥⌘I; `kit/ui/src/inspector`, `engine/session/pageinfo*.go`, `apps/zenmark/inspector.go` | ui/page, ui/lint, engine/session | done |
 | 18 | [ui/developer-tab](ui/developer-tab/spec.md) | Developer tab: a bottom log panel (App, Plugins, Console) behind Settings › Developer, ⌥⌘J; `kit/desktop/logs.go`, `kit/ui/src/shell/{developer,devpanel,console}.ts`, `Zen.Logs` | kit/desktop-ui | done |
 | 18 | [ui/sidebar-menu](ui/sidebar-menu/spec.md) | sidebar context menu and reordering by drag / Move Up and Down: `kit/ui/src/nav`, `engine/config/frontmatter_edit.go`, `engine/session/nav.go`, `apps/zenmark/nav.go` | engine/session, kit/desktop-ui, core/navmeta, ui/new-page | done |
+| 19 | [ui/find](ui/find/spec.md) | Find in page: ⌘F, ⌘G, ⇧⌘G and Edit › Find open a find bar in the reader (highlights via the CSS Custom Highlight API) and the editor (match selected in the source); `kit/ui/src/find`, page/editor wiring, `apps/zenmark/menu.go` | ui/page, ui/editor, app/menu | done |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 

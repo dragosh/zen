@@ -13,6 +13,7 @@ type menuActions struct {
 	NewSite, NewPage, OpenFolder, Settings func()
 	CloseFolder                            func()
 	BuildWebsite, PrintPage, PrintSite     func()
+	Find, FindNext, FindPrevious           func()
 }
 
 // forLabel returns the action of a custom (role-less) item, nil for others.
@@ -26,6 +27,12 @@ func (a menuActions) forLabel(label string) func() {
 		return a.PrintPage
 	case labelPrintSite:
 		return a.PrintSite
+	case labelFind:
+		return a.Find
+	case labelFindNext:
+		return a.FindNext
+	case labelFindPrevious:
+		return a.FindPrevious
 	case labelNewPage:
 		return a.NewPage
 	case labelOpenFolder:
@@ -52,6 +59,9 @@ const (
 	labelBuildWebsite = "Build Website…"
 	labelPrintPage    = "Print Page…"
 	labelPrintSite    = "Print Site…"
+	labelFind         = "Find…"
+	labelFindNext     = "Find Next"
+	labelFindPrevious = "Find Previous"
 	labelNewPage      = "New Page…"
 	labelOpenFolder   = "Open Folder…"
 	labelCloseFolder  = "Close Folder"
@@ -93,6 +103,12 @@ func menuSpec(dev bool) []menuItem {
 			{Label: "Copy", Accel: "CmdOrCtrl+C", Role: "Copy"},
 			{Label: "Paste", Accel: "CmdOrCtrl+V", Role: "Paste"},
 			{Label: "Select All", Accel: "CmdOrCtrl+A", Role: "SelectAll"},
+			sep,
+			{Label: "Find", Children: []menuItem{
+				{Label: labelFind, Accel: "CmdOrCtrl+F"},
+				{Label: labelFindNext, Accel: "CmdOrCtrl+G"},
+				{Label: labelFindPrevious, Accel: "CmdOrCtrl+Shift+G"},
+			}},
 		}},
 	}
 	if dev {
@@ -123,35 +139,43 @@ var roleByName = map[string]application.Role{
 func buildMenu(a *application.App, act menuActions, st *menuState, dev bool) *application.Menu {
 	menu := a.Menu.New()
 	for _, top := range menuSpec(dev) {
-		sub := menu.AddSubmenu(top.Label)
-		for _, it := range top.Children {
-			if it.Separator {
-				sub.AddSeparator()
-				continue
-			}
-			var item *application.MenuItem
-			if it.Role != "" {
-				item = application.NewRole(roleByName[it.Role])
-				if item == nil {
-					continue // e.g. DevTools in a production build of Wails
-				}
-				sub.Append(application.NewMenuFromItems(item))
-				item.SetLabel(it.Label)
-			} else {
-				item = sub.Add(it.Label)
-				if f := act.forLabel(it.Label); f != nil {
-					item.OnClick(func(*application.Context) { f() })
-				}
-				if st != nil && folderOnly(it.Label) {
-					st.add(func(on bool) { item.SetEnabled(on) })
-				}
-			}
-			if it.Accel != "" {
-				item.SetAccelerator(it.Accel)
-			}
-		}
+		fillMenu(menu.AddSubmenu(top.Label), top.Children, act, st)
 	}
 	return menu
+}
+
+// fillMenu adds items to sub; an item with children becomes a submenu (Edit > Find).
+func fillMenu(sub *application.Menu, items []menuItem, act menuActions, st *menuState) {
+	for _, it := range items {
+		if it.Separator {
+			sub.AddSeparator()
+			continue
+		}
+		if len(it.Children) > 0 {
+			fillMenu(sub.AddSubmenu(it.Label), it.Children, act, st)
+			continue
+		}
+		var item *application.MenuItem
+		if it.Role != "" {
+			item = application.NewRole(roleByName[it.Role])
+			if item == nil {
+				continue // e.g. DevTools in a production build of Wails
+			}
+			sub.Append(application.NewMenuFromItems(item))
+			item.SetLabel(it.Label)
+		} else {
+			item = sub.Add(it.Label)
+			if f := act.forLabel(it.Label); f != nil {
+				item.OnClick(func(*application.Context) { f() })
+			}
+			if st != nil && folderOnly(it.Label) {
+				st.add(func(on bool) { item.SetEnabled(on) })
+			}
+		}
+		if it.Accel != "" {
+			item.SetAccelerator(it.Accel)
+		}
+	}
 }
 
 // shower is the part of the main window the menu actions use.
@@ -171,6 +195,12 @@ func settingsAction(win shower, sink EventSink) func() {
 
 // newPageAction shows the main window and tells it to ask for the new page.
 func newPageAction(win shower, sink EventSink) func() { return showAndEmit(win, sink, EventNewPage) }
+
+// emitAction sends event to every window and shows nothing: the window that
+// has the focus handles it (Edit > Find).
+func emitAction(sink EventSink, event string) func() {
+	return func() { sink.Emit(event, nil) }
+}
 
 // showAndEmit shows and focuses the main window, then sends it event (the
 // menu items whose dialog lives in the main window).

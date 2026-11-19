@@ -10,7 +10,7 @@ type Method = "startup" | "pickFolder" | "cancelOpen" | "closeFolder"
   | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys"
   | "reorderNav" | "setNavHidden"
   | "logs" | "layouts" | "layoutTrust" | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys";
-type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "layouts:changed": undefined; "menu:new-page": undefined; "menu:settings": undefined; "menu:close-folder": undefined; "workspace:opening": OpenProgress; "menu:new-site": undefined; "menu:build-website": undefined; "build:progress": BuildProgress; "menu:print-page": undefined };
+type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "layouts:changed": undefined; "menu:new-page": undefined; "menu:settings": undefined; "menu:close-folder": undefined; "workspace:opening": OpenProgress; "menu:new-site": undefined; "menu:build-website": undefined; "build:progress": BuildProgress; "menu:print-page": undefined; "menu:find": undefined; "menu:find-next": undefined; "menu:find-previous": undefined };
 
 /** A plugin as tests write it: the help and what it adds default to nothing. */
 export type PluginSeed = Omit<PluginInfo, "help" | "blocks" | "inlines" | "layouts" | "options"> & Partial<Pick<PluginInfo, "help" | "blocks" | "inlines" | "layouts" | "options">>;
@@ -196,6 +196,9 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     "menu:build-website": new Set(),
     "build:progress": new Set(),
     "menu:print-page": new Set(),
+    "menu:find": new Set(),
+    "menu:find-next": new Set(),
+    "menu:find-previous": new Set(),
   };
   const logListeners = new Set<(e: LogEntry[]) => void>();
   const t0 = Date.now() - 60_000;

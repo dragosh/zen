@@ -6,7 +6,7 @@ import "sync"
 // greyed out on the home screen (app/menu).
 func folderOnly(label string) bool {
 	switch label {
-	case labelNewPage, labelCloseFolder, labelBuildWebsite, labelPrintPage, labelPrintSite:
+	case labelNewPage, labelCloseFolder, labelBuildWebsite, labelPrintPage, labelPrintSite, labelFind, labelFindNext, labelFindPrevious:
 		return true
 	}
 	return false

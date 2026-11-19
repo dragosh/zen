@@ -12,7 +12,7 @@ beforeEach(() => {
   document.head.replaceChildren();
   document.body.replaceChildren();
   vi.spyOn(document, "hasFocus").mockReturnValue(true);
-  env = setup(createFakeApi({ sources: { "README.md": "# Sample docs\n\nThe sample is a sample.\n\n## Usage\n\nBody." } }));
+  env = setup(createFakeApi({ sources: { "README.md": "# Sample docs\n\nThe sample is a sample.\n\n## Usage\n\nBody.", "b.md": "# B\n\nBee." } }));
 });
 afterEach(() => { unmount?.(); unmount = undefined; vi.restoreAllMocks(); });
 

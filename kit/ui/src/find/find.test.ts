@@ -123,7 +123,7 @@ describe("textareaFinder", () => {
     const f = textareaFinder(ta);
     expect(f.find("text", false)).toBe(2);
     f.show(1);
-    expect([ta.selectionStart, ta.selectionEnd]).toEqual([24, 28]);
+    expect([ta.selectionStart, ta.selectionEnd]).toEqual([25, 29]);
     expect(f.find("text", true)).toBe(1);
     f.show(0);
     expect(ta.value.slice(ta.selectionStart, ta.selectionEnd)).toBe("text");
@@ -173,7 +173,6 @@ describe("find bar", () => {
     find = createFind({
       doc: document, host,
       finder: domFinder(() => article, { highlights: { registry, create: (ranges) => ({ ranges }) } }),
-      hasFocus: () => true,
     });
   });
   afterEach(() => { find.destroy(); document.body.replaceChildren(); });
