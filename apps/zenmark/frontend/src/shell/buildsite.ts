@@ -1,4 +1,4 @@
-// File › Build Website… (⇧⌘B): a modal sheet that builds the open folder as a
+// File › Export › Website… (⇧⌘B): a modal sheet that builds the open folder as a
 // static website through the build services, with progress and a result. The
 // pattern of newpage.ts. Also the Website section of Settings
 // (createWebsiteSection). All text through textContent.
@@ -74,7 +74,7 @@ export function openBuildSite(opts: BuildSiteOptions): BuildSiteDialog {
   form.setAttribute("role", "dialog");
   form.setAttribute("aria-modal", "true");
   form.noValidate = true;
-  const title = el("h2", "zen-buildsite-title", "Build Website");
+  const title = el("h2", "zen-buildsite-title", "Export Website");
   title.id = `zen-buildsite-title-${id}`;
   if (opts.name) title.append(" ", el("span", "zen-buildsite-folder", opts.name));
   form.setAttribute("aria-labelledby", title.id);
@@ -153,7 +153,7 @@ export function openBuildSite(opts: BuildSiteOptions): BuildSiteDialog {
   const footer = el("div", "zen-buildsite-actions-form");
   const saveLink = button("Save as folder defaults", () => void saveDefaults(), { className: "zen-buildsite-link" });
   const cancel = button("Cancel", () => stop());
-  const build = el("button", "primary", "Build");
+  const build = el("button", "primary", "Export");
   build.type = "submit";
   const spacer = el("span", "zen-buildsite-spacer");
   footer.append(saveLink, spacer, cancel, build);
@@ -377,7 +377,7 @@ export function openBuildSite(opts: BuildSiteOptions): BuildSiteDialog {
 }
 
 /**
- * Listens for File › Build Website… and shows the dialog: once at a time (a
+ * Listens for File › Export › Website… and shows the dialog: once at a time (a
  * second event brings it to the front), and not without a folder.
  */
 export function registerBuildSite(opts: {
@@ -399,11 +399,11 @@ export function registerBuildSite(opts: {
   return { open, destroy() { off(); dialog?.close(); } };
 }
 
-// ---- Settings › Website
+// ---- Settings › Export › Website
 
 const OPENS: Record<string, string> = { true: "Disk and web servers", false: "A web server only" };
 
-/** The Website section: the folder's build options, a Build… button and the last build's result. */
+/** The Website part of Settings › Export: the folder's build options, a Build… button and the last build's result. */
 export function createWebsiteSection(opts: {
   api: Partial<BuildApi>;
   root(): string;
@@ -412,7 +412,7 @@ export function createWebsiteSection(opts: {
   const box = el("div", "zen-settings-website");
   const summary = el("p", "zen-settings-website-options");
   const lastLine = el("p", "zen-settings-build-last");
-  const b = el("button", "zen-settings-build primary", "Build…");
+  const b = el("button", "zen-settings-build primary", "Export…");
   b.type = "button";
   b.addEventListener("click", () => opts.openBuild?.());
   box.append(summary, lastLine, b);
@@ -420,7 +420,7 @@ export function createWebsiteSection(opts: {
     const root = opts.root();
     b.disabled = !root || !opts.openBuild;
     if (!root) {
-      summary.textContent = "Open a folder to build it as a website.";
+      summary.textContent = "Open a folder to export it.";
       lastLine.textContent = "";
       return;
     }

@@ -98,7 +98,7 @@ import (
 )
 
 func main() {
-	os.Exit(cli.Run(os.Args[1:], "/", os.Stdout, os.Stderr, func(cli.Launch) error { return nil }, nil, nil))
+	os.Exit(cli.Run(os.Args[1:], "/", os.Stdout, os.Stderr, func(cli.Launch) error { return nil }, nil, nil, nil))
 }
 `
 	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(src), 0o644); err != nil {

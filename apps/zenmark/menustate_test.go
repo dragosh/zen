@@ -3,7 +3,7 @@ package app
 import "testing"
 
 func TestFolderOnlyLabels(t *testing.T) {
-	for _, l := range []string{labelNewPage, labelCloseFolder, labelBuildWebsite, labelPrintPage, labelPrintSite, labelFind, labelFindNext, labelFindPrevious} {
+	for _, l := range []string{labelNewPage, labelCloseFolder, labelExport, labelExportWebsite, labelPrintPage, labelExportPDF, labelFind, labelFindNext, labelFindPrevious} {
 		if !folderOnly(l) {
 			t.Errorf("%q should need an open folder", l)
 		}
@@ -64,5 +64,20 @@ func TestFolderChangedUpdatesMenu(t *testing.T) {
 	z.folderOpened(false)
 	if a.enabled {
 		t.Fatal("folderOpened(false) must disable the items")
+	}
+}
+
+// The Export items and the Export submenu entry itself are greyed out without a folder (app/export behaviour 2).
+func TestExportFolderOnly(t *testing.T) {
+	for _, l := range []string{labelExport, labelExportWebsite, labelExportPDF} {
+		if !folderOnly(l) {
+			t.Errorf("%q should need an open folder", l)
+		}
+	}
+	if labelExport != "Export" || labelExportWebsite != "Website…" || labelExportPDF != "PDF…" {
+		t.Errorf("labels %q %q %q", labelExport, labelExportWebsite, labelExportPDF)
+	}
+	if folderOnly("Build Website…") || folderOnly("Print Site…") {
+		t.Error("the old labels are gone")
 	}
 }

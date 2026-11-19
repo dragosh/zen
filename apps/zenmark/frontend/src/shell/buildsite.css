@@ -58,3 +58,10 @@
 .zen-settings-website { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
 .zen-settings-website p { margin: 0; }
 .zen-settings-build-last { color: var(--fg-muted); }
+
+/* Settings › Export: the Website and PDF parts */
+.zen-settings-export { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
+.zen-settings-export-heading { margin: var(--space-3) 0 0; font-size: 1em; }
+.zen-settings-export-heading:first-child { margin-top: 0; }
+.zen-settings-export p { margin: 0; }
+.zen-settings-export-last { color: var(--fg-muted); }

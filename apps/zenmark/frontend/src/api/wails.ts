@@ -2,6 +2,8 @@
 // getApi() only inside the Wails webview.
 import { Events, Window } from "@wailsio/runtime";
 import { Zen } from "../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/index.js";
+// The headless service is unexported, so the generated index leaves it out.
+import * as HeadlessService from "../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/headlessservice.js";
 import type { LogEntry } from "@zenmd/kit";
 import type { Alert, Api, BuildOptions, Crumb, LayoutField, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
 
@@ -235,6 +237,18 @@ const api: Api = {
   },
   async printWindow(title) {
     await call(Zen.PrintWindow(title));
+  },
+  async exportPdf(title) {
+    return String((await call(Zen.ExportPDF(title))) ?? "");
+  },
+  async revealExport() {
+    await call(Zen.RevealExport());
+  },
+  async printReady(late) {
+    await call(HeadlessService.PrintReady(late));
+  },
+  async printFailed(message) {
+    await call(HeadlessService.PrintFailed(message));
   },
   async reorderNav(parent, paths) {
     await call(Zen.ReorderNav(parent, paths));

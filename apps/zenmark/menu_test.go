@@ -65,9 +65,10 @@ func TestMenuSpecProduction(t *testing.T) {
 		"Open Folder… [CmdOrCtrl+O]",
 		"Close Folder [CmdOrCtrl+Shift+W]",
 		"-",
-		"Build Website… [CmdOrCtrl+Shift+B]",
 		"Print Page… [CmdOrCtrl+P]",
-		"Print Site… [CmdOrCtrl+Shift+P]",
+		"> Export",
+		"  Website… [CmdOrCtrl+Shift+B]",
+		"  PDF… [CmdOrCtrl+Shift+P]",
 		"# Edit",
 		"Undo [CmdOrCtrl+Z]",
 		"Redo [CmdOrCtrl+Shift+Z]",
@@ -155,7 +156,7 @@ func TestMenuActions(t *testing.T) {
 		FindNext:     func() { calls = append(calls, "find-next") },
 		FindPrevious: func() { calls = append(calls, "find-previous") },
 	}
-	for _, label := range []string{"New Page…", "Open Folder…", "Settings…", "New Site from Template…", "Build Website…", "Print Page…", "Print Site…", "Close Folder", "Find…", "Find Next", "Find Previous"} {
+	for _, label := range []string{"New Page…", "Open Folder…", "Settings…", "New Site from Template…", "Website…", "Print Page…", "PDF…", "Close Folder", "Find…", "Find Next", "Find Previous"} {
 		f := act.forLabel(label)
 		if f == nil {
 			t.Fatalf("no action for %s", label)
@@ -254,5 +255,58 @@ func TestFindMenuItemsAreFolderOnly(t *testing.T) {
 		if !folderOnly(it.Label) {
 			t.Errorf("%q should need an open folder", it.Label)
 		}
+	}
+}
+
+// File › Export › Website… (⇧⌘B) and PDF… (⇧⌘P) replace Build Website… and Print Site…;
+// Print Page… (⌘P) stays in File (app/export behaviour 1).
+func TestExportSubmenu(t *testing.T) {
+	var file *menuItem
+	for i, top := range menuSpec(false) {
+		if top.Label == "File" {
+			file = &menuSpec(false)[i]
+		}
+	}
+	if file == nil {
+		t.Fatal("no File menu")
+	}
+	var export *menuItem
+	var labels []string
+	for i, it := range file.Children {
+		labels = append(labels, it.Label)
+		if it.Label == "Export" {
+			export = &file.Children[i]
+		}
+	}
+	if export == nil || len(export.Children) != 2 {
+		t.Fatalf("File has no Export submenu with two items: %v", labels)
+	}
+	if got := export.Children[0]; got.Label != "Website…" || got.Accel != "CmdOrCtrl+Shift+B" || got.Role != "" {
+		t.Errorf("first item %+v", got)
+	}
+	if got := export.Children[1]; got.Label != "PDF…" || got.Accel != "CmdOrCtrl+Shift+P" || got.Role != "" {
+		t.Errorf("second item %+v", got)
+	}
+	for _, l := range labels {
+		if l == "Build Website…" || l == "Print Site…" {
+			t.Errorf("File still has %q", l)
+		}
+	}
+	found := false
+	for _, it := range file.Children {
+		if it.Label == "Print Page…" && it.Accel == "CmdOrCtrl+P" {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("Print Page… (⌘P) must stay in File")
+	}
+	// The items reuse the existing actions (and events).
+	var calls []string
+	act := menuActions{BuildWebsite: func() { calls = append(calls, "build") }, PrintSite: func() { calls = append(calls, "print-site") }}
+	act.forLabel(labelExportWebsite)()
+	act.forLabel(labelExportPDF)()
+	if strings.Join(calls, ",") != "build,print-site" || EventBuildWebsite != "menu:build-website" {
+		t.Errorf("actions %v, event %q", calls, EventBuildWebsite)
 	}
 }

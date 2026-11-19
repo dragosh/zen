@@ -8,14 +8,9 @@ package desktop
 #import <Cocoa/Cocoa.h>
 #import <WebKit/WebKit.h>
 
-static WKWebView *zenFindWebView(NSView *v) {
-	if ([v isKindOfClass:[WKWebView class]]) return (WKWebView *)v;
-	for (NSView *s in v.subviews) {
-		WKWebView *w = zenFindWebView(s);
-		if (w) return w;
-	}
-	return nil;
-}
+// Shared with SavePDF (pdfnative_darwin.go): the web view of a window and the paper setup.
+WKWebView *zenFindWebView(NSView *v);
+NSPrintInfo *zenNewPrintInfo(void);
 
 // zenPrintWindow shows the print panel as a sheet on the window, for its web
 // view: portrait, half-inch margins, fitted to the page width. window.print()
@@ -24,16 +19,7 @@ static int zenPrintWindow(void *window, const char *title) {
 	NSWindow *w = (__bridge NSWindow *)window;
 	WKWebView *wv = zenFindWebView(w.contentView);
 	if (wv == nil) return 1;
-	NSPrintInfo *info = [[NSPrintInfo sharedPrintInfo] copy];
-	info.orientation = NSPaperOrientationPortrait;
-	info.horizontalPagination = NSPrintingPaginationModeFit;
-	info.verticalPagination = NSPrintingPaginationModeAutomatic;
-	info.horizontallyCentered = NO;
-	info.verticallyCentered = NO;
-	info.leftMargin = 36;
-	info.rightMargin = 36;
-	info.topMargin = 36;
-	info.bottomMargin = 36;
+	NSPrintInfo *info = zenNewPrintInfo();
 	NSPrintOperation *po = [wv printOperationWithPrintInfo:info];
 	po.showsPrintPanel = YES;
 	po.showsProgressPanel = YES;

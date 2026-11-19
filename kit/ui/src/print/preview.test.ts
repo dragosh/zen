@@ -48,7 +48,7 @@ function open(f: ReturnType<typeof fetcher>, search = "?window=print&page=p2.md"
   stop = mountPreview(root, api, document, { fetch: f.fn, search, quiet: 0, ...more } as never);
 }
 
-test("a toolbar, the document landmark, focus on Print…", async () => {
+test("a toolbar, the document landmark, focus on Export PDF…", async () => {
   const f = fetcher(() => ({ body: docHtml(3) }));
   open(f);
   await flush();
@@ -62,8 +62,9 @@ test("a toolbar, the document landmark, focus on Print…", async () => {
   expect(Array.from(select.options).map((o) => o.textContent)).toEqual(["All", "This section"]);
   expect(btn("Print…")).toBeDefined();
   expect(btn("Close")).toBeDefined();
-  expect(btn("Print…").classList.contains("primary")).toBe(true);
-  expect(document.activeElement).toBe(btn("Print…"));
+  expect(btn("Export PDF…").classList.contains("primary")).toBe(true);
+  expect(btn("Print…").classList.contains("primary")).toBe(false);
+  expect(document.activeElement).toBe(btn("Export PDF…"));
   expect(q('[role="document"]')).not.toBeNull();
   expect(root.querySelectorAll("section.zen-print-page").length).toBe(3);
   expect(root.querySelector("nav.zen-print-toc")).not.toBeNull();
@@ -137,6 +138,115 @@ test("states: preparing with a count, then ready; Print… only when ready", asy
   btn("Print…").click();
   await flush();
   expect(print).toHaveBeenCalledTimes(1);
+});
+
+// ---- Export PDF (app/export behaviours 4-7)
+
+test("Export PDF is the primary action", async () => {
+  open(fetcher(() => ({ body: docHtml(3) })));
+  await flush();
+  const bar = q('[role="toolbar"]');
+  const labels = Array.from(bar.querySelectorAll("button")).map((b) => b.textContent);
+  expect(labels).toEqual(["Close", "Print…", "Export PDF…"]);
+  expect(btn("Export PDF…").classList.contains("primary")).toBe(true);
+  expect(btn("Print…").classList.contains("primary")).toBe(false);
+  expect(document.activeElement).toBe(btn("Export PDF…"));
+  btn("Print…").click();
+  await flush();
+  expect(print).toHaveBeenCalledTimes(1); // Print… still prints
+  expect(api.callsTo("exportPdf")).toHaveLength(0);
+});
+
+test("cancelled export shows nothing", async () => {
+  api.exportPath = "";
+  open(fetcher(() => ({ body: docHtml(3) })));
+  await flush();
+  expect(status()).toBe("3 pages");
+  btn("Export PDF…").click();
+  await flush();
+  expect(api.callsTo("exportPdf")).toEqual([["My Folder — Print"]]);
+  expect(status()).toBe("3 pages"); // as before: no message, no link
+  expect(root.querySelector('[role="alert"]')).toBeNull();
+  expect(root.textContent).not.toContain("Saved");
+  expect(btn("Show in Finder")).toBeUndefined();
+  expect(btn("Export PDF…").hasAttribute("disabled")).toBe(false);
+  expect(btn("Export PDF…").getAttribute("aria-disabled")).not.toBe("true");
+});
+
+test("export reports the file or the error", async () => {
+  open(fetcher(() => ({ body: docHtml(3) })));
+  await flush();
+  // While it writes: "Exporting…", buttons disabled.
+  let finish!: (path: string) => void;
+  api.exportPath = () => new Promise<string>((r) => (finish = r));
+  btn("Export PDF…").click();
+  await flush();
+  expect(q(".zen-print-status").textContent).toContain("Exporting…");
+  expect(btn("Export PDF…").getAttribute("aria-disabled")).toBe("true");
+  expect(btn("Print…").getAttribute("aria-disabled")).toBe("true");
+  btn("Export PDF…").click(); // a second click does nothing
+  await flush();
+  expect(api.callsTo("exportPdf")).toHaveLength(1);
+
+  finish("/Users/me/Documents/Guide.pdf");
+  await flush();
+  const line = q(".zen-print-status");
+  expect(line.textContent).toContain("Saved Guide.pdf");
+  expect(line.getAttribute("aria-live")).toBe("polite");
+  expect(root.querySelector('[role="alert"]')).toBeNull();
+  expect(btn("Export PDF…").getAttribute("aria-disabled")).not.toBe("true");
+  btn("Show in Finder").click();
+  await flush();
+  expect(api.callsTo("revealExport")).toHaveLength(1);
+
+  // An error: shown in the preview, as an alert; the button works again.
+  api.exportPath = "/x.pdf";
+  api.failNext("exportPdf", new Error("the disk is full"));
+  btn("Export PDF…").click();
+  await flush();
+  const alert = q('[role="alert"]');
+  expect(alert.textContent).toContain("the disk is full");
+  expect(btn("Show in Finder")).toBeUndefined();
+  expect(btn("Export PDF…").getAttribute("aria-disabled")).not.toBe("true");
+});
+
+test("export waits until the paper is ready", async () => {
+  let release!: (r: Reply) => void;
+  const f = fetcher(() => new Promise<Reply>((r) => (release = r)));
+  open(f);
+  await flush();
+  expect(btn("Export PDF…").getAttribute("aria-disabled")).toBe("true");
+  btn("Export PDF…").click();
+  await flush();
+  expect(api.callsTo("exportPdf")).toHaveLength(0);
+  release({ body: docHtml(2) });
+  await flush();
+  expect(btn("Export PDF…").getAttribute("aria-disabled")).not.toBe("true");
+  btn("Export PDF…").click();
+  await flush();
+  expect(api.callsTo("exportPdf")).toHaveLength(1);
+});
+
+test("export mode calls printReady", async () => {
+  open(fetcher(() => ({ body: docHtml(3) })), "?window=print&export=1&page=");
+  await flush();
+  expect(root.querySelector('[role="toolbar"]')).toBeNull();
+  expect(root.querySelectorAll("button")).toHaveLength(0);
+  expect(root.querySelectorAll("section.zen-print-page").length).toBe(3);
+  expect(api.callsTo("printReady")).toHaveLength(1);
+  expect(api.callsTo("printReady")[0]).toEqual([[]]);
+  await flush();
+  expect(api.callsTo("printReady")).toHaveLength(1); // once
+  expect(api.callsTo("exportPdf")).toHaveLength(0);
+});
+
+test("export mode tells the app which blocks were late", async () => {
+  const f = fetcher(() => ({ body: docHtml(1, '<div data-zen-plugin="slow">src</div>').replace('<section id="zen-print-1"', "<section data-zen-js='[\"/_plugins/slow/slow.js\"]' id=\"zen-print-1\"") }));
+  open(f, "?window=print&export=1&page=", { importModule: () => new Promise(() => {}), timeout: 50 });
+  await vi.advanceTimersByTimeAsync(2000);
+  const calls = api.callsTo("printReady");
+  expect(calls).toHaveLength(1);
+  expect(Array.isArray(calls[0][0])).toBe(true);
 });
 
 test("too many pages: a message, Print… disabled, the section select still works", async () => {
@@ -216,4 +326,12 @@ test("styles of the plugins and layouts come along; links open through the app; 
   stop = undefined;
   expect(root.childElementCount).toBe(0);
   expect(Array.from(document.head.querySelectorAll("style")).some((s) => s.textContent?.includes(".zl-x"))).toBe(false);
+});
+
+test("export mode: a failed load calls printFailed and not printReady", async () => {
+  open(fetcher(() => ({ status: 500, body: "render failed: bad block\nmore detail" })), "?window=print&export=1&page=");
+  await flush();
+  expect(api.callsTo("printFailed")).toEqual([["render failed: bad block"]]);
+  expect(api.callsTo("printReady")).toHaveLength(0);
+  expect(root.querySelectorAll("button")).toHaveLength(0);
 });

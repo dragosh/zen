@@ -71,18 +71,18 @@ test("menu: the event opens the dialog once; without a folder nothing opens; a s
   expect(f.listeners.menu.size).toBe(0);
 });
 
-test("the form is filled from buildOptions: output shown relative inside the folder, Build has the focus", async () => {
+test("the form is filled from buildOptions: output shown relative inside the folder, Export has the focus", async () => {
   const { q, btn, d } = open();
   await settle();
   expect(q("[role=dialog]").getAttribute("aria-modal")).toBe("true");
-  expect(q(".zen-buildsite-title").textContent).toContain("Build Website");
+  expect(q(".zen-buildsite-title").textContent).toContain("Export Website");
   expect(q(".zen-buildsite-title").textContent).toContain("site");
   expect(q<HTMLInputElement>(".zen-buildsite-out").value).toBe("_site");
   const radios = Array.from(d.el.querySelectorAll<HTMLInputElement>("input[type=radio]"));
   expect(radios.map((r) => [r.value, r.checked])).toEqual([["portable", true], ["hosted", false]]);
   const boxes = Array.from(d.el.querySelectorAll<HTMLInputElement>("input[type=checkbox]"));
   expect(boxes.map((b) => [b.name, b.checked])).toEqual([["drafts", false], ["clean", false], ["print", true]]);
-  expect(document.activeElement).toBe(btn("Build"));
+  expect(document.activeElement).toBe(btn("Export"));
 });
 
 test("an output outside the folder is shown absolute", async () => {
@@ -112,7 +112,7 @@ test("Build passes the options (a relative output made absolute), shows progress
   q<HTMLInputElement>(".zen-buildsite-out").value = "docs/out";
   d.el.querySelector<HTMLInputElement>("input[value=hosted]")!.click();
   d.el.querySelector<HTMLInputElement>("input[name=drafts]")!.click();
-  btn("Build").click();
+  btn("Export").click();
   await settle();
   expect(f.to("buildWebsite")[0].args[0]).toEqual({ out: `${ROOT}/docs/out`, portable: false, drafts: true, clean: false, print: true });
   const bar = q("[role=progressbar]");
@@ -135,7 +135,7 @@ test("Build passes the options (a relative output made absolute), shows progress
 test("result: the summary with the time, an announced status, and the four actions", async () => {
   const { f, q, btn, d } = open();
   await settle();
-  btn("Build").click();
+  btn("Export").click();
   await settle();
   f.finish(RESULT);
   await settle();
@@ -157,13 +157,13 @@ test("result: the summary with the time, an announced status, and the four actio
   btn("Build Again").click();
   expect(d.el.querySelector(".zen-buildsite-summary")).toBeNull();
   expect(q<HTMLInputElement>(".zen-buildsite-out").disabled).toBe(false);
-  expect(document.activeElement).toBe(btn("Build"));
+  expect(document.activeElement).toBe(btn("Export"));
 });
 
 test("result: warnings are a list of buttons by page; a click opens the page and closes the dialog; site-wide ones are plain", async () => {
   const { f, q, btn, d, onOpenPage } = open();
   await settle();
-  btn("Build").click();
+  btn("Export").click();
   await settle();
   f.finish({ ...RESULT, warnings: [{ path: "guide/intro.md", message: "img/x.png: not found; left out" }, { path: "", message: "plugin \"hello\" is not allowed" }] });
   await settle();
@@ -185,7 +185,7 @@ test("result: warnings are a list of buttons by page; a click opens the page and
 test("result: text is never HTML", async () => {
   const { f, q, btn } = open();
   await settle();
-  btn("Build").click();
+  btn("Export").click();
   await settle();
   f.finish({ ...RESULT, warnings: [{ path: "<b>a</b>.md", message: "<img src=x onerror=alert(1)>" }] });
   await settle();
@@ -195,7 +195,7 @@ test("result: text is never HTML", async () => {
 test("Cancel while building asks the service to stop; the cancelled result says what was kept", async () => {
   const { f, q, btn } = open();
   await settle();
-  btn("Build").click();
+  btn("Export").click();
   await settle();
   f.progress({ done: 3, total: 10 });
   btn("Cancel").click();
@@ -215,7 +215,7 @@ test("Esc cancels a running build, closes the form, and closes the result", asyn
 
   const b = open();
   await settle();
-  b.btn("Build").click();
+  b.btn("Export").click();
   await settle();
   key("Escape");
   expect(b.f.to("cancelBuild")).toHaveLength(1);
@@ -232,7 +232,7 @@ test("errors: one message with the cause, the options stay open and editable", a
   const { f, q, btn, d } = open();
   await settle();
   q<HTMLInputElement>(".zen-buildsite-out").value = ".";
-  btn("Build").click();
+  btn("Export").click();
   await settle();
   f.finish(new Error(`output folder ${ROOT} is the folder being built`));
   await settle();
@@ -241,11 +241,11 @@ test("errors: one message with the cause, the options stay open and editable", a
   expect(err.textContent).toContain("is the folder being built");
   expect(q<HTMLInputElement>(".zen-buildsite-out").disabled).toBe(false);
   expect(q<HTMLInputElement>(".zen-buildsite-out").value).toBe(".");
-  expect(btn("Build").disabled).toBe(false);
+  expect(btn("Export").disabled).toBe(false);
   expect(d.el.querySelector<HTMLElement>(".zen-buildsite-progress")!.hidden).toBe(true);
   // Fix it and build again; the message clears.
   q<HTMLInputElement>(".zen-buildsite-out").value = "_site";
-  btn("Build").click();
+  btn("Export").click();
   await settle();
   expect(q(".zen-buildsite-error").textContent).toBe("");
   f.finish(RESULT);
@@ -257,7 +257,7 @@ test("errors: buildOptions failing shows the cause and still offers the defaults
   await settle();
   expect(q(".zen-buildsite-error").textContent).toContain("build must be a mapping");
   expect(q<HTMLInputElement>(".zen-buildsite-out").value).toBe("_site");
-  expect(btn("Build").disabled).toBe(false);
+  expect(btn("Export").disabled).toBe(false);
 });
 
 test("Save as folder defaults previews the change first and writes only on confirm", async () => {
@@ -318,7 +318,7 @@ test("a note says the website uses the saved files when editors have unsaved pag
 test("Tab stays inside the dialog and a click outside does not close it while building", async () => {
   const { f, btn, d } = open();
   await settle();
-  btn("Build").click();
+  btn("Export").click();
   await settle();
   d.el.dispatchEvent(new MouseEvent("mousedown", { bubbles: true }));
   expect(document.querySelector(".zen-buildsite")).not.toBeNull();
@@ -326,4 +326,16 @@ test("Tab stays inside the dialog and a click outside does not close it while bu
   await settle();
   btn("Done").click();
   expect(document.querySelector(".zen-buildsite")).toBeNull();
+});
+
+test("the dialog is Export Website", async () => {
+  const { q, btn, d } = open();
+  await settle();
+  expect(q(".zen-buildsite-title").textContent).toContain("Export Website");
+  expect(q(".zen-buildsite-title").textContent).not.toContain("Build");
+  expect(btn("Export")).toBeDefined();
+  expect(btn("Export").type).toBe("submit");
+  expect(btn("Export").classList.contains("primary")).toBe(true);
+  expect(Array.from(d.el.querySelectorAll("button")).some((b) => b.textContent === "Build")).toBe(false);
+  expect(document.activeElement).toBe(btn("Export"));
 });

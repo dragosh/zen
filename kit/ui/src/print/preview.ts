@@ -1,11 +1,13 @@
 // The Print Preview window (?window=print): the whole folder as one document under a small toolbar.
 // It fetches the document from the app (/_print/site, made by site.PrintDocument), puts it on a sheet,
 // mounts the plugins and layouts of each page the way the page view does, and prints through the
-// system print panel (Save as PDF is in it). The toolbar is not printed (runtime/src/css/print.css).
+// system print panel (Save as PDF is in it), or saves it as a PDF file straight away (Export PDF…,
+// app/export). In export mode (?export=1, the headless `zenmd export pdf`) there is no toolbar: the
+// document is laid out, prepared for paper and the app is told (printReady) that it can be written. The toolbar is not printed (runtime/src/css/print.css).
 import type { KitHost } from "../host";
 import { installRuntime, type Runtime } from "@zenmd/runtime/plugins";
 import { button, el } from "../shell/dom";
-import { printPage } from "@zenmd/runtime/print/page";
+import { prepareForPrint, printPage } from "@zenmd/runtime/print/page";
 import { whenReady, type ReadyOptions } from "@zenmd/runtime/print/ready";
 import "./preview.css";
 
@@ -15,7 +17,7 @@ export type PreviewApi = Pick<
   | "pluginStorageGet" | "pluginStorageSet" | "pluginStorageKeys"
   | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys"
   | "pluginInvoke" | "pluginStream" | "pluginCancel" | "openExternal" | "on"
-> & Partial<Pick<KitHost, "printWindow">>;
+> & Partial<Pick<KitHost, "printWindow" | "exportPdf" | "revealExport" | "printReady" | "printFailed">>;
 
 type FetchLike = (url: string, init?: { headers?: Record<string, string> }) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>;
 
@@ -39,6 +41,7 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
   const win = doc.defaultView ?? window;
   const query = new URLSearchParams(opts.search ?? win.location?.search ?? "");
   const currentPage = query.get("page") ?? "";
+  const exportMode = query.get("export") === "1";
   const doFetch: FetchLike = opts.fetch ?? ((url, init) => win.fetch(url, init));
 
   // ---- the window ----
@@ -74,31 +77,47 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
 
   const closeBtn = button("Close", () => close());
   // Print… stays focusable while the document is being prepared; it just does nothing then.
-  const printBtn = button("Print…", () => void print(), { className: "primary" });
+  const printBtn = button("Print…", () => void print());
+  // Export PDF… is the primary action: it saves the file without the print panel.
+  const exportBtn = button("Export PDF…", () => void exportPdf(), { className: "primary" });
   const spacer = el("span", "zen-print-spacer");
-  bar.append(title, status, spacer, draftsLabel, pagesLabel, closeBtn, printBtn);
+  // What an export said: "Saved <file>" with Show in Finder, or the error.
+  const note = el("span", "zen-print-note");
+  status.append(note);
+  bar.append(title, status, spacer, draftsLabel, pagesLabel, closeBtn, printBtn, exportBtn);
 
   const scroll = el("div", "zen-print-scroll");
   const paper = el("div", "zen-print-paper");
   paper.style.setProperty("--zen-paper-width", LETTER.test(win.navigator?.language ?? "") ? "8.5in" : "210mm");
   scroll.append(paper);
-  frame.append(bar, scroll);
+  if (exportMode) frame.append(scroll);
+  else frame.append(bar, scroll);
   root.replaceChildren(frame);
 
   // ---- state ----
   let seq = 0;
   let ready = false;
   let stopped = false;
+  let told = false;
+  let exporting = false;
+  let shown = ""; // the status line without an export's message
   let runtimes: Runtime[] = [];
   let styles: HTMLElement[] = [];
 
   const setReady = (v: boolean) => {
     ready = v;
-    printBtn.setAttribute("aria-disabled", v ? "false" : "true");
+    syncButtons();
   };
-  const say = (text: string, busy = false) => {
+  const syncButtons = () => {
+    const off = !ready || exporting ? "true" : "false";
+    printBtn.setAttribute("aria-disabled", off);
+    exportBtn.setAttribute("aria-disabled", off);
+  };
+  const say = (text: string, busy = false, transient = false) => {
+    if (!transient) shown = text;
     statusText.textContent = text;
     spinner.hidden = !busy;
+    note.replaceChildren();
   };
 
   function teardown(): void {
@@ -109,7 +128,15 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
     paper.replaceChildren();
   }
 
+  /** Export mode: the app is told why there will be no document, instead of waiting for the timeout. */
+  function failExport(text: string): void {
+    if (told) return;
+    told = true;
+    void api.printFailed?.(text.trim().split("\n")[0] || "the document could not be prepared")?.catch((err) => console.error("zen: export failed", err));
+  }
+
   function showError(text: string): void {
+    if (exportMode) return failExport(text);
     setReady(false);
     say("Could not prepare the document");
     const box = el("div", "zen-print-error-box");
@@ -135,6 +162,7 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
       return;
     }
     if (mine !== seq || stopped) return;
+    if (exportMode && !res.ok) return failExport(text || `The app answered ${res.status}`);
     if (res.status === 413) {
       say(text.trim() || "Too many pages to print at once; print a section");
       return;
@@ -193,7 +221,55 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
     const { late } = await whenReady(paper, { timeout: opts.timeout, quiet: opts.quiet, mounted: Promise.all(mounts) });
     if (mine !== seq || stopped) return;
     setReady(true);
+    if (exportMode) {
+      // Laid out for paper; the app writes the file. The call is made once.
+      if (!stopped) {
+        prepareForPrint(paper);
+        say(pagesText(sections.length));
+        if (!told) {
+          told = true;
+          await api.printReady?.(late).catch((err) => console.error("zen: export failed", err));
+        }
+      }
+      return;
+    }
+    setReady(true);
     say(late.length > 0 ? `${pagesText(sections.length)} (${late.join(", ")} may not be finished)` : pagesText(sections.length));
+  }
+
+  async function exportPdf(): Promise<void> {
+    if (!ready || stopped || exporting || !api.exportPdf) return;
+    exporting = true;
+    syncButtons();
+    const text = shown;
+    say("Exporting…", true, true);
+    const restore = prepareForPrint(paper);
+    try {
+      const path = await api.exportPdf(doc.title);
+      if (stopped) return;
+      if (!path) {
+        say(text); // cancelled: as before
+        return;
+      }
+      say(`Saved ${path.split(/[\\/]/).pop()}`, false, true);
+      try { win.localStorage.setItem("zen.lastPdfExport", JSON.stringify({ path, at: Date.now() })); } catch { /* no storage: Settings just shows no last file */ }
+      if (api.revealExport) note.append(" ", button("Show in Finder", () => void api.revealExport!().catch((e) => showNote(message(e))), { className: "link" }));
+    } catch (err) {
+      if (!stopped) {
+        say(text);
+        showNote(message(err));
+      }
+    } finally {
+      restore();
+      exporting = false;
+      syncButtons();
+    }
+  }
+
+  function showNote(text: string): void {
+    const alert = el("span", "zen-print-alert", text);
+    alert.setAttribute("role", "alert");
+    note.replaceChildren(alert);
   }
 
   async function print(): Promise<void> {
@@ -253,7 +329,7 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
 
   setReady(false);
   void load();
-  printBtn.focus();
+  if (!exportMode) exportBtn.focus();
 
   return () => {
     stopped = true;

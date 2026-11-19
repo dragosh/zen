@@ -303,7 +303,7 @@ func TestInitSite(t *testing.T) {
 	}
 	var o, e bytes.Buffer
 	code := cli.Run([]string{"init", "site", "--nosuch", t.TempDir()}, cwd, &o, &e, func(cli.Launch) error { return nil }, nil,
-		func(i cli.Init, so, se io.Writer) error { return initSite(env.api(), i, so, se) })
+		func(i cli.Init, so, se io.Writer) error { return initSite(env.api(), i, so, se) }, nil)
 	if code != 2 || !strings.Contains(e.String(), "Usage:") {
 		t.Errorf("unknown template through the CLI: %d %q", code, e.String())
 	}

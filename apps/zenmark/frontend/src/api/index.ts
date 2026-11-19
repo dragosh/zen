@@ -89,6 +89,15 @@ export interface Api extends KitHost {
   printSite(): Promise<void>;
   /** Opens the print panel for the calling window (window.print() does nothing in the macOS web view). */
   printWindow(title: string): Promise<void>;
+  // Export PDF (app/export)
+  /** Shows the save panel and writes the preview's document there; the path, "" when cancelled. title only names the job. */
+  exportPdf(title: string): Promise<string>;
+  /** Shows the file the last export wrote in Finder. */
+  revealExport(): Promise<void>;
+  /** Export mode of the preview: the document is laid out (late: blocks not ready in time). */
+  printReady(late: string[]): Promise<void>;
+  /** Export mode of the preview: the document could not be prepared. */
+  printFailed(message: string): Promise<void>;
   // Sidebar menu and reordering (ui/sidebar-menu)
   /** Saves the order of the page siblings under `parent` ("" for the top level) in their frontmatter (nav.order); the new tree arrives as workspace:changed. */
   reorderNav(parent: string, paths: string[]): Promise<void>;

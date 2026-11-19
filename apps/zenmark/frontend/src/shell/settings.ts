@@ -1,6 +1,6 @@
 // The Settings page of Zenmark: the kit's frame (kit/ui shell/settings.ts, with Appearance) and
 // zen's sections: Configuration files (the two config files open in zen's own editor window),
-// Plugins (shell/pluginhelp.ts), Layouts and Website. All text through textContent.
+// Plugins (shell/pluginhelp.ts), Layouts and Export (the website and the PDF). All text through textContent.
 import { appearanceSection, button, createSettingsFrame, developerSection, el, type SettingsSection, type SettingsView } from "@zenmd/kit";
 import type { Api } from "../api";
 import { createWebsiteSection, type BuildApi } from "./buildsite";
@@ -8,6 +8,16 @@ import { createLayoutsSection } from "./layouthelp";
 import { createPluginsSection } from "./pluginhelp";
 
 export type { SettingsView };
+
+/** The preview records the PDF it saved here (the windows share one origin); Settings shows it. */
+export const LAST_PDF_KEY = "zen.lastPdfExport";
+export function lastPdfExport(): { path: string; at: number } | undefined {
+  try {
+    const v = JSON.parse(localStorage.getItem(LAST_PDF_KEY) ?? "null");
+    if (v && typeof v.path === "string" && typeof v.at === "number") return v;
+  } catch { /* no storage */ }
+  return undefined;
+}
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -57,7 +67,7 @@ export function createSettingsView(opts: {
     },
   };
 
-  // ---- Plugins, Layouts, Website
+  // ---- Plugins, Layouts, Export
 
   const plugins = createPluginsSection({ api });
   const layouts = createLayoutsSection({ api });
@@ -67,12 +77,35 @@ export function createSettingsView(opts: {
     openBuild: opts.openBuild,
   });
 
+  // Export: the website (its options and last build) and the PDF (the preview, and the last file).
+  const exportEl = el("div", "zen-settings-export");
+  const webHead = el("h3", "zen-settings-export-heading", "Website");
+  const pdfHead = el("h3", "zen-settings-export-heading", "PDF");
+  const pdfButton = button("Export PDF…", () => void api.printSite().catch((err) => { pdfStatus.textContent = message(err); }), { className: "zen-settings-export-pdf primary" });
+  const pdfLast = el("p", "zen-settings-export-last");
+  const pdfStatus = el("p", "zen-settings-status");
+  pdfStatus.setAttribute("role", "status");
+  const showPdf = (): void => {
+    const open = opts.hasWorkspace();
+    pdfButton.disabled = !open;
+    pdfStatus.textContent = "";
+    pdfLast.replaceChildren();
+    const last = open ? lastPdfExport() : undefined;
+    if (last) {
+      pdfLast.append(`Last PDF: ${last.path.split(/[\\/]/).pop()}, ${new Date(last.at).toLocaleTimeString()}. `);
+      pdfLast.append(button("Show in Finder", () => void api.revealExport().catch((err) => { pdfStatus.textContent = message(err); }), { className: "zen-buildsite-link" }));
+    } else if (open) {
+      pdfLast.textContent = "No PDF yet.";
+    }
+  };
+  exportEl.append(webHead, website.el, pdfHead, pdfLast, pdfButton, pdfStatus);
+
   frame = createSettingsFrame([
     appearanceSection(doc),
     files,
     { id: "plugins", label: "Plugins", el: plugins.el, show: () => void plugins.refresh(), destroy: () => plugins.destroy() },
     { id: "layouts", label: "Layouts", el: layouts.el, show: () => void layouts.refresh(), destroy: () => layouts.destroy() },
-    { id: "website", label: "Website", el: website.el, show: () => void website.refresh() },
+    { id: "export", label: "Export", el: exportEl, show: () => { void website.refresh(); showPdf(); } },
     developerSection(),
   ]);
   return frame;
