@@ -22,8 +22,9 @@ opens it; the issue count stays visible on that button when the panel is closed.
    page can be inspected and toggles the panel of the page shown (`aria-expanded`);
    ⌥⌘I does the same. The editor window has no sidebar: its toolbar keeps a toggle
    (`.zen-inspector-toggle`, same icon and badge, `aria-controls`).
-2. Open or closed is remembered per user (`localStorage` key `zen.inspector.open`,
-   every access in try/catch; unavailable storage means closed). The last
+2. The panel is closed by default: every launch starts with it closed. Open or closed
+   lasts while the app runs (`sessionStorage` key `zen.inspector.open`, so it follows you
+   from page to page), every access in try/catch; unavailable storage means closed. The last
    tab is remembered too (`zen.inspector.tab`: `issues`, `file` or `page`; anything else means Linting).
 3. The panel is a bottom panel, like the Developer panel: full width under the page,
    220 px high (at most half the content), not resizable, with a top border. It takes
@@ -62,7 +63,7 @@ opens it; the issue count stays visible on that button when the panel is closed.
 
 The editor window (ui/editor) shows the same Inspector: toolbar toggle, panel, tabs, ⌥⌘I.
 
-E1. The Inspector toggle (icon with badge, `aria-label` "Inspector" or "Inspector, N issues") is in the editor's actions, before Split and Done. ⌥⌘I toggles the panel. Open or closed uses the same key as the reader (`zen.inspector.open`): one preference for both windows. Settings and config YAML files (`isConfigPath`) get no button and no panel, like no Split.
+E1. The Inspector toggle (icon with badge, `aria-label` "Inspector" or "Inspector, N issues") is in the editor's actions, before Split and Done. ⌥⌘I toggles the panel. Open or closed uses the same key as the reader (`zen.inspector.open`, sessionStorage): a new editor window starts with the panel closed. Settings and config YAML files (`isConfigPath`) get no button and no panel, like no Split.
 E2. **Linting** shows the alerts of the editor's own lint of the unsaved text, the ones `lintView` and the problems console show: the console stays. "Checking…" shows until the first lint answers (not on every keystroke, so the list does not flash while typing), "Linting off" when Vale is unavailable or the text is empty. Choosing an issue selects it in the source (`lintView.select(i)`), as the console does.
 E3. **File** is as in the reader (path, size, dates, Copy path, Reveal in Finder, optional host methods) and is fetched again after a successful save.
 E4. **Page** statistics come from the unsaved text. With Split on they are taken from the preview pane's rendered article (no extra request). Otherwise `api.preview(path, text)` is called 500 ms after typing stops, only while the Inspector is open (also once when it opens and after the file loads), a stale answer is dropped, and the HTML is parsed into a detached document (no assets, no scripts, nothing shown) for `pageStats`. With the Inspector closed nothing is rendered for it.

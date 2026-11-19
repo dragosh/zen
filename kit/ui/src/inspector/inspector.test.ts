@@ -33,6 +33,7 @@ const section = (i: Inspector, id: string) => i.el.querySelector<HTMLElement>(`[
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   document.body.replaceChildren();
   select.mockReset();
   host = { pageInfo: vi.fn(async () => ({ ...INFO })), revealInFinder: vi.fn(async () => undefined) };
@@ -55,16 +56,28 @@ test("starts closed; the button toggles the panel and says so", () => {
   expect(i.isOpen).toBe(false);
 });
 
-test("open or closed is remembered, and broken storage does not break it", () => {
+test("closed by default: open lasts only while the app runs, a new launch starts closed", () => {
+  localStorage.setItem(OPEN_KEY, "1"); // left by an older version
+  expect(make().isOpen).toBe(false);
+  const i = make();
+  i.setPage("docs/a.md", page(), article());
+  i.open();
+  expect(sessionStorage.getItem(OPEN_KEY)).toBe("1");
+  expect(localStorage.getItem(OPEN_KEY)).toBe("1"); // untouched: the open state is not kept across launches
+  sessionStorage.clear(); // a new launch
+  expect(make().isOpen).toBe(false);
+});
+
+test("open or closed is remembered while the app runs, and broken storage does not break it", () => {
   let i = make();
   i.setPage("docs/a.md", page(), article());
   i.open();
-  expect(localStorage.getItem(OPEN_KEY)).toBe("1");
+  expect(sessionStorage.getItem(OPEN_KEY)).toBe("1");
   i.destroy();
   i = make();
   expect(i.isOpen).toBe(true);
   i.close();
-  expect(localStorage.getItem(OPEN_KEY)).toBe("0");
+  expect(sessionStorage.getItem(OPEN_KEY)).toBe("0");
 
   const get = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new Error("no storage"); });
   const set = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => { throw new Error("no storage"); });

@@ -68,16 +68,20 @@ type FileState =
 
 let seq = 0;
 
+// Open or closed lasts while the app runs (sessionStorage), so every launch starts with the panel
+// closed; the tab is remembered across launches (localStorage).
+const store = (key: string): Storage => (key === OPEN_KEY ? sessionStorage : localStorage);
+
 function read(key: string): string | null {
   try {
-    return localStorage.getItem(key);
+    return store(key).getItem(key);
   } catch {
     return null;
   }
 }
 function write(key: string, value: string): void {
   try {
-    localStorage.setItem(key, value);
+    store(key).setItem(key, value);
   } catch {
     // not remembered; it still applies for this session
   }

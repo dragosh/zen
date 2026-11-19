@@ -15,6 +15,7 @@ const TEH = alert({ line: 3, col: 6, endCol: 8, match: "teh" });
 
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   document.head.replaceChildren();
   document.body.replaceChildren();
   api = createFakeApi({ sources: { ...SOURCES }, lint: { available: true, alerts: [TEH] } });
@@ -63,15 +64,15 @@ test("⌥⌘I toggles it and the choice is remembered", async () => {
   await settle();
   altCmdI();
   expect(panel().hidden).toBe(false);
-  expect(localStorage.getItem(OPEN_KEY)).toBe("1");
+  expect(sessionStorage.getItem(OPEN_KEY)).toBe("1");
   altCmdI();
   expect(panel().hidden).toBe(true);
-  expect(localStorage.getItem(OPEN_KEY)).toBe("0");
+  expect(sessionStorage.getItem(OPEN_KEY)).toBe("0");
 });
 
 test("the Page and File sections follow navigation, live reload and drafts", async () => {
   env.ctx.store.set({ path: "README.md" });
-  localStorage.setItem(OPEN_KEY, "1");
+  sessionStorage.setItem(OPEN_KEY, "1");
   mount();
   await settle();
   expect(panel().hidden).toBe(false);
@@ -102,7 +103,7 @@ test("issues live in the panel: listed, selected, and cleared on navigation", as
   const spy = vi.fn();
   (window.HTMLElement.prototype as unknown as { scrollIntoView: unknown }).scrollIntoView = spy;
   env.ctx.store.set({ path: "README.md" });
-  localStorage.setItem(OPEN_KEY, "1");
+  sessionStorage.setItem(OPEN_KEY, "1");
   mount();
   await settle();
   const item = panel().querySelector<HTMLButtonElement>(".zen-lint-item")!;
@@ -136,7 +137,7 @@ test("a page that fails to load hides the inspector; unmount removes everything"
 
 test("the panel is tabbed and remembers the tab", async () => {
   env.ctx.store.set({ path: "README.md" });
-  localStorage.setItem(OPEN_KEY, "1");
+  sessionStorage.setItem(OPEN_KEY, "1");
   localStorage.setItem(TAB_KEY, "page");
   mount();
   await settle();

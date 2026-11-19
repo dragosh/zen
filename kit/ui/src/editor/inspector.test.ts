@@ -44,6 +44,7 @@ const ALERT: Alert = alert({ match: "dabc", line: 1, col: 3, endCol: 6, message:
 let s: Setup;
 beforeEach(() => {
   localStorage.clear();
+  sessionStorage.clear();
   (window as unknown as { innerWidth: number }).innerWidth = 1200;
 });
 afterEach(() => {
@@ -72,14 +73,14 @@ describe("editor inspector: button, panel, shortcut", () => {
     s = await setup();
     toggle(s)!.click();
     expect(panel(s)!.hidden).toBe(false);
-    expect(localStorage.getItem(OPEN_KEY)).toBe("1");
+    expect(sessionStorage.getItem(OPEN_KEY)).toBe("1");
     toggle(s)!.click();
     expect(panel(s)!.hidden).toBe(true);
-    expect(localStorage.getItem(OPEN_KEY)).toBe("0");
+    expect(sessionStorage.getItem(OPEN_KEY)).toBe("0");
   });
 
   it("E1: opens when it was left open", async () => {
-    localStorage.setItem(OPEN_KEY, "1");
+    sessionStorage.setItem(OPEN_KEY, "1");
     s = await setup();
     expect(panel(s)!.hidden).toBe(false);
   });
@@ -123,7 +124,7 @@ describe("editor inspector: issues", () => {
     let release!: () => void;
     const real = api.lint.bind(api);
     api.lint = (p, t) => new Promise((resolve) => { release = () => resolve(real(p, t)); });
-    localStorage.setItem(OPEN_KEY, "1");
+    sessionStorage.setItem(OPEN_KEY, "1");
     s = await setup("README.md", api);
     expect(issuesBody().textContent).toBe("Checking…");
     api.lintResult = { available: false, alerts: [] };
@@ -148,7 +149,7 @@ describe("editor inspector: issues", () => {
 
 describe("editor inspector: file", () => {
   it("E3: shows the file and fetches it again after a save", async () => {
-    localStorage.setItem(OPEN_KEY, "1");
+    sessionStorage.setItem(OPEN_KEY, "1");
     s = await setup();
     await wait(30);
     expect(field("path")).toBe("README.md");
@@ -162,7 +163,7 @@ describe("editor inspector: file", () => {
   });
 
   it("E3: Reveal in Finder reveals the page", async () => {
-    localStorage.setItem(OPEN_KEY, "1");
+    sessionStorage.setItem(OPEN_KEY, "1");
     s = await setup();
     await wait(30);
     document.querySelector<HTMLButtonElement>('.zen-inspector [data-action="reveal"]')!.click();
@@ -172,7 +173,7 @@ describe("editor inspector: file", () => {
 
 describe("editor inspector: page statistics", () => {
   it("E4: counts the unsaved text, 500 ms after typing stops, in one request", async () => {
-    localStorage.setItem(OPEN_KEY, "1");
+    sessionStorage.setItem(OPEN_KEY, "1");
     s = await setup();
     await wait(30);
     const before = s.api.callsTo("preview").length;
@@ -200,7 +201,7 @@ describe("editor inspector: page statistics", () => {
   });
 
   it("E4: leaves nothing of the render in the document", async () => {
-    localStorage.setItem(OPEN_KEY, "1");
+    sessionStorage.setItem(OPEN_KEY, "1");
     s = await setup();
     type(s.ta, "# T\n\n[x](https://x.org)");
     await wait(700);
@@ -210,7 +211,7 @@ describe("editor inspector: page statistics", () => {
   });
 
   it("E4: a stale answer is dropped", async () => {
-    localStorage.setItem(OPEN_KEY, "1");
+    sessionStorage.setItem(OPEN_KEY, "1");
     s = await setup();
     await wait(30);
     const waiting: { text: string; resolve(): void }[] = [];
@@ -231,7 +232,7 @@ describe("editor inspector: page statistics", () => {
   });
 
   it("E4: with Split on, the statistics come from the preview and no extra request is made", async () => {
-    localStorage.setItem(OPEN_KEY, "1");
+    sessionStorage.setItem(OPEN_KEY, "1");
     s = await setup();
     Array.from(s.slots.actions.querySelectorAll("button")).find((b) => b.textContent === "Split")!.click();
     await wait(250);
@@ -246,7 +247,7 @@ describe("editor inspector: page statistics", () => {
 
 describe("editor inspector: unmount", () => {
   it("E6: removes the button and the panel and stops rendering", async () => {
-    localStorage.setItem(OPEN_KEY, "1");
+    sessionStorage.setItem(OPEN_KEY, "1");
     s = await setup();
     await wait(30);
     type(s.ta, "# Late");
