@@ -6,6 +6,14 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ## [Unreleased]
 
+### Changed
+- Menu: New Page…, Close Folder, Build Website…, Print Page… and Print Site… are greyed out while no folder is open (#6).
+- The home screen has a small "↖ File menu" hint with a Settings link instead of the footer line, and the New Site dialog's "Open templates folder" button shows only in developer mode (#7).
+- The Inspector button sits next to the Settings cog as an icon with a red issue-count badge, and the Inspector panel has Issues, File and Page tabs that remember the last one used (#8).
+
+### Fixed
+- Ordered lists keep their start number, so `3.` after a code block renders as 3 instead of 1 (#2).
+
 ## [0.5.1] - 2026-11-18
 
 ### Fixed
