@@ -22,7 +22,12 @@ type result struct {
 	b        Build
 	inited   bool
 	i        Init
+	pdfd     bool
+	p        ExportPDF
 }
+
+// pdfErr is what the fake PDFExporter returns.
+var pdfErr error
 
 // builderErr is what the fake Builder returns.
 var builderErr error
@@ -51,6 +56,11 @@ func run(t *testing.T, cwd string, launchErr error, args ...string) result {
 			fmt.Fprintln(stdout, "techdocs  Technical documentation — Diátaxis")
 		}
 		return initerErr
+	}, func(p ExportPDF, stdout, stderr io.Writer) error {
+		r.pdfd = true
+		r.p = p
+		fmt.Fprintf(stdout, "Wrote %s (2 pages)\n", p.Out)
+		return pdfErr
 	})
 	r.stdout, r.stderr = out.String(), errOut.String()
 	return r
@@ -303,7 +313,7 @@ func TestBuildExitCodes(t *testing.T) {
 	}
 	// No Builder wired: a plain error, not a crash.
 	var out, errOut bytes.Buffer
-	if code := Run([]string{"build"}, ws, &out, &errOut, func(Launch) error { return nil }, nil, nil); code != 1 || !strings.Contains(errOut.String(), "build") {
+	if code := Run([]string{"build"}, ws, &out, &errOut, func(Launch) error { return nil }, nil, nil, nil); code != 1 || !strings.Contains(errOut.String(), "build") {
 		t.Errorf("nil builder: %d %q", code, errOut.String())
 	}
 }
@@ -404,7 +414,7 @@ func TestInitExitCodes(t *testing.T) {
 	}
 	// No Initer wired: a plain error, not a crash.
 	var out, errOut bytes.Buffer
-	if code := Run([]string{"init", "site", "--techdocs"}, h, &out, &errOut, func(Launch) error { return nil }, nil, nil); code != 1 || !strings.Contains(errOut.String(), "init") {
+	if code := Run([]string{"init", "site", "--techdocs"}, h, &out, &errOut, func(Launch) error { return nil }, nil, nil, nil); code != 1 || !strings.Contains(errOut.String(), "init") {
 		t.Errorf("nil initer: %d %q", code, errOut.String())
 	}
 }

@@ -69,10 +69,10 @@ async function plugins(plugins: PluginInfo[] = PLUGINS, hasWorkspace = true): Pr
 
 // ---- the page and its sections
 
-test("it is a page with a section list on the left: Appearance, Configuration files, Plugins, Layouts, Website, Developer", () => {
+test("it is a page with a section list on the left: Appearance, Configuration files, Plugins, Layouts, Export, Developer", () => {
   const { s } = setup();
   const names = Array.from(s.el.querySelectorAll(".zen-settings-section")).map((b) => b.textContent);
-  expect(names).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Website", "Developer"]);
+  expect(names).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Export", "Developer"]);
   expect(s.el.querySelector("h1")!.textContent).toBe("Settings");
   expect(s.el.getAttribute("aria-label")).toBe("Settings");
   expect(s.el.classList.contains("zen-settings-page")).toBe(true);
@@ -94,7 +94,7 @@ test("one section shows at a time; the first is Appearance; arrow keys and click
   key(list, "ArrowDown");
   expect(shown()).toEqual(["layouts"]);
   key(list, "ArrowDown");
-  expect(shown()).toEqual(["website"]);
+  expect(shown()).toEqual(["export"]);
   key(list, "ArrowDown");
   expect(shown()).toEqual(["developer"]);
   key(list, "ArrowDown"); // wraps
@@ -629,7 +629,7 @@ test("layouts: the Plugins help no longer lists layouts a plugin adds", async ()
   expect(panel(s, "plugins").textContent).not.toContain("Layouts");
 });
 
-// ---- Website (ui/static-build)
+// ---- Export (ui/static-build, app/export)
 
 const WEBSITE_OPTIONS = { out: "/Users/me/site/_site", portable: false, drafts: true, clean: false, print: true };
 function websiteSetup(hasWorkspace = true) {
@@ -645,16 +645,16 @@ function websiteSetup(hasWorkspace = true) {
 test("website section: the folder's build options and a Build… button that opens the dialog", async () => {
   const { s, build, openBuild } = websiteSetup();
   await settle();
-  section(s, "website").click();
-  expect(panel(s, "website").hidden).toBe(false);
+  section(s, "export").click();
+  expect(panel(s, "export").hidden).toBe(false);
   expect(build.buildOptions).toHaveBeenCalled();
-  const text = panel(s, "website").textContent!;
+  const text = panel(s, "export").textContent!;
   expect(text).toContain("_site");
   expect(text).toContain("A web server only");
   expect(text).toContain("Drafts included");
   expect(text).toContain("No build yet");
-  const b = panel(s, "website").querySelector<HTMLButtonElement>(".zen-settings-build")!;
-  expect(b.textContent).toBe("Build…");
+  const b = panel(s, "export").querySelector<HTMLButtonElement>(".zen-settings-build")!;
+  expect(b.textContent).toBe("Export…");
   b.click();
   expect(openBuild).toHaveBeenCalledTimes(1);
 });
@@ -664,15 +664,62 @@ test("website section: shows the last build's time, page count and output folder
   rememberBuild("/Users/me/site", { out: "/Users/me/site/_site", pages: 34, files: 19, warnings: [], millis: 800, cancelled: false });
   s.show();
   await settle();
-  const text = panel(s, "website").querySelector(".zen-settings-build-last")!.textContent!;
+  const text = panel(s, "export").querySelector(".zen-settings-build-last")!.textContent!;
   expect(text).toContain("34 pages");
   expect(text).toContain("_site");
   expect(text).not.toContain("No build yet");
 });
 
-test("website section: no folder open disables Build…", async () => {
+test("website section: no folder open disables Export…", async () => {
   const { s, build } = websiteSetup(false);
   await settle();
-  expect(panel(s, "website").querySelector<HTMLButtonElement>(".zen-settings-build")!.disabled).toBe(true);
+  expect(panel(s, "export").querySelector<HTMLButtonElement>(".zen-settings-build")!.disabled).toBe(true);
   expect(build.buildOptions).not.toHaveBeenCalled();
+});
+
+// ---- the Export section: Website and PDF (app/export behaviour 8)
+
+test("Export section", async () => {
+  const { api, s } = setup();
+  section(s, "export").click();
+  await settle();
+  const p = panel(s, "export");
+  expect(section(s, "export").textContent).toBe("Export");
+  expect(Array.from(p.querySelectorAll("h3, h4")).map((h) => h.textContent)).toEqual(["Website", "PDF"]);
+  const web = p.querySelector<HTMLButtonElement>(".zen-settings-build")!;
+  const pdf = p.querySelector<HTMLButtonElement>(".zen-settings-export-pdf")!;
+  expect(web.textContent).toBe("Export…");
+  expect(pdf.textContent).toBe("Export PDF…");
+  expect(web.disabled).toBe(true); // no openBuild wired in this setup
+  expect(pdf.disabled).toBe(false);
+  pdf.click();
+  await settle();
+  expect(api.callsTo("printSite")).toHaveLength(1); // opens the preview as File › Export › PDF… does
+});
+
+test("Export section: no folder disables both buttons and says so", async () => {
+  const { api, s } = setup(false);
+  section(s, "export").click();
+  await settle();
+  const p = panel(s, "export");
+  expect(p.textContent).toContain("Open a folder to export it.");
+  expect(p.querySelector<HTMLButtonElement>(".zen-settings-build")!.disabled).toBe(true);
+  expect(p.querySelector<HTMLButtonElement>(".zen-settings-export-pdf")!.disabled).toBe(true);
+  p.querySelector<HTMLButtonElement>(".zen-settings-export-pdf")!.click();
+  expect(api.callsTo("printSite")).toHaveLength(0);
+});
+
+test("Export section: the last PDF with Show in Finder", async () => {
+  const { api, s } = setup();
+  try { localStorage.setItem("zen.lastPdfExport", JSON.stringify({ path: "/Users/me/Guide.pdf", at: Date.now() })); } catch { /* no storage */ }
+  s.show();
+  section(s, "export").click();
+  await settle();
+  const p = panel(s, "export");
+  expect(p.textContent).toContain("Guide.pdf");
+  const reveal = Array.from(p.querySelectorAll("button")).find((b) => b.textContent === "Show in Finder")!;
+  reveal.click();
+  await settle();
+  expect(api.callsTo("revealExport")).toHaveLength(1);
+  try { localStorage.removeItem("zen.lastPdfExport"); } catch { /* no storage */ }
 });
