@@ -61,6 +61,12 @@ export interface KitHost extends RuntimeHost {
   revealInFinder?(path: string): Promise<void>;
   /** Opens the print panel for the calling window (window.print() does nothing in the macOS web view). */
   printWindow?(title: string): Promise<void>;
+  /** Export PDF… (app/export): the save panel, then the preview's document written as a PDF. The path, "" when cancelled; title only names the job. */
+  exportPdf?(title: string): Promise<string>;
+  /** Shows the file the last export wrote in Finder. It takes no path. */
+  revealExport?(): Promise<void>;
+  /** Export mode of the preview (`zenmd export pdf`): the document is laid out; late names the blocks that were not ready in time. */
+  printReady?(late: string[]): Promise<void>;
   /**
    * The sidebar's context menu and drag reordering (ui/sidebar-menu); an app that leaves one out does not
    * get its menu item. reorderNav puts the page siblings under `parent` (the parent node's path, "" for the

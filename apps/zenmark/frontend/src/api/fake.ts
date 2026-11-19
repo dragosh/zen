@@ -6,7 +6,7 @@ import type { Api, BuildProgress, Crumb, Draft, SiteTemplate, LayoutInfo, LintRe
 type Method = "startup" | "pickFolder" | "cancelOpen" | "closeFolder"
   | "siteTemplates" | "pickSiteFolder" | "createSite" | "revealTemplates" | "templatesDir"
   | "buildOptions" | "buildWebsite" | "cancelBuild" | "saveBuildDefaults" | "pickBuildFolder" | "openBuiltSite" | "revealBuiltSite"
-  | "printPage" | "printSite" | "printWindow" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "pageInfo" | "revealInFinder" | "openConfig" | "createPage"
+  | "printPage" | "printSite" | "printWindow" | "exportPdf" | "revealExport" | "printReady" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "pageInfo" | "revealInFinder" | "openConfig" | "createPage"
   | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys"
   | "reorderNav" | "setNavHidden"
   | "logs" | "layouts" | "layoutTrust" | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys";
@@ -76,6 +76,8 @@ export type FakeApi = Api & {
   failNext(method: Method, error: Error): void;
   /** Result of the next pickFolder(); assignable between calls. */
   pick: Workspace | null;
+  /** What exportPdf() resolves to: a path, "" for a cancelled save panel, or a function that answers later. */
+  exportPath: string | (() => string | Promise<string>);
   /** What openExternal() resolves to (the user's answer). Default true. */
   confirmExternal: boolean;
   /**
@@ -245,6 +247,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     calls: [],
     pick: options.pick === undefined ? sampleWorkspace() : options.pick,
     confirmExternal: true,
+    exportPath: "/Users/me/Documents/sample-docs.pdf",
     broadcasts: [],
     lintResult: options.devLint ?? options.lint ?? { available: false, alerts: [] },
     pluginList: (options.plugins ?? []).map(plugin),
@@ -294,6 +297,9 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     printPage: () => call("printPage", [], () => undefined),
     printSite: () => call("printSite", [], () => undefined),
     printWindow: (title) => call("printWindow", [title], () => { (globalThis as { print?: () => void }).print?.(); }),
+    exportPdf: (title) => call("exportPdf", [title], () => (typeof api.exportPath === "function" ? api.exportPath() : api.exportPath)).then((p) => p),
+    revealExport: () => call("revealExport", [], () => undefined),
+    printReady: (late) => call("printReady", [late], () => undefined),
     page: (path) => call("page", [path], () => render(path, need(path))),
     source: (path) => call("source", [path], () => need(path)),
     preview: (path, content) => call("preview", [path, content], () => render(path, content)),
