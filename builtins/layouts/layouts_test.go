@@ -238,12 +238,13 @@ func TestLayoutNeeds(t *testing.T) {
 			declared[r] = true
 		}
 		// What the layout's own files mention of a plugin's block must be declared.
-		names, _ := fs.ReadDir(l.Assets(), ".")
+		dir, _ := fs.Sub(files, m.ID)
+		names, _ := fs.ReadDir(dir, ".")
 		for _, f := range names {
 			if f.IsDir() {
 				continue
 			}
-			data, _ := fs.ReadFile(l.Assets(), f.Name())
+			data, _ := fs.ReadFile(dir, f.Name())
 			for _, mm := range blockRE.FindAllStringSubmatch(string(data), -1) {
 				name := mm[1] + mm[2]
 				if p := plugin[name]; p != "" && !declared[p] {

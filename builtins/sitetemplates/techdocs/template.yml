@@ -3,6 +3,7 @@ name: Technical documentation
 description: Tutorials, how-to guides, reference and explanation, laid out after Diátaxis
 version: 1.0.0
 order: 10
+requires: { layouts: [docs, landing], plugins: [codeblock, diagram] }
 ask:
   title: { label: Site title, default: "{{folder}}" }
   author: { label: Author, default: "the team" }
