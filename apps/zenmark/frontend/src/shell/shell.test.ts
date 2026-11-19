@@ -54,7 +54,21 @@ test("welcome has the logo, tagline and footer", async () => {
   expect(img).not.toBeNull();
   expect(img.getAttribute("alt")).toBe("");
   expect(root.querySelector(".zen-welcome-tagline")?.textContent).toBe("Markdown folders as sites, documents and courses");
-  expect(root.querySelector(".zen-welcome-foot")?.textContent).toContain("⇧⌘N");
+  expect(root.querySelector(".zen-welcome-foot")).toBeNull();
+  expect(root.querySelector(".zen-welcome")?.textContent).not.toContain("Also File");
+});
+
+test("welcome has a hint pointing up to the menu bar, and Settings stays reachable", async () => {
+  const s = boot(createFakeApi());
+  await s.start();
+  const hint = root.querySelector(".zen-welcome-menuhint")!;
+  expect(hint).not.toBeNull();
+  expect(hint.textContent).toContain("↖");
+  expect(hint.textContent).toContain("File menu");
+  expect(hint.textContent).toContain("Open Folder");
+  expect(hint.textContent).toContain("New Site");
+  expect(hint.textContent).toContain("⇧⌘N");
+  expect(hint.querySelector("button.zen-welcome-settings")?.textContent).toContain("Settings");
 });
 
 test("shows welcome without workspace", async () => {
