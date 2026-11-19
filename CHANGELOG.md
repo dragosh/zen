@@ -6,6 +6,9 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 
 ## [Unreleased]
 
+### Added
+- Find in page: ⌘F (Edit › Find) opens a find bar in the reader and the editor with a match count, next/previous (⌘G, ⇧⌘G) and a match-case toggle (#4).
+
 ### Changed
 - Menu: New Page…, Close Folder, Build Website…, Print Page… and Print Site… are greyed out while no folder is open (#6).
 - The home screen has a small "↖ File menu" hint with a Settings link instead of the footer line, and the New Site dialog's "Open templates folder" button shows only in developer mode (#7).
