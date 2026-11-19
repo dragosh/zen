@@ -3,7 +3,7 @@
 # app lists only what it needs. After editing, `task build` regenerates
 # assembly_gen.go (or run: go run ./kit/assembly/cmd/gen apps/zenmark).
 app: zenmark
-addons: [vale]
+addons: []
 plugins: all
 layouts: all
 templates: all
