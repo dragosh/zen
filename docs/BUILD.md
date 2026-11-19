@@ -79,13 +79,22 @@ build:
   exclude: ["private/**"]
 ```
 
-## Add-ons
+## What an app is built from
 
-`ADDONS` chooses the optional add-ons of a build (docs/ADDONS.md,
-specs/kit/addons): `task build|package|run|dev|release ADDONS=vale`. Each is
-compiled in with the tag `addon_<id>`, and its helpers are bundled only when it
-is in the build. The release workflow uses the repository variable `ADDONS`;
-without it the DMG has no add-ons. `zenmd version` lists the add-ons of a build.
+`apps/<app>/app-assembly.yml` lists the app's add-ons, built-in plugins, layouts,
+site templates and theme (specs/kit/assembly; `all` means every built-in of that
+kind). `task build|package|run|dev|release APP=zenmark` (the default app) reads
+it, checks what each template and layout needs (`requires:` in their
+`template.yml` / `layout.yml`), and regenerates `apps/<app>/assembly_gen.go`
+(by hand: `go run ./kit/assembly/cmd/gen apps/<app>`; `-tags-only` and
+`-ids-only` print the add-on tags or the ids).
+
+Add-ons (docs/ADDONS.md, specs/kit/addons) are compiled in with the tag
+`addon_<id>`, and their helpers are bundled only when they are in the build.
+`ADDONS=` on the command line overrides the file (`ADDONS=` empty: none); the
+release workflow passes the repository variable `ADDONS`, and when it is unset
+the file decides. `zenmd version` lists the add-ons; `zenmd version --verbose`
+the whole assembly. Settings › This build shows it in the app.
 
 ## Developing
 

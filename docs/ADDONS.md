@@ -2,18 +2,29 @@
 
 An **add-on** is an optional capability that an app includes only when it is
 built with it: usually a helper program, the Go code that drives it, and the UI
-it adds. The default build has none. Each app built on the kit (Zenmark today;
-HashDoc, HashTalk, HashStudy and HashDish later) chooses its add-ons at build
-time:
+it adds. Each app built on the kit (Zenmark today; HashDoc, HashTalk, HashStudy
+and HashDish later) lists its add-ons in `apps/<app>/app-assembly.yml`, next to
+its built-in plugins, layouts, site templates and theme (specs/kit/assembly):
+
+```yaml
+app: zenmark
+addons: [vale]
+plugins: all
+layouts: all
+templates: all
+theme: default
+```
+
+`ADDONS=` on the command line overrides the file for one build:
 
 ```sh
-task package ADDONS=vale
+task package ADDONS=        # no add-ons
 task release ADDONS=vale,tts
 ```
 
 How it works is specified in [specs/kit/addons](../specs/kit/addons/spec.md):
 the `addon_<id>` build tag, the `addons/<id>` Go package that registers itself,
-helpers in `resources.yml` marked `addon: <id>`, and Settings › Add-ons, which
+helpers in `resources.yml` marked `addon: <id>`, and Settings › This build, which
 lists what a build includes.
 
 ## Add-on, plugin or layout?

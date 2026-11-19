@@ -2,7 +2,7 @@
 
 Builds of Zenmark with the **Vale add-on** include [Vale](https://vale.sh), a
 prose linter. It checks spelling and style on the page you read and on the text
-you type, without sending anything anywhere. Settings › Add-ons shows whether
+you type, without sending anything anywhere. Settings › This build shows whether
 your build has it; without it, nothing on this page appears.
 
 ## Try it

@@ -7,6 +7,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- `apps/<app>/app-assembly.yml` chooses an app's add-ons, built-in plugins, layouts, site templates and theme, with their dependencies checked at build time; Settings › This build and `zenmd version --verbose` show them. Zenmark's lists everything, so `task package` includes Vale (`ADDONS=` builds without it).
 - Export: File › Export › Website… (⇧⌘B) and PDF… (⇧⌘P), Settings › Export, and `zenmd export site|pdf`; the PDF is saved directly, without the print panel, and `zenmd export pdf` works from the command line (`zenmd build` stays as an alias) (#5).
 - Find in page: ⌘F (Edit › Find) opens a find bar in the reader and the editor with a match count, next/previous (⌘G, ⇧⌘G) and a match-case toggle (#4).
 

@@ -13,8 +13,9 @@ name: release
 #   NOTARY_ISSUER           its issuer ID
 # Repository variables:
 #   SIGN_IDENTITY           "Developer ID Application: Name (TEAMID)"
-#   ADDONS                  the add-ons of the build, e.g. "vale" (specs/kit/addons); empty or
-#                           unset: none. The release notes list them.
+#   ADDONS                  overrides the add-ons of the build, e.g. "vale" (specs/kit/addons);
+#                           empty or unset: the app's app-assembly.yml decides. The release
+#                           notes list them.
 
 on:
   push:
