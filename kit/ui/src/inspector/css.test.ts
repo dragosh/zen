@@ -6,19 +6,15 @@ const body = css.replace(/\/\*[\s\S]*?\*\//g, "");
 
 test("tokens only: no colour literals, only known variables", () => {
   expect(body).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|oklch\(|lab\(|color\(/i);
-  const known = ["--bg", "--bg-subtle", "--fg", "--fg-muted", "--rule", "--font-ui", "--font-mono", "--radius", "--btn-bg", "--btn-bg-hover", "--focus", "--zen-inspector-height", "--lint-error", "--lint-warning", "--lint-suggestion"]
+  const known = ["--bg", "--bg-subtle", "--fg", "--fg-muted", "--rule", "--font-ui", "--font-mono", "--radius", "--btn-bg", "--btn-bg-hover", "--focus", "--lint-error", "--lint-warning", "--lint-suggestion"]
     .concat(Array.from({ length: 7 }, (_, i) => `--space-${i + 1}`));
   for (const m of Array.from(body.matchAll(/var\((--[a-z0-9-]+)/g))) expect(known).toContain(m[1]);
 });
 
-test("a bottom panel like the Developer panel: full width under the page, above the Developer panel, never printed", () => {
-  expect(body).toMatch(/--zen-inspector-height:\s*220px/);
-  expect(body).toMatch(/\.zen-inspector\s*\{[^}]*order:\s*1;[^}]*flex:\s*none;[^}]*height:\s*var\(--zen-inspector-height\)/);
-  expect(body).toMatch(/border-top:\s*1px solid var\(--rule\)/);
+test("a bottom panel (ui/panel) under the page, above the Developer panel, never printed", () => {
+  expect(body).toMatch(/\.zen-inspector\s*\{\s*order:\s*1;\s*\}/);
   expect(body).toMatch(/\.zen-content > \.zen-dev\s*\{\s*order:\s*2/);
-  const panel = body.match(/\.zen-inspector\s*\{[^}]*\}/)![0];
-  expect(panel).not.toMatch(/position:\s*absolute/);
-  expect(body).not.toMatch(/margin-right/);
+  expect(body).not.toMatch(/position:\s*absolute;[^}]*right:\s*0;[^}]*width/);
   expect(body).toMatch(/@media print[\s\S]*\.zen-inspector[\s\S]*display:\s*none/);
 });
 

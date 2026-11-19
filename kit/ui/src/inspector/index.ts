@@ -1,5 +1,5 @@
-// ui/inspector: a panel on the right of the reading view with three tabs,
-// Issues (Vale), File and Page, and the button that toggles it. The page
+// ui/inspector: a bottom panel (ui/panel) under the reading view with three tabs,
+// Linting (Vale), File and Page, and the button that toggles it. The page
 // feature owns one and feeds it after every render; this file knows nothing
 // about loading pages. All text goes in through textContent.
 import "./inspector.css";
@@ -7,6 +7,7 @@ import type { Alert, KitHost, Page, PageInfo } from "../host";
 import { issueList } from "../lint";
 import { copyText } from "../shell/clipboard";
 import { button, el } from "../shell/dom";
+import { createTabbedPanel, panelEmpty, panelProps } from "../panel";
 import { INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorIcon, inspectorLabel, type InspectorState } from "./events";
 import { formatDate, formatSize, readingLabel } from "./format";
 import { pageStats, type PageStats } from "./stats";
@@ -17,6 +18,10 @@ export { INSPECTOR_STATE, INSPECTOR_TOGGLE, type InspectorState } from "./events
 export const OPEN_KEY = "zen.inspector.open";
 /** The last tab, by id. */
 export const TAB_KEY = "zen.inspector.tab";
+/** The panel's height, remembered across launches; drag its top edge to change it. */
+export const HEIGHT_KEY = "zen.inspector.height";
+export const HEIGHT_DEFAULT = 220;
+export const HEIGHT_MIN = 120;
 
 export type InspectorOptions = {
   doc: Document;
@@ -89,9 +94,28 @@ function write(key: string, value: string): void {
 
 export function createInspector(o: InspectorOptions): Inspector {
   const id = ++seq;
-  const panel = el("aside", "zen-inspector");
+  // The panel is the shared tabbed bottom panel (ui/panel); a later tab (Spelling) is one more entry in
+  // TABS and a render function.
+  const TABS = [
+    { id: "issues", label: "Linting" },
+    { id: "file", label: "File" },
+    { id: "page", label: "Page" },
+  ] as const;
+  const frame = createTabbedPanel({
+    doc: o.doc,
+    label: "Inspector",
+    idPrefix: `zen-inspector-${id}`,
+    tabs: TABS,
+    tabKey: TAB_KEY,
+    onClose: () => {
+      inspector.close();
+      (o.external ? o.doc.querySelector<HTMLElement>(".zen-inspector-button") : toggle)?.focus();
+    },
+    resize: { key: HEIGHT_KEY, initial: HEIGHT_DEFAULT, min: HEIGHT_MIN },
+  });
+  const panel = frame.el;
+  panel.classList.add("zen-inspector");
   panel.id = `zen-inspector-${id}`;
-  panel.setAttribute("aria-label", "Inspector");
   panel.hidden = true;
 
   const toggle = el("button", "zen-inspector-toggle zen-settings-button ghost");
@@ -116,84 +140,25 @@ export function createInspector(o: InspectorOptions): Inspector {
   let copiedTimer: ReturnType<typeof setTimeout> | undefined;
   let count = 0;
 
-  // ---- sections
+  const issues = { body: frame.body("issues") };
+  const fileSection = { body: frame.body("file") };
+  const pageSection = { body: frame.body("page") };
 
-  // A list of tab definitions; a later tab (Spelling) is one more entry and a render function.
-  type Section = { root: HTMLElement; body: HTMLElement };
-  const TABS = [
-    { id: "issues", label: "Linting" },
-    { id: "file", label: "File" },
-    { id: "page", label: "Page" },
-  ] as const;
-  type TabId = (typeof TABS)[number]["id"];
-  const storedTab = (): TabId => TABS.find((t) => t.id === read(TAB_KEY))?.id ?? TABS[0].id;
-  let tab: TabId = storedTab();
-
-  const tablist = el("div", "zen-inspector-tabs");
-  tablist.setAttribute("role", "tablist");
-  tablist.setAttribute("aria-label", "Inspector");
-  const tabButtons = new Map<TabId, HTMLButtonElement>();
-  const sections = new Map<TabId, Section>();
-  for (const { id, label } of TABS) {
-    const b = button(label, () => choose(id), { className: "zen-inspector-tab" });
-    b.setAttribute("role", "tab");
-    b.id = `${panel.id}-tab-${id}`;
-    b.dataset.tab = id;
-    const root = el("section", "zen-inspector-body");
-    root.id = `${panel.id}-panel-${id}`;
-    root.dataset.section = id;
-    root.setAttribute("role", "tabpanel");
-    root.setAttribute("aria-labelledby", b.id);
-    b.setAttribute("aria-controls", root.id);
-    tabButtons.set(id, b);
-    sections.set(id, { root, body: root });
-  }
-  function choose(id: TabId, remember = true): void {
-    tab = id;
-    if (remember) write(TAB_KEY, id);
-    for (const [k, b] of Array.from(tabButtons)) {
-      b.setAttribute("aria-selected", String(k === id));
-      b.tabIndex = k === id ? 0 : -1;
-      sections.get(k)!.root.hidden = k !== id;
-    }
-  }
-  tablist.addEventListener("keydown", (e) => {
-    const i = TABS.findIndex((t) => t.id === tab);
-    const to = ({ ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 } as Record<string, number | undefined>)[e.key];
-    if (to === undefined) return;
-    e.preventDefault();
-    const next = TABS[(to + TABS.length) % TABS.length].id;
-    choose(next);
-    tabButtons.get(next)!.focus();
-  });
-  tablist.append(...Array.from(tabButtons.values()));
-  const issues = sections.get("issues")!;
-  const fileSection = sections.get("file")!;
-  const pageSection = sections.get("page")!;
-  panel.append(tablist, ...Array.from(sections.values(), (s) => s.root));
-  choose(tab, false);
-
-  const rows = (items: [label: string, field: string, value: string, mono?: boolean][]): HTMLElement => {
-    const dl = el("dl", "zen-inspector-rows");
-    for (const [label, field, value, mono] of items) {
-      const dd = el("dd", mono ? "zen-inspector-mono" : "", value);
-      dd.dataset.field = field;
-      dl.append(el("dt", "", label), dd);
-    }
-    return dl;
-  };
+  const rows = panelProps;
 
   function renderIssues(): void {
     if (alerts === "checking") {
-      issues.body.replaceChildren(el("p", "zen-inspector-empty", "Checking…"));
+      issues.body.replaceChildren(panelEmpty("Checking…"));
     } else if (alerts === null) {
-      issues.body.replaceChildren(el("p", "zen-inspector-empty", "Linting off"));
+      issues.body.replaceChildren(panelEmpty("Linting off", "Vale is not available, or the page is empty."));
     } else if (alerts.length === 0) {
-      issues.body.replaceChildren(el("p", "zen-inspector-empty", "No issues"));
+      issues.body.replaceChildren(panelEmpty("No issues", "Vale found nothing to flag on this page."));
     } else {
       issues.body.replaceChildren(issueList(alerts, (a, i) => o.onSelectIssue(a, i)));
     }
     count = Array.isArray(alerts) ? alerts.length : 0;
+    const tone = Array.isArray(alerts) && alerts.some((a) => a.severity === "error") ? "error" : Array.isArray(alerts) && alerts.some((a) => a.severity === "warning") ? "warning" : "neutral";
+    frame.setCount("issues", count, tone);
     badge.hidden = count === 0;
     badge.textContent = String(count);
     toggle.setAttribute("aria-label", inspectorLabel(count));
@@ -371,7 +336,7 @@ export function createInspector(o: InspectorOptions): Inspector {
       clearTimeout(copiedTimer);
       panel.removeEventListener("keydown", onKey);
       toggle.removeEventListener("click", onToggle);
-      panel.remove();
+      frame.destroy();
       toggle.remove();
     },
   };

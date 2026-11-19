@@ -26,8 +26,9 @@ opens it; the issue count stays visible on that button when the panel is closed.
    lasts while the app runs (`sessionStorage` key `zen.inspector.open`, so it follows you
    from page to page), every access in try/catch; unavailable storage means closed. The last
    tab is remembered too (`zen.inspector.tab`: `issues`, `file` or `page`; anything else means Linting).
-3. The panel is a bottom panel, like the Developer panel: full width under the page,
-   220 px high (at most half the content), not resizable, with a top border. It takes
+3. The panel is the tabbed bottom panel of [ui/panel](../panel/spec.md): full width under the page,
+   220 px high by default, resizable from its top edge (remembered as `zen.inspector.height`),
+   with a ✕ close button and a count chip on Linting (red with errors). It takes
    room from the page and sits above the Developer panel when both are open. Esc closes it when focus is inside it and returns focus to the Inspector button.
 4. Neither the button nor the panel exists while no page is open (home screen,
    Settings), and they follow the open page: navigation, live reload

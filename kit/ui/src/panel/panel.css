@@ -1,0 +1,144 @@
+/* ui/panel: the tabbed bottom panel. Tokens only (docs/UI.md; the lint tokens for count chips). */
+.zen-panel {
+  position: relative;
+  flex: none;
+  box-sizing: border-box;
+  min-height: 0;
+  max-height: 70%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--fg);
+  border-top: 1px solid var(--rule);
+  font-family: var(--font-ui);
+  font-size: 12px;
+}
+.zen-panel[hidden] { display: none; }
+
+/* A 7px grab area centred on the top border. */
+.zen-panel-resizer {
+  position: absolute;
+  top: -4px;
+  left: 0;
+  right: 0;
+  height: 7px;
+  cursor: row-resize;
+  z-index: 1;
+}
+.zen-panel-resizer:hover, .zen-panel.is-resizing .zen-panel-resizer {
+  background: linear-gradient(to bottom, transparent 3px, var(--fg-muted) 3px, var(--fg-muted) 4px, transparent 4px);
+}
+.zen-panel-resizer:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+body.zen-panel-resizing { cursor: row-resize; user-select: none; }
+
+/* Header: tabs on the left, the panel's tools and the close button on the right. */
+.zen-panel-head {
+  flex: none;
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-2);
+  height: 34px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  background: var(--bg-subtle);
+  border-bottom: 1px solid var(--rule);
+}
+.zen-panel-tabs { display: flex; align-items: stretch; gap: var(--space-1); min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.zen-panel-tab {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--fg-muted);
+  font: inherit;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color 120ms ease-out;
+}
+.zen-panel-tab:hover { color: var(--fg); background: none; }
+.zen-panel-tab[aria-selected="true"] { color: var(--fg); font-weight: 600; }
+/* The selected tab is underlined in the focus colour, flush with the header's bottom border. */
+.zen-panel-tab::after {
+  content: "";
+  position: absolute;
+  left: var(--space-2);
+  right: var(--space-2);
+  bottom: -1px;
+  height: 2px;
+  border-radius: 1px;
+  background: transparent;
+  transition: background 120ms ease-out;
+}
+.zen-panel-tab[aria-selected="true"]::after { background: var(--focus); }
+.zen-panel-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: -4px; border-radius: var(--radius); }
+
+.zen-panel-count {
+  min-width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: var(--btn-bg);
+  color: var(--fg-muted);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 16px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.zen-panel-count[hidden] { display: none; }
+.zen-panel-count[data-tone="error"] { background: var(--lint-error); color: var(--bg); }
+.zen-panel-count[data-tone="warning"] { background: var(--lint-warning); color: var(--bg); }
+
+.zen-panel-tools { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
+.zen-panel-close {
+  align-self: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: var(--radius);
+  color: var(--fg-muted);
+  font-size: 11px;
+  line-height: 1;
+}
+.zen-panel-close:hover { color: var(--fg); background: var(--btn-bg-hover); }
+
+/* Bodies: one per tab, scrolling on their own. */
+.zen-panel-body { flex: 1; min-height: 0; overflow: auto; padding: var(--space-3) var(--space-4); outline: none; }
+.zen-panel-body[hidden] { display: none; }
+.zen-panel-body:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
+
+.zen-panel-empty {
+  height: 100%;
+  min-height: 60px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  text-align: center;
+}
+.zen-panel-empty p { margin: 0; }
+.zen-panel-empty-title { color: var(--fg-muted); font-size: 13px; }
+.zen-panel-empty-hint { color: var(--fg-muted); opacity: 0.8; }
+
+/* Properties: label over value, as many columns as fit. */
+.zen-panel-props {
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: var(--space-3) var(--space-5);
+}
+.zen-panel-prop { min-width: 0; }
+.zen-panel-prop dt { color: var(--fg-muted); font-size: 11px; margin-bottom: 2px; }
+.zen-panel-prop dd { margin: 0; color: var(--fg); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zen-panel-mono { font-family: var(--font-mono); font-size: 12px !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .zen-panel-tab, .zen-panel-tab::after { transition: none; }
+}
+@media print { .zen-panel { display: none; } }

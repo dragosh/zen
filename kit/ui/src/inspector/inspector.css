@@ -24,48 +24,51 @@
 }
 .zen-inspector-badge[hidden] { display: none; }
 
-/* The panel is a bottom panel, like the Developer panel (ui/developer-tab): a flex item of the content
-   column under the main pane, full width, above the Developer panel when both are open. The script puts
-   it before the main pane; `order` moves it below. */
-:root { --zen-inspector-height: 220px; }
-.zen-inspector {
-  order: 1;
-  flex: none;
-  box-sizing: border-box;
-  height: var(--zen-inspector-height);
-  max-height: 50%;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--bg-subtle);
-  color: var(--fg);
-  border-top: 1px solid var(--rule);
-  font-family: var(--font-ui);
-  font-size: 12px;
-}
+/* The panel itself is ui/panel (panel.css): a flex item of the content column under the main pane,
+   above the Developer panel when both are open. The script puts it before the main pane; `order`
+   moves it below. */
+.zen-inspector { order: 1; }
 .zen-content > .zen-dev { order: 2; }
-.zen-inspector[hidden] { display: none; }
 .zen-inspector:has(~ .zen-main[hidden]) { display: none; }
 
-/* Tabs, the look of the Developer panel's (.zen-dev-tabs). */
-.zen-inspector-tabs { flex: none; display: flex; gap: 2px; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--rule); }
-.zen-inspector-tab { background: none; padding: 3px 10px; color: var(--fg-muted); font: inherit; }
-.zen-inspector-tab[aria-selected="true"] { color: var(--fg); background: var(--bg); box-shadow: 0 0 0 1px var(--rule); font-weight: 600; }
-.zen-inspector-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.zen-inspector-body { flex: 1; min-height: 0; overflow: auto; padding: var(--space-3); }
-.zen-inspector-body[hidden] { display: none; }
+/* Linting: the full width of the panel, one row per issue: a severity dot (its word stays for
+   screen readers), the line, the message, and the flagged text in mono on the right. */
+.zen-inspector .zen-lint-list { margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-4)); padding: var(--space-1) 0; }
+.zen-inspector .zen-lint-item {
+  width: 100%;
+  grid-template-columns: 8px 3.5em minmax(0, 1fr) auto;
+  gap: 0 var(--space-3);
+  align-items: center;
+  padding: 6px var(--space-4);
+  border-radius: 0;
+  cursor: pointer;
+}
+.zen-inspector .zen-lint-item:hover { background: var(--btn-bg-hover); }
+.zen-inspector .zen-lint-item:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.zen-inspector .zen-lint-severity {
+  grid-column: 1;
+  grid-row: 1;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
+  font-size: 0;
+  overflow: hidden;
+}
+.zen-inspector .zen-lint-line { grid-column: 2; grid-row: 1; text-align: left; }
+.zen-inspector .zen-lint-message { grid-column: 3; grid-row: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.zen-inspector .zen-lint-match {
+  grid-column: 4;
+  grid-row: 1;
+  max-width: 24ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-family: var(--font-mono);
+}
+.zen-inspector .zen-lint-item + .zen-lint-item, .zen-inspector li + li { border-top: 1px solid var(--rule); }
 
-.zen-inspector-empty { margin: 0; color: var(--fg-muted); }
-/* Linting: the full width of the panel, one row per issue as in the problems console (lint.css):
-   line, severity, message, then the matched text under the message. */
-.zen-inspector .zen-lint-list { margin: calc(-1 * var(--space-3)); padding: 0; }
-.zen-inspector .zen-lint-item { width: 100%; padding: var(--space-1) var(--space-3); }
-
-.zen-inspector-rows { margin: 0; max-width: 960px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--space-1) var(--space-3); }
-.zen-inspector-rows dt { color: var(--fg-muted); white-space: nowrap; }
-.zen-inspector-rows dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
-.zen-inspector-mono { font-family: var(--font-mono); }
-.zen-inspector-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }
+.zen-inspector-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-4); }
 .zen-inspector-actions button { font-size: 12px; padding: 2px var(--space-2); }
 
 @media print { .zen-inspector, .zen-inspector-toggle, .zen-inspector-button { display: none; } }

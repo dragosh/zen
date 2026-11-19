@@ -130,7 +130,7 @@ describe("editor inspector: issues", () => {
     api.lintResult = { available: false, alerts: [] };
     release();
     await tick();
-    expect(issuesBody().textContent).toBe("Linting off");
+    expect(issuesBody().querySelector(".zen-panel-empty-title")?.textContent).toBe("Linting off");
   });
 
   it("E2: typing updates the list after the lint delay", async () => {
@@ -139,7 +139,7 @@ describe("editor inspector: issues", () => {
     s = await setup("README.md", api);
     toggle(s)!.click();
     await wait(30);
-    expect(issuesBody().textContent).toBe("No issues");
+    expect(issuesBody().querySelector(".zen-panel-empty-title")?.textContent).toBe("No issues");
     api.lintResult = { available: true, alerts: [ALERT, { ...ALERT, line: 2 }] };
     type(s.ta, "ab cdef\nsecond");
     await wait(750);
