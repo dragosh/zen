@@ -1,0 +1,10 @@
+# What Zenmark is built from (specs/kit/assembly). `all` means every built-in of
+# that kind, so a new built-in joins Zenmark without editing this file; a niche
+# app lists only what it needs. After editing, `task build` regenerates
+# assembly_gen.go (or run: go run ./kit/assembly/cmd/gen apps/zenmark).
+app: zenmark
+addons: [vale]
+plugins: all
+layouts: all
+templates: all
+theme: default

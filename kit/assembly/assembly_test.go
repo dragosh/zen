@@ -113,12 +113,12 @@ func TestUnknown(t *testing.T) {
 }
 
 func TestOrder(t *testing.T) {
-	a, err := load(t, "app: x\nplugins: [sandbox, codeblock]\nlayouts: [course, article, docs]\ntemplates: [learning, techdocs]\n")
+	a, err := load(t, "app: x\nplugins: [sandbox, codeblock, quiz, check]\nlayouts: [course, article, landing, docs]\ntemplates: [learning, techdocs]\n")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(a.Plugins, []string{"sandbox", "codeblock"}) ||
-		!reflect.DeepEqual(a.Layouts, []string{"course", "article", "docs"}) ||
+	if !reflect.DeepEqual(a.Plugins, []string{"sandbox", "codeblock", "quiz", "check"}) ||
+		!reflect.DeepEqual(a.Layouts, []string{"course", "article", "landing", "docs"}) ||
 		!reflect.DeepEqual(a.Templates, []string{"learning", "techdocs"}) {
 		t.Errorf("order not kept: %+v", a)
 	}
