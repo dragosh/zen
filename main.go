@@ -23,5 +23,5 @@ func main() {
 		fmt.Fprintf(os.Stderr, "zenmd: %v\n", err)
 		os.Exit(1)
 	}
-	os.Exit(cli.Run(os.Args[1:], cwd, os.Stdout, os.Stderr, app.Launch, app.BuildSite, app.InitSite))
+	os.Exit(cli.Run(os.Args[1:], cwd, os.Stdout, os.Stderr, app.Launch, app.BuildSite, app.InitSite, app.ExportPDF))
 }

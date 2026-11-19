@@ -90,7 +90,11 @@ const usage = `zenmd - the Zenmark engine: markdown folders as pages, sites and 
 Usage:
   zenmd [path]          open a folder or markdown file (default: current folder)
   zenmd edit [path]     open in the editor; a new .md file is created on save
-  zenmd build [folder]  build a static website; options below
+  zenmd export site [folder]
+                        build a static website; options below
+  zenmd export pdf [folder] [-o file.pdf]
+                        write the whole folder as one PDF file
+  zenmd build [folder]  same as export site
   zenmd init site [--techdocs|--learning|--planner] [folder]
                         start a folder from a site template; options below
   zenmd help            show this help
@@ -106,7 +110,10 @@ Init options:
   --title <text>      the site title; --author <text>; --set <key=value>
   --list              list the templates; --update <id>; --dir
 
-Build options:
+Export pdf options:
+  -o, --out <file>    output file (default: <folder>/<folder name>.pdf)
+
+Build options (export site, build):
   -o, --out <dir>     output folder (default: _site in the folder)
   --hosted            output for a web server (does not open from disk)
   --portable          output that also opens from disk (the default)
@@ -120,7 +127,7 @@ type usageError string
 func (e usageError) Error() string { return string(e) }
 
 // Run executes the command line and returns the process exit code.
-func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher, build Builder, initer Initer) int {
+func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher, build Builder, initer Initer, pdf PDFExporter) int {
 	mode := "read"
 	var paths []string
 	flags, first := true, true
@@ -146,6 +153,8 @@ func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher, b
 			return 0
 		case flags && first && arg == "build":
 			return runBuild(args[i+1:], cwd, stdout, stderr, build)
+		case flags && first && arg == "export":
+			return runExport(args[i+1:], cwd, stdout, stderr, build, pdf)
 		case flags && first && arg == "init":
 			return runInit(args[i+1:], cwd, stdout, stderr, initer)
 		case flags && first && arg == "edit":

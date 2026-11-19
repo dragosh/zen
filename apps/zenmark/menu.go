@@ -21,11 +21,11 @@ func (a menuActions) forLabel(label string) func() {
 	switch label {
 	case labelNewSite:
 		return a.NewSite
-	case labelBuildWebsite:
+	case labelExportWebsite:
 		return a.BuildWebsite
 	case labelPrintPage:
 		return a.PrintPage
-	case labelPrintSite:
+	case labelExportPDF:
 		return a.PrintSite
 	case labelFind:
 		return a.Find
@@ -55,17 +55,18 @@ type menuItem struct {
 }
 
 const (
-	labelNewSite      = "New Site from Template…"
-	labelBuildWebsite = "Build Website…"
-	labelPrintPage    = "Print Page…"
-	labelPrintSite    = "Print Site…"
-	labelFind         = "Find…"
-	labelFindNext     = "Find Next"
-	labelFindPrevious = "Find Previous"
-	labelNewPage      = "New Page…"
-	labelOpenFolder   = "Open Folder…"
-	labelCloseFolder  = "Close Folder"
-	labelSettings     = "Settings…"
+	labelNewSite       = "New Site from Template…"
+	labelPrintPage     = "Print Page…"
+	labelExport        = "Export"
+	labelExportWebsite = "Website…"
+	labelExportPDF     = "PDF…"
+	labelFind          = "Find…"
+	labelFindNext      = "Find Next"
+	labelFindPrevious  = "Find Previous"
+	labelNewPage       = "New Page…"
+	labelOpenFolder    = "Open Folder…"
+	labelCloseFolder   = "Close Folder"
+	labelSettings      = "Settings…"
 )
 
 var sep = menuItem{Separator: true}
@@ -91,9 +92,11 @@ func menuSpec(dev bool) []menuItem {
 			{Label: labelOpenFolder, Accel: "CmdOrCtrl+O"},
 			{Label: labelCloseFolder, Accel: "CmdOrCtrl+Shift+W"},
 			sep,
-			{Label: labelBuildWebsite, Accel: "CmdOrCtrl+Shift+B"},
 			{Label: labelPrintPage, Accel: "CmdOrCtrl+P"},
-			{Label: labelPrintSite, Accel: "CmdOrCtrl+Shift+P"},
+			{Label: labelExport, Children: []menuItem{
+				{Label: labelExportWebsite, Accel: "CmdOrCtrl+Shift+B"},
+				{Label: labelExportPDF, Accel: "CmdOrCtrl+Shift+P"},
+			}},
 		}},
 		{Label: "Edit", Children: []menuItem{
 			{Label: "Undo", Accel: "CmdOrCtrl+Z", Role: "Undo"},
@@ -144,7 +147,7 @@ func buildMenu(a *application.App, act menuActions, st *menuState, dev bool) *ap
 	return menu
 }
 
-// fillMenu adds items to sub; an item with children becomes a submenu (Edit > Find).
+// fillMenu adds items to sub; an item with children becomes a submenu (Edit > Find, File > Export).
 func fillMenu(sub *application.Menu, items []menuItem, act menuActions, st *menuState) {
 	for _, it := range items {
 		if it.Separator {
@@ -152,7 +155,13 @@ func fillMenu(sub *application.Menu, items []menuItem, act menuActions, st *menu
 			continue
 		}
 		if len(it.Children) > 0 {
-			fillMenu(sub.AddSubmenu(it.Label), it.Children, act, st)
+			inner := sub.AddSubmenu(it.Label)
+			if st != nil && folderOnly(it.Label) { // the submenu entry itself (File > Export)
+				if mi := sub.FindByLabel(it.Label); mi != nil {
+					st.add(func(on bool) { mi.SetEnabled(on) })
+				}
+			}
+			fillMenu(inner, it.Children, act, st)
 			continue
 		}
 		var item *application.MenuItem

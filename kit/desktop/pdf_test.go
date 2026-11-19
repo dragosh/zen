@@ -42,6 +42,7 @@ func savePDFHelper(out string) int {
 		})},
 		Mac: application.MacOptions{ActivationPolicy: application.ActivationPolicyAccessory},
 	})
+	time.AfterFunc(20*time.Second, func() { fmt.Println("error=timed out"); os.Exit(3) }) // never leave a runaway job behind
 	w := a.Window.NewWithOptions(application.WebviewWindowOptions{Name: "t", URL: "/", Hidden: true, Width: 800, Height: 600})
 	a.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
 		go func() {
