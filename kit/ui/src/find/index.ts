@@ -263,7 +263,7 @@ export function createFind(o: FindOptions): Find {
 
   const paintCount = () => {
     if (!bar) return;
-    countEl.textContent = !query ? "" : total === 0 ? "No results" : `${index + 1} of ${total}`;
+    countEl.textContent = !query ? "" : total === 0 ? "No results" : `${index + 1} of ${total}${total >= MAX_MATCHES ? "+" : ""}`;
     bar.classList.toggle("is-empty", !!query && total === 0);
   };
   /** Moves to match i without losing the caret of the search field. */

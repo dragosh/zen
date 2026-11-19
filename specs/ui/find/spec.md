@@ -91,6 +91,7 @@ menuActions{ Find, FindNext, FindPrevious func() }
 | 8 | ⌘F / ⌘G / ⇧⌘G keys, other modifiers ignored; menu events act only in the focused window; no double step | `find.test.ts: bindFind` |
 | 9 | reader: ⌘F opens, counts, menu event, next / previous, new page searched again, unmount cleans up | `kit/ui/src/page/find.test.ts` |
 | 10 | editor: ⌘F, match selected in the source, selection as seed, literal regex characters, Esc does not leave | `kit/ui/src/editor/find.test.ts` |
+| 10b | matches capped at 5000, count shown as "5000+" | `find.test.ts: match cap` |
 | 11 | Edit › Find items and accelerators | `apps/zenmark/menu_test.go: TestMenuSpecProduction` |
 | 12 | Find items are folder-only; actions only emit | `menu_test.go: TestFindMenuItemsAreFolderOnly, TestMenuFindEvents, TestMenuActions`; `menustate_test.go: TestFolderOnlyLabels` |
 
@@ -108,7 +109,7 @@ a polite live region. Reduced motion: no entrance animation.
 
 - The query is text: it is only used through `RegExp` after escaping and through `Range`/selection, never as
   HTML or `innerHTML`. Tests: `find.test.ts` (regex characters, `<b>` query).
-- Matches are capped (5000) so a one-letter query cannot freeze the page. Test: constant `MAX_MATCHES` bounds `findInText`.
+- Matches are capped (5000) so a one-letter query cannot freeze the page. Test: `find.test.ts: match cap`; the bar shows "1 of 5000+" when capped.
 - No network, no file access; the page's DOM is not modified except opening a `<details>` or unhiding a block
   that holds the current match.
 

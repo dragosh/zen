@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  bindFind, createFind, domFinder, findInText, textareaFinder,
+  MAX_MATCHES, bindFind, createFind, domFinder, findInText, textareaFinder,
   type Find, type FindEvents, type HighlightSupport,
 } from "./index";
 
@@ -19,6 +19,26 @@ describe("findInText", () => {
   it("finds nothing for an empty query and does not loop on overlaps", () => {
     expect(findInText("abc", "", false)).toEqual([]);
     expect(findInText("aaaa", "aa", false)).toEqual([0, 2]);
+  });
+});
+
+describe("match cap", () => {
+  it("findInText stops at MAX_MATCHES", () => {
+    expect(findInText("a".repeat(MAX_MATCHES + 1000), "a", false)).toHaveLength(MAX_MATCHES);
+  });
+  it("the DOM finder stops at MAX_MATCHES and the bar says '5000+'", () => {
+    const a = document.createElement("article");
+    a.innerHTML = `<p>${"a".repeat(MAX_MATCHES + 1000)}</p>`;
+    document.body.append(a);
+    const host = document.createElement("div");
+    document.body.append(host);
+    const f = domFinder(() => a, { highlights: { registry: new Map(), create: (ranges) => ({ ranges }) } });
+    expect(f.find("a", false)).toBe(MAX_MATCHES);
+    const find = createFind({ doc: document, host, finder: f });
+    find.open("a");
+    expect(host.querySelector("[aria-live]")!.textContent).toBe(`1 of ${MAX_MATCHES}+`);
+    find.destroy();
+    document.body.replaceChildren();
   });
 });
 
