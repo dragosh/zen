@@ -1,5 +1,9 @@
-/* Settings › Add-ons (kit/addons): a card per add-on of the build. Tokens only. */
+/* Settings › This build (kit/addons, kit/assembly): the add-ons as cards, then short lists. Tokens only. */
 .zen-addons { display: flex; flex-direction: column; gap: var(--space-2); max-width: 46ch; }
+.zen-build { gap: var(--space-4); }
+.zen-build-group { display: flex; flex-direction: column; gap: var(--space-2); }
+.zen-build-title { margin: 0; font-size: 12px; font-weight: 600; color: var(--fg-muted); }
+.zen-build-list { margin: 0; font-size: 13px; color: var(--fg-muted); overflow-wrap: anywhere; }
 .zen-addon {
   padding: var(--space-3);
   border: 1px solid var(--rule);

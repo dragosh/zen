@@ -4,7 +4,7 @@
 // editor under a small header.
 import type { Api, NavNode, Workspace } from "../api";
 import {
-  button, closeWindowKey, createDeveloper, createHistory, createLayout, createOpening, createStore, el, mountPreview, reloadKey,
+  applyAppTheme, button, closeWindowKey, createDeveloper, createHistory, createLayout, createOpening, createStore, el, mountPreview, reloadKey,
   type Ctx, type Developer, type Feature, type Layout, type Store,
 } from "@zenmd/kit";
 import { BRAND } from "../brand";
@@ -396,6 +396,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       return;
     }
     if (destroyed) return;
+    applyAppTheme(doc, api.build);
     if (kind.kind === "editor") {
       if (startup.workspace) showEditor(startup.workspace, kind.path);
       else showError(new Error("No folder is open"));

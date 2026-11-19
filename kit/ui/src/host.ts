@@ -36,6 +36,9 @@ export type { PluginStreamEvent };
 /** An add-on the app was built with (kit/addons): shown in Settings › Add-ons; the UI of an add-on is gated on its id. */
 export type AddonInfo = { id: string; name: string; summary: string };
 
+/** What an app is built from (kit/assembly): shown in Settings › This build; `theme` becomes `data-app-theme` on the root element. */
+export type BuildInfo = { app: string; addons: AddonInfo[]; plugins: string[]; layouts: string[]; templates: string[]; theme: string };
+
 /** Whether the app was built with the add-on (`hasAddon(host, "vale")`): false when the host lists none. */
 export function hasAddon(host: Pick<KitHost, "addons">, id: string): boolean {
   return host.addons?.some((a) => a.id === id) ?? false;
@@ -52,6 +55,8 @@ export type LogEntry = { seq: number; time: number; level: LogLevel; source: "ap
 export interface KitHost extends RuntimeHost {
   /** The add-ons of this build, in a fixed order; known once the app's startup has answered. Without the list there are none. */
   addons?: readonly AddonInfo[];
+  /** The assembly of this build (add-ons, plugins, layouts, templates, theme); known once startup has answered. Hosts without one omit it. */
+  build?: BuildInfo;
   page(path: string): Promise<Page>;
   source(path: string): Promise<string>;
   preview(path: string, content: string): Promise<Page>; // render unsaved text
