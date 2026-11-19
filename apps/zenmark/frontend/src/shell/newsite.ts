@@ -7,7 +7,7 @@
 // Api satisfies this type once it has siteTemplates, pickSiteFolder,
 // createSite, revealTemplates and the "menu:new-site" event.
 import type { Api, SiteTemplate, Startup } from "../api";
-import { button, el } from "@zenmd/kit";
+import { button, developerEnabled, el } from "@zenmd/kit";
 
 /** A site template as the Go service lists it. An invalid one has `error` set. */
 export type { SiteTemplate } from "../api";
@@ -89,7 +89,9 @@ export function openNewSite(opts: NewSiteOptions): NewSiteDialog {
   const create = el("button", "primary", "Create");
   create.type = "submit";
   create.disabled = true;
-  actions.append(reveal, cancel, create);
+  // Showing the templates folder is for people who edit templates: developer mode only.
+  if (developerEnabled()) actions.append(reveal);
+  actions.append(cancel, create);
 
   form.append(title, listLabel, status, group, empty, fields, folderLabel, folderRow, hint, error, actions);
   backdrop.append(form);
@@ -212,7 +214,8 @@ export function openNewSite(opts: NewSiteOptions): NewSiteDialog {
     if (all.length === 0) {
       empty.hidden = false;
       const msg = el("p", "", "No templates in the templates folder.");
-      empty.replaceChildren(msg, button("Reveal in Finder", () => void revealFolder()));
+      empty.replaceChildren(msg);
+      if (developerEnabled()) empty.append(button("Reveal in Finder", () => void revealFolder()));
       void opts.api.templatesDir?.().then((dir) => { if (dir) msg.textContent = `No templates in ${dir}.`; }, () => {});
       return;
     }

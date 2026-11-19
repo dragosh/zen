@@ -305,8 +305,12 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     closeFrame();
     store.set({ workspace: null, path: "", anchor: "", page: undefined, dirty: false });
     const view = el("main", "zen-welcome");
-    const foot = el("p", "zen-welcome-foot", "Also File › Open Folder, or ⇧⌘N to start a new site · ");
-    foot.append(button("Settings", () => openSettings(), { className: "link zen-welcome-settings", text: "Settings ⌘," }));
+    // Points up to the menu bar (top-left of the screen on macOS).
+    const menuHint = el("p", "zen-welcome-menuhint");
+    menuHint.append(
+      el("span", "", "↖ File menu: Open Folder… · New Site… (⇧⌘N) · "),
+      button("Settings", () => openSettings(), { className: "link zen-welcome-settings", text: "Settings ⌘," }),
+    );
     const status = el("p", "zen-welcome-status");
     status.setAttribute("role", "status");
     const mark = el("img", "zen-welcome-logo");
@@ -320,12 +324,12 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       el("p", "zen-hint", "⌘O"),
     );
     view.append(
+      menuHint,
       mark,
       el("h1", "", BRAND),
       el("p", "zen-welcome-tagline", "Markdown folders as sites, documents and courses"),
       open,
       status,
-      foot,
     );
     if (error) status.textContent = `Could not open the folder: ${error}`;
     root.replaceChildren(view);
@@ -361,8 +365,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       grid.append(card);
     }
     section.append(heading, grid, button("Show all…", () => showNewSite()));
-    view.querySelector(".zen-welcome-foot")?.before(section);
-    if (!section.isConnected) view.append(section);
+    view.append(section);
   }
 
   function showError(err: unknown): void {
