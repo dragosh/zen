@@ -110,6 +110,8 @@ does this ([.claude/skills/add-spec](.claude/skills/add-spec/SKILL.md)).
 Bugs and ideas go to [GitHub issues](https://github.com/zenmark-org/zenmd/issues);
 `/add-issue <notes>` drafts them from a list and files them after one confirmation
 ([.claude/skills/add-issue](.claude/skills/add-issue/SKILL.md)).
+Notes from testing go in [docs/improve](docs/improve/README.md); `/check-feedback`
+turns them into issues ([.claude/skills/check-feedback](.claude/skills/check-feedback/SKILL.md)).
 
 ## Remaining work
 

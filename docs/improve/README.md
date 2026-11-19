@@ -3,3 +3,4 @@
 - Look at each individual file and use the `/add-issue` or `/add-spec` to record it and label it corectly (engine, kit, plugin, etc.).
 - The title should explain the type
 - Once it's registered in github delete the file from here.
+- In Claude Code, `/check-feedback` does all of this: it pulls new notes, checks them, files them with `/add-issue` after one confirmation and deletes the filed notes.
