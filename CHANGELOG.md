@@ -7,6 +7,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- Export: File › Export › Website… (⇧⌘B) and PDF… (⇧⌘P), Settings › Export, and `zenmd export site|pdf`; the PDF is saved directly, without the print panel, and `zenmd export pdf` works from the command line (`zenmd build` stays as an alias) (#5).
 - Find in page: ⌘F (Edit › Find) opens a find bar in the reader and the editor with a match count, next/previous (⌘G, ⇧⌘G) and a match-case toggle (#4).
 
 ### Changed

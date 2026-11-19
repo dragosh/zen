@@ -18,6 +18,8 @@ that came with Wails (Reload, Force Reload, Toggle DevTools, Speech, Services, �
 
 ## Behaviour
 
+> Since 0.6.0 ([app/export](../../app/export/spec.md)): File has an **Export** submenu, Website… (⇧⌘B) and PDF… (⇧⌘P), in place of Build Website… and Print Site…; both are folder-only.
+
 1. The menu bar is, in order:
    - **Zen**: About Zen · Settings… (⌘,) · ― · Hide Zen (⌘H) · Hide Others (⌥⌘H) · Show All · ― · Quit Zen (⌘Q)
    - **File**: New Page… (⌘N) · Open Folder… (⌘O)

@@ -31,4 +31,4 @@ zen
 - [Settings](configuration/settings.md): the settings page and config files.
 - [Keyboard shortcuts](reference/shortcuts.md) and a [markdown showcase](reference/markdown.md).
 - A small [blog](blog/index.md) that picks its layout by path.
-- [Build a website](build/index.md) from this folder with `zenmd build`.
+- [Build a website](build/index.md) from this folder with `zenmd export site`, or export it as a PDF with `zenmd export pdf`.

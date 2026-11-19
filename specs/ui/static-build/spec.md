@@ -18,6 +18,8 @@ offers to open the site or show it in Finder.
 
 ## Behaviour
 
+> Since 0.6.0 ([app/export](../../app/export/spec.md)): File › Build Website… is **File › Export › Website…** (⇧⌘B), the dialog is *Export Website*, Settings › Website is part of **Settings › Export**, and `zenmd export site` is the command (`zenmd build` stays as an alias).
+
 ### Opening it
 1. **File › Build Website…** (⇧⌘B) opens the **Build Website** dialog in the main window. With no folder open, the menu item is disabled.
 2. **Settings › Website** shows the same options and a **Build…** button that opens the dialog, plus the last build's result (time, page count, output folder) if there is one.

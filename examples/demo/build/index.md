@@ -3,15 +3,17 @@ title: Build a website
 nav:
   title: Build a website
 ---
-`zenmd build` turns this folder into a static website: one HTML page for each
+`zenmd export site` turns this folder into a static website: one HTML page for each
 markdown page, the sidebar and breadcrumb written into every page, and the
 images and plugin files it uses copied next to it. Put the result on any
 static host.
 
 ```sh
-zenmd build                       # writes _site next to your pages
-zenmd build -o public --hosted    # for a web server only
+zenmd export site                       # writes _site next to your pages
+zenmd export site -o public --hosted    # for a web server only
 ```
+
+`zenmd build` is the older name for the same command and still works.
 
 ## What you get
 
@@ -48,7 +50,7 @@ a web server.
 
 ## In the app
 
-**File › Build Website…** (⇧⌘B) builds the open folder without the command
+**File › Export › Website…** (⇧⌘B) builds the open folder without the command
 line. The dialog asks for the output folder, whether the site opens from disk
 or only from a web server, whether to include drafts, and whether to start
 clean. It shows progress as it goes, and stops after the current page if you
@@ -58,7 +60,7 @@ The result lists the warnings by page; click one to open that page. **Open in
 Browser** shows the site, and **Show in Finder** shows its folder. **Save as
 folder defaults** writes your choices into `.zen.yml`, after showing you what
 it will change. The build uses the saved files, so save pages you are editing
-first. The same options are in Settings › Website.
+first. The same options are in Settings › Export, next to the PDF export.
 
 ## Settings
 

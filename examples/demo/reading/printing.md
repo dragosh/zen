@@ -35,7 +35,7 @@ another.
 
 ## Print the whole folder
 
-**File › Print Site…** (⇧⌘P) opens a preview of the whole folder as one
+**File › Export › PDF…** (⇧⌘P) opens a preview of the whole folder as one
 document: a cover, a table of contents, then every page in the order of the
 sidebar, each on a new sheet.
 
@@ -46,7 +46,16 @@ sidebar, each on a new sheet.
 
 Up to 500 pages fit in one document; for more, print a section.
 
+**Export PDF…** in the preview saves the document as a PDF file straight away,
+without the print panel; **Print…** is there when you want paper or the
+printer's options. From the command line, `zenmd export pdf` does the same:
+
+```sh
+zenmd export pdf                  # writes <folder name>.pdf in the folder
+zenmd export pdf -o ~/Desktop/guide.pdf
+```
+
 ## Print from a built site
 
-`zenmd build` also writes `print.html`, the same single document, so a built
+`zenmd export site` also writes `print.html`, the same single document, so a built
 site can be printed from any browser. Leave it out with `--no-print`.

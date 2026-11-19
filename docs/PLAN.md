@@ -129,6 +129,8 @@ interface Api {
   openEditor(path: string): Promise<void>;           // opens/focuses the page's editor window
   openConfig(which: "global" | "workspace"): Promise<void>; // config.yml / .zen.yml in the text editor
   lint(path: string, content: string): Promise<LintResult>; // Vale; "" content = file on disk
+  exportPdf(title: string): Promise<string>;        // app/export: save panel + PDF; "" when cancelled
+  revealExport(): Promise<void>;                    // Finder on the last exported PDF
   // page:changed also fires when another window saves (editor:saved)
 }
 ```

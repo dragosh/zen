@@ -18,6 +18,8 @@ print panel, so **Save as PDF** comes for free.
 
 ## Behaviour
 
+> Since 0.6.0 ([app/export](../../app/export/spec.md)): File › Print Site… is **File › Export › PDF…** (⇧⌘P); the preview's primary button is **Export PDF…**, which saves the PDF without the print panel, and `zenmd export pdf` writes it from the command line.
+
 ### Print Page
 1. **File › Print Page…** (⌘P), and ⌘P in the main window, prints the page shown, in its layout, through the macOS print panel. The editor window's ⌘P prints the preview of the unsaved text.
 2. The printout is always light (black on white, whatever the app theme). It leaves out:

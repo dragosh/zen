@@ -1,13 +1,13 @@
-# zenmd build — static websites
+# zenmd export — static websites and PDF
 
-`zenmd build` exports a folder as a static website. Every page is rendered with
+`zenmd export site` (also `zenmd build`) exports a folder as a static website, and `zenmd export pdf` as one PDF file (see the end of this page). Every page is rendered with
 the same Go pipeline as the app (plugins, layouts, sidebar, breadcrumb), then
 written as plain HTML with its assets next to it. Spec:
 [specs/core/static-build](../specs/core/static-build/spec.md). User guide:
 [examples/demo/build/index.md](../examples/demo/build/index.md).
 
 ```sh
-zenmd build [folder] [-o dir] [--hosted] [--drafts] [--clean]
+zenmd export site [folder] [-o dir] [--hosted] [--drafts] [--clean]
 ```
 
 | Option | Meaning |
@@ -24,7 +24,7 @@ Exit codes: 0 built (warnings on stderr), 1 error, 2 usage.
 
 ## In the app
 
-File › Build Website… (⇧⌘B) or Settings › Website builds the open folder with
+File › Export › Website… (⇧⌘B) or Settings › Export builds the open folder with
 the same code: the options above, a progress bar with Cancel, the warnings by
 page, then Open in Browser and Show in Finder. "Save as folder defaults" writes
 the options to `.zen.yml` after showing the change.
@@ -85,3 +85,13 @@ The static runtime is `frontend/src/static/` and its own Vite config
 (`src/static/vite.static.config.ts`). `npm run build` builds it into
 `frontend/dist/static/` after the app bundle, and `main.go` hands
 `frontend/dist` to `app.StaticAssets`.
+
+## PDF
+
+`zenmd export pdf [folder] [-o file.pdf]` writes the whole folder as one PDF:
+the print document (cover, contents, every page in sidebar order) laid out by
+macOS printing, portrait, with the system's default paper size. It runs without
+showing a window, needs macOS and a logged-in session, and prints
+`Wrote <file> (<n> pages)`. In the app, File › Export › PDF… (⇧⌘P) opens the
+preview, where **Export PDF…** saves the file. Spec: `specs/app/export/spec.md`.
+
