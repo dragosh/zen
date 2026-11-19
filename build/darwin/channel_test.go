@@ -428,9 +428,10 @@ func archs(t *testing.T, p string) []string {
 func TestUniversal(t *testing.T) {
 	requireBundle(t)
 	all := machOs(t)
-	if len(all) < 2 {
-		t.Fatalf("expected zen and a helper, found %v", all)
+	if len(all) < 1 {
+		t.Fatalf("expected the zenmd binary, found %v", all)
 	}
+	// Helpers come only with add-ons (kit/addons): a build without them has just zenmd.
 	want := []string{"arm64"}
 	if runtime.GOARCH == "amd64" {
 		want = []string{"x86_64"}
@@ -642,7 +643,7 @@ func TestSignatureAppStore(t *testing.T) {
 		return nil
 	})
 	if n == 0 {
-		t.Error("no helper found to check")
+		t.Log("no helpers in this bundle (built without add-ons): nothing more to check")
 	}
 
 	// Built for the App Store with a real profile and identity: the artefacts.
