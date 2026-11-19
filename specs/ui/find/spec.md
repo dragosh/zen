@@ -17,7 +17,7 @@ page draws it. Built websites (`zenmd build`) keep the browser's own find.
 
 ## Behaviour
 
-1. ⌘F (Ctrl+F) and Edit › Find › Find… open a find bar over the top right of the window with the field
+1. ⌘F (Ctrl+F) and Edit › Find › Find… open a find bar over the top right of the window (left of the Inspector when it is open, so its tabs stay visible) with the field
    focused. The current selection (one line, up to 200 characters), if any, is filled in; otherwise the last
    query is kept.
 2. Typing highlights every match in the page and makes the first one current (scrolled to the middle). The bar

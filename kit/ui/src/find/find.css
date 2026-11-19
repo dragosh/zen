@@ -3,6 +3,7 @@
   position: fixed;
   top: 52px;
   right: var(--space-4);
+  max-width: calc(100vw - 2 * var(--space-4));
   z-index: 40;
   display: flex;
   align-items: center;
@@ -67,3 +68,8 @@
 }
 @keyframes zen-find-in { from { opacity: 0; transform: translateY(-4px); } }
 @media print { .zen-find { display: none; } }
+
+/* An open Inspector (ui/inspector) covers the right edge: the bar moves to its left, so the tabs stay visible. */
+body:has(.zen-inspector:not([hidden])) .zen-find {
+  right: calc(var(--zen-inspector-width, 280px) + var(--space-4));
+}
