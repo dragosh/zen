@@ -59,7 +59,7 @@ function rig(templates = TEMPLATES, startup?: Startup): Rig {
 const settle = async () => { for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0)); };
 let dialogs: NewSiteDialog[] = [];
 beforeEach(() => { document.body.replaceChildren(); dialogs = []; });
-afterEach(() => { for (const d of dialogs) d.close(); });
+afterEach(() => { for (const d of dialogs) d.close(); localStorage.removeItem("zen.developer"); });
 
 function open(api: Rig, preselect?: string) {
   const onCreated = vi.fn();
