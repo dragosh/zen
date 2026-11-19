@@ -13,12 +13,15 @@ func check(args ...string) (int, string, string) {
 }
 
 func TestTags(t *testing.T) {
-	cases := []struct{ args []string; want string }{
+	cases := []struct {
+		args []string
+		want string
+	}{
 		{[]string{"-known", "vale", ""}, ""},
 		{[]string{"-known", "vale", "vale"}, "addon_vale"},
 		{[]string{"-known", "vale,voice", "vale,voice"}, "addon_vale,addon_voice"},
 		{[]string{"-known", "vale,voice", " voice , vale ,vale"}, "addon_voice,addon_vale"}, // trimmed, deduplicated, order kept
-		{[]string{"-known", "vale"}, ""},                                                        // no list: no add-ons
+		{[]string{"-known", "vale"}, ""},                                                    // no list: no add-ons
 	}
 	for _, c := range cases {
 		code, out, errOut := check(c.args...)
