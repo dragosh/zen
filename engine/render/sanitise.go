@@ -51,6 +51,7 @@ func newPolicy(allow []plugins.AllowRule) *bluemonday.Policy {
 	p.RequireNoFollowOnLinks(false)
 	p.AllowAttrs("id").OnElements("h1", "h2", "h3", "h4", "h5", "h6", "li", "sup")
 	p.AllowAttrs("class").Matching(bluemonday.SpaceSeparatedTokens).OnElements("code", "pre", "div", "span", "li", "ul", "ol", "section", "sup", "a", "strong", "b", "i")
+	p.AllowAttrs("start").Matching(regexp.MustCompile(`^[0-9]{1,9}$`)).OnElements("ol")
 	p.AllowAttrs("type", "checked", "disabled").OnElements("input")
 	p.AllowElements("input", "section")
 	p.AllowAttrs("data-zen-link").Matching(regexp.MustCompile(`^(internal|external|broken)$`)).OnElements("a")

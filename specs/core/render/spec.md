@@ -22,7 +22,7 @@ the plugin pipeline from PLAN.md on the Go side.
 4. Fenced blocks whose info-string name is owned by an enabled plugin, container blocks and inline directives are rendered by that plugin's hook, wrapped in an element with `data-zen-plugin="<id>"`. Unknown or disabled names render as plain code block / literal text. A hook error or panic renders `plugins.ErrorBox`.
 5. `SourceHook`s run before parsing and `HTMLHook`s before sanitising, each in registry order.
 6. Links are rewritten with the `Resolver`: `internal` → `href="#"`, `data-zen-link="internal"`, `data-path`, `data-anchor`; `external` → `data-zen-link="external"`, original `href`, `rel="noopener noreferrer"`; `broken` → `data-zen-link="broken"`, no `href`; same-page `#anchor` links stay as they are. Images with `asset` targets get `src="/_ws/<escaped path>"`; images with external URLs are kept only for `https:`; anything else is dropped to its alt text.
-7. The sanitiser runs last: base policy (current `render.HTML` policy plus `data-zen-*` attributes) extended by the `Allow` rules of enabled plugins. `<script>`, event handlers, `javascript:` URLs, `<iframe>`, `<object>`, `<style>` never survive.
+7. The sanitiser runs last: base policy (current `render.HTML` policy plus `data-zen-*` attributes), with `start` (digits only) allowed on `ol` so a list keeps its number extended by the `Allow` rules of enabled plugins. `<script>`, event handlers, `javascript:` URLs, `<iframe>`, `<object>`, `<style>` never survive.
 8. `Page.Assets` lists CSS/JS of plugins that actually rendered something on this page. `Page.Warnings` collects config and plugin warnings.
 9. Rendering is safe for concurrent use and has no global mutable state.
 
