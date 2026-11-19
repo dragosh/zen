@@ -87,6 +87,9 @@ tasks:
       - ../../../runtime/src/**/*
       - ../../../runtime/package.json
       - ../../../runtime/vite.config.ts
+      # The shared UI (@zenmd/kit) is bundled into the app: a change there alone must rebuild it.
+      - ../../../kit/ui/src/**/*
+      - ../../../kit/ui/package.json
     generates:
       - dist/**/*
       - ../../../runtime/dist/*
