@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { INSPECTOR_STATE, INSPECTOR_TOGGLE } from "../inspector";
 import { createFakeApi, type FakeApi } from "../../../../apps/zenmark/frontend/src/api/fake";
 import type { LintResult } from "../host";
 import { alert } from "../lint/test-util";
@@ -25,7 +26,12 @@ afterEach(() => { unmount?.(); unmount = undefined; vi.useRealTimers(); });
 const mount = () => { unmount = pageFeature.mount(env.slots, env.ctx); };
 const article = () => env.slots.main.querySelector("article.zen-page") as HTMLElement;
 // The issue count is the badge on the Inspector button (ui/inspector); the list is in the panel.
-const badge = () => env.slots.actions.querySelector<HTMLElement>(".zen-inspector-badge")!;
+// It reaches the sidebar's button as an event; `badge` mirrors what that button shows (hidden at 0).
+let last = { available: false, open: false, count: 0 };
+const onState = (e: Event) => { last = (e as CustomEvent).detail; };
+beforeEach(() => { last = { available: false, open: false, count: 0 }; document.addEventListener(INSPECTOR_STATE, onState); });
+afterEach(() => document.removeEventListener(INSPECTOR_STATE, onState));
+const badge = () => ({ hidden: last.count === 0, textContent: String(last.count) });
 const settle = async () => { for (let i = 0; i < 5; i++) await tick(); };
 
 test("lints the page from disk after it renders and marks the article", async () => {
@@ -95,7 +101,7 @@ test("clicking an issue scrolls to its mark and highlights it briefly", async ()
   mount();
   await settle();
   vi.useFakeTimers();
-  env.slots.actions.querySelector<HTMLButtonElement>(".zen-inspector-toggle")!.click();
+  document.dispatchEvent(new CustomEvent(INSPECTOR_TOGGLE));
   const item = document.querySelector<HTMLButtonElement>(".zen-inspector .zen-lint-item")!;
   item.click();
   const m = article().querySelector("mark.zen-lint")!;
@@ -106,13 +112,13 @@ test("clicking an issue scrolls to its mark and highlights it briefly", async ()
   expect(m.classList.contains("zen-lint-flash")).toBe(false);
 });
 
-test("unmount removes the inspector button", async () => {
+test("unmount tells the sidebar button the inspector is gone", async () => {
   env.ctx.store.set({ path: "README.md" });
   mount();
   await settle();
   unmount!();
   unmount = undefined;
-  expect(env.slots.actions.querySelector(".zen-inspector-toggle")).toBeNull();
+  expect(last.available).toBe(false);
 });
 
 test("follows an editor's unsaved draft live, keeping scroll, then returns to disk", async () => {

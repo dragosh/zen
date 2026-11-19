@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, expect, test } from "vitest";
+import { INSPECTOR_STATE, INSPECTOR_TOGGLE } from "../inspector/events";
 import { createLayout, SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN, WIDTH_KEY } from "./layout";
 
 beforeEach(() => localStorage.clear());
@@ -124,4 +125,57 @@ test("the cog reports whether Settings is open", () => {
   expect(cog.getAttribute("aria-expanded")).toBe("true");
   l.setSettingsOpen(false);
   expect(cog.getAttribute("aria-expanded")).toBe("false");
+});
+
+const inspectorBtn = (l: ReturnType<typeof createLayout>) => l.el.querySelector<HTMLButtonElement>(".zen-inspector-button")!;
+const state = (available: boolean, open: boolean, count: number) =>
+  document.dispatchEvent(new CustomEvent(INSPECTOR_STATE, { detail: { available, open, count } }));
+
+test("the Inspector button is an icon button right after the cog in the footer, hidden until a page offers one", () => {
+  const l = createLayout();
+  const foot = l.el.querySelector(".zen-sidebar-foot")!;
+  const kids = Array.from(foot.children);
+  expect(kids[0].getAttribute("aria-label")).toBe("Settings");
+  expect(kids[1]).toBe(inspectorBtn(l));
+  expect(inspectorBtn(l).classList.contains("zen-settings-button")).toBe(true);
+  expect(inspectorBtn(l).querySelector("svg")).not.toBeNull();
+  expect(inspectorBtn(l).title).toContain("⌥⌘I");
+  expect(inspectorBtn(l).hidden).toBe(true);
+  state(true, false, 0);
+  expect(inspectorBtn(l).hidden).toBe(false);
+  state(false, false, 0);
+  expect(inspectorBtn(l).hidden).toBe(true);
+  l.destroy();
+});
+
+test("the Inspector button asks the page to toggle and reflects open state", () => {
+  const l = createLayout();
+  state(true, false, 0);
+  let n = 0;
+  const on = () => n++;
+  document.addEventListener(INSPECTOR_TOGGLE, on);
+  inspectorBtn(l).click();
+  expect(n).toBe(1);
+  expect(inspectorBtn(l).getAttribute("aria-expanded")).toBe("false");
+  state(true, true, 0);
+  expect(inspectorBtn(l).getAttribute("aria-expanded")).toBe("true");
+  document.removeEventListener(INSPECTOR_TOGGLE, on);
+  l.destroy();
+});
+
+test("the Inspector button carries a red count badge, none at 0, and a name that says it", () => {
+  const l = createLayout();
+  const badge = () => inspectorBtn(l).querySelector<HTMLElement>(".zen-inspector-badge")!;
+  state(true, false, 0);
+  expect(badge().hidden).toBe(true);
+  expect(inspectorBtn(l).getAttribute("aria-label")).toBe("Inspector");
+  state(true, false, 3);
+  expect(badge().hidden).toBe(false);
+  expect(badge().textContent).toBe("3");
+  expect(inspectorBtn(l).getAttribute("aria-label")).toBe("Inspector, 3 issues");
+  state(true, false, 1);
+  expect(inspectorBtn(l).getAttribute("aria-label")).toBe("Inspector, 1 issue");
+  l.destroy();
+  state(true, false, 5); // destroyed: no longer listens
+  expect(badge().textContent).toBe("1");
 });

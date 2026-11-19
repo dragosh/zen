@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Page, PageInfo } from "../host";
 import { alert } from "../lint/test-util";
-import { COLLAPSED_KEY, createInspector, inspectorKey, OPEN_KEY, type Inspector } from "./index";
+import { createInspector, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorKey, OPEN_KEY, TAB_KEY, type Inspector } from "./index";
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const settle = async () => { for (let i = 0; i < 4; i++) await tick(); };
@@ -119,22 +119,97 @@ test("Esc closes the panel from inside and returns focus to the button; outside 
   expect(i.isOpen).toBe(true);
 });
 
-test("sections collapse, and the choice is remembered", () => {
-  let i = make();
+const tabs = (i: Inspector) => Array.from(i.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+const key = (el: Element, k: string) => el.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+
+test("tabs: Issues, File, Page as a tablist with one tabpanel each; Issues is first and selected", () => {
+  const i = make();
   i.setPage("docs/a.md", page(), article());
   i.open();
-  expect(["issues", "file", "page"].map((id) => section(i, id).dataset.collapsed)).toEqual(["false", "false", "false"]);
-  const head = section(i, "file").querySelector<HTMLButtonElement>(".zen-inspector-head")!;
-  expect(head.getAttribute("aria-expanded")).toBe("true");
-  head.click();
-  expect(head.getAttribute("aria-expanded")).toBe("false");
-  expect(section(i, "file").querySelector<HTMLElement>(".zen-inspector-body")!.hidden).toBe(true);
-  expect(JSON.parse(localStorage.getItem(COLLAPSED_KEY)!)).toEqual(["file"]);
+  expect(i.el.querySelector('[role="tablist"]')).not.toBeNull();
+  expect(tabs(i).map((t) => t.textContent)).toEqual(["Issues", "File", "Page"]);
+  expect(tabs(i).map((t) => t.getAttribute("aria-selected"))).toEqual(["true", "false", "false"]);
+  expect(tabs(i).map((t) => t.tabIndex)).toEqual([0, -1, -1]);
+  const panels = Array.from(i.el.querySelectorAll<HTMLElement>('[role="tabpanel"]'));
+  expect(panels.map((p) => p.hidden)).toEqual([false, true, true]);
+  tabs(i).forEach((t, n) => {
+    expect(t.getAttribute("aria-controls")).toBe(panels[n].id);
+    expect(panels[n].getAttribute("aria-labelledby")).toBe(t.id);
+  });
+  tabs(i)[1].click();
+  expect(tabs(i)[1].getAttribute("aria-selected")).toBe("true");
+  expect(panels.map((p) => p.hidden)).toEqual([true, false, true]);
+});
+
+test("tabs: arrow keys move and wrap, Home and End jump, focus follows", () => {
+  const i = make();
+  i.setPage("docs/a.md", page(), article());
+  i.open();
+  const list = i.el.querySelector<HTMLElement>('[role="tablist"]')!;
+  const sel = () => tabs(i).findIndex((t) => t.getAttribute("aria-selected") === "true");
+  key(list, "ArrowRight");
+  expect(sel()).toBe(1);
+  expect(document.activeElement).toBe(tabs(i)[1]);
+  key(list, "ArrowRight");
+  key(list, "ArrowRight");
+  expect(sel()).toBe(0);
+  key(list, "ArrowLeft");
+  expect(sel()).toBe(2);
+  key(list, "Home");
+  expect(sel()).toBe(0);
+  key(list, "End");
+  expect(sel()).toBe(2);
+});
+
+test("tabs: the last tab is remembered, and an unknown stored value falls back to Issues", () => {
+  let i = make();
+  i.setPage("docs/a.md", page(), article());
+  tabs(i)[2].click();
+  expect(localStorage.getItem(TAB_KEY)).toBe("page");
   i.destroy();
   i = make();
   i.setPage("docs/a.md", page(), article());
-  expect(section(i, "file").dataset.collapsed).toBe("true");
-  expect(section(i, "page").dataset.collapsed).toBe("false");
+  expect(tabs(i).map((t) => t.getAttribute("aria-selected"))).toEqual(["false", "false", "true"]);
+  i.destroy();
+  localStorage.setItem(TAB_KEY, "nope");
+  i = make();
+  expect(tabs(i)[0].getAttribute("aria-selected")).toBe("true");
+});
+
+test("the button is an icon with an accessible name; the badge is red text with the count and absent at 0", () => {
+  const i = make();
+  i.setPage("docs/a.md", page(), article());
+  expect(i.button.querySelector("svg")).not.toBeNull();
+  expect(i.button.getAttribute("aria-label")).toBe("Inspector");
+  expect(i.button.textContent).toBe("");
+  i.setIssues([alert({ line: 1 }), alert({ line: 2 }), alert({ line: 3 })]);
+  expect(i.button.getAttribute("aria-label")).toBe("Inspector, 3 issues");
+  expect(i.button.querySelector<HTMLElement>(".zen-inspector-badge")!.textContent).toBe("3");
+  i.setIssues([]);
+  expect(i.button.querySelector<HTMLElement>(".zen-inspector-badge")!.hidden).toBe(true);
+  expect(i.button.getAttribute("aria-label")).toBe("Inspector");
+});
+
+test("external: no own button; the state goes out as an event and a toggle event drives it", () => {
+  const states: unknown[] = [];
+  const on = (e: Event) => states.push((e as CustomEvent).detail);
+  document.addEventListener(INSPECTOR_STATE, on);
+  const i = createInspector({ doc: document, host: host as never, onSelectIssue: select, external: true });
+  made.push(i);
+  document.body.append(i.el);
+  i.setPage("docs/a.md", page(), article());
+  i.setIssues([alert({ line: 1 }), alert({ line: 2 })]);
+  expect(states.at(-1)).toEqual({ available: true, open: false, count: 2 });
+  document.dispatchEvent(new CustomEvent(INSPECTOR_TOGGLE));
+  expect(i.isOpen).toBe(true);
+  expect(states.at(-1)).toEqual({ available: true, open: true, count: 2 });
+  i.setActive(false);
+  expect(states.at(-1)).toEqual({ available: false, open: true, count: 2 });
+  document.dispatchEvent(new CustomEvent(INSPECTOR_TOGGLE));
+  expect(i.isOpen).toBe(true); // not available: ignored
+  i.destroy();
+  expect(states.at(-1)).toEqual({ available: false, open: false, count: 0 });
+  document.removeEventListener(INSPECTOR_STATE, on);
 });
 
 test("issues: states, list, selection and the badge that stays with the panel closed", () => {

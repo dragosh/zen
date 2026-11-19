@@ -37,7 +37,7 @@ function key(target: EventTarget, k: string, mods: KeyboardEventInit = {}) {
 const toggle = (s: Setup) => s.slots.actions.querySelector<HTMLButtonElement>(".zen-inspector-toggle");
 const panel = (s: Setup) => document.querySelector<HTMLElement>(".zen-inspector");
 const field = (name: string) => document.querySelector<HTMLElement>(`.zen-inspector [data-field="${name}"]`)?.textContent;
-const issuesBody = () => document.querySelector<HTMLElement>('.zen-inspector [data-section="issues"] .zen-inspector-body')!;
+const issuesBody = () => document.querySelector<HTMLElement>('.zen-inspector [data-section="issues"]')!;
 const label = (b: Element) => b.textContent;
 const ALERT: Alert = alert({ match: "dabc", line: 1, col: 3, endCol: 6, message: "Weak word" });
 
@@ -54,11 +54,18 @@ afterEach(() => {
 describe("editor inspector: button, panel, shortcut", () => {
   it("E1: the button is in the actions before Split and Done; the panel sits before the main pane", async () => {
     s = await setup();
-    const names = Array.from(s.slots.actions.querySelectorAll("button")).map((b) => b.querySelector(".zen-inspector-label")?.textContent ?? label(b));
+    const names = Array.from(s.slots.actions.querySelectorAll("button")).map((b) => b.getAttribute("aria-label") ?? label(b));
     expect(names).toEqual(["Inspector", "Split", "Done"]);
     expect(toggle(s)!.hidden).toBe(false);
     expect(panel(s)!.hidden).toBe(true);
     expect(panel(s)!.nextElementSibling).toBe(s.slots.main);
+  });
+
+  it("E1: the toolbar toggle is the icon with a badge and a name that says the count; the panel is tabbed", async () => {
+    s = await setup();
+    expect(toggle(s)!.querySelector("svg")).not.toBeNull();
+    expect(toggle(s)!.getAttribute("aria-label")).toBe("Inspector");
+    expect(Array.from(panel(s)!.querySelectorAll('[role="tab"]')).map((t) => t.textContent)).toEqual(["Issues", "File", "Page"]);
   });
 
   it("E1: the button toggles the panel and remembers it under the reader's key", async () => {
