@@ -55,7 +55,7 @@ describe("editor split: toggle and persistence", () => {
   it("is off by default: a Split button, no preview, no api.preview", async () => {
     s = await setup();
     expect(splitBtn(s)!.getAttribute("aria-pressed")).toBe("false");
-    expect(Array.from(s.slots.actions.querySelectorAll("button")).map((b) => b.querySelector(".zen-inspector-label")?.textContent ?? b.textContent)).toEqual(["Inspector", "Split", "Done"]);
+    expect(Array.from(s.slots.actions.querySelectorAll("button")).map((b) => b.getAttribute("aria-label") ?? b.textContent)).toEqual(["Inspector", "Split", "Done"]);
     expect(pane(s)).toBeNull();
     expect(divider(s)).toBeNull();
     expect(s.api.callsTo("preview")).toEqual([]);

@@ -88,10 +88,10 @@ export const pageFeature: Feature = {
     const edit = button("Edit", openEditor, { title: "Edit (⌘E)" });
 
     // Vale alerts (ui/lint): marks in the article; the list is in the Inspector (ui/inspector),
-    // whose button in the actions carries the count.
+    // whose button in the sidebar footer (shell/layout.ts) carries the count; it is wired by events.
     let lintMarks: (HTMLElement | null)[] = [];
     const inspector = createInspector({
-      doc, host: ctx.api,
+      doc, host: ctx.api, external: true,
       onSelectIssue(_alert: Alert, i: number) {
         const m = lintMarks[i];
         if (!m?.isConnected) return;
@@ -99,7 +99,7 @@ export const pageFeature: Feature = {
         flash(m);
       },
     });
-    slots.actions.append(inspector.button, edit);
+    slots.actions.append(edit);
     // The panel sits beside the main pane, before it (inspector.css makes room for it).
     main.before(inspector.el);
 

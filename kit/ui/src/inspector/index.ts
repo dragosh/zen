@@ -1,4 +1,4 @@
-// ui/inspector: a panel on the right of the reading view with three sections,
+// ui/inspector: a panel on the right of the reading view with three tabs,
 // Issues (Vale), File and Page, and the button that toggles it. The page
 // feature owns one and feeds it after every render; this file knows nothing
 // about loading pages. All text goes in through textContent.
@@ -7,13 +7,16 @@ import type { Alert, KitHost, Page, PageInfo } from "../host";
 import { issueList } from "../lint";
 import { copyText } from "../shell/clipboard";
 import { button, el } from "../shell/dom";
+import { INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorIcon, inspectorLabel, type InspectorState } from "./events";
 import { formatDate, formatSize, readingLabel } from "./format";
 import { pageStats, type PageStats } from "./stats";
 
 export { pageStats, type PageStats } from "./stats";
+export { INSPECTOR_STATE, INSPECTOR_TOGGLE, type InspectorState } from "./events";
 
 export const OPEN_KEY = "zen.inspector.open";
-export const COLLAPSED_KEY = "zen.inspector.collapsed";
+/** The last tab, by id. */
+export const TAB_KEY = "zen.inspector.tab";
 
 export type InspectorOptions = {
   doc: Document;
@@ -23,10 +26,16 @@ export type InspectorOptions = {
   onSelectIssue(alert: Alert, index: number): void;
   /** The panel was opened or closed (button, shortcut or API); not called when nothing changes. */
   onOpenChange?(open: boolean): void;
+  /**
+   * The sidebar's Inspector button (ui/shell) drives this one: its state goes out as INSPECTOR_STATE
+   * events and INSPECTOR_TOGGLE toggles it. `button` is then not used. Without it (the editor)
+   * `button` is the toggle and nothing is sent.
+   */
+  external?: boolean;
 };
 
 export type Inspector = {
-  /** The toggle for the page actions: "Inspector" with the issue count. */
+  /** The toggle for a toolbar (the editor): the icon with the issue count as a badge. */
   button: HTMLButtonElement;
   /** The panel; put it in the content area, before the main pane. */
   el: HTMLElement;
@@ -74,15 +83,6 @@ function write(key: string, value: string): void {
   }
 }
 
-function storedCollapsed(): Set<string> {
-  try {
-    const v = JSON.parse(read(COLLAPSED_KEY) ?? "[]");
-    return new Set(Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : []);
-  } catch {
-    return new Set();
-  }
-}
-
 export function createInspector(o: InspectorOptions): Inspector {
   const id = ++seq;
   const panel = el("aside", "zen-inspector");
@@ -90,7 +90,7 @@ export function createInspector(o: InspectorOptions): Inspector {
   panel.setAttribute("aria-label", "Inspector");
   panel.hidden = true;
 
-  const toggle = el("button", "zen-inspector-toggle ghost");
+  const toggle = el("button", "zen-inspector-toggle zen-settings-button ghost");
   toggle.type = "button";
   toggle.title = "Inspector (⌥⌘I)";
   toggle.setAttribute("aria-controls", panel.id);
@@ -98,7 +98,8 @@ export function createInspector(o: InspectorOptions): Inspector {
   toggle.hidden = true;
   const badge = el("span", "zen-inspector-badge");
   badge.hidden = true;
-  toggle.append(el("span", "zen-inspector-label", "Inspector"), badge);
+  toggle.append(inspectorIcon(o.doc), badge);
+  toggle.setAttribute("aria-label", inspectorLabel(0));
 
   let isOpen = read(OPEN_KEY) === "1";
   let active = true;
@@ -109,39 +110,64 @@ export function createInspector(o: InspectorOptions): Inspector {
   let file: FileState | null = null;
   let fileFor = "";
   let copiedTimer: ReturnType<typeof setTimeout> | undefined;
-  const collapsed = storedCollapsed();
+  let count = 0;
 
   // ---- sections
 
-  type Section = { root: HTMLElement; head: HTMLButtonElement; body: HTMLElement };
-  const makeSection = (key: string, title: string): Section => {
-    const root = el("section", "zen-inspector-section");
-    root.dataset.section = key;
-    root.setAttribute("role", "region");
-    const head = el("button", "zen-inspector-head", title);
-    head.type = "button";
-    head.id = `${panel.id}-${key}`;
-    root.setAttribute("aria-labelledby", head.id);
-    const body = el("div", "zen-inspector-body");
-    root.append(head, body);
-    const apply = () => {
-      const c = collapsed.has(key);
-      root.dataset.collapsed = String(c);
-      head.setAttribute("aria-expanded", String(!c));
-      body.hidden = c;
-    };
-    head.addEventListener("click", () => {
-      if (!collapsed.delete(key)) collapsed.add(key);
-      write(COLLAPSED_KEY, JSON.stringify(Array.from(collapsed)));
-      apply();
-    });
-    apply();
-    return { root, head, body };
-  };
-  const issues = makeSection("issues", "Issues");
-  const fileSection = makeSection("file", "File");
-  const pageSection = makeSection("page", "Page");
-  panel.append(issues.root, fileSection.root, pageSection.root);
+  // A list of tab definitions; a later tab (Spelling) is one more entry and a render function.
+  type Section = { root: HTMLElement; body: HTMLElement };
+  const TABS = [
+    { id: "issues", label: "Issues" },
+    { id: "file", label: "File" },
+    { id: "page", label: "Page" },
+  ] as const;
+  type TabId = (typeof TABS)[number]["id"];
+  const storedTab = (): TabId => TABS.find((t) => t.id === read(TAB_KEY))?.id ?? TABS[0].id;
+  let tab: TabId = storedTab();
+
+  const tablist = el("div", "zen-inspector-tabs");
+  tablist.setAttribute("role", "tablist");
+  tablist.setAttribute("aria-label", "Inspector");
+  const tabButtons = new Map<TabId, HTMLButtonElement>();
+  const sections = new Map<TabId, Section>();
+  for (const { id, label } of TABS) {
+    const b = button(label, () => choose(id), { className: "zen-inspector-tab" });
+    b.setAttribute("role", "tab");
+    b.id = `${panel.id}-tab-${id}`;
+    b.dataset.tab = id;
+    const root = el("section", "zen-inspector-body");
+    root.id = `${panel.id}-panel-${id}`;
+    root.dataset.section = id;
+    root.setAttribute("role", "tabpanel");
+    root.setAttribute("aria-labelledby", b.id);
+    b.setAttribute("aria-controls", root.id);
+    tabButtons.set(id, b);
+    sections.set(id, { root, body: root });
+  }
+  function choose(id: TabId, remember = true): void {
+    tab = id;
+    if (remember) write(TAB_KEY, id);
+    for (const [k, b] of Array.from(tabButtons)) {
+      b.setAttribute("aria-selected", String(k === id));
+      b.tabIndex = k === id ? 0 : -1;
+      sections.get(k)!.root.hidden = k !== id;
+    }
+  }
+  tablist.addEventListener("keydown", (e) => {
+    const i = TABS.findIndex((t) => t.id === tab);
+    const to = ({ ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: TABS.length - 1 } as Record<string, number | undefined>)[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    const next = TABS[(to + TABS.length) % TABS.length].id;
+    choose(next);
+    tabButtons.get(next)!.focus();
+  });
+  tablist.append(...Array.from(tabButtons.values()));
+  const issues = sections.get("issues")!;
+  const fileSection = sections.get("file")!;
+  const pageSection = sections.get("page")!;
+  panel.append(tablist, ...Array.from(sections.values(), (s) => s.root));
+  choose(tab, false);
 
   const rows = (items: [label: string, field: string, value: string, mono?: boolean][]): HTMLElement => {
     const dl = el("dl", "zen-inspector-rows");
@@ -163,11 +189,17 @@ export function createInspector(o: InspectorOptions): Inspector {
     } else {
       issues.body.replaceChildren(issueList(alerts, (a, i) => o.onSelectIssue(a, i)));
     }
-    const n = Array.isArray(alerts) ? alerts.length : 0;
-    badge.hidden = n === 0;
-    badge.textContent = String(n);
-    if (n > 0) toggle.setAttribute("aria-label", `Inspector, ${n} ${n === 1 ? "issue" : "issues"}`);
-    else toggle.removeAttribute("aria-label");
+    count = Array.isArray(alerts) ? alerts.length : 0;
+    badge.hidden = count === 0;
+    badge.textContent = String(count);
+    toggle.setAttribute("aria-label", inspectorLabel(count));
+    announce();
+  }
+
+  function announce(): void {
+    if (!o.external) return;
+    const detail: InspectorState = { available: active && path !== null, open: isOpen, count };
+    o.doc.dispatchEvent(new CustomEvent(INSPECTOR_STATE, { detail }));
   }
 
   function renderFile(): void {
@@ -269,6 +301,7 @@ export function createInspector(o: InspectorOptions): Inspector {
     toggle.hidden = !(active && has);
     panel.hidden = !(isOpen && active && has);
     toggle.setAttribute("aria-expanded", String(isOpen));
+    announce();
   }
 
   const inspector: Inspector = {
@@ -326,6 +359,10 @@ export function createInspector(o: InspectorOptions): Inspector {
       renderIssues();
     },
     destroy() {
+      if (o.external) {
+        o.doc.removeEventListener(INSPECTOR_TOGGLE, onExternal);
+        o.doc.dispatchEvent(new CustomEvent(INSPECTOR_STATE, { detail: { available: false, open: false, count: 0 } satisfies InspectorState }));
+      }
       fetchSeq++;
       clearTimeout(copiedTimer);
       panel.removeEventListener("keydown", onKey);
@@ -341,8 +378,10 @@ export function createInspector(o: InspectorOptions): Inspector {
     e.preventDefault();
     e.stopPropagation();
     inspector.close();
-    toggle.focus();
+    (o.external ? o.doc.querySelector<HTMLElement>(".zen-inspector-button") : toggle)?.focus();
   };
+  const onExternal = () => { if (inspector.available) inspector.toggle(); };
+  if (o.external) o.doc.addEventListener(INSPECTOR_TOGGLE, onExternal);
   toggle.addEventListener("click", onToggle);
   panel.addEventListener("keydown", onKey);
 

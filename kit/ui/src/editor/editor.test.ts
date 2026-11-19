@@ -107,7 +107,7 @@ describe("editor: load and keys", () => {
 describe("editor: split is optional, main window follows", () => {
   it("starts source-only: Inspector, Split and Done, no preview, no divider", async () => {
     s = await setup();
-    expect(Array.from(s.slots.actions.querySelectorAll("button")).map((b) => b.querySelector(".zen-inspector-label")?.textContent ?? b.textContent)).toEqual(["Inspector", "Split", "Done"]);
+    expect(Array.from(s.slots.actions.querySelectorAll("button")).map((b) => b.getAttribute("aria-label") ?? b.textContent)).toEqual(["Inspector", "Split", "Done"]);
     expect(s.slots.main.querySelector("[role=separator]:not(.zen-lint-console-resize), .zen-editor-preview, .zen-page")).toBeNull();
     expect(s.api.callsTo("preview")).toEqual([]);
   });

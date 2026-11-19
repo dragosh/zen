@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createFakeApi, type FakeApi } from "../../../../apps/zenmark/frontend/src/api/fake";
 import { alert } from "../lint/test-util";
-import { OPEN_KEY } from "../inspector";
+import { INSPECTOR_STATE, INSPECTOR_TOGGLE, OPEN_KEY, TAB_KEY } from "../inspector";
 import { pageFeature } from "./index";
 import { setup, tick, type Env } from "./helpers.test-util";
 
@@ -24,31 +24,36 @@ afterEach(() => { unmount?.(); unmount = undefined; vi.useRealTimers(); });
 
 const mount = () => { unmount = pageFeature.mount(env.slots, env.ctx); };
 const settle = async () => { for (let i = 0; i < 6; i++) await tick(); };
-const button = () => env.slots.actions.querySelector<HTMLButtonElement>(".zen-inspector-toggle")!;
+let states: { available: boolean; open: boolean; count: number }[] = [];
+const onState = (e: Event) => states.push((e as CustomEvent).detail);
+beforeEach(() => { states = []; document.addEventListener(INSPECTOR_STATE, onState); });
+afterEach(() => document.removeEventListener(INSPECTOR_STATE, onState));
+const toggleEvent = () => document.dispatchEvent(new CustomEvent(INSPECTOR_TOGGLE));
 const panel = () => document.querySelector<HTMLElement>(".zen-inspector")!;
 const field = (name: string) => panel().querySelector(`[data-field="${name}"]`)?.textContent;
 const altCmdI = () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "ˆ", code: "KeyI", metaKey: true, altKey: true, bubbles: true, cancelable: true }));
 
-test("the Inspector button sits next to Edit; the panel is before the page and closed at first", async () => {
+test("no Inspector button in the actions; the sidebar button is told, and toggles the panel", async () => {
   env.ctx.store.set({ path: "README.md" });
   mount();
   await settle();
-  const kids = Array.from(env.slots.actions.children);
-  expect(kids.indexOf(button())).toBe(kids.length - 2);
-  expect(kids.at(-1)!.textContent).toBe("Edit");
+  expect(env.slots.actions.querySelector(".zen-inspector-toggle")).toBeNull();
+  expect(Array.from(env.slots.actions.children).map((c) => c.textContent)).toEqual(["Edit"]);
   expect(panel().hidden).toBe(true);
   expect(panel().compareDocumentPosition(env.slots.main) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-  expect(button().textContent).toContain("Inspector");
-  expect(button().querySelector(".zen-inspector-badge")!.textContent).toBe("1");
-  expect(env.slots.actions.querySelector(".zen-lint-count")).toBeNull();
+  expect(states.at(-1)).toEqual({ available: true, open: false, count: 1 });
+  toggleEvent();
+  expect(panel().hidden).toBe(false);
+  expect(states.at(-1)).toEqual({ available: true, open: true, count: 1 });
 });
 
 test("nothing shows while no page is open", async () => {
   mount();
   await settle();
-  expect(button().hidden).toBe(true);
+  expect(states.at(-1)?.available ?? false).toBe(false);
   expect(panel().hidden).toBe(true);
   altCmdI();
+  toggleEvent();
   expect(panel().hidden).toBe(true);
 });
 
@@ -113,7 +118,7 @@ test("issues live in the panel: listed, selected, and cleared on navigation", as
   env.ctx.navigate("b.md");
   await settle();
   expect(panel().textContent).toContain("Linting off");
-  expect(button().querySelector<HTMLElement>(".zen-inspector-badge")!.hidden).toBe(true);
+  expect(states.at(-1)?.count).toBe(0);
 });
 
 test("a page that fails to load hides the inspector; unmount removes everything", async () => {
@@ -121,10 +126,20 @@ test("a page that fails to load hides the inspector; unmount removes everything"
   const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
   mount();
   await settle();
-  expect(button().hidden).toBe(true);
+  expect(states.at(-1)?.available).toBe(false);
   unmount!();
   unmount = undefined;
-  expect(env.slots.actions.querySelector(".zen-inspector-toggle")).toBeNull();
+  expect(states.at(-1)).toEqual({ available: false, open: false, count: 0 });
   expect(document.querySelector(".zen-inspector")).toBeNull();
   warn.mockRestore();
+});
+
+test("the panel is tabbed and remembers the tab", async () => {
+  env.ctx.store.set({ path: "README.md" });
+  localStorage.setItem(OPEN_KEY, "1");
+  localStorage.setItem(TAB_KEY, "page");
+  mount();
+  await settle();
+  const tabs = Array.from(panel().querySelectorAll('[role="tab"]'));
+  expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual(["false", "false", "true"]);
 });

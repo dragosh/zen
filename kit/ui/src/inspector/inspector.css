@@ -2,19 +2,26 @@
    list are the lint tokens, as everywhere else. */
 :root { --zen-inspector-width: 280px; }
 
-/* The toggle in the page actions, with the issue count. */
-.zen-inspector-toggle { display: inline-flex; align-items: center; gap: var(--space-2); white-space: nowrap; }
+/* The toggle (sidebar footer, editor toolbar): an icon button with the issue count as a red badge on its corner. */
+.zen-inspector-toggle { position: relative; }
 .zen-inspector-toggle[aria-expanded="true"] { background: var(--btn-bg-hover); }
 .zen-inspector-badge {
-  min-width: 1.5em;
-  padding: 0 var(--space-1);
-  border-radius: var(--radius);
-  background: var(--fg);
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 14px;
+  box-sizing: border-box;
+  padding: 0 3px;
+  border-radius: 7px;
+  background: var(--lint-error);
   color: var(--bg);
-  font-size: 11px;
-  line-height: 1.5;
+  font-family: var(--font-ui);
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 14px;
   text-align: center;
   font-variant-numeric: tabular-nums;
+  pointer-events: none;
 }
 .zen-inspector-badge[hidden] { display: none; }
 
@@ -42,29 +49,16 @@
   .zen-inspector:not([hidden]) ~ .zen-main { margin-right: var(--zen-inspector-width); }
 }
 
-.zen-inspector-section { border-bottom: 1px solid var(--rule); }
-.zen-inspector-head {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  gap: var(--space-2);
-  padding: var(--space-2) var(--space-3);
-  background: none;
-  border-radius: 0;
-  font: inherit;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-align: left;
-}
-.zen-inspector-head::before { content: "▾"; color: var(--fg-muted); }
-.zen-inspector-head[aria-expanded="false"]::before { content: "▸"; }
-.zen-inspector-head:hover { background: var(--btn-bg); }
-.zen-inspector-head:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.zen-inspector-body { padding: 0 var(--space-3) var(--space-3); }
+/* Tabs, the look of the Developer panel's (.zen-dev-tabs). */
+.zen-inspector-tabs { display: flex; gap: 2px; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--rule); }
+.zen-inspector-tab { background: none; padding: 3px 10px; color: var(--fg-muted); font: inherit; }
+.zen-inspector-tab[aria-selected="true"] { color: var(--fg); background: var(--bg); box-shadow: 0 0 0 1px var(--rule); font-weight: 600; }
+.zen-inspector-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.zen-inspector-body { padding: var(--space-3); }
 .zen-inspector-body[hidden] { display: none; }
 
 .zen-inspector-empty { margin: 0; color: var(--fg-muted); }
-.zen-inspector .zen-lint-list { margin: 0 calc(-1 * var(--space-3)); padding: 0; }
+.zen-inspector .zen-lint-list { margin: calc(-1 * var(--space-3)); padding: 0; }
 .zen-inspector .zen-lint-item { grid-template-columns: 2.5em 1fr; padding: var(--space-2) var(--space-3); }
 .zen-inspector .zen-lint-severity { grid-column: 2; grid-row: 1; }
 .zen-inspector .zen-lint-message { grid-column: 1 / -1; }
@@ -77,4 +71,4 @@
 .zen-inspector-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }
 .zen-inspector-actions button { font-size: 12px; padding: 2px var(--space-2); }
 
-@media print { .zen-inspector, .zen-inspector-toggle { display: none; } }
+@media print { .zen-inspector, .zen-inspector-toggle, .zen-inspector-button { display: none; } }
