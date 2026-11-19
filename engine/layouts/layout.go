@@ -58,6 +58,9 @@ type Manifest struct {
 	Fields                   []Field
 	Options                  []Option
 	Help                     plugins.Help
+	// Requires lists the plugins the layout's pages rely on (`requires:` in
+	// layout.yml); kit/assembly checks an app includes them.
+	Requires []string
 }
 
 // Invalid describes a layout folder that was rejected.
@@ -153,6 +156,7 @@ type rawLayout struct {
 	Fields      map[string]rawField  `yaml:"fields"`
 	Options     map[string]rawOption `yaml:"options"`
 	Help        any                  `yaml:"help"`
+	Requires    []string             `yaml:"requires"`
 }
 
 var (
@@ -211,6 +215,17 @@ func parse(data []byte, folder string, f files, source string) (*Layout, error) 
 		return nil, errors.New("a layout needs a template, css or js")
 	}
 	m := Manifest{ID: raw.ID, Version: raw.Version, Description: raw.Description, Template: raw.Template}
+	seenReq := map[string]bool{}
+	for _, r := range raw.Requires {
+		if !plugins.ValidName(r) {
+			return nil, fmt.Errorf("requires: %q is not a plugin id", r)
+		}
+		if seenReq[r] {
+			return nil, fmt.Errorf("requires: plugin %s is listed twice", r)
+		}
+		seenReq[r] = true
+	}
+	m.Requires = append([]string(nil), raw.Requires...)
 	l := &Layout{source: source, files: map[string]bool{}}
 	for _, g := range []struct {
 		kind  string

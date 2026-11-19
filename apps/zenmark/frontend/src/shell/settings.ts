@@ -1,8 +1,8 @@
 // The Settings page of Zenmark: the kit's frame (kit/ui shell/settings.ts, with Appearance) and
 // zen's sections: Configuration files (the two config files open in zen's own editor window),
-// Plugins (shell/pluginhelp.ts), Layouts, Export (the website and the PDF) and Add-ons (kit/addons,
+// Plugins (shell/pluginhelp.ts), Layouts, Export (the website and the PDF) and This build (kit/addons, kit/assembly,
 // read-only). All text through textContent.
-import { addonsSection, appearanceSection, button, createSettingsFrame, developerSection, el, type SettingsSection, type SettingsView } from "@zenmd/kit";
+import { appearanceSection, button, buildSection, createSettingsFrame, developerSection, el, type SettingsSection, type SettingsView } from "@zenmd/kit";
 import type { Api } from "../api";
 import { createWebsiteSection, type BuildApi } from "./buildsite";
 import { createLayoutsSection } from "./layouthelp";
@@ -107,7 +107,7 @@ export function createSettingsView(opts: {
     { id: "plugins", label: "Plugins", el: plugins.el, show: () => void plugins.refresh(), destroy: () => plugins.destroy() },
     { id: "layouts", label: "Layouts", el: layouts.el, show: () => void layouts.refresh(), destroy: () => layouts.destroy() },
     { id: "export", label: "Export", el: exportEl, show: () => { void website.refresh(); showPdf(); } },
-    addonsSection(api),
+    buildSection(api),
     developerSection(),
   ]);
   return frame;

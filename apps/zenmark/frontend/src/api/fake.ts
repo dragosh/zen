@@ -1,7 +1,7 @@
 // In-memory Api for development in a browser and for tests: a three-page
 // sample workspace, emit() to simulate Go events, and a record of every call.
 import type { LogEntry } from "@zenmd/kit";
-import type { AddonInfo, Api, BuildProgress, Crumb, Draft, SiteTemplate, LayoutInfo, LintResult, NavNode, OpenProgress, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
+import type { AddonInfo, Api, BuildInfo, BuildProgress, Crumb, Draft, SiteTemplate, LayoutInfo, LintResult, NavNode, OpenProgress, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
 
 type Method = "startup" | "pickFolder" | "cancelOpen" | "closeFolder"
   | "siteTemplates" | "pickSiteFolder" | "createSite" | "revealTemplates" | "templatesDir"
@@ -44,6 +44,8 @@ export type FakeOptions = {
   sources?: Record<string, string>;
   /** The add-ons of the build (api.addons). Default: the Vale add-on, so lint, Problems and the Linting tab work; [] is a build without add-ons. */
   addons?: AddonInfo[];
+  /** The assembly of the build (api.build): what is given is laid over the Zenmark default (everything built in, Vale, the default theme); null is a host that sends none. */
+  build?: Partial<BuildInfo> | null;
   /** What lint() resolves to. Default: Vale unavailable. */
   lint?: LintResult;
   /** Development only: computes lint() from the content instead (api/index.ts). */
@@ -61,6 +63,15 @@ const SAMPLE_TEMPLATES: SiteTemplate[] = [
   { id: "learning", name: "Learning path", description: "A course with steps, a quiz and exercises", version: "1.0.0", ask: [{ key: "title", label: "Site title", default: "{{folder}}" }], builtin: true, update: "", error: "" },
   { id: "planner", name: "Planner", description: "Roadmap, weekly plans, decisions and meeting notes", version: "1.0.0", ask: [{ key: "title", label: "Site title", default: "{{folder}}" }], builtin: true, update: "", error: "" },
 ];
+
+/** What Zenmark is built from (apps/zenmark/app-assembly.yml). */
+export const ZENMARK_BUILD: BuildInfo = {
+  app: "zenmark", addons: [],
+  plugins: ["codeblock", "diagram", "check", "quiz", "sandbox"],
+  layouts: ["article", "docs", "post", "landing", "wide", "handout", "slides", "course"],
+  templates: ["techdocs", "learning", "planner"],
+  theme: "default",
+};
 
 /** The Vale add-on as the Go side registers it (addons/vale). */
 export const VALE_ADDON: AddonInfo = { id: "vale", name: "Vale linting", summary: "Spelling and style checks for your pages, by the Vale prose linter." };
@@ -248,13 +259,15 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     return new Promise((res) => res(run()));
   };
 
+  const addons = (options.addons ?? [VALE_ADDON]).map((a) => ({ ...a }));
   const api: FakeApi = {
     calls: [],
     pick: options.pick === undefined ? sampleWorkspace() : options.pick,
     confirmExternal: true,
     exportPath: "/Users/me/Documents/sample-docs.pdf",
     broadcasts: [],
-    addons: (options.addons ?? [VALE_ADDON]).map((a) => ({ ...a })),
+    addons,
+    build: options.build === null ? undefined : { ...ZENMARK_BUILD, addons: addons.map((a) => ({ ...a })), ...options.build },
     lintResult: options.devLint ?? options.lint ?? { available: false, alerts: [] },
     pluginList: (options.plugins ?? []).map(plugin),
     layoutList: (options.layouts ?? []).map(layoutInfo),

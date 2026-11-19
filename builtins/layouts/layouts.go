@@ -9,6 +9,7 @@ import (
 	"embed"
 	"fmt"
 	"io/fs"
+	"slices"
 
 	core "github.com/zenmark-org/zenmd/engine/layouts"
 )
@@ -19,31 +20,49 @@ var files embed.FS
 // IDs lists the built-in layouts in the order Settings shows them.
 var IDs = []string{"article", "docs", "post", "landing", "wide", "handout", "slides", "course"}
 
-// All loads every built-in layout. It panics on a broken built-in, which the
-// tests catch.
+// load loads the built-in layout id. It panics on a broken built-in, which
+// the tests catch.
+func load(id string) *core.Layout {
+	sub, err := fs.Sub(files, id)
+	if err != nil {
+		panic(err)
+	}
+	l, err := core.LoadFS(sub, id)
+	if err != nil {
+		panic(fmt.Sprintf("built-in layout %s: %v", id, err))
+	}
+	return l
+}
+
+// All loads every built-in layout.
 func All() []*core.Layout {
 	out := make([]*core.Layout, 0, len(IDs))
 	for _, id := range IDs {
-		sub, err := fs.Sub(files, id)
-		if err != nil {
-			panic(err)
-		}
-		l, err := core.LoadFS(sub, id)
-		if err != nil {
-			panic(fmt.Sprintf("built-in layout %s: %v", id, err))
-		}
-		out = append(out, l)
+		out = append(out, load(id))
 	}
 	return out
 }
 
 // Registry returns a registry with the built-in layouts; version is the ?v= of
-// their asset URLs (the app version).
-func Registry(version string) *core.Registry {
+// their asset URLs (the app version). With ids it holds only those, in the
+// order given, and article (the fallback) first when it is not among them;
+// ids must be built-in ids (builtins.LayoutsFor checks them).
+func Registry(version string, ids ...string) *core.Registry {
 	r := core.NewRegistry()
 	r.SetAssetVersion(version)
-	for _, l := range All() {
-		if err := r.Register(l); err != nil {
+	if len(ids) == 0 {
+		for _, l := range All() {
+			if err := r.Register(l); err != nil {
+				panic(err)
+			}
+		}
+		return r
+	}
+	if !slices.Contains(ids, "article") {
+		ids = append([]string{"article"}, ids...)
+	}
+	for _, id := range ids {
+		if err := r.Register(load(id)); err != nil {
 			panic(err)
 		}
 	}

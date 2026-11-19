@@ -5,7 +5,7 @@ import { Zen } from "../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/in
 // The headless service is unexported, so the generated index leaves it out.
 import * as HeadlessService from "../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/headlessservice.js";
 import type { LogEntry } from "@zenmd/kit";
-import type { AddonInfo, Alert, Api, BuildOptions, Crumb, LayoutField, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
+import type { AddonInfo, Alert, Api, BuildInfo, BuildOptions, Crumb, LayoutField, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
 
 type Raw = Record<string, any> | null | undefined;
 
@@ -112,6 +112,23 @@ function addonInfos(v: unknown): AddonInfo[] {
   return out;
 }
 
+/** A list of ids: only the strings are kept. */
+function idList(v: unknown): string[] {
+  return (Array.isArray(v) ? v : []).filter((x): x is string => typeof x === "string");
+}
+
+/** The assembly of the build; undefined when the app sends none. */
+function buildInfo(v: unknown, addons: AddonInfo[]): BuildInfo | undefined {
+  const b = v as Raw;
+  if (!b || typeof b !== "object" || typeof b.app !== "string") return undefined;
+  const own = addonInfos(b.addons);
+  return {
+    app: b.app, addons: own.length ? own : addons,
+    plugins: idList(b.plugins), layouts: idList(b.layouts), templates: idList(b.templates),
+    theme: typeof b.theme === "string" ? b.theme : "default",
+  };
+}
+
 const SEVERITIES: Alert["severity"][] = ["error", "warning", "suggestion"];
 
 function lintResult(r: Raw): LintResult {
@@ -183,6 +200,9 @@ const api: Api = {
     const addons = addonInfos(s?.addons);
     if (addons.length) out.addons = addons;
     api.addons = addons; // the views gate their add-on UI on it (hasAddon)
+    const build = buildInfo(s?.build, addons);
+    if (build) out.build = build;
+    api.build = build; // Settings › This build and the theme read it
     return out;
   },
   async pickFolder() {

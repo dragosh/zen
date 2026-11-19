@@ -7,9 +7,15 @@ vars:
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
   # Target OS for build/package/run. Defaults to the host OS.
   GOOS: '{{.GOOS | default OS}}'
-  # Add-ons of the build (specs/kit/addons): ADDONS=vale task build|package|release|run|dev.
-  # Default: none. Each becomes the Go build tag addon_<id>; the ids that exist are ADDONS_KNOWN.
-  ADDONS: '{{.ADDONS | default ""}}'
+  # The app to build (specs/kit/assembly): apps/$APP/app-assembly.yml says what it is made of.
+  APP: '{{.APP | default "zenmark"}}'
+  # Add-ons of the build (specs/kit/addons): task build|package|release|run|dev [ADDONS=vale].
+  # Default: the add-ons of the app's assembly. ADDONS on the command line wins (ADDONS= builds
+  # without any); so does a non-empty ADDONS in the environment (an empty one, as CI passes
+  # for an unset variable, means the default). Each becomes the Go build tag addon_<id>; the
+  # ids that exist are ADDONS_KNOWN.
+  ADDONS:
+    sh: 'if [ -n "${ADDONS:-}" ]; then printf "%s" "$ADDONS"; else go run ./kit/assembly/cmd/gen -ids-only "apps/{{.APP}}"; fi'
   ADDONS_KNOWN: vale
   # SemVer version, read from the VERSION file (see docs/VERSIONING.md).
   VERSION:
@@ -42,14 +48,15 @@ tasks:
       - task: darwin:package:appstore
 
   run:
-    summary: Runs the application (built with `task build`; ADDONS=vale must match that build)
+    summary: Runs the application (built with `task build`; APP and ADDONS must match that build, by default the assembly's)
     cmds:
       - task: "{{.GOOS}}:run"
 
   dev:
-    summary: Runs the application in development mode (ADDONS=vale includes the add-ons)
-    # wails3 dev runs `wails3 build DEV=true` and `wails3 task run`, which read ADDONS from the environment.
+    summary: Runs the application in development mode (the add-ons of the app's assembly; ADDONS=... overrides them)
+    # wails3 dev runs `wails3 build DEV=true` and `wails3 task run`, which read APP and ADDONS from the environment.
     env:
+      APP: '{{.APP}}'
       ADDONS: '{{.ADDONS}}'
     cmds:
       - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}

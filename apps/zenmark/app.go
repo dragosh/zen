@@ -8,7 +8,6 @@ import (
 	"io/fs"
 	"path/filepath"
 
-	"github.com/zenmark-org/zenmd/builtins"
 	"github.com/zenmark-org/zenmd/engine/config"
 	"github.com/zenmark-org/zenmd/kit/desktop"
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -32,7 +31,7 @@ type Options struct {
 
 // Run starts the GUI and blocks until the application exits.
 func Run(opts Options) error {
-	reg := builtins.Plugins()
+	reg := assemblyPlugins()
 	globalPath, _ := config.GlobalPath()
 	configDir := ""
 	if globalPath != "" {

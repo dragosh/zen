@@ -38,7 +38,7 @@ func TestPackageLayout(t *testing.T) {
 	}
 	internal := []string{"internal/atomicfile", "internal/cli"}
 	apps := []string{"apps/zenmark"}
-	kit := []string{"kit/addons", "kit/addons/cmd/check", "kit/desktop"}
+	kit := []string{"kit/addons", "kit/addons/cmd/check", "kit/assembly", "kit/assembly/cmd/gen", "kit/desktop"}
 	got := func(patterns ...string) []string {
 		var out []string
 		for _, p := range goList(t, patterns...) {

@@ -4,7 +4,7 @@
 // (kit/ui/test/boundary.test.ts); an app gives it a KitHost.
 export { hasAddon } from "./host";
 export type {
-  AddonInfo, Alert, Crumb, Draft, KitHost, LayoutSource, LintResult, LogEntry, LogLevel, NavNode, OpenProgress, Page, PageInfo, PageLayoutRef, PluginStreamEvent, Workspace,
+  AddonInfo, Alert, BuildInfo, Crumb, Draft, KitHost, LayoutSource, LintResult, LogEntry, LogLevel, NavNode, OpenProgress, Page, PageInfo, PageLayoutRef, PluginStreamEvent, Workspace,
 } from "./host";
 export { button, el, logo } from "./shell/dom";
 export { copyText } from "./shell/clipboard";
@@ -14,7 +14,7 @@ export { createLayout, type Layout, type LayoutHandlers } from "./shell/layout";
 export { createOpening, type Opening, type OpeningOptions } from "./shell/opening";
 export { installConsoleCapture, type ConsoleCapture } from "./shell/console";
 export { createDeveloper, developerEnabled, followDeveloper, setDeveloperEnabled, type Developer } from "./shell/developer";
-export { addonsSection } from "./shell/addons";
+export { applyAppTheme, buildSection } from "./shell/addons";
 export { appearanceSection, createSettingsFrame, developerSection, type SettingsSection, type SettingsView } from "./shell/settings";
 export { createStore } from "./shell/store";
 export { applyTheme, followTheme, setTheme, storedTheme, THEME_KEY, type Theme } from "./shell/theme";

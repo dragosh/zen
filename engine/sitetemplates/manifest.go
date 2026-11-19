@@ -20,11 +20,17 @@ import (
 // Ask is a value asked when a site is created. Default may hold {{folder}}.
 type Ask struct{ Key, Label, Default string }
 
+// Needs says which layouts and plugins (built-in ids) a template's files use:
+// `requires: { layouts: [...], plugins: [...] }` in template.yml. kit/assembly
+// checks an app includes them.
+type Needs struct{ Layouts, Plugins []string }
+
 // Template is one site template. Err is set for an invalid one, which is
 // listed but cannot be used.
 type Template struct {
 	ID, Name, Description, Version, Dir string
 	Order                               int
+	Requires                            Needs // layouts and plugins the template's files use
 	Ask                                 []Ask
 	Builtin                             bool   // installed from zen's presets
 	Update                              string // newer built-in version, "" if none
@@ -104,6 +110,8 @@ func ParseManifest(data []byte) (Template, error) {
 				}
 				t.ignore = append(t.ignore, x.Value)
 			}
+		case "requires":
+			t.Requires, err = parseNeeds(v)
 		case "ask":
 			t.Ask, err = parseAsk(v)
 		default:
@@ -176,4 +184,37 @@ func parseAsk(v *yaml.Node) ([]Ask, error) {
 		}
 	}
 	return out, nil
+}
+
+// parseNeeds reads the requires: mapping.
+func parseNeeds(v *yaml.Node) (Needs, error) {
+	var n Needs
+	if v.Kind == yaml.ScalarNode && v.Tag == "!!null" {
+		return n, nil
+	}
+	if v.Kind != yaml.MappingNode {
+		return n, errors.New("requires must be a mapping with layouts and plugins")
+	}
+	for i := 0; i+1 < len(v.Content); i += 2 {
+		key, list := v.Content[i].Value, v.Content[i+1]
+		var dst *[]string
+		switch key {
+		case "layouts":
+			dst = &n.Layouts
+		case "plugins":
+			dst = &n.Plugins
+		default:
+			return Needs{}, fmt.Errorf("requires: unknown key %q (want layouts or plugins)", key)
+		}
+		if list.Kind != yaml.SequenceNode {
+			return Needs{}, fmt.Errorf("requires: %s must be a list of ids", key)
+		}
+		for _, x := range list.Content {
+			if x.Kind != yaml.ScalarNode || !idRE.MatchString(x.Value) {
+				return Needs{}, fmt.Errorf("requires: %s must be ids such as docs (lower case letters, digits and -)", key)
+			}
+			*dst = append(*dst, x.Value)
+		}
+	}
+	return n, nil
 }

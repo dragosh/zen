@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/zenmark-org/zenmd/engine/config"
+	"github.com/zenmark-org/zenmd/engine/layouts"
 	"github.com/zenmark-org/zenmd/engine/plugins"
 	"github.com/zenmark-org/zenmd/engine/site"
 	zenruntime "github.com/zenmark-org/zenmd/runtime"
@@ -36,6 +37,7 @@ type SiteEnv struct {
 	GlobalPath string            // global config file ("" for none); its folder holds trust, user plugins and layouts
 	Runtime    fs.FS             // the browser runtime of a built site: zen.js and zen.css (a static/ folder is read too); nil = the embedded runtime package
 	Registry   *plugins.Registry // built-in plugins; nil for the default set
+	Layouts    *layouts.Registry // built-in layouts; nil for the default set
 	Version    string            // asset versioning of the built-ins
 	// Wrap, when set, decorates the site input before the build reads it
 	// (the app counts pages for progress and cancels through it).
@@ -65,7 +67,7 @@ func WriteSite(env SiteEnv, b SiteOptions, stdout, stderr io.Writer) error {
 	}
 	// A headless session: no events, no watcher, no prompter, so nothing can
 	// ask and the trust file is only read.
-	st := New(Options{GlobalPath: env.GlobalPath, Registry: env.Registry, Version: env.Version})
+	st := New(Options{GlobalPath: env.GlobalPath, Registry: env.Registry, Layouts: env.Layouts, Version: env.Version})
 	defer st.Close()
 	if err := st.Open(root); err != nil {
 		return st.cleanErr(".", err)

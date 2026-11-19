@@ -512,3 +512,46 @@ func TestVersionAddons(t *testing.T) {
 		}
 	}
 }
+
+// zenmd version --verbose prints the assembly, one line each (kit/assembly).
+func TestVersionVerbose(t *testing.T) {
+	oldAddons, oldInfo := addonList, buildInfo
+	t.Cleanup(func() { addonList, buildInfo = oldAddons, oldInfo })
+	addonList = func() []addons.Addon { return []addons.Addon{{ID: "vale", Name: "Vale", Summary: "x"}} }
+	cwd := t.TempDir()
+
+	// Without an app that says what it is made of, only the version line.
+	buildInfo = nil
+	if r := run(t, cwd, nil, "version", "--verbose"); r.code != 0 || r.stdout != "zenmd "+Version+" (add-ons: vale)\n" {
+		t.Errorf("no assembly: %d %q", r.code, r.stdout)
+	}
+
+	SetBuildInfo(func() BuildInfo {
+		return BuildInfo{App: "demo", Plugins: []string{"codeblock", "quiz"}, Layouts: []string{"article", "docs"}, Templates: []string{"learning"}, Theme: "default"}
+	})
+	want := "zenmd " + Version + " (add-ons: vale)\n" +
+		"app: demo\n" +
+		"add-ons: vale\n" +
+		"plugins: codeblock, quiz\n" +
+		"layouts: article, docs\n" +
+		"templates: learning\n" +
+		"theme: default\n"
+	if r := run(t, cwd, nil, "version", "--verbose"); r.code != 0 || r.launched || r.stdout != want {
+		t.Errorf("verbose: %d %q\nwant %q", r.code, r.stdout, want)
+	}
+	// The plain forms keep their one line.
+	for _, a := range [][]string{{"version"}, {"-v"}, {"--version"}} {
+		if r := run(t, cwd, nil, a...); r.stdout != "zenmd "+Version+" (add-ons: vale)\n" {
+			t.Errorf("%v: %q", a, r.stdout)
+		}
+	}
+	// None of a kind is said as none.
+	addonList = func() []addons.Addon { return nil }
+	SetBuildInfo(func() BuildInfo { return BuildInfo{App: "tiny", Theme: "default"} })
+	r := run(t, cwd, nil, "version", "--verbose")
+	for _, w := range []string{"add-ons: none\n", "plugins: none\n", "layouts: none\n", "templates: none\n"} {
+		if !strings.Contains(r.stdout, w) {
+			t.Errorf("missing %q in %q", w, r.stdout)
+		}
+	}
+}

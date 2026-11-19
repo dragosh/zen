@@ -3,6 +3,7 @@ package builtins
 import (
 	"io/fs"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -49,5 +50,81 @@ func TestConstructorsAreIndependent(t *testing.T) {
 	}
 	if Layouts("1") == Layouts("1") {
 		t.Fatal("Layouts returned the same registry twice")
+	}
+}
+
+// TestFor: the selection helpers keep the order asked for and reject unknown
+// ids with the known ones listed (kit/assembly).
+func TestFor(t *testing.T) {
+	r, err := PluginsFor([]string{"sandbox", "codeblock"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []string
+	for _, m := range r.All() {
+		got = append(got, m.ID)
+	}
+	if !reflect.DeepEqual(got, []string{"sandbox", "codeblock"}) {
+		t.Errorf("PluginsFor order = %v", got)
+	}
+	if r, err := PluginsFor(nil); err != nil || len(r.All()) != 0 {
+		t.Errorf("PluginsFor(nil) = %v, %v; want an empty registry", r, err)
+	}
+	if _, err := PluginsFor([]string{"codeblock", "nope"}); err == nil || !strings.Contains(err.Error(), "nope") || !strings.Contains(err.Error(), "codeblock, diagram, check, quiz, sandbox") {
+		t.Errorf("unknown plugin: %v", err)
+	}
+	if _, err := PluginsFor([]string{"quiz", "quiz"}); err == nil {
+		t.Error("a duplicate plugin should fail")
+	}
+
+	l, err := LayoutsFor("1.2.3", []string{"course", "docs"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	var ids []string
+	for _, x := range l.All() {
+		ids = append(ids, x.Manifest().ID)
+	}
+	if !reflect.DeepEqual(ids, []string{"article", "course", "docs"}) { // article is always there, first when not listed
+		t.Errorf("LayoutsFor = %v", ids)
+	}
+	if l, err = LayoutsFor("1", nil); err != nil || len(l.All()) != 1 {
+		t.Errorf("LayoutsFor(nil) = %v, %v; want only article", l, err)
+	}
+	if l, _ = LayoutsFor("1", []string{"docs", "article"}); l.All()[0].Manifest().ID != "docs" {
+		t.Error("a listed article keeps its place")
+	}
+	if _, err := LayoutsFor("1", []string{"nope"}); err == nil || !strings.Contains(err.Error(), "article, docs, post, landing, wide, handout, slides, course") {
+		t.Errorf("unknown layout: %v", err)
+	}
+
+	fsys, err := SiteTemplatesFor([]string{"planner", "techdocs"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries, err := fs.ReadDir(fsys, ".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var names []string
+	for _, e := range entries {
+		names = append(names, e.Name())
+	}
+	if !reflect.DeepEqual(names, []string{"planner", "techdocs"}) {
+		t.Errorf("SiteTemplatesFor lists %v", names)
+	}
+	if _, err := fs.Stat(fsys, "planner/template.yml"); err != nil {
+		t.Error(err)
+	}
+	if _, err := fs.Stat(fsys, "learning/template.yml"); err == nil {
+		t.Error("learning was not selected")
+	}
+	if _, err := SiteTemplatesFor([]string{"nope"}); err == nil || !strings.Contains(err.Error(), "techdocs, learning, planner") {
+		t.Errorf("unknown template: %v", err)
+	}
+	if fsys, err = SiteTemplatesFor(nil); err != nil {
+		t.Fatal(err)
+	} else if entries, _ := fs.ReadDir(fsys, "."); len(entries) != 0 {
+		t.Errorf("SiteTemplatesFor(nil) lists %d", len(entries))
 	}
 }

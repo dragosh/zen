@@ -26,8 +26,10 @@ vars:
 
 tasks:
   build:
-    summary: Builds the application (ADDONS=vale includes the add-ons; specs/kit/addons)
+    summary: Builds the application (APP=zenmark names the assembly, ADDONS=vale overrides its add-ons; specs/kit/assembly)
     cmds:
+      # What the app is made of: regenerates apps/$APP/assembly_gen.go from its app-assembly.yml.
+      - task: common:assembly:gen
       # The experimental CGO-free backend (-tags purego, or WAILS_PUREGO=1) needs
       # no C toolchain, so it builds natively on every host; cgo builds
       # cross-compile through Docker.

@@ -3,6 +3,7 @@ name: Planner
 description: A roadmap, weekly plans, decision records, meeting notes and an ideas list
 version: 1.0.0
 order: 30
+requires: { layouts: [landing, wide], plugins: [diagram] }
 ask:
   title: { label: Plan title, default: "{{folder}}" }
   author: { label: Owner, default: "the team" }

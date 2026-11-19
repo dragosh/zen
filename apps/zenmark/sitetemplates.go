@@ -9,7 +9,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	presets "github.com/zenmark-org/zenmd/builtins/sitetemplates"
 	"github.com/zenmark-org/zenmd/engine/config"
 	"github.com/zenmark-org/zenmd/engine/session"
 	"github.com/zenmark-org/zenmd/engine/sitetemplates"
@@ -21,8 +20,8 @@ import (
 // Site from Template…, Shift+Cmd+N). No payload.
 const EventNewSite = "menu:new-site"
 
-// siteBuiltins are the built-in presets; tests replace them.
-var siteBuiltins fs.FS = presets.FS
+// siteBuiltins are the built-in presets of this app (its assembly); tests replace them.
+var siteBuiltins fs.FS = assemblyTemplates()
 
 // revealInFinder shows a folder in Finder; tests replace it.
 var revealInFinder = func(dir string) error { return desktop.Reveal(dir) }
