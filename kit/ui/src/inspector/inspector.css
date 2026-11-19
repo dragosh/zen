@@ -56,11 +56,10 @@
 .zen-inspector-body[hidden] { display: none; }
 
 .zen-inspector-empty { margin: 0; color: var(--fg-muted); }
+/* Linting: the full width of the panel, one row per issue as in the problems console (lint.css):
+   line, severity, message, then the matched text under the message. */
 .zen-inspector .zen-lint-list { margin: calc(-1 * var(--space-3)); padding: 0; }
-.zen-inspector .zen-lint-item { grid-template-columns: 2.5em 1fr; padding: var(--space-2) var(--space-3); }
-.zen-inspector .zen-lint-severity { grid-column: 2; grid-row: 1; }
-.zen-inspector .zen-lint-message { grid-column: 1 / -1; }
-.zen-inspector .zen-lint-match { grid-column: 1 / -1; }
+.zen-inspector .zen-lint-item { width: 100%; padding: var(--space-1) var(--space-3); }
 
 .zen-inspector-rows { margin: 0; max-width: 960px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--space-1) var(--space-3); }
 .zen-inspector-rows dt { color: var(--fg-muted); white-space: nowrap; }
