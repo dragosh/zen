@@ -2,7 +2,7 @@
 // Mounted only in an editor window (ui/editor-window): one page per window,
 // Done closes the window. The main window follows the unsaved text live
 // (api.draft -> page:draft); Split adds a preview pane next to the source.
-import type { Alert, Page } from "../host";
+import { hasAddon, type Alert, type Page } from "../host";
 import { createInspector, inspectorKey, type Inspector } from "../inspector";
 import { bindFind, createFind, textareaFinder } from "../find";
 import { backdrop, renderConsole } from "../lint";
@@ -163,8 +163,9 @@ export const editorFeature: Feature = {
     ta.spellcheck = true;
     ta.setAttribute("aria-label", "Markdown source");
     ta.wrap = "soft";
-    // ui/lint: squiggles on a mirror behind the textarea, problems console below.
-    // Settings files are YAML: no markdown toolbar, no Vale, no preview.
+    // ui/lint: squiggles on a mirror behind the textarea, problems console below; both only in
+    // builds with the vale add-on (kit/addons). Settings files are YAML: no markdown toolbar, no Vale, no preview.
+    const lintOn = hasAddon(api, "vale");
     if (config) {
       toolbar.hidden = true;
       ta.spellcheck = false;
@@ -309,7 +310,8 @@ export const editorFeature: Feature = {
     const onWindowResize = () => applyOrientation();
     window.addEventListener("resize", onWindowResize);
     ta.addEventListener("scroll", followSource);
-    root.append(toolbar, bar, panes, problems.el);
+    root.append(toolbar, bar, panes);
+    if (lintOn) root.append(problems.el); // no Problems console without the vale add-on
     slots.main.append(root);
     // Beside the main pane, before it: inspector.css makes room for it.
     if (inspector) slots.main.before(inspector.el);
@@ -365,7 +367,7 @@ export const editorFeature: Feature = {
     /** Lints the current text now; only the latest request's answer is drawn. */
     async function lintNow(): Promise<void> {
       clearTimeout(lintTimer);
-      if (config) return;
+      if (config || !lintOn) return;
       const mine = ++lintSeq;
       const path = current;
       const text = ta.value;

@@ -1,6 +1,6 @@
 // The reader: loads Page for store.path, mounts its HTML and wires links,
 // anchors, plugin assets, live reload, warnings, errors and the Edit action.
-import type { Alert, Page } from "../host";
+import { hasAddon, type Alert, type Page } from "../host";
 import { createInspector, inspectorKey } from "../inspector";
 import { bindFind, createFind, domFinder } from "../find";
 import { flash, markText } from "../lint";
@@ -90,6 +90,8 @@ export const pageFeature: Feature = {
 
     // Vale alerts (ui/lint): marks in the article; the list is in the Inspector (ui/inspector),
     // whose button in the sidebar footer (shell/layout.ts) carries the count; it is wired by events.
+    // Only in builds with the vale add-on (kit/addons).
+    const lintOn = hasAddon(ctx.api, "vale");
     let lintMarks: (HTMLElement | null)[] = [];
     const inspector = createInspector({
       doc, host: ctx.api, external: true,
@@ -169,6 +171,7 @@ export const pageFeature: Feature = {
      * after it rendered; results for an older render are dropped.
      */
     async function lint(path: string, mine: number, content = ""): Promise<void> {
+      if (!lintOn) return; // no vale add-on: no calls, no marks
       try {
         const r = await ctx.api.lint(path, content);
         if (mine !== seq) return;

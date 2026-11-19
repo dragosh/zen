@@ -5,7 +5,7 @@ import { Zen } from "../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/in
 // The headless service is unexported, so the generated index leaves it out.
 import * as HeadlessService from "../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/headlessservice.js";
 import type { LogEntry } from "@zenmd/kit";
-import type { Alert, Api, BuildOptions, Crumb, LayoutField, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
+import type { AddonInfo, Alert, Api, BuildOptions, Crumb, LayoutField, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
 
 type Raw = Record<string, any> | null | undefined;
 
@@ -103,6 +103,15 @@ function layoutInfo(l: Record<string, any>): LayoutInfo {
   };
 }
 
+/** The add-ons of the build; entries that are not {id, name, summary} strings are dropped. */
+function addonInfos(v: unknown): AddonInfo[] {
+  const out: AddonInfo[] = [];
+  for (const a of Array.isArray(v) ? (v as Raw[]) : []) {
+    if (typeof a?.id === "string" && typeof a?.name === "string" && typeof a?.summary === "string") out.push({ id: a.id, name: a.name, summary: a.summary });
+  }
+  return out;
+}
+
 const SEVERITIES: Alert["severity"][] = ["error", "warning", "suggestion"];
 
 function lintResult(r: Raw): LintResult {
@@ -171,6 +180,9 @@ const api: Api = {
     const s = (await call(Zen.Startup())) as Raw;
     const out: Startup = { workspace: workspace(s?.workspace), page: s?.page ?? "", mode: s?.mode === "edit" ? "edit" : "read" };
     if (typeof s?.error === "string" && s.error) out.error = s.error;
+    const addons = addonInfos(s?.addons);
+    if (addons.length) out.addons = addons;
+    api.addons = addons; // the views gate their add-on UI on it (hasAddon)
     return out;
   },
   async pickFolder() {

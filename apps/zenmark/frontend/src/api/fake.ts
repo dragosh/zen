@@ -1,7 +1,7 @@
 // In-memory Api for development in a browser and for tests: a three-page
 // sample workspace, emit() to simulate Go events, and a record of every call.
 import type { LogEntry } from "@zenmd/kit";
-import type { Api, BuildProgress, Crumb, Draft, SiteTemplate, LayoutInfo, LintResult, NavNode, OpenProgress, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
+import type { AddonInfo, Api, BuildProgress, Crumb, Draft, SiteTemplate, LayoutInfo, LintResult, NavNode, OpenProgress, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
 
 type Method = "startup" | "pickFolder" | "cancelOpen" | "closeFolder"
   | "siteTemplates" | "pickSiteFolder" | "createSite" | "revealTemplates" | "templatesDir"
@@ -42,6 +42,8 @@ export type FakeOptions = {
   pick?: Workspace | null;
   /** Markdown sources by path. Default: the sample pages. */
   sources?: Record<string, string>;
+  /** The add-ons of the build (api.addons). Default: the Vale add-on, so lint, Problems and the Linting tab work; [] is a build without add-ons. */
+  addons?: AddonInfo[];
   /** What lint() resolves to. Default: Vale unavailable. */
   lint?: LintResult;
   /** Development only: computes lint() from the content instead (api/index.ts). */
@@ -59,6 +61,9 @@ const SAMPLE_TEMPLATES: SiteTemplate[] = [
   { id: "learning", name: "Learning path", description: "A course with steps, a quiz and exercises", version: "1.0.0", ask: [{ key: "title", label: "Site title", default: "{{folder}}" }], builtin: true, update: "", error: "" },
   { id: "planner", name: "Planner", description: "Roadmap, weekly plans, decisions and meeting notes", version: "1.0.0", ask: [{ key: "title", label: "Site title", default: "{{folder}}" }], builtin: true, update: "", error: "" },
 ];
+
+/** The Vale add-on as the Go side registers it (addons/vale). */
+export const VALE_ADDON: AddonInfo = { id: "vale", name: "Vale linting", summary: "Spelling and style checks for your pages, by the Vale prose linter." };
 
 type LintAnswer = LintResult | ((path: string, content: string) => LintResult);
 
@@ -249,6 +254,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     confirmExternal: true,
     exportPath: "/Users/me/Documents/sample-docs.pdf",
     broadcasts: [],
+    addons: (options.addons ?? [VALE_ADDON]).map((a) => ({ ...a })),
     lintResult: options.devLint ?? options.lint ?? { available: false, alerts: [] },
     pluginList: (options.plugins ?? []).map(plugin),
     layoutList: (options.layouts ?? []).map(layoutInfo),
