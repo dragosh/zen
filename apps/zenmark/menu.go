@@ -120,7 +120,7 @@ var roleByName = map[string]application.Role{
 // one from its role (never AddRole(AppMenu/EditMenu/...)), so no extra items
 // come along. Labels and accelerators are the spec's, whatever the role's
 // default is (the Wails app name is the lowercase binary name).
-func buildMenu(a *application.App, act menuActions, dev bool) *application.Menu {
+func buildMenu(a *application.App, act menuActions, st *menuState, dev bool) *application.Menu {
 	menu := a.Menu.New()
 	for _, top := range menuSpec(dev) {
 		sub := menu.AddSubmenu(top.Label)
@@ -141,6 +141,9 @@ func buildMenu(a *application.App, act menuActions, dev bool) *application.Menu 
 				item = sub.Add(it.Label)
 				if f := act.forLabel(it.Label); f != nil {
 					item.OnClick(func(*application.Context) { f() })
+				}
+				if st != nil && folderOnly(it.Label) {
+					st.add(func(on bool) { item.SetEnabled(on) })
 				}
 			}
 			if it.Accel != "" {

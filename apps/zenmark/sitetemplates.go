@@ -69,6 +69,7 @@ func (z *Zen) CreateSite(id, dir string, values map[string]string) (Startup, err
 	}
 	z.page = ""
 	z.setLaunchErr(nil)
+	z.folderOpened(true)
 	return z.Startup(), nil
 }
 

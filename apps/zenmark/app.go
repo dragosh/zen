@@ -56,6 +56,8 @@ func Run(opts Options) error {
 		return err
 	}
 	defer z.close()
+	// Folder-only menu items start enabled only when a folder was given.
+	z.menu = newMenuState(opts.Dir != "")
 	z.windows = windows
 
 	return desktop.Run(desktop.Options{
@@ -110,7 +112,7 @@ func Run(opts Options) error {
 				},
 				Settings:    settingsAction(win, sink),
 				CloseFolder: showAndEmit(win, sink, EventCloseFolder),
-			}, desktop.DevBuild)
+			}, z.menu, desktop.DevBuild)
 		},
 	})
 }
