@@ -255,8 +255,10 @@ tasks:
         DEV=true        development server (-tags server, no strip, inlining kept)
         OBFUSCATED=true obfuscated build via garble (requires garble installed)
         EXTRA_TAGS      additional comma-separated build tags
-        ADDONS=vale     include the add-ons (build tags addon_<id>; specs/kit/addons)
+        APP=zenmark     the app whose apps/$APP/app-assembly.yml says what it is made of (default zenmark)
+        ADDONS=vale     the add-ons (build tags addon_<id>); default: the assembly's (specs/kit/assembly)
     deps:
+      - task: assembly:gen
       - task: build:frontend
         vars:
           DEV:
@@ -275,6 +277,12 @@ tasks:
       ADDON_TAGS:
         sh: go run ./kit/addons/cmd/check -known "{{.ADDONS_KNOWN}}" "{{.ADDONS}}"
       BUILD_FLAGS: '-tags server{{if eq .DEV "true"}}{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{$tags := without (list (.EXTRA_TAGS | default "") .ADDON_TAGS) ""}}{{if $tags}},{{join "," $tags}}{{end}} -buildvcs=false -gcflags=all="-l" -ldflags="{{.VERSION_LDFLAGS}}"{{else}},production{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{$tags := without (list (.EXTRA_TAGS | default "") .ADDON_TAGS) ""}}{{if $tags}},{{join "," $tags}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s {{.VERSION_LDFLAGS}}"{{end}}'
+
+  assembly:gen:
+    summary: Writes apps/$APP/assembly_gen.go from apps/$APP/app-assembly.yml (what the app is made of; specs/kit/assembly)
+    dir: '{{.ROOT_DIR}}'
+    cmds:
+      - go run ./kit/assembly/cmd/gen "apps/{{.APP}}"
 
   run:server:
     summary: Builds and runs a development server (DEV=true)
