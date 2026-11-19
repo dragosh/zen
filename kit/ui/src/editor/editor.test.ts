@@ -485,6 +485,35 @@ describe("editor: lint", () => {
   });
 });
 
+describe("editor: add-ons", () => {
+  it("no lint without the vale add-on: no calls, no marks, no Problems console, no Linting tab", async () => {
+    const api = createFakeApi({ sources: { "a.md": "teh cat" }, lint: { available: true, alerts: [{ line: 1, col: 1, endCol: 3, severity: "error", check: "Vale.Spelling", message: "m", match: "teh", description: "", link: "" }] }, addons: [] });
+    const store = createStore({ path: "a.md", mode: "edit" });
+    const slots: Slots = {
+      nav: document.createElement("nav"), breadcrumb: document.createElement("div"),
+      actions: document.createElement("div"), main: document.createElement("main"),
+    };
+    document.body.append(slots.actions, slots.main);
+    const unmount = editorFeature.mount(slots, { api, store, brand: "Zenmark", navigate: () => {} });
+    for (let i = 0; i < 5; i++) await tick();
+    const ta = slots.main.querySelector("textarea")!;
+    s = { api, store, slots, ta, unmount };
+    expect(api.callsTo("lint")).toEqual([]);
+    expect(slots.main.querySelector(".zen-lint-console")).toBeNull();
+    expect(slots.main.querySelector(".zen-lint-mirror mark")).toBeNull();
+    type(ta, "teh cats");
+    await wait(700);
+    key(ta, "s", { metaKey: true });
+    await wait(700);
+    expect(api.callsTo("lint")).toEqual([]);
+    // the syntax highlighting layer stays
+    expect(slots.main.querySelector(".zen-lint-mirror")).not.toBeNull();
+    // the Inspector has File and Page only
+    const inspectorTabs = Array.from(document.querySelectorAll<HTMLElement>(".zen-inspector [role=tab]")).map((t) => t.dataset.tab);
+    expect(inspectorTabs).toEqual(["file", "page"]);
+  });
+});
+
 describe("editor: settings files", () => {
   it("edits YAML: no toolbar, no Vale, no draft, YAML colours; saves through the API", async () => {
     const api = createFakeApi({

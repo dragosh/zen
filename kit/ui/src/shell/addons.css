@@ -1,0 +1,11 @@
+/* Settings › Add-ons (kit/addons): a card per add-on of the build. Tokens only. */
+.zen-addons { display: flex; flex-direction: column; gap: var(--space-2); max-width: 46ch; }
+.zen-addon {
+  padding: var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--bg-subtle);
+}
+.zen-addon-name { margin: 0; font-size: 13px; font-weight: 600; color: var(--fg); }
+.zen-addon-summary { margin: var(--space-1) 0 0; font-size: 12px; color: var(--fg-muted); }
+.zen-addons-empty { margin: 0; font-size: 13px; color: var(--fg-muted); }

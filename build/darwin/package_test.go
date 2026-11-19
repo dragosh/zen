@@ -16,6 +16,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -119,8 +120,45 @@ func TestBundledCLI(t *testing.T) {
 	if err != nil {
 		t.Fatalf("zenmd --version: %v\n%s", err, out)
 	}
-	if got, want := strings.TrimSpace(string(out)), "zenmd "+readVersion(t); got != want {
+	want := "zenmd " + readVersion(t)
+	if got, _, _ := strings.Cut(strings.TrimSpace(string(out)), " (add-ons: "); got != want {
 		t.Errorf("got %q, want %q", got, want)
+	}
+}
+
+// bundleAddons is the add-ons the bundle was built with, from its own version
+// line ("zenmd 0.6.0 (add-ons: vale)").
+func bundleAddons(t *testing.T) []string {
+	t.Helper()
+	out, err := exec.Command(filepath.Join(bundle, "Contents/MacOS/zenmd"), "--version").CombinedOutput()
+	if err != nil {
+		t.Fatalf("zenmd --version: %v\n%s", err, out)
+	}
+	_, list, ok := strings.Cut(strings.TrimSpace(string(out)), " (add-ons: ")
+	if !ok {
+		return nil
+	}
+	var ids []string
+	for _, id := range strings.Split(strings.TrimSuffix(list, ")"), ",") {
+		ids = append(ids, strings.TrimSpace(id))
+	}
+	return ids
+}
+
+// A bundle built without add-ons carries no helper and no licence notice of one
+// (`task package`; with ADDONS=vale the Vale tests below apply instead).
+func TestPackageWithoutAddons(t *testing.T) {
+	requireBundle(t)
+	if got := bundleAddons(t); len(got) != 0 {
+		t.Skipf("bundle built with add-ons %v", got)
+	}
+	for _, p := range []string{"Contents/Helpers/vale", "Contents/Resources/licenses/vale.txt"} {
+		if _, err := os.Stat(filepath.Join(bundle, p)); err == nil {
+			t.Errorf("%s is in a bundle built without add-ons", p)
+		}
+	}
+	if es, err := os.ReadDir(filepath.Join(bundle, "Contents/Helpers")); err != nil || len(es) != 0 {
+		t.Errorf("Contents/Helpers = %v, %v; want it empty", es, err)
 	}
 }
 
@@ -503,6 +541,9 @@ func TestFetchHelper(t *testing.T) {
 
 func TestBundledVale(t *testing.T) {
 	requireBundle(t)
+	if !slices.Contains(bundleAddons(t), "vale") {
+		t.Skip("bundle built without the vale add-on (task package ADDONS=vale)")
+	}
 	vale := filepath.Join(bundle, "Contents/Helpers/vale")
 	out, err := exec.Command(vale, "--version").CombinedOutput()
 	if err != nil {

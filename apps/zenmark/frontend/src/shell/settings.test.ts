@@ -69,10 +69,10 @@ async function plugins(plugins: PluginInfo[] = PLUGINS, hasWorkspace = true): Pr
 
 // ---- the page and its sections
 
-test("it is a page with a section list on the left: Appearance, Configuration files, Plugins, Layouts, Export, Developer", () => {
+test("it is a page with a section list on the left: Appearance, Configuration files, Plugins, Layouts, Export, Add-ons, Developer", () => {
   const { s } = setup();
   const names = Array.from(s.el.querySelectorAll(".zen-settings-section")).map((b) => b.textContent);
-  expect(names).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Export", "Developer"]);
+  expect(names).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Export", "Add-ons", "Developer"]);
   expect(s.el.querySelector("h1")!.textContent).toBe("Settings");
   expect(s.el.getAttribute("aria-label")).toBe("Settings");
   expect(s.el.classList.contains("zen-settings-page")).toBe(true);
@@ -95,6 +95,8 @@ test("one section shows at a time; the first is Appearance; arrow keys and click
   expect(shown()).toEqual(["layouts"]);
   key(list, "ArrowDown");
   expect(shown()).toEqual(["export"]);
+  key(list, "ArrowDown");
+  expect(shown()).toEqual(["addons"]);
   key(list, "ArrowDown");
   expect(shown()).toEqual(["developer"]);
   key(list, "ArrowDown"); // wraps
@@ -722,4 +724,38 @@ test("Export section: the last PDF with Show in Finder", async () => {
   await settle();
   expect(api.callsTo("revealExport")).toHaveLength(1);
   try { localStorage.removeItem("zen.lastPdfExport"); } catch { /* no storage */ }
+});
+
+test("Add-ons section", async () => {
+  // the build has none
+  let api = createFakeApi({ addons: [] });
+  let s = createSettingsView({ api, hasWorkspace: () => true });
+  document.body.append(s.el);
+  s.show();
+  expect(section(s, "addons").textContent).toBe("Add-ons");
+  expect(panel(s, "addons").textContent).toContain("This build has no add-ons.");
+  expect(panel(s, "addons").querySelector(".zen-addon")).toBeNull();
+  expect(panel(s, "addons").querySelector("input, button, select")).toBeNull(); // read-only
+  s.destroy();
+
+  // the build has some: name and summary as text, never as markup
+  api = createFakeApi({ addons: [
+    { id: "vale", name: "Vale linting", summary: "Spelling and style checks." },
+    { id: "voice", name: "<b>Voice</b>", summary: "<img src=x onerror=alert(1)>" },
+  ] });
+  s = createSettingsView({ api, hasWorkspace: () => true });
+  document.body.append(s.el);
+  s.show();
+  const cards = Array.from(panel(s, "addons").querySelectorAll<HTMLElement>(".zen-addon"));
+  expect(cards.map((c) => c.dataset.addon)).toEqual(["vale", "voice"]);
+  expect(cards[0].querySelector(".zen-addon-name")!.textContent).toBe("Vale linting");
+  expect(cards[0].querySelector(".zen-addon-summary")!.textContent).toBe("Spelling and style checks.");
+  expect(cards[1].querySelector(".zen-addon-name")!.textContent).toBe("<b>Voice</b>");
+  expect(panel(s, "addons").querySelector("b, img")).toBeNull();
+  expect(panel(s, "addons").textContent).not.toContain("no add-ons");
+  s.destroy();
+});
+
+test("the default fake build has the vale add-on", () => {
+  expect(createFakeApi().addons?.map((a) => a.id)).toEqual(["vale"]);
 });

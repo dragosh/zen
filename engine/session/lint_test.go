@@ -36,9 +36,9 @@ func (f *fakeLinter) all() []lintCall {
 	return append([]lintCall(nil), f.calls...)
 }
 
-func withLinter(t *testing.T, l textLinter) {
+func withLinter(t *testing.T, l TextLinter) {
 	t.Helper()
-	restore := setLinter(l)
+	restore := SetLinter(func() TextLinter { return l })
 	t.Cleanup(restore)
 }
 
@@ -47,6 +47,62 @@ var lintDocs = map[string]string{
 	"docs/guide.md":   "# Guide\n",
 	"off/page.md":     "---\nplugins:\n  lint: false\n---\n# Off\n",
 	"notes/plain.txt": "nope",
+}
+
+// A build without the vale add-on installs no finder: Lint is unavailable and
+// never looks for a binary, so a vale on PATH or in $ZEN_VALE is not run.
+func TestLintNeedsAddon(t *testing.T) {
+	bin := t.TempDir()
+	ran := filepath.Join(bin, "ran")
+	script := "#!/bin/sh\ntouch '" + ran + "'\necho '{}'\n"
+	if err := os.WriteFile(filepath.Join(bin, "vale"), []byte(script), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PATH", bin+string(os.PathListSeparator)+os.Getenv("PATH"))
+	t.Setenv("ZEN_VALE", filepath.Join(bin, "vale"))
+
+	// Whatever an earlier test installed, this process starts without a finder.
+	restore := SetLinter(nil)
+	defer restore()
+	z, _, _, _ := newTestZen(t, tree(t, lintDocs), "", "read")
+	r, err := z.Lint("README.md", "")
+	if err != nil || r.Available || r.Alerts == nil || len(r.Alerts) != 0 {
+		t.Fatalf("no finder: %+v %v", r, err)
+	}
+	if _, err := os.Stat(ran); err == nil {
+		t.Fatal("a vale from PATH or $ZEN_VALE was run")
+	}
+}
+
+// SetLinter's finder runs once, lazily, and restore puts the previous one back.
+func TestSetLinterFindsOnce(t *testing.T) {
+	calls := 0
+	f := &fakeLinter{}
+	restore := SetLinter(func() TextLinter { calls++; return f })
+	z, _, _, _ := newTestZen(t, tree(t, lintDocs), "", "read")
+	if calls != 0 {
+		t.Fatalf("finder called %d times before the first Lint", calls)
+	}
+	for i := 0; i < 3; i++ {
+		if r, err := z.Lint("README.md", ""); err != nil || !r.Available {
+			t.Fatalf("Lint %d: %+v %v", i, r, err)
+		}
+	}
+	if calls != 1 {
+		t.Fatalf("finder called %d times, want 1", calls)
+	}
+	restore()
+	outer := &fakeLinter{}
+	restoreOuter := SetLinter(func() TextLinter { return outer })
+	defer restoreOuter()
+	inner := SetLinter(func() TextLinter { return f })
+	inner()
+	if _, err := z.Lint("README.md", ""); err != nil {
+		t.Fatal(err)
+	}
+	if len(outer.all()) != 1 || len(f.all()) != 3 {
+		t.Fatalf("restore did not bring back the outer finder: outer %d, inner %d calls", len(outer.all()), len(f.all()))
+	}
 }
 
 func TestLintUnavailable(t *testing.T) {

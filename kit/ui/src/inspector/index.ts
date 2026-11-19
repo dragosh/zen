@@ -1,9 +1,10 @@
 // ui/inspector: a bottom panel (ui/panel) under the reading view with three tabs,
-// Linting (Vale), File and Page, and the button that toggles it. The page
+// Linting (Vale), File and Page, and the button that toggles it. The Linting tab
+// belongs to the vale add-on (kit/addons): a build without it has File and Page only. The page
 // feature owns one and feeds it after every render; this file knows nothing
 // about loading pages. All text goes in through textContent.
 import "./inspector.css";
-import type { Alert, KitHost, Page, PageInfo } from "../host";
+import { hasAddon, type Alert, type KitHost, type Page, type PageInfo } from "../host";
 import { issueList } from "../lint";
 import { copyText } from "../shell/clipboard";
 import { button, el } from "../shell/dom";
@@ -22,8 +23,8 @@ export const TAB_KEY = "zen.inspector.tab";
 
 export type InspectorOptions = {
   doc: Document;
-  /** The calls the File section uses; both are optional, see KitHost. */
-  host: Pick<KitHost, "pageInfo" | "revealInFinder">;
+  /** The calls the File section uses (both optional, see KitHost) and the add-ons of the build: the Linting tab needs "vale". */
+  host: Pick<KitHost, "pageInfo" | "revealInFinder" | "addons">;
   /** A click on an issue in the list. */
   onSelectIssue(alert: Alert, index: number): void;
   /** The panel was opened or closed (button, shortcut or API); not called when nothing changes. */
@@ -92,12 +93,13 @@ function write(key: string, value: string): void {
 export function createInspector(o: InspectorOptions): Inspector {
   const id = ++seq;
   // The panel is the shared tabbed bottom panel (ui/panel); a later tab (Spelling) is one more entry in
-  // TABS and a render function.
+  // TABS and a render function. Linting comes with the vale add-on.
+  const lintOn = hasAddon(o.host, "vale");
   const TABS = [
-    { id: "issues", label: "Linting" },
+    ...(lintOn ? [{ id: "issues", label: "Linting" }] : []),
     { id: "file", label: "File" },
     { id: "page", label: "Page" },
-  ] as const;
+  ];
   const frame = createTabbedPanel({
     doc: o.doc,
     label: "Inspector",
@@ -137,13 +139,14 @@ export function createInspector(o: InspectorOptions): Inspector {
   let copiedTimer: ReturnType<typeof setTimeout> | undefined;
   let count = 0;
 
-  const issues = { body: frame.body("issues") };
+  const issues = { body: lintOn ? frame.body("issues") : null };
   const fileSection = { body: frame.body("file") };
   const pageSection = { body: frame.body("page") };
 
   const rows = panelProps;
 
   function renderIssues(): void {
+    if (!issues.body) return; // no vale add-on: no Linting tab, no count
     if (alerts === "checking") {
       issues.body.replaceChildren(panelEmpty("Checking…"));
     } else if (alerts === null) {
@@ -322,6 +325,7 @@ export function createInspector(o: InspectorOptions): Inspector {
       sync();
     },
     setIssues(next) {
+      if (!lintOn) return;
       alerts = next;
       renderIssues();
     },

@@ -33,53 +33,55 @@ type LintResult struct {
 	Alerts    []LintAlert `json:"alerts"`
 }
 
-// textLinter is *lint.Linter; tests use a fake.
-type textLinter interface {
+// TextLinter is what Lint asks for alerts: *lint.Linter (Vale), or a fake in tests.
+type TextLinter interface {
 	Lint(ctx context.Context, root, path string, content []byte) ([]lint.Alert, error)
 }
 
-// The one linter of the process, found on first use. Sharing it keeps
-// core/lint's limit of concurrent vale processes for all windows.
+// The one linter of the process. An add-on installs a finder with SetLinter;
+// the finder runs once, on first use. Sharing the linter keeps core/lint's
+// limit of concurrent vale processes for all windows. Without a finder (an app
+// built without the vale add-on) there is no linter and nothing is looked up.
 var linters struct {
 	mu    sync.Mutex
+	find  func() TextLinter
 	found bool
-	l     textLinter
+	l     TextLinter
 }
 
-func findLinter() textLinter {
-	p, err := lint.Find()
-	if err != nil {
-		return nil
-	}
-	return lint.New(p)
-}
-
-func currentLinter() textLinter {
+func currentLinter() TextLinter {
 	linters.mu.Lock()
 	defer linters.mu.Unlock()
+	if linters.find == nil {
+		return nil
+	}
 	if !linters.found {
-		linters.l, linters.found = findLinter(), true
+		linters.l, linters.found = linters.find(), true
 	}
 	return linters.l
 }
 
-// setLinter replaces the linter (nil: no vale) and returns a restore func.
-func setLinter(l textLinter) (restore func()) {
+// SetLinter installs the finder of the text linter (a nil finder: no linter,
+// Lint is unavailable) and returns a func that puts the previous one back.
+// The finder is called once, when the first Lint needs it; it returns nil when
+// there is no linter (no vale binary). Add-ons call it from their init
+// (addons/vale); nothing else looks for a linter.
+func SetLinter(find func() TextLinter) (restore func()) {
 	linters.mu.Lock()
 	defer linters.mu.Unlock()
-	oldFound, oldL := linters.found, linters.l
-	linters.found, linters.l = true, l
+	oldFind, oldFound, oldL := linters.find, linters.found, linters.l
+	linters.find, linters.found, linters.l = find, false, nil
 	return func() {
 		linters.mu.Lock()
 		defer linters.mu.Unlock()
-		linters.found, linters.l = oldFound, oldL
+		linters.find, linters.found, linters.l = oldFind, oldFound, oldL
 	}
 }
 
 func lintOff() LintResult { return LintResult{Alerts: []LintAlert{}} }
 
 // Lint returns Vale's alerts for a page: content, or the file on disk when
-// content is "". Unavailable without vale or with `lint: false`.
+// content is "". Unavailable without the linter add-on, without vale or with `lint: false`.
 func (s *Session) Lint(path, content string) (LintResult, error) {
 	if _, ok := configWhich(path); ok {
 		return lintOff(), nil // settings files are not prose
@@ -90,7 +92,7 @@ func (s *Session) Lint(path, content string) (LintResult, error) {
 // lint checks path (a workspace markdown page) and lints content, or the
 // file on disk when content is "". Without vale, or with the `lint` plugin
 // switch off for the page, the result is unavailable.
-func (s *Session) lint(l textLinter, path, content string) (LintResult, error) {
+func (s *Session) lint(l TextLinter, path, content string) (LintResult, error) {
 	if l == nil {
 		return lintOff(), nil
 	}

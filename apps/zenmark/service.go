@@ -130,8 +130,15 @@ func (z *Zen) middleware(next http.Handler) http.Handler {
 const frontendCSP = "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; " +
 	"img-src 'self' https:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'"
 
-// Startup returns the workspace, the page to show first and the mode.
+// Startup returns the workspace, the page to show first, the mode and the
+// add-ons this build includes (kit/addons).
 func (z *Zen) Startup() Startup {
+	st := z.startup()
+	st.Addons = addonInfos()
+	return st
+}
+
+func (z *Zen) startup() Startup {
 	z.openInitial()
 	if err := z.launchErr(); err != nil {
 		return Startup{Mode: z.mode, Error: err.Error()}

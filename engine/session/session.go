@@ -103,13 +103,22 @@ type Page struct {
 	Warnings    []string       `json:"warnings"`
 }
 
+// AddonInfo is one add-on of an app's build as the frontend sees it (kit/addons).
+type AddonInfo struct {
+	ID      string `json:"id"`
+	Name    string `json:"name"`
+	Summary string `json:"summary"`
+}
+
 // Startup is what an app shows first: the workspace, the page, the mode and,
-// when the folder given at launch did not open, why.
+// when the folder given at launch did not open, why. The app fills Addons with
+// the add-ons its build includes (none: omitted).
 type Startup struct {
-	Workspace *Workspace `json:"workspace"`
-	Page      string     `json:"page"`
-	Mode      string     `json:"mode"`
-	Error     string     `json:"error,omitempty"` // the folder given at launch did not open: why
+	Workspace *Workspace  `json:"workspace"`
+	Page      string      `json:"page"`
+	Mode      string      `json:"mode"`
+	Error     string      `json:"error,omitempty"` // the folder given at launch did not open: why
+	Addons    []AddonInfo `json:"addons,omitempty"`
 }
 
 // PageChanged is the payload of page:changed.

@@ -1,9 +1,14 @@
 // Command resources verifies the helper binaries listed in resources.yml and
 // copies those for one architecture into an app bundle's Contents/Helpers.
 //
-//	go run ./build/darwin/resources -manifest resources.yml -arch arm64 -dest bin/Zenmark.app/Contents/Helpers [-licenses bin/Zenmark.app/Contents/Resources/licenses]
-//	go run ./build/darwin/resources -manifest resources.yml -arch arm64 -fetch
+//	go run ./build/darwin/resources -manifest resources.yml -arch arm64 [-addons vale] -dest bin/Zenmark.app/Contents/Helpers [-licenses bin/Zenmark.app/Contents/Resources/licenses]
+//	go run ./build/darwin/resources -manifest resources.yml -arch arm64 [-addons vale] -fetch
 //	go run ./build/darwin/resources -manifest resources.yml -arch arm64 -validate
+//
+// An entry may name its add-on (`addon: vale`, specs/kit/addons). It is
+// verified, fetched and bundled (with its licence) only when that add-on is in
+// the -addons list (the ADDONS of the build); entries without `addon:` always
+// are. -validate checks every entry.
 //
 // With -arch universal every entry is verified for both architectures
 // (arm64 and amd64; each needs a path and sha256) and the two binaries are
@@ -38,6 +43,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -80,12 +86,14 @@ type entry struct {
 	Path   map[string]string    `yaml:"path"`
 	SHA256 shaSpec              `yaml:"sha256"`
 	Fetch  map[string]fetchSpec `yaml:"fetch"`
+	Addon  string               `yaml:"addon"` // optional: bundled only when this add-on is in the build
 }
 
 var (
-	nameRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
-	shaRE  = regexp.MustCompile(`^[0-9a-f]{64}$`)
-	archs  = map[string]bool{"darwin-arm64": true, "darwin-amd64": true}
+	nameRE  = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]*$`)
+	addonRE = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`) // kit/addons
+	shaRE   = regexp.MustCompile(`^[0-9a-f]{64}$`)
+	archs   = map[string]bool{"darwin-arm64": true, "darwin-amd64": true}
 )
 
 // Download limits.
@@ -101,29 +109,34 @@ func main() {
 	licenses := flag.String("licenses", "", "destination directory for license notices (Contents/Resources/licenses)")
 	fetch := flag.Bool("fetch", false, "download and verify helpers that have a fetch block")
 	validate := flag.Bool("validate", false, "only validate the manifest")
+	addonList := flag.String("addons", "", "comma-separated add-ons of the build; entries of other add-ons are skipped")
 	flag.Parse()
+	addons, err := parseAddons(*addonList)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "resources: %v\n", err)
+		os.Exit(1)
+	}
 	targets := []string{"darwin-" + *arch}
 	if *arch == "universal" {
 		targets = []string{"darwin-arm64", "darwin-amd64"}
 	}
-	var err error
 	switch {
 	case *validate:
 		for _, t := range targets {
-			if _, err = load(*manifest, t); err != nil {
+			if _, err = loadAll(*manifest, t); err != nil {
 				break
 			}
 		}
 	case *fetch:
 		for _, t := range targets {
-			if err = fetchAll(*manifest, t); err != nil {
+			if err = fetchAll(*manifest, t, addons); err != nil {
 				break
 			}
 		}
 	case len(targets) == 2:
-		err = runUniversal(*manifest, targets, *dest, *licenses)
+		err = runUniversal(*manifest, targets, *dest, *licenses, addons)
 	default:
-		err = run(*manifest, targets[0], *dest, *licenses)
+		err = run(*manifest, targets[0], *dest, *licenses, addons)
 	}
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "resources: %v\n", err)
@@ -131,13 +144,28 @@ func main() {
 	}
 }
 
+// parseAddons reads the -addons list: comma-separated valid add-on ids.
+func parseAddons(list string) ([]string, error) {
+	var out []string
+	for _, id := range strings.Split(list, ",") {
+		if id = strings.TrimSpace(id); id == "" {
+			continue
+		}
+		if !addonRE.MatchString(id) {
+			return nil, fmt.Errorf("invalid add-on id %q", id)
+		}
+		out = append(out, id)
+	}
+	return out, nil
+}
+
 type file struct{ name, src, license string }
 
-func run(manifest, target, dest, licenses string) error {
+func run(manifest, target, dest, licenses string, addons []string) error {
 	if dest == "" {
 		return errors.New("-dest is required")
 	}
-	files, err := verify(manifest, target)
+	files, err := verify(manifest, target, addons)
 	if err != nil {
 		return err
 	}
@@ -179,13 +207,13 @@ func install(files []file, dest, licenses string) error {
 
 // runUniversal verifies every helper for both targets, then merges the two
 // binaries of each with lipo into dest. Nothing is written when any check fails.
-func runUniversal(manifest string, targets []string, dest, licenses string) error {
+func runUniversal(manifest string, targets []string, dest, licenses string, addons []string) error {
 	if dest == "" {
 		return errors.New("-dest is required")
 	}
 	var sets [][]file
 	for _, t := range targets {
-		files, err := verify(manifest, t)
+		files, err := verify(manifest, t, addons)
 		if err != nil {
 			return err
 		}
@@ -219,8 +247,19 @@ type item struct {
 	fetch                 *fetchSpec
 }
 
-// load parses and validates the manifest for target without touching helper files.
-func load(manifest, target string) ([]item, error) {
+// load parses and validates the manifest for target without touching helper
+// files, and returns the entries of this build: those without an add-on and
+// those of an add-on in addons.
+func load(manifest, target string, addons []string) ([]item, error) {
+	return loadFor(manifest, target, func(a string) bool { return a == "" || slices.Contains(addons, a) })
+}
+
+// loadAll is load for every entry, whatever its add-on (-validate).
+func loadAll(manifest, target string) ([]item, error) {
+	return loadFor(manifest, target, func(string) bool { return true })
+}
+
+func loadFor(manifest, target string, include func(addon string) bool) ([]item, error) {
 	if !archs[target] {
 		return nil, fmt.Errorf("unsupported target %s", target)
 	}
@@ -246,6 +285,9 @@ func load(manifest, target string) ([]item, error) {
 			return nil, fmt.Errorf("%s: duplicate name", where)
 		}
 		seen[e.Name] = true
+		if e.Addon != "" && !addonRE.MatchString(e.Addon) {
+			return nil, fmt.Errorf("%s: invalid add-on id %q", where, e.Addon)
+		}
 		for k := range e.Path {
 			if !archs[k] {
 				return nil, fmt.Errorf("%s: unknown path key %s", where, k)
@@ -274,6 +316,9 @@ func load(manifest, target string) ([]item, error) {
 		}
 		if !filepath.IsAbs(src) {
 			src = filepath.Join(base, src)
+		}
+		if !include(e.Addon) {
+			continue
 		}
 		it := item{where: where, name: e.Name, src: src, sha: sha}
 		if f, ok := e.Fetch[target]; ok {
@@ -315,9 +360,9 @@ func checkMember(m string) error {
 // licensePath is where fetch stores the license notice of a helper.
 func licensePath(src string) string { return src + ".LICENSE" }
 
-// verify parses the manifest and checks every entry for target.
-func verify(manifest, target string) ([]file, error) {
-	items, err := load(manifest, target)
+// verify parses the manifest and checks every entry of the build for target.
+func verify(manifest, target string, addons []string) ([]file, error) {
+	items, err := load(manifest, target, addons)
 	if err != nil {
 		return nil, err
 	}
@@ -344,8 +389,8 @@ func verify(manifest, target string) ([]file, error) {
 }
 
 // fetchAll downloads every helper with a fetch block for target.
-func fetchAll(manifest, target string) error {
-	items, err := load(manifest, target)
+func fetchAll(manifest, target string, addons []string) error {
+	items, err := load(manifest, target, addons)
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,6 @@
 // The typed client for the Go services. Types and the Api interface mirror
 // docs/PLAN.md "Service API" exactly; UI features import only from here.
-import type { Alert, Draft, KitHost, LayoutSource, LintResult, OpenProgress, Page, PageInfo, PluginStreamEvent, Workspace } from "@zenmd/kit";
+import type { AddonInfo, Alert, Draft, KitHost, LayoutSource, LintResult, OpenProgress, Page, PageInfo, PluginStreamEvent, Workspace } from "@zenmd/kit";
 import { createFakeApi, sampleWorkspace, type FakeOptions } from "./fake";
 import { inApp, wailsReady } from "./detect";
 
@@ -40,7 +40,7 @@ export type LayoutInfo = {
   problem: string;
 };
 /** error: the folder given at launch did not open (workspace is then null). */
-export type Startup = { workspace: Workspace | null; page: string; mode: "read" | "edit"; error?: string };
+export type Startup = { workspace: Workspace | null; page: string; mode: "read" | "edit"; error?: string; addons?: AddonInfo[] };
 /** A site template (core/init): a folder of preset files in the templates folder. */
 export type SiteTemplate = {
   id: string; name: string; description: string; version: string;
@@ -56,10 +56,12 @@ export type BuildProgress = { done: number; total: number };
 export type PageLayout = string;
 
 /** The data types the kit declares (kit/ui/src/host.ts); the app's api speaks them. */
-export type { Alert, Crumb, Draft, LayoutSource, LintResult, NavNode, OpenProgress, Page, PageInfo, PageLayoutRef, PluginStreamEvent, Workspace } from "@zenmd/kit";
+export type { AddonInfo, Alert, Crumb, Draft, LayoutSource, LintResult, NavNode, OpenProgress, Page, PageInfo, PageLayoutRef, PluginStreamEvent, Workspace } from "@zenmd/kit";
 
 /** The page, source, preview, save, lint, draft and openEditor calls are KitHost (the kit's side); the storage, invoke, stream, cancel and openExternal calls are RuntimeHost, the runtime's side. */
 export interface Api extends KitHost {
+  /** The add-ons of this build (kit/addons): set by startup(), which the shell calls before any view is shown. */
+  addons?: readonly AddonInfo[];
   startup(): Promise<Startup>;
   pickFolder(): Promise<Workspace | null>; // native folder dialog; null also when the opening was cancelled
   /** Stops the folder that is opening; the one open before stays. */

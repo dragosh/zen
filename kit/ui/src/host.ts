@@ -33,6 +33,14 @@ export type PageInfo = { path: string; absPath: string; size: number; modTime: n
 export type Draft = { path: string; content: string | null };
 export type { PluginStreamEvent };
 
+/** An add-on the app was built with (kit/addons): shown in Settings › Add-ons; the UI of an add-on is gated on its id. */
+export type AddonInfo = { id: string; name: string; summary: string };
+
+/** Whether the app was built with the add-on (`hasAddon(host, "vale")`): false when the host lists none. */
+export function hasAddon(host: Pick<KitHost, "addons">, id: string): boolean {
+  return host.addons?.some((a) => a.id === id) ?? false;
+}
+
 export type LogLevel = "debug" | "info" | "warn" | "error";
 /**
  * One line of the Developer panel (ui/developer-tab). "app" and "plugin" come from the Go side
@@ -42,13 +50,15 @@ export type LogEntry = { seq: number; time: number; level: LogLevel; source: "ap
 
 /** The storage, invoke, stream, cancel and openExternal calls (and the plugin events of `on`) are RuntimeHost, the runtime's side of this API. */
 export interface KitHost extends RuntimeHost {
+  /** The add-ons of this build, in a fixed order; known once the app's startup has answered. Without the list there are none. */
+  addons?: readonly AddonInfo[];
   page(path: string): Promise<Page>;
   source(path: string): Promise<string>;
   preview(path: string, content: string): Promise<Page>; // render unsaved text
   save(path: string, content: string): Promise<void>;
   /** Opens the page in its own editor window, or focuses the one already open (ui/editor-window). */
   openEditor(path: string): Promise<void>;
-  /** Vale alerts for path: the unsaved content, or the file on disk when content is "" (ui/lint). */
+  /** Vale alerts for path: the unsaved content, or the file on disk when content is "" (ui/lint). Called only when the build has the "vale" add-on. */
   lint(path: string, content: string): Promise<LintResult>;
   /**
    * Shares an editor's unsaved text with the other windows so the reader

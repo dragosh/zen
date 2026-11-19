@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import type { Page, PageInfo } from "../host";
+import type { AddonInfo, Page, PageInfo } from "../host";
 import { alert } from "../lint/test-util";
 import { createInspector, INSPECTOR_CLOSE, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorKey, OPEN_KEY, TAB_KEY, type Inspector } from "./index";
 
@@ -19,7 +19,8 @@ const article = (html = "<h1>Alpha</h1><p>one two three <a href='b.md'>b</a> <a 
 };
 
 let made: Inspector[] = [];
-let host: { pageInfo: ReturnType<typeof vi.fn>; revealInFinder?: ReturnType<typeof vi.fn> };
+const VALE: AddonInfo = { id: "vale", name: "Vale linting", summary: "Spelling and style checks." };
+let host: { pageInfo: ReturnType<typeof vi.fn>; revealInFinder?: ReturnType<typeof vi.fn>; addons?: readonly AddonInfo[] };
 const select = vi.fn();
 
 function make(h = host): Inspector {
@@ -36,7 +37,7 @@ beforeEach(() => {
   sessionStorage.clear();
   document.body.replaceChildren();
   select.mockReset();
-  host = { pageInfo: vi.fn(async () => ({ ...INFO })), revealInFinder: vi.fn(async () => undefined) };
+  host = { pageInfo: vi.fn(async () => ({ ...INFO })), revealInFinder: vi.fn(async () => undefined), addons: [VALE] };
 });
 afterEach(() => { for (const i of made.splice(0)) i.destroy(); vi.restoreAllMocks(); });
 
@@ -380,4 +381,38 @@ test("onOpenChange is told when the panel opens or closes, not when nothing chan
   i.toggle();
   i.close();
   expect(seen).toEqual([true, false]);
+});
+
+test("without the vale add-on there is no Linting tab", async () => {
+  const i = make({ ...host, addons: [] });
+  i.setPage("docs/a.md", page(), article());
+  i.open();
+  const tabs = Array.from(i.el.querySelectorAll<HTMLElement>('[role="tab"]'));
+  expect(tabs.map((t) => t.dataset.tab)).toEqual(["file", "page"]);
+  expect(i.el.querySelector('[data-section="issues"]')).toBeNull();
+  expect(tabs[0].getAttribute("aria-selected")).toBe("true"); // File first
+  // issues arriving anyway (a stale caller) show no badge and no count
+  i.setIssues([alert({ line: 1, match: "x" })]);
+  expect(i.button.querySelector<HTMLElement>(".zen-inspector-badge")!.hidden).toBe(true);
+  expect(i.button.getAttribute("aria-label")).toBe("Inspector");
+  await settle();
+  expect(field(i, "path")).toBe("docs/a.md");
+  // a remembered Linting tab falls back to the first one
+  localStorage.setItem(TAB_KEY, "issues");
+  const j = make({ ...host, addons: undefined });
+  j.setPage("docs/a.md", page(), article());
+  expect(j.el.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')!.dataset.tab).toBe("file");
+});
+
+test("external without vale: the state carries no count", () => {
+  const states: { count: number }[] = [];
+  const on = (e: Event) => states.push((e as CustomEvent).detail);
+  document.addEventListener(INSPECTOR_STATE, on);
+  const i = createInspector({ doc: document, host: { ...host, addons: [] } as never, onSelectIssue: select, external: true });
+  made.push(i);
+  document.body.append(i.el);
+  i.setPage("docs/a.md", page(), article());
+  i.setIssues([alert({ line: 1, match: "x" })]);
+  expect(states.at(-1)).toMatchObject({ available: true, count: 0 });
+  document.removeEventListener(INSPECTOR_STATE, on);
 });
