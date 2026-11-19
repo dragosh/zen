@@ -110,6 +110,18 @@ type AddonInfo struct {
 	Summary string `json:"summary"`
 }
 
+// BuildInfo is what an app's build is made of (kit/assembly): its add-ons,
+// built-in plugins, layouts, site templates and theme. Settings › This build
+// and `zenmd version --verbose` show it.
+type BuildInfo struct {
+	App       string      `json:"app"`
+	Addons    []AddonInfo `json:"addons"`
+	Plugins   []string    `json:"plugins"`
+	Layouts   []string    `json:"layouts"`
+	Templates []string    `json:"templates"`
+	Theme     string      `json:"theme"`
+}
+
 // Startup is what an app shows first: the workspace, the page, the mode and,
 // when the folder given at launch did not open, why. The app fills Addons with
 // the add-ons its build includes (none: omitted).
@@ -119,6 +131,7 @@ type Startup struct {
 	Mode      string      `json:"mode"`
 	Error     string      `json:"error,omitempty"` // the folder given at launch did not open: why
 	Addons    []AddonInfo `json:"addons,omitempty"`
+	Build     *BuildInfo  `json:"build,omitempty"` // the app's assembly; nil for an embedder that sets none
 }
 
 // PageChanged is the payload of page:changed.

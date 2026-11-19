@@ -334,7 +334,7 @@ func TestSameAsCLI(t *testing.T) {
 	} {
 		cliOut := filepath.Join(t.TempDir(), "cli")
 		c.cli.Out = cliOut
-		ref := runBuild(t, dir, b.cfg, c.cli)
+		ref := runBuild(t, dir, b.cfg, c.cli, func(e *SiteEnv) { e.Registry = plugins.NewRegistry() }) // the registry of b.z (the app build gives both the assembly)
 		if ref.err != nil {
 			t.Fatal(ref.err)
 		}
