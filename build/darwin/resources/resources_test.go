@@ -85,7 +85,10 @@ func names(t *testing.T, dir string) []string {
 
 // Helpers of add-ons that are not in the build are not fetched; the ones that are, are.
 func TestAddonHelpersNotFetched(t *testing.T) {
-	manifest, _ := addonManifest(t)
+	manifest, dir := addonManifest(t)
+	// Nothing of the add-on's helper is on disk, so a fetch for it must download.
+	os.Remove(filepath.Join(dir, "voicebox"))
+	os.Remove(filepath.Join(dir, "voicebox.LICENSE"))
 	if err := fetchAll(manifest, "darwin-arm64", nil); err != nil {
 		t.Fatalf("fetch without add-ons touched the add-on's helper: %v", err)
 	}

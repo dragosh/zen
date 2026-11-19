@@ -26,7 +26,7 @@ vars:
 
 tasks:
   build:
-    summary: Builds the application
+    summary: Builds the application (ADDONS=vale includes the add-ons; specs/kit/addons)
     cmds:
       # The experimental CGO-free backend (-tags purego, or WAILS_PUREGO=1) needs
       # no C toolchain, so it builds natively on every host; cgo builds
@@ -36,10 +36,13 @@ tasks:
           ARCH: '{{.ARCH}}'
           DEV: '{{.DEV}}'
           OUTPUT: '{{.OUTPUT}}'
-          EXTRA_TAGS: '{{if .CHANNEL_TAGS}}{{if .EXTRA_TAGS}}{{.EXTRA_TAGS}},{{end}}{{.CHANNEL_TAGS}}{{else}}{{.EXTRA_TAGS}}{{end}}'
+          EXTRA_TAGS: '{{without (list (.EXTRA_TAGS | default "") (.CHANNEL_TAGS | default "") .ADDON_TAGS) "" | join ","}}'
           OBFUSCATED: '{{.OBFUSCATED}}'
           GARBLE_ARGS: '{{.GARBLE_ARGS}}'
     vars:
+      # addon_<id> for each of ADDONS; an unknown id fails here, before anything is built.
+      ADDON_TAGS:
+        sh: go run ./kit/addons/cmd/check -known "{{.ADDONS_KNOWN}}" "{{.ADDONS}}"
       DEFAULT_OUTPUT: '{{.BIN_DIR}}/{{.APP_NAME}}'
       OUTPUT: '{{ .OUTPUT | default .DEFAULT_OUTPUT }}'
 
@@ -136,6 +139,12 @@ tasks:
       - wails3 tool lipo -output "{{.BIN_DIR}}/{{.APP_NAME}}" -input "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" -input "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
       - rm -f "{{.BIN_DIR}}/{{.APP_NAME}}-amd64" "{{.BIN_DIR}}/{{.APP_NAME}}-arm64"
 
+  check:addons:
+    internal: true
+    summary: Fails early, listing the known add-ons, when ADDONS names one that does not exist
+    cmds:
+      - go run ./kit/addons/cmd/check -known "{{.ADDONS_KNOWN}}" "{{.ADDONS}}" >/dev/null
+
   check:channel:
     internal: true
     summary: Fails early, with a clear message, when the inputs of CHANNEL are missing
@@ -145,6 +154,7 @@ tasks:
   package:
     summary: Packages the application into a `.app` bundle (CHANNEL=devid|appstore, host architecture)
     cmds:
+      - task: check:addons
       - task: check:channel
       - task: build
       - task: create:app:bundle
@@ -152,6 +162,7 @@ tasks:
   package:universal:
     summary: Packages darwin universal binary (arm64 + amd64) with universal helpers
     cmds:
+      - task: check:addons
       - task: check:channel
       - task: build:universal
       - task: create:app:bundle
@@ -231,12 +242,12 @@ tasks:
       - test -n "{{.BIN_DIR}}" && test -n "{{.BUNDLE_NAME}}" && rm -rf -- "{{.BUNDLE}}"
       - mkdir -p "{{.BUNDLE}}/Contents/MacOS" "{{.BUNDLE}}/Contents/Resources" "{{.BUNDLE}}/Contents/Helpers"
       # Download the pinned helpers (skipped when already verified), then verify
-      # every helper in resources.yml (file exists, sha256 matches) and copy it
-      # with its license notice.
+      # every helper in resources.yml that belongs in this build (no add-on, or one
+      # of ADDONS: file exists, sha256 matches) and copy it with its license notice.
       - task: fetch:helpers
         vars:
           ARCH: '{{.HELPER_ARCH}}'
-      - go run ./build/darwin/resources -manifest resources.yml -arch "{{.HELPER_ARCH}}" -dest "{{.BUNDLE}}/Contents/Helpers" -licenses "{{.BUNDLE}}/Contents/Resources/licenses"
+      - go run ./build/darwin/resources -manifest resources.yml -arch "{{.HELPER_ARCH}}" -addons "{{.ADDONS}}" -dest "{{.BUNDLE}}/Contents/Helpers" -licenses "{{.BUNDLE}}/Contents/Resources/licenses"
       - cp build/darwin/icons.icns "{{.BUNDLE}}/Contents/Resources"
       - cp build/darwin/PrivacyInfo.xcprivacy "{{.BUNDLE}}/Contents/Resources/PrivacyInfo.xcprivacy"
       - task: icon:assets
@@ -285,11 +296,12 @@ tasks:
         fi
 
   fetch:helpers:
-    summary: Downloads the helpers in resources.yml for ARCH (default host) into build/darwin/helpers/<arch>/, checking tarball and binary sha256; skipped when the verified binary is already there
+    summary: Downloads the helpers in resources.yml (those of no add-on and of ADDONS) for ARCH (default host) into build/darwin/helpers/<arch>/, checking tarball and binary sha256; skipped when the verified binary is already there
     vars:
       HELPER_ARCH: '{{.ARCH | default ARCH}}'
     cmds:
-      - go run ./build/darwin/resources -manifest resources.yml -arch "{{.HELPER_ARCH}}" -fetch
+      - task: check:addons
+      - go run ./build/darwin/resources -manifest resources.yml -arch "{{.HELPER_ARCH}}" -addons "{{.ADDONS}}" -fetch
 
   codesign:
     summary: Signs Zenmark.app for CHANNEL with SIGN_IDENTITY (default ad-hoc); see build/darwin/sign.sh (macOS only)
@@ -304,7 +316,7 @@ tasks:
       - 'echo "Skipping codesign (not available on {{OS}}). Sign the .app on macOS before distribution."'
 
   package:test:
-    summary: Packages Zenmark.app for CHANNEL and runs the bundle tests against it (ZEN_UNIVERSAL=1 with ARCH=universal)
+    summary: Packages Zenmark.app for CHANNEL (and ADDONS) and runs the bundle tests against it (ZEN_UNIVERSAL=1 with ARCH=universal)
     cmds:
       - task: '{{if eq .CHANNEL "appstore"}}package:universal{{else if eq .ARCH "universal"}}package:universal{{else}}package{{end}}'
       - ZEN_CHANNEL="{{.CHANNEL}}" ZEN_ADHOC="{{.ADHOC}}" ZEN_UNIVERSAL="{{if or (eq .CHANNEL "appstore") (eq .ARCH "universal")}}1{{end}}" ZEN_REQUIRE_BUNDLE=1 go test -count=1 ./build/darwin
@@ -336,7 +348,9 @@ tasks:
       - go run ./build/darwin/installcli -app "{{.APP_PATH}}" -dir "{{.INSTALL_DIR}}" -uninstall
 
   run:
+    summary: Runs the dev bundle of the last build (ADDONS must name the add-ons of that build)
     cmds:
+      - task: check:addons
       - wails3 tool prepare-macos-output --dir "{{.BIN_DIR}}"
       - test -n "{{.BIN_DIR}}" && test -n "{{.APP_NAME}}" && rm -rf -- "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app"
       - mkdir -p "{{.BIN_DIR}}/{{.APP_NAME}}.dev.app/Contents/MacOS"

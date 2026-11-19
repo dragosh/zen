@@ -7,6 +7,10 @@ vars:
   VITE_PORT: '{{.WAILS_VITE_PORT | default 9245}}'
   # Target OS for build/package/run. Defaults to the host OS.
   GOOS: '{{.GOOS | default OS}}'
+  # Add-ons of the build (specs/kit/addons): ADDONS=vale task build|package|release|run|dev.
+  # Default: none. Each becomes the Go build tag addon_<id>; the ids that exist are ADDONS_KNOWN.
+  ADDONS: '{{.ADDONS | default ""}}'
+  ADDONS_KNOWN: vale
   # SemVer version, read from the VERSION file (see docs/VERSIONING.md).
   VERSION:
     sh: cat "{{.ROOT_DIR}}/VERSION"
@@ -38,12 +42,15 @@ tasks:
       - task: darwin:package:appstore
 
   run:
-    summary: Runs the application
+    summary: Runs the application (built with `task build`; ADDONS=vale must match that build)
     cmds:
       - task: "{{.GOOS}}:run"
 
   dev:
-    summary: Runs the application in development mode
+    summary: Runs the application in development mode (ADDONS=vale includes the add-ons)
+    # wails3 dev runs `wails3 build DEV=true` and `wails3 task run`, which read ADDONS from the environment.
+    env:
+      ADDONS: '{{.ADDONS}}'
     cmds:
       - wails3 dev -config ./build/config.yml -port {{.VITE_PORT}}
 
@@ -65,8 +72,11 @@ tasks:
       CGO_LDFLAGS: '{{if eq OS "darwin"}}-mmacosx-version-min=13.0{{end}}'
       MACOSX_DEPLOYMENT_TARGET: "13.0"
     cmds:
+      # Twice: without add-ons (the default build) and with the vale add-on (specs/kit/addons).
       - go vet ./...
       - go test ./...
+      - go vet -tags addon_vale ./...
+      - go test -tags addon_vale ./...
 
   test:frontend:
     summary: Type-checks and tests the frontend
@@ -174,7 +184,7 @@ tasks:
         echo "$v -> $new"
 
   release:
-    summary: Builds the notarised universal DMG for VERSION as bin/Zenmark-<version>.dmg and its .sha256 (needs SIGN_IDENTITY and KEYCHAIN_PROFILE, or NOTARY_KEY, NOTARY_KEY_ID and NOTARY_ISSUER; see docs/DISTRIBUTION.md)
+    summary: Builds the notarised universal DMG for VERSION as bin/Zenmark-<version>.dmg and its .sha256, with the add-ons of ADDONS (needs SIGN_IDENTITY and KEYCHAIN_PROFILE, or NOTARY_KEY, NOTARY_KEY_ID and NOTARY_ISSUER; see docs/DISTRIBUTION.md)
     cmds:
       - task: version:check
       - task: darwin:sign:notarize
@@ -190,6 +200,8 @@ tasks:
       - mkdir -p "{{.BIN_DIR}}"
       - awk -v v="{{.VERSION}}" 'index($0, "## [" v "]") == 1 {f=1; next} f && /^## \[/ {exit} f' CHANGELOG.md > "{{.BIN_DIR}}/release-notes.md"
       - grep -q '[^[:space:]]' "{{.BIN_DIR}}/release-notes.md" || { echo "CHANGELOG.md has no '## [{{.VERSION}}]' section" >&2; exit 1; }
+      # The add-ons of the build (ADDONS, the repository variable in CI) are part of the notes.
+      - printf '\nAdd-ons in this build:%s\n' "{{if .ADDONS}} {{.ADDONS}}.{{else}} none.{{end}}" >> "{{.BIN_DIR}}/release-notes.md"
 
   release:publish:
     summary: Uploads bin/Zenmark-<version>.dmg to the GitHub release v<version>, creating it from the tag with the CHANGELOG section as notes

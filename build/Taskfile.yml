@@ -255,6 +255,7 @@ tasks:
         DEV=true        development server (-tags server, no strip, inlining kept)
         OBFUSCATED=true obfuscated build via garble (requires garble installed)
         EXTRA_TAGS      additional comma-separated build tags
+        ADDONS=vale     include the add-ons (build tags addon_<id>; specs/kit/addons)
     deps:
       - task: build:frontend
         vars:
@@ -270,7 +271,10 @@ tasks:
     cmds:
       - '{{if eq .OBFUSCATED "true"}}garble {{.GARBLE_ARGS}} build{{else}}go build{{end}} {{.BUILD_FLAGS}} -o "{{.BIN_DIR}}/{{.APP_NAME}}-server{{exeExt}}"'
     vars:
-      BUILD_FLAGS: '-tags server{{if eq .DEV "true"}}{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -buildvcs=false -gcflags=all="-l" -ldflags="{{.VERSION_LDFLAGS}}"{{else}},production{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{if .EXTRA_TAGS}},{{.EXTRA_TAGS}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s {{.VERSION_LDFLAGS}}"{{end}}'
+      # addon_<id> for each of ADDONS (specs/kit/addons); an unknown id fails the build early.
+      ADDON_TAGS:
+        sh: go run ./kit/addons/cmd/check -known "{{.ADDONS_KNOWN}}" "{{.ADDONS}}"
+      BUILD_FLAGS: '-tags server{{if eq .DEV "true"}}{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{$tags := without (list (.EXTRA_TAGS | default "") .ADDON_TAGS) ""}}{{if $tags}},{{join "," $tags}}{{end}} -buildvcs=false -gcflags=all="-l" -ldflags="{{.VERSION_LDFLAGS}}"{{else}},production{{if eq .OBFUSCATED "true"}},wails_obfuscated{{end}}{{$tags := without (list (.EXTRA_TAGS | default "") .ADDON_TAGS) ""}}{{if $tags}},{{join "," $tags}}{{end}} -trimpath -buildvcs=false -ldflags="-w -s {{.VERSION_LDFLAGS}}"{{end}}'
 
   run:server:
     summary: Builds and runs a development server (DEV=true)
