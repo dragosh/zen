@@ -2,6 +2,7 @@ package layouts
 
 import (
 	"io/fs"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -217,5 +218,38 @@ func TestPatternAppliesLayout(t *testing.T) {
 	p, _ := renderer(t, nil, config.Load("", dir)).Render("blog/x.md", []byte("# X\n"))
 	if p.Layout.Name != "post" || !strings.Contains(p.HTML, `data-zen-layout="post"`) {
 		t.Errorf("pattern: %+v", p.Layout)
+	}
+}
+
+// ---- requirements (kit/assembly)
+
+var blockRE = regexp.MustCompile(`data-zen-name="([a-z][a-z0-9-]*)"|:::([a-z][a-z0-9-]*)`)
+
+func TestLayoutNeeds(t *testing.T) {
+	want := map[string][]string{"course": {"check"}}
+	plugin := map[string]string{"check": "check", "quiz": "quiz", "quiz-results": "quiz", "mermaid": "diagram", "diagram": "diagram", "sandbox": "sandbox"}
+	for _, l := range All() {
+		m := l.Manifest()
+		if strings.Join(m.Requires, ",") != strings.Join(want[m.ID], ",") {
+			t.Errorf("%s: requires %v, want %v", m.ID, m.Requires, want[m.ID])
+		}
+		declared := map[string]bool{}
+		for _, r := range m.Requires {
+			declared[r] = true
+		}
+		// What the layout's own files mention of a plugin's block must be declared.
+		names, _ := fs.ReadDir(l.Assets(), ".")
+		for _, f := range names {
+			if f.IsDir() {
+				continue
+			}
+			data, _ := fs.ReadFile(l.Assets(), f.Name())
+			for _, mm := range blockRE.FindAllStringSubmatch(string(data), -1) {
+				name := mm[1] + mm[2]
+				if p := plugin[name]; p != "" && !declared[p] {
+					t.Errorf("%s: %s mentions the %s block but does not require plugin %s", m.ID, f.Name(), name, p)
+				}
+			}
+		}
 	}
 }
