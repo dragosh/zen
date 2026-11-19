@@ -112,6 +112,9 @@ Bugs and ideas go to [GitHub issues](https://github.com/zenmark-org/zenmd/issues
 ([.claude/skills/add-issue](.claude/skills/add-issue/SKILL.md)).
 Notes from testing go in [docs/improve](docs/improve/README.md); `/check-feedback`
 turns them into issues ([.claude/skills/check-feedback](.claude/skills/check-feedback/SKILL.md)).
+`/work-issues` ranks the open issues and gives each one its own subagent and
+worktree, then merges them in order after review
+([.claude/skills/work-issues](.claude/skills/work-issues/SKILL.md)).
 
 ## Remaining work
 

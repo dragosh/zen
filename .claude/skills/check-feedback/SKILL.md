@@ -67,4 +67,5 @@ After a clear yes:
 A table: note → issue link (`[zenmark-org/zenmd#N](https://github.com/zenmark-org/zenmd/issues/N)`),
 labels, and anything skipped or left for a spec. Then one line on which issue
 looks worth fixing first and why (a bug that loses data or blocks use comes
-before a feature), and offer to start on it.
+before a feature), and offer to start on it, or to run `/work-issues` for
+all of them.
