@@ -682,3 +682,18 @@ test("Developer: no button by default; with the setting on, the button and the p
   document.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyJ", key: "∆", altKey: true, metaKey: true, bubbles: true, cancelable: true }));
   expect(root.querySelector(".zen-dev")).toBeNull();
 });
+
+test("the theme of the build is on the root element (data-app-theme)", async () => {
+  delete document.documentElement.dataset.appTheme;
+  const api = createFakeApi({ build: { theme: "default" } });
+  const s = boot(api);
+  await s.start();
+  expect(document.documentElement.dataset.appTheme).toBe("default");
+  s.destroy();
+  shell = undefined;
+  // a host without a build sets none
+  delete document.documentElement.dataset.appTheme;
+  const s2 = boot(createFakeApi({ build: null }));
+  await s2.start();
+  expect(document.documentElement.dataset.appTheme).toBeUndefined();
+});

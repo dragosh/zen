@@ -97,6 +97,22 @@ describe("wails api", () => {
     expect(api.addons).toEqual([]);
   });
 
+  it("startup carries the build (the assembly) and leaves out what is not text", async () => {
+    const api = (await import("./wails")).default;
+    results.Startup = {
+      workspace: null, page: "", mode: "read",
+      addons: [{ id: "vale", name: "Vale linting", summary: "s" }],
+      build: { app: "zenmark", addons: [{ id: "vale", name: "Vale linting", summary: "s" }], plugins: ["codeblock", 3, null, "quiz"], layouts: ["article"], templates: null, theme: "default", extra: 1 },
+    };
+    const s = await api.startup();
+    const want = { app: "zenmark", addons: [{ id: "vale", name: "Vale linting", summary: "s" }], plugins: ["codeblock", "quiz"], layouts: ["article"], templates: [], theme: "default" };
+    expect(s.build).toEqual(want);
+    expect(api.build).toEqual(want);
+    results.Startup = { workspace: null, page: "", mode: "read" };
+    expect((await api.startup()).build).toBeUndefined();
+    expect(api.build).toBeUndefined();
+  });
+
   it("is the default export and maps every call", async () => {
     const api = (await import("./wails")).default;
     results.Startup = { workspace: ws, page: "README.md", mode: "edit" };
