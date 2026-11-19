@@ -10,6 +10,8 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/zenmark-org/zenmd/kit/addons"
 )
 
 type result struct {
@@ -475,5 +477,38 @@ func TestAliasNotice(t *testing.T) {
 	r := run(t, t.TempDir(), nil, "--version")
 	if strings.Contains(r.stdout+r.stderr, "stops working") {
 		t.Fatalf("Run printed the notice: %+v", r)
+	}
+}
+
+// The version line lists the add-ons of the build (kit/addons).
+func TestVersionAddons(t *testing.T) {
+	old := addonList
+	t.Cleanup(func() { addonList = old })
+	cwd := t.TempDir()
+	cases := []struct {
+		ids  []string
+		want string
+	}{
+		{nil, "zenmd " + Version + "\n"},
+		{[]string{"vale"}, "zenmd " + Version + " (add-ons: vale)\n"},
+		{[]string{"vale", "voice"}, "zenmd " + Version + " (add-ons: vale, voice)\n"},
+	}
+	for _, c := range cases {
+		addonList = func() []addons.Addon {
+			var l []addons.Addon
+			for _, id := range c.ids {
+				l = append(l, addons.Addon{ID: id, Name: id, Summary: id})
+			}
+			return l
+		}
+		for _, a := range [][]string{{"-v"}, {"--version"}, {"version"}} {
+			r := run(t, cwd, nil, a...)
+			if r.code != 0 || r.launched || r.stdout != c.want {
+				t.Fatalf("%v with %v: %q, want %q", a, c.ids, r.stdout, c.want)
+			}
+		}
+		if got := VersionLine(); got+"\n" != c.want {
+			t.Fatalf("VersionLine = %q, want %q", got, c.want)
+		}
 	}
 }

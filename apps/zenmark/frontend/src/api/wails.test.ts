@@ -85,6 +85,18 @@ describe("wails api", () => {
     for (const k of Object.keys(results)) delete results[k];
   });
 
+  it("startup records the add-ons of the build on the api (and leaves out bad entries)", async () => {
+    const api = (await import("./wails")).default;
+    expect(api.addons).toBeUndefined();
+    results.Startup = { workspace: null, page: "", mode: "read", addons: [{ id: "vale", name: "Vale linting", summary: "s", extra: 1 }, { id: 3 }, null] };
+    const s = await api.startup();
+    expect(s.addons).toEqual([{ id: "vale", name: "Vale linting", summary: "s" }]);
+    expect(api.addons).toEqual([{ id: "vale", name: "Vale linting", summary: "s" }]);
+    results.Startup = { workspace: null, page: "", mode: "read" };
+    expect((await api.startup()).addons).toBeUndefined();
+    expect(api.addons).toEqual([]);
+  });
+
   it("is the default export and maps every call", async () => {
     const api = (await import("./wails")).default;
     results.Startup = { workspace: ws, page: "README.md", mode: "edit" };

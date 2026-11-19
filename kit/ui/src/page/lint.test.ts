@@ -154,3 +154,19 @@ test("ignores drafts for other pages", async () => {
   expect(api.callsTo("preview")).toEqual([]);
   expect(article().querySelector("h1")!.textContent).toBe("Home");
 });
+
+test("no lint without the vale add-on: no calls, no marks, no badge", async () => {
+  api = createFakeApi({ sources: { ...SOURCES }, lint: { available: true, alerts: [TEH] }, addons: [] });
+  env = setup(api);
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await settle();
+  expect(api.callsTo("lint")).toEqual([]);
+  expect(article().querySelector("mark")).toBeNull();
+  expect(badge().hidden).toBe(true);
+  api.emit("page:changed", { path: "README.md" });
+  env.ctx.store.set({ path: "b.md" });
+  await settle();
+  expect(api.callsTo("lint")).toEqual([]);
+  expect(article().querySelector("mark")).toBeNull();
+});
