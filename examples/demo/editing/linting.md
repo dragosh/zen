@@ -1,8 +1,9 @@
 # Checking your writing with Vale
 
-zen includes [Vale](https://vale.sh), a prose linter. It checks spelling and
-style on the page you read and on the text you type, without sending anything
-anywhere.
+Builds of Zenmark with the **Vale add-on** include [Vale](https://vale.sh), a
+prose linter. It checks spelling and style on the page you read and on the text
+you type, without sending anything anywhere. Settings › Add-ons shows whether
+your build has it; without it, nothing on this page appears.
 
 ## Try it
 

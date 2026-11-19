@@ -16,6 +16,9 @@ where you write.
 
 ## Behaviour
 
+> Since 0.6.0 Vale is the `vale` add-on ([kit/addons](../../kit/addons/spec.md)): an app built without it has no linter and none of this UI.
+
+
 1. **Service.** `Lint(path, content)` returns `{available, alerts}`. `available` is false when no Vale binary was found (`lint.ErrUnavailable` at startup); then the UI shows nothing at all. Content is the editor's unsaved text, or the file on disk when `content` is empty and the reader asks.
 2. **Settings.** `lint: false` in frontmatter, `.zen.yml` or global config turns linting off for that page/folder/everywhere (default on when Vale is available). Read through core/config like a plugin switch (`Settings.Plugin("lint")`), so no config schema change.
 3. **Reader.** After a page renders, the page feature asks `api.lint(path, "")`. Each alert's `Match` is wrapped, inside text nodes of the article only (never inside `code`, `pre`, links' href or plugin blocks), in `<mark class="zen-lint zen-lint-<severity>" title="<Check>: <Message>">`. When a match occurs several times in the same block, the occurrence is chosen by order of alerts on that source line; when it cannot be placed, it is listed only in the panel.

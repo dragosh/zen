@@ -35,7 +35,7 @@ so and degrade quietly without it.
 
 | Id | Add-on | Status |
 |---|---|---|
-| `vale` | **Vale linting**: spelling and style marks in the reader and the editor, the Problems console, the Inspector's Linting tab | built (kit/addons) |
+| `vale` | **Vale linting**: spelling and style marks in the reader and the editor, the Problems console, the Inspector's Linting tab | done (0.6.0) |
 
 ## Ideas
 

@@ -16,6 +16,9 @@ unsaved editor text, and return alerts (spelling, style flags) with positions.
 
 ## Behaviour
 
+> Since 0.6.0 Vale is the `vale` add-on ([kit/addons](../../kit/addons/spec.md)): an app built without it has no linter and none of this UI.
+
+
 1. **Bundled binary.** Vale **3.25.1** (MIT), pinned:
    | arch | tarball | tarball sha256 | binary sha256 |
    |---|---|---|---|

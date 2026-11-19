@@ -17,6 +17,9 @@ opens it; the issue count stays visible on that button when the panel is closed.
 
 ## Behaviour
 
+> Since 0.6.0 Vale is the `vale` add-on ([kit/addons](../../kit/addons/spec.md)): an app built without it has no linter and none of this UI.
+
+
 1. An icon button (`.zen-inspector-button`, title "Inspector ⌥⌘I") sits in the sidebar
    footer right after the Settings cog, same style as its neighbours. It shows while a
    page can be inspected and toggles the panel of the page shown (`aria-expanded`);

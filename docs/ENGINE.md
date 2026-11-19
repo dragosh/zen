@@ -83,6 +83,7 @@ CLI package (a test enforces it).
 | Part | Where |
 |---|---|
 | `Session`: `New`, `Open`, `CancelOpen`, `Close`, `Workspace`, `Home`, `Page`, `Preview`, `Source`, `Save`, `CreatePage`, `Lint` | `session.go`, `opening.go`, `newpage.go`, `lint.go` |
+| `SetLinter(find func() TextLinter)`: the text linter is installed by an add-on (`addons/vale`); without one `Lint` is unavailable and nothing is looked up. `Startup.Addons` (`AddonInfo`) lists the app's add-ons | `lint.go`, `session.go` |
 | Plugins and layouts: trust, storage, invoke, stream, cancel | `extplugins.go`, `layouts.go`, `stream.go` |
 | `Handler()`: `/_ws/`, `/_plugins/`, `/_layouts/`, `/_print/`; anything else is 404 | `assets.go`, `print.go` |
 | `Build`, `BuildOptions`, `SaveBuildDefaults`, `BuiltSite`; `WriteSite` is `zenmd build` | `build.go`, `buildui.go` |

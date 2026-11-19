@@ -79,6 +79,14 @@ build:
   exclude: ["private/**"]
 ```
 
+## Add-ons
+
+`ADDONS` chooses the optional add-ons of a build (docs/ADDONS.md,
+specs/kit/addons): `task build|package|run|dev|release ADDONS=vale`. Each is
+compiled in with the tag `addon_<id>`, and its helpers are bundled only when it
+is in the build. The release workflow uses the repository variable `ADDONS`;
+without it the DMG has no add-ons. `zenmd version` lists the add-ons of a build.
+
 ## Developing
 
 The static runtime is `frontend/src/static/` and its own Vite config

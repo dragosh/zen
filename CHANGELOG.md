@@ -11,6 +11,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 - Find in page: ⌘F (Edit › Find) opens a find bar in the reader and the editor with a match count, next/previous (⌘G, ⇧⌘G) and a match-case toggle (#4).
 
 ### Changed
+- Vale linting is now an add-on, included only in builds made with `ADDONS=vale`; Settings › Add-ons lists what a build includes, and `zenmd version` names the add-ons.
 - Menu: New Page…, Close Folder, Build Website…, Print Page… and Print Site… are greyed out while no folder is open (#6).
 - The home screen has a small "↖ File menu" hint with a Settings link instead of the footer line, and the New Site dialog's "Open templates folder" button shows only in developer mode (#7).
 - The Inspector button sits next to the Settings cog as an icon with a red issue-count badge, and the Inspector is a resizable bottom panel, closed at launch, with Linting (with a count), File and Page tabs that remember the last one used (#8).
