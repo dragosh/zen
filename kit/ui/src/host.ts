@@ -85,4 +85,6 @@ export interface KitHost extends RuntimeHost {
   onLog?(fn: (entries: LogEntry[]) => void): () => void;
   /** Zen › Print Page… in the app menu. */
   on(event: "menu:print-page", fn: () => void): () => void;
+  /** Edit › Find…, Find Next, Find Previous (ui/find); sent to every window, the one in front acts. */
+  on(event: "menu:find" | "menu:find-next" | "menu:find-previous", fn: () => void): () => void;
 }

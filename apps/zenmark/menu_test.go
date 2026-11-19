@@ -23,6 +23,17 @@ func rows(items []menuItem) []string {
 			if it.Accel != "" {
 				s += " [" + it.Accel + "]"
 			}
+			if len(it.Children) > 0 { // a submenu: its items follow, indented
+				out = append(out, "> "+s)
+				for _, c := range it.Children {
+					cs := "  " + c.Label
+					if c.Accel != "" {
+						cs += " [" + c.Accel + "]"
+					}
+					out = append(out, cs)
+				}
+				continue
+			}
 			out = append(out, s)
 		}
 	}
@@ -65,6 +76,11 @@ func TestMenuSpecProduction(t *testing.T) {
 		"Copy [CmdOrCtrl+C]",
 		"Paste [CmdOrCtrl+V]",
 		"Select All [CmdOrCtrl+A]",
+		"-",
+		"> Find",
+		"  Find… [CmdOrCtrl+F]",
+		"  Find Next [CmdOrCtrl+G]",
+		"  Find Previous [CmdOrCtrl+Shift+G]",
 		"# Window",
 		"Minimise [CmdOrCtrl+M]",
 		"Zoom",
@@ -135,15 +151,18 @@ func TestMenuActions(t *testing.T) {
 		PrintPage:    func() { calls = append(calls, "print-page") },
 		PrintSite:    func() { calls = append(calls, "print-site") },
 		CloseFolder:  func() { calls = append(calls, "close") },
+		Find:         func() { calls = append(calls, "find") },
+		FindNext:     func() { calls = append(calls, "find-next") },
+		FindPrevious: func() { calls = append(calls, "find-previous") },
 	}
-	for _, label := range []string{"New Page…", "Open Folder…", "Settings…", "New Site from Template…", "Build Website…", "Print Page…", "Print Site…", "Close Folder"} {
+	for _, label := range []string{"New Page…", "Open Folder…", "Settings…", "New Site from Template…", "Build Website…", "Print Page…", "Print Site…", "Close Folder", "Find…", "Find Next", "Find Previous"} {
 		f := act.forLabel(label)
 		if f == nil {
 			t.Fatalf("no action for %s", label)
 		}
 		f()
 	}
-	if got := strings.Join(calls, ","); got != "new,open,settings,site,build,print-page,print-site,close" {
+	if got := strings.Join(calls, ","); got != "new,open,settings,site,build,print-page,print-site,close,find,find-next,find-previous" {
 		t.Fatalf("calls = %s", got)
 	}
 	if act.forLabel("Quit Zenmark") != nil {
@@ -198,5 +217,42 @@ func TestAppGoBuildsMenuOnce(t *testing.T) {
 	}
 	if !strings.Contains(s, "buildMenu(") {
 		t.Error("app.go does not call buildMenu")
+	}
+}
+
+// Find items send an event to every window and show nothing: the window that
+// has the focus (main or editor) is the one that handles it (ui/find).
+func TestMenuFindEvents(t *testing.T) {
+	for event, want := range map[string]string{EventFind: "menu:find", EventFindNext: "menu:find-next", EventFindPrevious: "menu:find-previous"} {
+		if event != want {
+			t.Fatalf("event %q, want %q", event, want)
+		}
+		var log []string
+		emitAction(recSink{&log}, event)()
+		if got := strings.Join(log, ","); got != "emit "+want {
+			t.Fatalf("%s action: %s", want, got)
+		}
+	}
+}
+
+func TestFindMenuItemsAreFolderOnly(t *testing.T) {
+	var find []menuItem
+	for _, top := range menuSpec(false) {
+		if top.Label != "Edit" {
+			continue
+		}
+		for _, it := range top.Children {
+			if it.Label == "Find" {
+				find = it.Children
+			}
+		}
+	}
+	if len(find) != 3 {
+		t.Fatalf("Edit > Find has %d items, want 3", len(find))
+	}
+	for _, it := range find {
+		if !folderOnly(it.Label) {
+			t.Errorf("%q should need an open folder", it.Label)
+		}
 	}
 }

@@ -2,6 +2,7 @@
 // anchors, plugin assets, live reload, warnings, errors and the Edit action.
 import type { Alert, Page } from "../host";
 import { createInspector, inspectorKey } from "../inspector";
+import { bindFind, createFind, domFinder } from "../find";
 import { flash, markText } from "../lint";
 import { installRuntime } from "@zenmd/runtime/plugins";
 import { installImageZoom } from "@zenmd/runtime/zoom/zoom";
@@ -128,11 +129,34 @@ export const pageFeature: Feature = {
         ctx.store.set({ badges });
       },
     });
+    // Find in page (ui/find): ⌘F and Edit › Find, in the window that has the focus.
+    const slotIndex = (block: HTMLElement, cls: string) =>
+      Array.from(block.parentElement?.children ?? []).filter((c) => c.classList.contains(cls)).indexOf(block);
+    const find = createFind({
+      doc, host: doc.body,
+      finder: domFinder(() => (article.hidden ? null : article), {
+        skip: (e) => e.classList.contains("slides-notes") || e.classList.contains("slides-overview"),
+        // A hidden slide or course step is shown by the layout itself; other hidden blocks are just unhidden.
+        reveal(block) {
+          if (block.classList.contains("slides-slide")) {
+            ctx.navigate(rendered.path, `slide-${slotIndex(block, "slides-slide") + 1}`);
+            return true;
+          }
+          if (block.classList.contains("course-step")) {
+            const link = article.querySelectorAll<HTMLButtonElement>(".course-step-link")[slotIndex(block, "course-step")];
+            if (link && !link.disabled) { link.click(); return true; }
+          }
+          return false;
+        },
+      }),
+    });
+    const offFind = bindFind(doc, ctx.api, find, { active: () => ctx.store.get().mode === "read" && shownPath !== null });
     function render(page: Page): void {
       plugins.unmountAll();
       rendered = { path: page.path, title: page.title };
       mountPage(article, page);
       void plugins.mountAll(article, page.assets);
+      find.refresh();
     }
 
     let seq = 0;
@@ -283,6 +307,8 @@ export const pageFeature: Feature = {
     return () => {
       seq++;
       zoom.destroy();
+      offFind();
+      find.destroy();
       stopProgress();
       plugins.destroy();
       anchorListeners.clear();

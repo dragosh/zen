@@ -157,6 +157,8 @@ export interface Api extends KitHost {
   on(event: "menu:build-website", fn: () => void): () => void;
   on(event: "build:progress", fn: (p: BuildProgress) => void): () => void;
   on(event: "menu:print-page", fn: () => void): () => void;
+  /** Edit › Find… (⌘F), Find Next (⌘G), Find Previous (⇧⌘G): sent to every window, the one in front acts (ui/find). */
+  on(event: "menu:find" | "menu:find-next" | "menu:find-previous", fn: () => void): () => void;
 }
 
 /**

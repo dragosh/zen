@@ -98,6 +98,10 @@ func Run(opts Options) error {
 				PrintPage: func() { _ = z.PrintPage() },
 				PrintSite: func() { _ = z.PrintSite() },
 				NewPage:   newPageAction(win, sink),
+				// Find goes to the window in front: every window gets the event, the focused one acts.
+				Find:         emitAction(sink, EventFind),
+				FindNext:     emitAction(sink, EventFindNext),
+				FindPrevious: emitAction(sink, EventFindPrevious),
 				OpenFolder: func() {
 					go func() {
 						ws, err := z.PickFolder()

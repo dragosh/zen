@@ -60,6 +60,13 @@ const (
 	// EventCloseFolder asks the main window to close the folder and show the
 	// home screen (File > Close Folder, Shift+Cmd+W). No payload.
 	EventCloseFolder = "menu:close-folder"
+	// EventFind, EventFindNext and EventFindPrevious are Edit > Find >
+	// Find…, Find Next and Find Previous (Cmd+F, Cmd+G, Shift+Cmd+G). Like
+	// EventPrintPage they go to every window and the one in front acts (the
+	// reader searches the page, the editor its source). No payload.
+	EventFind         = "menu:find"
+	EventFindNext     = "menu:find-next"
+	EventFindPrevious = "menu:find-previous"
 	// EventWorkspaceOpened tells the frontend to show a different workspace,
 	// payload Startup. Sent after Finder "Open With" and File > Open Folder.
 	EventWorkspaceOpened = "workspace:opened"

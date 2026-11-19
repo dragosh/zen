@@ -22,4 +22,5 @@ export { handleLinkClick, mountPage, pageFeature, pageHooks } from "./page";
 export { editorFeature, CONFIG_PREFIX, isConfigPath } from "./editor";
 export { mountPreview, type PreviewApi, type PreviewOptions } from "./print/preview";
 export { clearMarks, flash, issueList, markText, renderPanel, type LintPanel } from "./lint";
+export { bindFind, createFind, domFinder, findInText, textareaFinder, type Find, type FindApi, type FindEvents, type Finder } from "./find";
 export { createInspector, inspectorKey, pageStats, type Inspector, type InspectorOptions, type PageStats } from "./inspector";

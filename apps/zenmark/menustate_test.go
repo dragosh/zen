@@ -3,7 +3,7 @@ package app
 import "testing"
 
 func TestFolderOnlyLabels(t *testing.T) {
-	for _, l := range []string{labelNewPage, labelCloseFolder, labelBuildWebsite, labelPrintPage, labelPrintSite} {
+	for _, l := range []string{labelNewPage, labelCloseFolder, labelBuildWebsite, labelPrintPage, labelPrintSite, labelFind, labelFindNext, labelFindPrevious} {
 		if !folderOnly(l) {
 			t.Errorf("%q should need an open folder", l)
 		}

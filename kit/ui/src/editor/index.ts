@@ -4,6 +4,7 @@
 // (api.draft -> page:draft); Split adds a preview pane next to the source.
 import type { Alert, Page } from "../host";
 import { createInspector, inspectorKey, type Inspector } from "../inspector";
+import { bindFind, createFind, textareaFinder } from "../find";
 import { backdrop, renderConsole } from "../lint";
 import { button, el } from "../shell/dom";
 import type { Feature } from "../shell/types";
@@ -497,6 +498,11 @@ export const editorFeature: Feature = {
       }
     });
 
+    // Find in the markdown source (ui/find): ⌘F and Edit › Find select the match in the textarea.
+    const find = createFind({ doc: document, host: document.body, finder: textareaFinder(ta), label: "Find in source" });
+    const offFind = bindFind(document, api, find);
+    ta.addEventListener("input", () => find.refresh());
+
     // Global shortcuts while the editor is mounted.
     const onKey = (e: KeyboardEvent) => {
       if (dialog || e.defaultPrevented) return;
@@ -556,6 +562,8 @@ export const editorFeature: Feature = {
 
     return () => {
       document.removeEventListener("keydown", onKey);
+      offFind();
+      find.destroy();
       window.removeEventListener("beforeunload", onBeforeUnload);
       window.removeEventListener("zen:before-close", onBeforeClose);
       window.removeEventListener("resize", onWindowResize);
