@@ -24,18 +24,18 @@ opens it; the issue count stays visible on that button when the panel is closed.
    (`.zen-inspector-toggle`, same icon and badge, `aria-controls`).
 2. Open or closed is remembered per user (`localStorage` key `zen.inspector.open`,
    every access in try/catch; unavailable storage means closed). The last
-   tab is remembered too (`zen.inspector.tab`: `issues`, `file` or `page`; anything else means Issues).
-3. The panel is 280 px wide, not resizable. When the window is wider than 900 px
-   it takes room from the page; narrower, it overlays the page (opaque, with a
-   left border). Esc closes it when focus is inside it and returns focus to the Inspector button.
+   tab is remembered too (`zen.inspector.tab`: `issues`, `file` or `page`; anything else means Linting).
+3. The panel is a bottom panel, like the Developer panel: full width under the page,
+   220 px high (at most half the content), not resizable, with a top border. It takes
+   room from the page and sits above the Developer panel when both are open. Esc closes it when focus is inside it and returns focus to the Inspector button.
 4. Neither the button nor the panel exists while no page is open (home screen,
    Settings), and they follow the open page: navigation, live reload
    (`page:changed`) and editor drafts (`page:draft`) all refresh them.
-5. The panel is tabbed like the Developer panel: a `role=tablist` of Issues, File, Page
-   (Issues first), one `role=tabpanel` each, ←/→ (wrapping), Home and End move between
+5. The panel is tabbed like the Developer panel: a `role=tablist` of Linting, File, Page
+   (Linting first; its id stays `issues`), one `role=tabpanel` each, ←/→ (wrapping), Home and End move between
    tabs, roving tabindex. The tabs are a list of definitions in `inspector/index.ts`, so a
    later tab (Spelling) is one more entry.
-6. **Issues** lists the Vale alerts of the page with the same items as before
+6. **Linting** (was Issues) lists the Vale alerts of the page with the same items as before
    (line, severity, message, match). Choosing one scrolls to its mark and flashes
    it. States: "No issues" (Vale ran, nothing found) and "Linting off" (Vale
    unavailable or linting disabled). The button shows a red count badge ("3") when
@@ -63,10 +63,10 @@ opens it; the issue count stays visible on that button when the panel is closed.
 The editor window (ui/editor) shows the same Inspector: toolbar toggle, panel, tabs, ⌥⌘I.
 
 E1. The Inspector toggle (icon with badge, `aria-label` "Inspector" or "Inspector, N issues") is in the editor's actions, before Split and Done. ⌥⌘I toggles the panel. Open or closed uses the same key as the reader (`zen.inspector.open`): one preference for both windows. Settings and config YAML files (`isConfigPath`) get no button and no panel, like no Split.
-E2. **Issues** are the alerts of the editor's own lint of the unsaved text, the ones `lintView` and the problems console show: the console stays. "Checking…" shows until the first lint answers (not on every keystroke, so the list does not flash while typing), "Linting off" when Vale is unavailable or the text is empty. Choosing an issue selects it in the source (`lintView.select(i)`), as the console does.
+E2. **Linting** shows the alerts of the editor's own lint of the unsaved text, the ones `lintView` and the problems console show: the console stays. "Checking…" shows until the first lint answers (not on every keystroke, so the list does not flash while typing), "Linting off" when Vale is unavailable or the text is empty. Choosing an issue selects it in the source (`lintView.select(i)`), as the console does.
 E3. **File** is as in the reader (path, size, dates, Copy path, Reveal in Finder, optional host methods) and is fetched again after a successful save.
 E4. **Page** statistics come from the unsaved text. With Split on they are taken from the preview pane's rendered article (no extra request). Otherwise `api.preview(path, text)` is called 500 ms after typing stops, only while the Inspector is open (also once when it opens and after the file loads), a stale answer is dropped, and the HTML is parsed into a detached document (no assets, no scripts, nothing shown) for `pageStats`. With the Inspector closed nothing is rendered for it.
-E5. Layout: the panel sits beside the editor panes under the header (`.zen-editor-window` is its positioning context), so the toolbar and Done stay visible; the panel is inserted before the main pane so the sibling rule of the reader makes room above 900 px; narrower it overlays the panes.
+E5. Layout: the panel docks at the bottom of the editor window under the panes (`.zen-editor-window` is a flex column), so the toolbar and Done stay visible.
 E6. Unmounting the editor destroys the Inspector (button, panel, timers, pending answers).
 
 Tests: `kit/ui/src/editor/inspector.test.ts` (E1 to E6), `kit/ui/src/inspector/inspector.test.ts` (`onOpenChange`), `kit/ui/src/inspector/css.test.ts` (editor window rule), `kit/ui/src/editor/split.test.ts` (action order).

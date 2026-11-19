@@ -1,6 +1,5 @@
 /* ui/inspector. Tokens only (docs/UI.md); the severity colours of the issue
    list are the lint tokens, as everywhere else. */
-:root { --zen-inspector-width: 280px; }
 
 /* The toggle (sidebar footer, editor toolbar): an icon button with the issue count as a red badge on its corner. */
 .zen-inspector-toggle { position: relative; }
@@ -25,36 +24,35 @@
 }
 .zen-inspector-badge[hidden] { display: none; }
 
-/* The panel sits over the right edge of .zen-content, under the header. Above 900px it takes room from the
-   page; narrower it overlays it. It is placed before the main pane, so a sibling rule can make that room. */
+/* The panel is a bottom panel, like the Developer panel (ui/developer-tab): a flex item of the content
+   column under the main pane, full width, above the Developer panel when both are open. The script puts
+   it before the main pane; `order` moves it below. */
+:root { --zen-inspector-height: 220px; }
 .zen-inspector {
-  position: absolute;
-  top: 44px;
-  right: 0;
-  bottom: var(--zen-dev-height, 0px); /* above the Developer panel when it is open */
-  z-index: 5;
+  order: 1;
+  flex: none;
   box-sizing: border-box;
-  width: var(--zen-inspector-width);
-  max-width: 100%;
-  overflow: auto;
+  height: var(--zen-inspector-height);
+  max-height: 50%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   background: var(--bg-subtle);
   color: var(--fg);
-  border-left: 1px solid var(--rule);
+  border-top: 1px solid var(--rule);
   font-family: var(--font-ui);
   font-size: 12px;
 }
+.zen-content > .zen-dev { order: 2; }
 .zen-inspector[hidden] { display: none; }
 .zen-inspector:has(~ .zen-main[hidden]) { display: none; }
-@media (min-width: 901px) {
-  .zen-inspector:not([hidden]) ~ .zen-main { margin-right: var(--zen-inspector-width); }
-}
 
 /* Tabs, the look of the Developer panel's (.zen-dev-tabs). */
-.zen-inspector-tabs { display: flex; gap: 2px; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--rule); }
+.zen-inspector-tabs { flex: none; display: flex; gap: 2px; padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--rule); }
 .zen-inspector-tab { background: none; padding: 3px 10px; color: var(--fg-muted); font: inherit; }
 .zen-inspector-tab[aria-selected="true"] { color: var(--fg); background: var(--bg); box-shadow: 0 0 0 1px var(--rule); font-weight: 600; }
 .zen-inspector-tab:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
-.zen-inspector-body { padding: var(--space-3); }
+.zen-inspector-body { flex: 1; min-height: 0; overflow: auto; padding: var(--space-3); }
 .zen-inspector-body[hidden] { display: none; }
 
 .zen-inspector-empty { margin: 0; color: var(--fg-muted); }
@@ -64,9 +62,9 @@
 .zen-inspector .zen-lint-message { grid-column: 1 / -1; }
 .zen-inspector .zen-lint-match { grid-column: 1 / -1; }
 
-.zen-inspector-rows { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: var(--space-1) var(--space-3); }
+.zen-inspector-rows { margin: 0; max-width: 960px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto minmax(0, 1fr); gap: var(--space-1) var(--space-3); }
 .zen-inspector-rows dt { color: var(--fg-muted); white-space: nowrap; }
-.zen-inspector-rows dd { margin: 0; min-width: 0; overflow-wrap: anywhere; text-align: right; }
+.zen-inspector-rows dd { margin: 0; min-width: 0; overflow-wrap: anywhere; }
 .zen-inspector-mono { font-family: var(--font-mono); }
 .zen-inspector-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-2); }
 .zen-inspector-actions button { font-size: 12px; padding: 2px var(--space-2); }

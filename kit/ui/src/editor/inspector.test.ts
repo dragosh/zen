@@ -65,7 +65,7 @@ describe("editor inspector: button, panel, shortcut", () => {
     s = await setup();
     expect(toggle(s)!.querySelector("svg")).not.toBeNull();
     expect(toggle(s)!.getAttribute("aria-label")).toBe("Inspector");
-    expect(Array.from(panel(s)!.querySelectorAll('[role="tab"]')).map((t) => t.textContent)).toEqual(["Issues", "File", "Page"]);
+    expect(Array.from(panel(s)!.querySelectorAll('[role="tab"]')).map((t) => t.textContent)).toEqual(["Linting", "File", "Page"]);
   });
 
   it("E1: the button toggles the panel and remembers it under the reader's key", async () => {

@@ -127,7 +127,7 @@ test("tabs: Issues, File, Page as a tablist with one tabpanel each; Issues is fi
   i.setPage("docs/a.md", page(), article());
   i.open();
   expect(i.el.querySelector('[role="tablist"]')).not.toBeNull();
-  expect(tabs(i).map((t) => t.textContent)).toEqual(["Issues", "File", "Page"]);
+  expect(tabs(i).map((t) => t.textContent)).toEqual(["Linting", "File", "Page"]);
   expect(tabs(i).map((t) => t.getAttribute("aria-selected"))).toEqual(["true", "false", "false"]);
   expect(tabs(i).map((t) => t.tabIndex)).toEqual([0, -1, -1]);
   const panels = Array.from(i.el.querySelectorAll<HTMLElement>('[role="tabpanel"]'));

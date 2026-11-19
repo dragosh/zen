@@ -117,7 +117,7 @@ export function createInspector(o: InspectorOptions): Inspector {
   // A list of tab definitions; a later tab (Spelling) is one more entry and a render function.
   type Section = { root: HTMLElement; body: HTMLElement };
   const TABS = [
-    { id: "issues", label: "Issues" },
+    { id: "issues", label: "Linting" },
     { id: "file", label: "File" },
     { id: "page", label: "Page" },
   ] as const;
