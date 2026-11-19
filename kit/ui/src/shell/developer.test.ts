@@ -4,6 +4,7 @@ import type { LogEntry } from "../host";
 import { installConsoleCapture, type ConsoleCapture } from "./console";
 import { createDeveloper, DEV_HEIGHT_KEY, DEV_KEY, developerEnabled, DEV_HEIGHT_DEFAULT, DEV_HEIGHT_MIN, setDeveloperEnabled, type Developer } from "./developer";
 import { createLayout, type Layout } from "./layout";
+import { INSPECTOR_CLOSE, INSPECTOR_STATE } from "../inspector/events";
 import { developerSection } from "./settings";
 
 let cap: ConsoleCapture;
@@ -91,6 +92,22 @@ test("⌥⌘J toggles only while the setting is on", () => {
   expect(dev.isOpen()).toBe(true);
   key({ code: "KeyJ", key: "∆", altKey: true, metaKey: true });
   expect(dev.isOpen()).toBe(false);
+});
+
+test("one bottom panel at a time: opening asks the Inspector to close, an open Inspector closes this one", () => {
+  setDeveloperEnabled(true);
+  dev = createDeveloper(layout, host, document);
+  const asked = vi.fn();
+  document.addEventListener(INSPECTOR_CLOSE, asked);
+  dev.toggle();
+  expect(dev.isOpen()).toBe(true);
+  expect(asked).toHaveBeenCalledOnce();
+  document.dispatchEvent(new CustomEvent(INSPECTOR_STATE, { detail: { available: true, open: false, count: 0 } }));
+  expect(dev.isOpen()).toBe(true); // a closed Inspector changes nothing
+  document.dispatchEvent(new CustomEvent(INSPECTOR_STATE, { detail: { available: true, open: true, count: 0 } }));
+  expect(dev.isOpen()).toBe(false);
+  expect(panel()).toBeNull();
+  document.removeEventListener(INSPECTOR_CLOSE, asked);
 });
 
 test("turning the setting off closes the panel", () => {

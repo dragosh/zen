@@ -8,12 +8,12 @@ import { issueList } from "../lint";
 import { copyText } from "../shell/clipboard";
 import { button, el } from "../shell/dom";
 import { createTabbedPanel, panelEmpty, panelProps } from "../panel";
-import { INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorIcon, inspectorLabel, type InspectorState } from "./events";
+import { INSPECTOR_CLOSE, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorIcon, inspectorLabel, type InspectorState } from "./events";
 import { formatDate, formatSize, readingLabel } from "./format";
 import { pageStats, type PageStats } from "./stats";
 
 export { pageStats, type PageStats } from "./stats";
-export { INSPECTOR_STATE, INSPECTOR_TOGGLE, type InspectorState } from "./events";
+export { INSPECTOR_CLOSE, INSPECTOR_STATE, INSPECTOR_TOGGLE, type InspectorState } from "./events";
 
 export const OPEN_KEY = "zen.inspector.open";
 /** The last tab, by id. */
@@ -330,6 +330,7 @@ export function createInspector(o: InspectorOptions): Inspector {
     destroy() {
       if (o.external) {
         o.doc.removeEventListener(INSPECTOR_TOGGLE, onExternal);
+        o.doc.removeEventListener(INSPECTOR_CLOSE, onCloseRequest);
         o.doc.dispatchEvent(new CustomEvent(INSPECTOR_STATE, { detail: { available: false, open: false, count: 0 } satisfies InspectorState }));
       }
       fetchSeq++;
@@ -350,7 +351,11 @@ export function createInspector(o: InspectorOptions): Inspector {
     (o.external ? o.doc.querySelector<HTMLElement>(".zen-inspector-button") : toggle)?.focus();
   };
   const onExternal = () => { if (inspector.available) inspector.toggle(); };
-  if (o.external) o.doc.addEventListener(INSPECTOR_TOGGLE, onExternal);
+  const onCloseRequest = () => inspector.close();
+  if (o.external) {
+    o.doc.addEventListener(INSPECTOR_TOGGLE, onExternal);
+    o.doc.addEventListener(INSPECTOR_CLOSE, onCloseRequest);
+  }
   toggle.addEventListener("click", onToggle);
   panel.addEventListener("keydown", onKey);
 

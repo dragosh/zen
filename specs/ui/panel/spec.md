@@ -23,7 +23,8 @@ and the content of its body.
 4. With `resize`, the top edge is a separator: drag it, or ↑/↓ (16 px), Home (min) and End (70 % of the parent). The height is remembered under `resize.key`, never below `min`.
 5. `panelEmpty(title, hint)` is the centred empty state; `panelProps(items)` the label-over-value grid that flows into as many columns as fit (`data-field` on each value, text only).
 6. Storage that throws never breaks the panel: first tab, initial height.
-7. The panel is never printed; transitions are off with reduced motion.
+7. One bottom panel at a time: the Inspector and the Developer panel close each other (`zen:inspector-close`, `zen:inspector-state`).
+8. The panel is never printed; transitions are off with reduced motion.
 
 ## Tests
 

@@ -2,7 +2,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { Page, PageInfo } from "../host";
 import { alert } from "../lint/test-util";
-import { createInspector, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorKey, OPEN_KEY, TAB_KEY, type Inspector } from "./index";
+import { createInspector, INSPECTOR_CLOSE, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorKey, OPEN_KEY, TAB_KEY, type Inspector } from "./index";
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const settle = async () => { for (let i = 0; i < 4; i++) await tick(); };
@@ -215,6 +215,10 @@ test("external: no own button; the state goes out as an event and a toggle event
   document.dispatchEvent(new CustomEvent(INSPECTOR_TOGGLE));
   expect(i.isOpen).toBe(true);
   expect(states.at(-1)).toEqual({ available: true, open: true, count: 2 });
+  document.dispatchEvent(new CustomEvent(INSPECTOR_CLOSE)); // the Developer panel opened
+  expect(i.isOpen).toBe(false);
+  document.dispatchEvent(new CustomEvent(INSPECTOR_TOGGLE));
+  expect(i.isOpen).toBe(true);
   i.setActive(false);
   expect(states.at(-1)).toEqual({ available: false, open: true, count: 2 });
   document.dispatchEvent(new CustomEvent(INSPECTOR_TOGGLE));

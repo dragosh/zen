@@ -1,6 +1,7 @@
 // The Developer tab (ui/developer-tab): the "Show developer tab" setting, the sidebar button, ⌥⌘J and
 // the bottom panel below the page with its drag handle. The setting is per machine (localStorage, like
 // the theme) and every window follows it.
+import { INSPECTOR_CLOSE, INSPECTOR_STATE, type InspectorState } from "../inspector/events";
 import type { KitHost } from "../host";
 import { installConsoleCapture } from "./console";
 import { createDevPanel, type DevPanel } from "./devpanel";
@@ -98,6 +99,7 @@ export function createDeveloper(layout: Layout, host: Pick<KitHost, "logs" | "on
       try { localStorage.setItem(DEV_HEIGHT_KEY, String(height)); } catch { /* not remembered */ }
     },
     destroy() {
+      doc.removeEventListener(INSPECTOR_STATE, onInspector);
       stopFollow();
       doc.removeEventListener("keydown", onKey);
       doc.defaultView?.removeEventListener("mousemove", onMove);
@@ -151,6 +153,8 @@ export function createDeveloper(layout: Layout, host: Pick<KitHost, "logs" | "on
       wrap.append(handle, panel.el);
     }
     open = true;
+    // One bottom panel at a time: the Inspector closes when this one opens, and the other way round.
+    doc.dispatchEvent(new CustomEvent(INSPECTOR_CLOSE));
     layout.setBottomPanel(wrap);
     layout.setDeveloperOpen(true);
     apply();
@@ -166,6 +170,9 @@ export function createDeveloper(layout: Layout, host: Pick<KitHost, "logs" | "on
     layout.el.style.removeProperty("--zen-dev-height");
     if (inside) layout.el.querySelector<HTMLElement>(".zen-developer-button")?.focus();
   }
+
+  const onInspector = (e: Event) => { if ((e as CustomEvent<InspectorState>).detail?.open) hide(); };
+  doc.addEventListener(INSPECTOR_STATE, onInspector);
 
   const sync = () => {
     const on = developerEnabled();

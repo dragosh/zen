@@ -28,7 +28,9 @@ opens it; the issue count stays visible on that button when the panel is closed.
    tab is remembered too (`zen.inspector.tab`: `issues`, `file` or `page`; anything else means Linting).
 3. The panel is the tabbed bottom panel of [ui/panel](../panel/spec.md): full width under the page,
    220 px high by default, resizable from its top edge (remembered as `zen.inspector.height`),
-   with a ✕ close button and a count chip on Linting (red with errors). It takes
+   with a ✕ close button and a count chip on Linting (red with errors).
+   Only one bottom panel shows at a time: opening the Inspector closes the Developer panel, and
+   opening the Developer panel closes the Inspector (`zen:inspector-close`). It takes
    room from the page and sits above the Developer panel when both are open. Esc closes it when focus is inside it and returns focus to the Inspector button.
 4. Neither the button nor the panel exists while no page is open (home screen,
    Settings), and they follow the open page: navigation, live reload
