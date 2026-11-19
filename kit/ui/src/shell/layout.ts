@@ -1,5 +1,6 @@
 // The frame: sidebar (nav) | resize edge | header + main. Owns the sidebar
 // width and visibility; knows nothing about what is mounted in the slots.
+import { INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorIcon, inspectorLabel, type InspectorState } from "../inspector/events";
 import { button, el } from "./dom";
 import type { Slots } from "./types";
 
@@ -116,7 +117,26 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
   developer.append(terminalIcon(nav.ownerDocument));
   developer.setAttribute("aria-expanded", "false");
   developer.hidden = true;
-  foot.append(settings, developer);
+  // The Inspector of the page shown (ui/inspector): the page announces itself with INSPECTOR_STATE
+  // events on the document, this button asks for a toggle with INSPECTOR_TOGGLE. It shows while a page can be inspected.
+  const doc = nav.ownerDocument;
+  const inspector = button("Inspector", () => doc.dispatchEvent(new CustomEvent(INSPECTOR_TOGGLE)), { className: "ghost zen-settings-button zen-inspector-button", text: "", title: "Inspector ⌥⌘I" });
+  const inspectorBadge = el("span", "zen-inspector-badge");
+  inspectorBadge.hidden = true;
+  inspector.append(inspectorIcon(doc), inspectorBadge);
+  inspector.setAttribute("aria-label", inspectorLabel(0));
+  inspector.setAttribute("aria-expanded", "false");
+  inspector.hidden = true;
+  const onInspector = (e: Event) => {
+    const d = (e as CustomEvent<InspectorState>).detail;
+    inspector.hidden = !d.available;
+    inspector.setAttribute("aria-expanded", String(d.open));
+    inspector.setAttribute("aria-label", inspectorLabel(d.count));
+    inspectorBadge.hidden = d.count === 0;
+    inspectorBadge.textContent = String(d.count);
+  };
+  doc.addEventListener(INSPECTOR_STATE, onInspector);
+  foot.append(settings, inspector, developer);
 
   const edge = el("div", "zen-resizer");
   edge.setAttribute("role", "separator");
@@ -230,6 +250,7 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
       if (panel) content.append(panel);
     },
     destroy() {
+      doc.removeEventListener(INSPECTOR_STATE, onInspector);
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     },

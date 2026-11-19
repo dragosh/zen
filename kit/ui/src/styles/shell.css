@@ -95,6 +95,7 @@
   color: var(--fg-muted);
 }
 .zen-settings-button:hover, .zen-settings-button[aria-expanded="true"] { color: var(--fg); }
+.zen-settings-button { position: relative; }
 .zen-icon { display: block; }
 
 /* A 7px grab area centred on the sidebar's 1px border. */

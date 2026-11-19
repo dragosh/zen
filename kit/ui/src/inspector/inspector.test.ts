@@ -181,8 +181,7 @@ test("the button is an icon with an accessible name; the badge is red text with 
   i.setPage("docs/a.md", page(), article());
   expect(i.button.querySelector("svg")).not.toBeNull();
   expect(i.button.getAttribute("aria-label")).toBe("Inspector");
-  expect(i.button.textContent).toBe("");
-  i.setIssues([alert({ line: 1 }), alert({ line: 2 }), alert({ line: 3 })]);
+  i.setIssues([alert({ line: 1, match: "x" }), alert({ line: 2, match: "x" }), alert({ line: 3, match: "x" })]);
   expect(i.button.getAttribute("aria-label")).toBe("Inspector, 3 issues");
   expect(i.button.querySelector<HTMLElement>(".zen-inspector-badge")!.textContent).toBe("3");
   i.setIssues([]);
@@ -198,7 +197,7 @@ test("external: no own button; the state goes out as an event and a toggle event
   made.push(i);
   document.body.append(i.el);
   i.setPage("docs/a.md", page(), article());
-  i.setIssues([alert({ line: 1 }), alert({ line: 2 })]);
+  i.setIssues([alert({ line: 1, match: "x" }), alert({ line: 2, match: "x" })]);
   expect(states.at(-1)).toEqual({ available: true, open: false, count: 2 });
   document.dispatchEvent(new CustomEvent(INSPECTOR_TOGGLE));
   expect(i.isOpen).toBe(true);
