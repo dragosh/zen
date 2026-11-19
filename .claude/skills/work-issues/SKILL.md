@@ -127,6 +127,11 @@ Only when the user says to merge. In rank order, per add-spec section C:
 4. `git worktree remove ../zen-worktrees/issue-<N>` and
    `git branch -d <branch>`.
 
+When the user should try the merged work in the app, run `task package` first:
+`task build` only rebuilds `bin/zenmd`, and `bin/Zenmark.app` keeps the binary
+from the last package, so opening it shows the old version. Tell the user to
+quit a running Zenmark (⌘Q) before `open bin/Zenmark.app`.
+
 Then start the next wave (back to step 4), since what it depended on is now
 merged. Do not push; ask the user. The issues close on GitHub when the merge
 commits reach `main` there (`Fixes #N`).
