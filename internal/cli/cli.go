@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/zenmark-org/zenmd/kit/addons"
@@ -58,6 +59,46 @@ func VersionLine() string {
 		line += " (add-ons: " + strings.Join(ids, ", ") + ")"
 	}
 	return line
+}
+
+// BuildInfo is what an app's build is made of besides its add-ons (the
+// assembly, kit/assembly); `zenmd version --verbose` prints it.
+type BuildInfo struct {
+	App                         string
+	Plugins, Layouts, Templates []string
+	Theme                       string
+}
+
+var buildInfo func() BuildInfo
+
+// SetBuildInfo tells the command what the app is made of. The app calls it
+// once, from its init; without it `version --verbose` prints the version line only.
+func SetBuildInfo(f func() BuildInfo) { buildInfo = f }
+
+// VerboseVersion is the version line followed by the assembly, one line each:
+// app, add-ons, plugins, layouts, templates and theme.
+func VerboseVersion() string {
+	out := VersionLine() + "\n"
+	if buildInfo == nil {
+		return out
+	}
+	b := buildInfo()
+	var addonIDs []string
+	for _, a := range addonList() {
+		addonIDs = append(addonIDs, a.ID)
+	}
+	list := func(ids []string) string {
+		if len(ids) == 0 {
+			return "none"
+		}
+		return strings.Join(ids, ", ")
+	}
+	return out + "app: " + b.App + "\n" +
+		"add-ons: " + list(addonIDs) + "\n" +
+		"plugins: " + list(b.Plugins) + "\n" +
+		"layouts: " + list(b.Layouts) + "\n" +
+		"templates: " + list(b.Templates) + "\n" +
+		"theme: " + b.Theme + "\n"
 }
 
 // Launch describes what the GUI opens.
@@ -168,6 +209,10 @@ func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher, b
 			fmt.Fprint(stdout, usage)
 			return 0
 		case flags && first && arg == "version":
+			if slices.Contains(args[i+1:], "--verbose") {
+				fmt.Fprint(stdout, VerboseVersion())
+				return 0
+			}
 			fmt.Fprintln(stdout, VersionLine())
 			return 0
 		case flags && first && arg == "build":

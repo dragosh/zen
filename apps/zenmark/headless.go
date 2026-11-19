@@ -19,7 +19,6 @@ import (
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
-	"github.com/zenmark-org/zenmd/builtins"
 	"github.com/zenmark-org/zenmd/engine/config"
 	"github.com/zenmark-org/zenmd/internal/cli"
 	"github.com/zenmark-org/zenmd/kit/desktop"
@@ -166,7 +165,7 @@ func (h *headlessService) wait(d time.Duration) error {
 // writes e.Out. Errors are one line.
 func ExportPDF(e cli.ExportPDF, stdout, stderr io.Writer) error {
 	z, err := newZen(zenOptions{
-		Registry: builtins.Plugins(), GlobalPath: globalConfigPath(), ConfigDir: configDirOf(),
+		Registry: assemblyPlugins(), GlobalPath: globalConfigPath(), ConfigDir: configDirOf(),
 		Dir: e.Dir, Mode: "read", Events: discardSink{},
 	})
 	if err != nil {

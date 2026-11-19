@@ -8,6 +8,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/zenmark-org/zenmd/engine/layouts"
 	"github.com/zenmark-org/zenmd/engine/plugins"
 	"github.com/zenmark-org/zenmd/engine/session"
 	"github.com/zenmark-org/zenmd/internal/cli"
@@ -23,9 +24,10 @@ type Dialogs interface {
 }
 
 type zenOptions struct {
-	Registry   *plugins.Registry
-	GlobalPath string // global config file, "" to skip
-	ConfigDir  string // settings folder (user plugins, trust, plugin data); default: the folder of GlobalPath
+	Registry   *plugins.Registry // built-in plugins; nil = the assembly's (assembly_gen.go)
+	Layouts    *layouts.Registry // built-in layouts; nil = the assembly's
+	GlobalPath string            // global config file, "" to skip
+	ConfigDir  string            // settings folder (user plugins, trust, plugin data); default: the folder of GlobalPath
 	Dir        string
 	Page       string
 	Mode       string
@@ -72,10 +74,17 @@ func (z *Zen) setLaunchErr(err error) {
 }
 
 func newZen(o zenOptions) (*Zen, error) {
+	if o.Registry == nil {
+		o.Registry = assemblyPlugins()
+	}
+	if o.Layouts == nil {
+		o.Layouts = assemblyLayouts(cli.Version)
+	}
 	so := session.Options{
 		GlobalPath: o.GlobalPath,
 		ConfigDir:  o.ConfigDir,
 		Registry:   o.Registry,
+		Layouts:    o.Layouts,
 		Events:     o.Events,
 		Presets:    siteBuiltins,
 		Watch:      true,
@@ -135,6 +144,7 @@ const frontendCSP = "default-src 'self'; script-src 'self'; style-src 'self' 'un
 func (z *Zen) Startup() Startup {
 	st := z.startup()
 	st.Addons = addonInfos()
+	st.Build = buildInfo()
 	return st
 }
 
