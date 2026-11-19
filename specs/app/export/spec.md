@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | specified |
+| Status | done |
 | Target version | 0.6.0 |
 | Branch | `feature/app-export` |
 | Wave | 20 |
