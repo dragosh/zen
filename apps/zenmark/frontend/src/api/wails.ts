@@ -140,6 +140,7 @@ function buildInfo(v: unknown, addons: AddonInfo[]): BuildInfo | undefined {
     app: b.app, features: Array.isArray(b.features) ? idList(b.features) : [...FEATURE_IDS], addons: own.length ? own : addons,
     plugins: idList(b.plugins), layouts: idList(b.layouts), templates: idList(b.templates), dialects: idList(b.dialects),
     theme: typeof b.theme === "string" ? b.theme : "default",
+    ...(typeof b.version === "string" && b.version ? { version: b.version } : {}),
   };
 }
 

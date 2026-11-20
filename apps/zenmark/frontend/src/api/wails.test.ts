@@ -117,6 +117,14 @@ describe("wails api", () => {
     expect(api.build).toBeUndefined();
   });
 
+  it("startup carries the version of the build, when it is text", async () => {
+    const api = (await import("./wails")).default;
+    results.Startup = { workspace: null, page: "", mode: "read", build: { app: "zenmark", features: [], version: "0.7.0" } };
+    expect((await api.startup()).build?.version).toBe("0.7.0");
+    results.Startup = { workspace: null, page: "", mode: "read", build: { app: "zenmark", features: [], version: 7 } };
+    expect((await api.startup()).build?.version).toBeUndefined();
+  });
+
   it("a build that does not list its features has them all; an empty list is the bare shell", async () => {
     const api = (await import("./wails")).default;
     results.Startup = { workspace: null, page: "", mode: "read", build: { app: "old", plugins: [], layouts: [], templates: [], theme: "default" } };

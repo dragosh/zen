@@ -27,6 +27,7 @@ type BuildInfo = session.BuildInfo
 func buildInfo() *BuildInfo {
 	b := assemblyInfo
 	b.Addons = addonInfos()
+	b.Version = cli.Version
 	return &b
 }
 

@@ -3,8 +3,7 @@
 // sections: Appearance, Configuration (the two config files), Markdown (the dialects the folder uses), Layouts,
 // Plugins, Templates, Export (the website and the PDF, in place) and Developer. What the build contains is in
 // Zenmark › About. A section whose feature the build leaves out is not there. All text through textContent.
-import { appearanceSection, button, createSettingsFrame, developerSection, el, hasFeature, mountPage, type DialectInfo } from "@zenmd/kit";
-import { reloadSettings, type SettingsItem, type SettingsSection, type SettingsView } from "@zenmd/kit/shell/settings";
+import { appearanceSection, button, createSettingsFrame, developerSection, el, hasFeature, mountPage, reloadSettings, type DialectInfo, type SettingsItem, type SettingsSection, type SettingsView } from "@zenmd/kit";
 import type { Api } from "../api";
 import { createBuildForm, type BuildApi } from "./buildsite";
 import { createLayoutsSection } from "./layouthelp";

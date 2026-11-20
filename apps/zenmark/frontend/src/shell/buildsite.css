@@ -1,20 +1,5 @@
-/* File › Build Website… dialog and Settings › Website (shell/buildsite.ts) */
-.zen-buildsite-backdrop {
-  position: fixed; inset: 0; z-index: 40;
-  display: flex; align-items: flex-start; justify-content: center;
-  padding: 10vh 16px 16px;
-  background: color-mix(in srgb, var(--fg) 18%, transparent);
-}
-.zen-buildsite {
-  width: min(520px, 100%); max-height: 80vh; overflow: auto;
-  padding: var(--space-4);
-  background: var(--bg); color: var(--fg);
-  border: 1px solid var(--rule); border-radius: var(--radius);
-  box-shadow: 0 12px 32px color-mix(in srgb, var(--fg) 18%, transparent);
-  font-family: var(--font-ui); font-size: 13px;
-}
-.zen-buildsite-title { margin: 0 0 var(--space-3); font-size: 15px; font-weight: 600; }
-.zen-buildsite-folder { color: var(--fg-muted); font-weight: 400; }
+/* Settings › Export › Website: the build form in the right column (shell/buildsite.ts), and the PDF part. Tokens only. */
+.zen-buildform { max-width: 520px; font-family: var(--font-ui); font-size: 13px; color: var(--fg); }
 .zen-buildsite-label { display: block; margin: var(--space-3) 0 var(--space-1); font-weight: 600; }
 .zen-buildsite-label:first-child { margin-top: 0; }
 .zen-buildsite-row { display: flex; gap: var(--space-2); }
@@ -23,7 +8,7 @@
   border: 1px solid var(--rule); border-radius: var(--radius);
   background: var(--bg); color: var(--fg); font: 13px var(--font-mono);
 }
-.zen-buildsite-out:focus-visible, .zen-buildsite input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
+.zen-buildsite-out:focus-visible, .zen-buildform input:focus-visible { outline: 2px solid var(--focus); outline-offset: 1px; }
 .zen-buildsite-opens { display: flex; flex-direction: column; gap: var(--space-2); }
 .zen-buildsite-choice { display: grid; grid-template-columns: auto 1fr; column-gap: var(--space-2); align-items: baseline; }
 .zen-buildsite-choice-name { font-weight: 600; }
@@ -33,6 +18,7 @@
 .zen-buildsite-note { margin: var(--space-3) 0 0; color: var(--fg-muted); font-size: 12px; }
 .zen-buildsite-note:empty, .zen-buildsite-status:empty { display: none; }
 .zen-buildsite-progress { margin-top: var(--space-3); }
+.zen-buildsite-progress button { margin-top: var(--space-2); }
 .zen-buildsite-bar { height: 6px; border: 1px solid var(--rule); border-radius: 3px; overflow: hidden; }
 .zen-buildsite-bar-fill { height: 100%; width: 0; background: var(--fg); transition: width 0.1s linear; }
 .zen-buildsite-progress-text { margin: var(--space-2) 0 0; color: var(--fg-muted); }
@@ -55,13 +41,6 @@
 .zen-buildsite-actions-form { justify-content: flex-start; }
 .zen-buildsite-link { border: 0; background: transparent; padding: 0; text-decoration: underline; color: var(--fg-muted); }
 .zen-buildsite-link:disabled { opacity: 0.5; }
-.zen-settings-website { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
-.zen-settings-website p { margin: 0; }
-.zen-settings-build-last { color: var(--fg-muted); }
 
-/* Settings › Export: the Website and PDF parts */
-.zen-settings-export { display: flex; flex-direction: column; align-items: flex-start; gap: var(--space-3); }
-.zen-settings-export-heading { margin: var(--space-3) 0 0; font-size: 1em; }
-.zen-settings-export-heading:first-child { margin-top: 0; }
-.zen-settings-export p { margin: 0; }
-.zen-settings-export-last { color: var(--fg-muted); }
+/* Settings › Export › PDF */
+.zen-settings-export-last { margin: var(--space-3) 0; color: var(--fg-muted); }

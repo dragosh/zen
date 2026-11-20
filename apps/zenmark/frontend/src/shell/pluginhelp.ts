@@ -4,8 +4,7 @@
 // built-in plugins. An "All plugins" entry shows every plugin's main snippet in one page. All text goes in
 // through textContent; the only HTML mounted is what api.preview returned, through the page's own mountPage.
 import type { Api, PluginInfo, PluginSnippet } from "../api";
-import { button, copyText, el, mountPage } from "@zenmd/kit";
-import { reloadSettings, type SettingsItem } from "@zenmd/kit/shell/settings";
+import { button, copyText, el, mountPage, reloadSettings, type SettingsItem } from "@zenmd/kit";
 
 export type PluginsSection = {
   /** The rows of the list; reads the plugins again. */

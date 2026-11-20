@@ -5,8 +5,7 @@
 // (shell/pluginhelp.ts). All text goes in through textContent; the only HTML mounted is what api.preview
 // returned, through the page's own mountPage.
 import type { Api, LayoutInfo, PluginSnippet } from "../api";
-import { button, copyText, el, mountPage } from "@zenmd/kit";
-import { reloadSettings, type SettingsItem } from "@zenmd/kit/shell/settings";
+import { button, copyText, el, mountPage, reloadSettings, type SettingsItem } from "@zenmd/kit";
 import { exceptionNote, STATUS_LABEL } from "./pluginhelp";
 
 export type LayoutsSection = {

@@ -123,6 +123,8 @@ type BuildInfo struct {
 	Templates []string    `json:"templates"`
 	Dialects  []string    `json:"dialects"`
 	Theme     string      `json:"theme"`
+	// Version is the app's version ("dev" when unstamped), shown in Zenmark › About; set by the app, not the assembly.
+	Version string `json:"version,omitempty"`
 }
 
 // Startup is what an app shows first: the workspace, the page, the mode and,

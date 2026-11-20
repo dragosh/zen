@@ -2,8 +2,7 @@
 // column (name, with a mark only for templates that are not built in or are invalid), and in the right one the
 // description, what it asks when a site is made, and Show Templates Folder. All text goes in through textContent.
 import type { Api, SiteTemplate } from "../api";
-import { button, el } from "@zenmd/kit";
-import type { SettingsItem } from "@zenmd/kit/shell/settings";
+import { button, el, type SettingsItem } from "@zenmd/kit";
 
 export type TemplatesSection = {
   items(): Promise<SettingsItem[]>;
