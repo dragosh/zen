@@ -4,7 +4,7 @@
 // editor under a small header.
 import type { Api, NavNode, Workspace } from "../api";
 import {
-  applyAppTheme, button, closeWindowKey, createHistory, createInspector, createLayout, createOpening, createStore, developerEnabled, el, followDeveloper, hasFeature, mountPreview, reloadKey, shellAction,
+  applyAppTheme, button, closeWindowKey, createHistory, createInspector, INSPECTOR_CONSOLE, createLayout, createOpening, createStore, developerEnabled, el, followDeveloper, hasFeature, mountPreview, openAbout, reloadKey, shellAction,
   type Ctx, type Feature, type Inspector, type Layout, type Store,
 } from "@zenmd/kit";
 import { BRAND } from "../brand";
@@ -259,6 +259,12 @@ export function createShell(root: HTMLElement, { api, features, search, random =
   }
 
   let settings: SettingsView | null = null;
+  /** What Settings asks of the shell: Developer › Open Console (the Inspector's Console tab), a page named by a build warning, unsaved pages. */
+  const settingsWiring = {
+    openConsole: () => doc.dispatchEvent(new CustomEvent(INSPECTOR_CONSOLE)),
+    onOpenPage: (p: string) => navigate(p),
+    unsaved: () => Array.from(drafts),
+  };
   /**
    * The cog at the bottom of the sidebar (and ⌘,) shows Settings in the main pane, in the place of
    * the page (which stays mounted); the sidebar stays. Back, Esc, the cog and choosing a page leave it.
@@ -271,7 +277,7 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     }
     settings = createSettingsView({
       api, hasWorkspace: () => store.get().workspace !== null,
-      build: api, openBuild: () => buildSite.open(), root: () => store.get().workspace?.root ?? "",
+      build: api, root: () => store.get().workspace?.root ?? "", ...settingsWiring,
     });
     layout.showView(settings.el);
     layout.setSettingsOpen(true);
@@ -282,7 +288,7 @@ export function createShell(root: HTMLElement, { api, features, search, random =
   function openHomeSettings(): void {
     settings = createSettingsView({
       api, hasWorkspace: () => false,
-      build: api, openBuild: () => buildSite.open(), root: () => "",
+      build: api, root: () => "", ...settingsWiring,
     });
     homeSettings = true;
     const view = el("main", "zen-home-settings");
@@ -616,6 +622,10 @@ export function createShell(root: HTMLElement, { api, features, search, random =
   const offNewSite = siteApi ? siteApi.on("menu:new-site", () => showNewSite()) : () => {};
   // Zen › Settings… (⌘,) from any window: Go shows the main window first.
   const offSettings = api.on("menu:settings", openSettings);
+  // Zenmark › About Zenmark: a sheet in the main window with the version and what the build is made of.
+  const offAbout = api.on("menu:about", () => {
+    if (kind.kind === "main") openAbout(doc, { host: api, name: BRAND, version: api.build?.version || "dev", logoUrl });
+  });
   // File › Close Folder (⇧⌘W): Go closes the editor windows first (each may keep its changes), then the folder.
   let closing = false;
   async function closeFolder(): Promise<void> {
@@ -637,6 +647,12 @@ export function createShell(root: HTMLElement, { api, features, search, random =
   const offDrafts = api.on("page:draft", (d) => { if (d.content === null) drafts.delete(d.path); else drafts.add(d.path); });
   const buildSite = registerBuildSite({
     api, doc,
+    // File › Export › Website… opens Settings › Export › Website (no modal).
+    showExport: () => {
+      if (kind.kind !== "main") return;
+      openSettings();
+      settings?.open("export", "website");
+    },
     root: () => (kind.kind === "main" && has("export") ? store.get().workspace?.root ?? "" : ""),
     name: () => store.get().workspace?.name ?? "",
     onOpenPage: (p) => navigate(p),
@@ -664,6 +680,7 @@ export function createShell(root: HTMLElement, { api, features, search, random =
       offNewSite();
       newSite?.close();
       offSettings();
+      offAbout();
       offCloseFolder();
       offOpened();
       offOpening();

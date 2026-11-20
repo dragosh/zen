@@ -1,7 +1,7 @@
-// File › Export › Website… (⇧⌘B): a modal sheet that builds the open folder as a
-// static website through the build services, with progress and a result. The
-// pattern of newpage.ts. Also the Website section of Settings
-// (createWebsiteSection). All text through textContent.
+// Settings › Export › Website (ui/settings-layout): the form that builds the open folder as a static
+// website through the build services, in place in the page (no modal), with progress, Cancel and a
+// result. File › Export › Website… (⇧⌘B) opens Settings there (registerBuildSite). All text goes in
+// through textContent.
 import "./buildsite.css";
 import type { BuildOptions, BuildProgress, BuildResult } from "../api";
 import { button, el, hasFeature, type BuildInfo } from "@zenmd/kit";
@@ -25,25 +25,11 @@ export interface BuildApi {
   on(event: "menu:build-website", fn: () => void): () => void;
 }
 
-export type BuildSiteOptions = {
-  api: BuildApi;
-  doc: Document;
-  /** The open folder's path and name (the name is shown muted in the title). */
-  root: string;
-  name?: string;
-  /** Opens a page in the main window; the dialog closes after it. */
-  onOpenPage(path: string): void;
-  /** Paths with unsaved changes in editor windows ("zen:config/workspace" is .zen.yml); the website uses the saved files. */
-  unsaved?(): string[];
-  onClose?(): void;
-};
-export type BuildSiteDialog = { el: HTMLElement; close(): void; focus(): void };
-
 const WORKSPACE_CONFIG = "zen:config/workspace";
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
-/** What the last build of each folder did, for Settings › Website. */
+/** What the last build of each folder did, for Settings › Export. */
 const lastBuilds = new Map<string, { result: BuildResult; at: number }>();
 export function rememberBuild(root: string, result: BuildResult): void {
   lastBuilds.set(root, { result, at: Date.now() });
@@ -66,20 +52,33 @@ function took(ms: number): string {
   return ms < 1000 ? `${Math.max(0, Math.round(ms))} ms` : `${(ms / 1000).toFixed(1)} s`;
 }
 
+export type BuildFormOptions = {
+  api: BuildApi;
+  doc: Document;
+  /** The open folder's path, "" for none. */
+  root(): string;
+  /** Opens a page in the main window. */
+  onOpenPage(path: string): void;
+  /** Paths with unsaved changes in editor windows ("zen:config/workspace" is .zen.yml); the website uses the saved files. */
+  unsaved?(): string[];
+};
+export type BuildForm = {
+  el: HTMLFormElement;
+  /** Reads the folder's build options into the form. A build that runs, or a result on show, stays unless the folder changed or force is set (and nothing runs). */
+  refresh(force?: boolean): Promise<void>;
+  focus(): void;
+  /** A build is running. */
+  busy(): boolean;
+  destroy(): void;
+};
+
 let seq = 0;
 
-export function openBuildSite(opts: BuildSiteOptions): BuildSiteDialog {
-  const { api, doc, root } = opts;
+export function createBuildForm(opts: BuildFormOptions): BuildForm {
+  const { api, doc } = opts;
   const id = ++seq;
-  const backdrop = el("div", "zen-buildsite-backdrop");
-  const form = el("form", "zen-buildsite");
-  form.setAttribute("role", "dialog");
-  form.setAttribute("aria-modal", "true");
+  const form = el("form", "zen-buildform");
   form.noValidate = true;
-  const title = el("h2", "zen-buildsite-title", "Export Website");
-  title.id = `zen-buildsite-title-${id}`;
-  if (opts.name) title.append(" ", el("span", "zen-buildsite-folder", opts.name));
-  form.setAttribute("aria-labelledby", title.id);
 
   // ---- the options
   const options = el("div", "zen-buildsite-options");
@@ -125,9 +124,10 @@ export function openBuildSite(opts: BuildSiteOptions): BuildSiteDialog {
   const print = check("print", "Also write print.html");
   options.append(outLabel, outRow, opensLabel, opens, drafts.l, clean.l, print.l);
 
-  const pages = (opts.unsaved?.() ?? []).filter((p) => p !== WORKSPACE_CONFIG && !p.startsWith("zen:"));
   const note = el("p", "zen-buildsite-note");
-  if (pages.length > 0) note.textContent = `${plural(pages.length, "page has", "pages have")} unsaved changes; the website uses the saved files.`;
+  const none = el("p", "zen-buildsite-note", "Open a folder to export it.");
+  none.hidden = true;
+  const last = el("p", "zen-buildsite-note zen-settings-build-last");
 
   // ---- progress, preview, result
   const progress = el("div", "zen-buildsite-progress");
@@ -140,7 +140,8 @@ export function openBuildSite(opts: BuildSiteOptions): BuildSiteDialog {
   const fill = el("div", "zen-buildsite-bar-fill");
   bar.append(fill);
   const progressText = el("p", "zen-buildsite-progress-text", "Building…");
-  progress.append(bar, progressText);
+  const cancel = button("Cancel", () => stop());
+  progress.append(bar, progressText, cancel);
 
   const preview = el("div", "zen-buildsite-preview-box");
   preview.hidden = true;
@@ -154,47 +155,85 @@ export function openBuildSite(opts: BuildSiteOptions): BuildSiteDialog {
   // ---- the footer
   const footer = el("div", "zen-buildsite-actions-form");
   const saveLink = button("Save as folder defaults", () => void saveDefaults(), { className: "zen-buildsite-link" });
-  const cancel = button("Cancel", () => stop());
   const build = el("button", "primary", "Export");
   build.type = "submit";
   const spacer = el("span", "zen-buildsite-spacer");
   // A read-only app never writes into the folder (.zen.yml): no Save as folder defaults.
-  footer.append(...(hasFeature(api, "editor") ? [saveLink] : []), spacer, cancel, build);
+  footer.append(...(hasFeature(api, "editor") ? [saveLink] : []), spacer, build);
 
-  form.append(title, options, ...(pages.length > 0 ? [note] : []), progress, preview, result, error, status, footer);
-  backdrop.append(form);
-  doc.body.append(backdrop);
-  const before = doc.activeElement as HTMLElement | null;
-  build.focus();
+  form.append(options, note, none, last, progress, preview, result, error, status, footer);
 
   const inputs = [out, portable.i, hosted.i, drafts.i, clean.i, print.i];
   let state: "form" | "building" | "result" = "form";
-  let closed = false;
+  let destroyed = false;
   let cancelling = false;
   let lastTotal = 0;
+  let filledFor: string | null = null;
+  let ready: Promise<void> = Promise.resolve();
+  const rootNow = () => opts.root();
 
   function lock(on: boolean): void {
     for (const i of inputs) i.disabled = on;
     choose.disabled = saveLink.disabled = on;
   }
   function read(): BuildOptions {
-    return { out: absoluteOut(root, out.value), portable: portable.i.checked, drafts: drafts.i.checked, clean: clean.i.checked, print: print.i.checked };
+    return { out: absoluteOut(rootNow(), out.value), portable: portable.i.checked, drafts: drafts.i.checked, clean: clean.i.checked, print: print.i.checked };
   }
   function fill_(o: BuildOptions): void {
-    out.value = shownOut(root, o.out);
+    out.value = shownOut(rootNow(), o.out);
     portable.i.checked = o.portable;
     hosted.i.checked = !o.portable;
     drafts.i.checked = o.drafts;
     clean.i.checked = o.clean;
     print.i.checked = o.print;
   }
-  fill_({ out: `${root}/_site`, portable: true, drafts: false, clean: false, print: true });
-  const ready = api.buildOptions().then(fill_, (err) => { if (!closed) error.textContent = message(err); });
+  function showUnsaved(): void {
+    const pages = (opts.unsaved?.() ?? []).filter((p) => p !== WORKSPACE_CONFIG && !p.startsWith("zen:"));
+    note.textContent = pages.length > 0 ? `${plural(pages.length, "page has", "pages have")} unsaved changes; the website uses the saved files.` : "";
+  }
+
+  function reset(): void {
+    state = "form";
+    result.hidden = true;
+    result.replaceChildren();
+    progress.hidden = true;
+    options.hidden = footer.hidden = false;
+    lock(false);
+    build.disabled = false;
+    error.textContent = status.textContent = "";
+    preview.hidden = true;
+    preview.replaceChildren();
+  }
+
+  async function refresh(force = false): Promise<void> {
+    const root = rootNow();
+    showUnsaved();
+    none.hidden = root !== "";
+    options.hidden = footer.hidden = root === "" || state === "result";
+    if (root === "") {
+      build.disabled = true;
+      filledFor = null;
+      last.textContent = "";
+      return;
+    }
+    const l = lastBuild(root);
+    last.textContent = state === "form" && l ? `Last build: ${plural(l.result.pages, "page", "pages")} into ${shownOut(root, l.result.out)}, ${new Date(l.at).toLocaleTimeString()}.` : "";
+    if (state === "building") return;
+    if (state === "result" && root === filledFor && !force) return;
+    if (state === "result") reset();
+    options.hidden = footer.hidden = false;
+    build.disabled = false;
+    if (root === filledFor && !force) return;
+    filledFor = root;
+    fill_({ out: `${root}/_site`, portable: true, drafts: false, clean: false, print: true });
+    ready = api.buildOptions().then(fill_, (err) => { if (!destroyed) error.textContent = message(err); });
+    await ready;
+  }
 
   async function pick(): Promise<void> {
     try {
       const dir = await api.pickBuildFolder();
-      if (dir && !closed) out.value = shownOut(root, dir);
+      if (dir && !destroyed) out.value = shownOut(rootNow(), dir);
     } catch (err) {
       error.textContent = message(err);
     }
@@ -248,16 +287,18 @@ export function openBuildSite(opts: BuildSiteOptions): BuildSiteDialog {
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
-    if (state !== "form") return;
+    if (state !== "form" || rootNow() === "") return;
     error.textContent = status.textContent = "";
     preview.hidden = true;
     await ready;
-    if (closed) return;
+    if (destroyed) return;
+    const root = rootNow();
     state = "building";
     cancelling = false;
     lastTotal = 0;
     lock(true);
     build.disabled = true;
+    last.textContent = "";
     progress.hidden = false;
     progressText.textContent = "Building…";
     bar.setAttribute("aria-valuenow", "0");
@@ -265,11 +306,11 @@ export function openBuildSite(opts: BuildSiteOptions): BuildSiteDialog {
     fill.style.width = "0%";
     try {
       const r = await api.buildWebsite(read());
-      if (closed) return;
       rememberBuild(root, r);
-      showResult(r);
+      if (destroyed) return;
+      showResult(r, root);
     } catch (err) {
-      if (closed) return;
+      if (destroyed) return;
       state = "form";
       lock(false);
       build.disabled = false;
@@ -280,15 +321,13 @@ export function openBuildSite(opts: BuildSiteOptions): BuildSiteDialog {
   });
 
   function stop(): void {
-    if (state === "building") {
-      if (cancelling) return;
-      cancelling = true;
-      progressText.textContent = "Cancelling…";
-      void api.cancelBuild().catch((err) => { error.textContent = message(err); });
-    } else close();
+    if (state !== "building" || cancelling) return;
+    cancelling = true;
+    progressText.textContent = "Cancelling…";
+    void api.cancelBuild().catch((err) => { error.textContent = message(err); });
   }
 
-  function showResult(r: BuildResult): void {
+  function showResult(r: BuildResult, root: string): void {
     state = "result";
     progress.hidden = true;
     options.hidden = footer.hidden = true;
@@ -311,7 +350,7 @@ export function openBuildSite(opts: BuildSiteOptions): BuildSiteDialog {
           const b = el("button", "zen-buildsite-warning-open");
           b.type = "button";
           b.append(el("span", "zen-buildsite-warning-page", w.path), el("span", "zen-buildsite-warning-text", w.message));
-          b.addEventListener("click", () => { close(); opts.onOpenPage(w.path); });
+          b.addEventListener("click", () => opts.onOpenPage(w.path));
           li.append(b);
         } else {
           li.append(el("span", "zen-buildsite-warning-text", w.message));
@@ -323,121 +362,57 @@ export function openBuildSite(opts: BuildSiteOptions): BuildSiteDialog {
     const act = (label: string, fn: () => Promise<void>, cls = "") => button(label, () => { error.textContent = ""; fn().catch((err) => { error.textContent = message(err); }); }, { className: cls });
     const open = act("Open in Browser", () => api.openBuiltSite(r.out), "primary");
     const reveal = act("Show in Finder", () => api.revealBuiltSite(r.out));
-    const again = button("Build Again", () => {
-      state = "form";
-      result.hidden = true;
-      result.replaceChildren();
-      options.hidden = footer.hidden = false;
-      lock(false);
-      build.disabled = false;
-      error.textContent = "";
-      build.focus();
-    });
-    const done = button("Done", () => close());
+    const again = button("Build Again", () => { reset(); build.focus(); });
     const actions = el("div", "zen-buildsite-actions");
-    actions.append(open, reveal, again, done);
+    actions.append(open, reveal, again);
     parts.push(actions);
     result.replaceChildren(...parts);
     result.hidden = false;
-    open.focus();
+    if (form.contains(doc.activeElement) || doc.activeElement === doc.body) open.focus();
   }
 
-  // Esc cancels a build (or closes), Tab stays inside, a click outside closes when idle.
-  const onKey = (e: KeyboardEvent) => {
-    if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-      stop();
-    } else if (e.key === "Tab") {
-      const items = Array.from(form.querySelectorAll<HTMLElement>("input, button")).filter((x) => !(x as HTMLButtonElement).disabled && x.tabIndex >= 0 && !x.closest("[hidden]"));
-      if (items.length === 0) return;
-      const first = items[0];
-      const last = items[items.length - 1];
-      if (e.shiftKey && doc.activeElement === first) { e.preventDefault(); last.focus(); }
-      else if (!e.shiftKey && doc.activeElement === last) { e.preventDefault(); first.focus(); }
-    }
+  // Esc cancels a build that runs; otherwise it is left to Settings (which leaves the page).
+  form.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || state !== "building") return;
+    e.preventDefault();
+    e.stopPropagation();
+    stop();
+  });
+
+  return {
+    el: form,
+    refresh,
+    focus() {
+      if (state === "building") cancel.focus();
+      else if (state === "result") result.querySelector<HTMLElement>(".primary")?.focus();
+      else build.focus();
+    },
+    busy: () => state === "building",
+    destroy() {
+      destroyed = true;
+      offProgress();
+      form.remove();
+    },
   };
-  doc.addEventListener("keydown", onKey, true);
-  backdrop.addEventListener("mousedown", (e) => { if (e.target === backdrop && state !== "building") close(); });
-
-  function close(): void {
-    if (closed) return;
-    closed = true;
-    offProgress();
-    doc.removeEventListener("keydown", onKey, true);
-    backdrop.remove();
-    if (before?.isConnected) before.focus();
-    opts.onClose?.();
-  }
-
-  function focus(): void {
-    if (state === "building") cancel.focus();
-    else if (state === "result") result.querySelector<HTMLElement>(".primary")?.focus();
-    else build.focus();
-  }
-
-  return { el: backdrop, close, focus };
 }
 
 /**
- * Listens for File › Export › Website… and shows the dialog: once at a time (a
- * second event brings it to the front), and not without a folder.
+ * Listens for File › Export › Website… (⇧⌘B) and asks the shell to show Settings › Export › Website
+ * (`showExport`): not without a folder.
  */
 export function registerBuildSite(opts: {
   api: BuildApi;
-  doc: Document;
+  doc?: Document;
   root(): string;
-  name(): string;
-  onOpenPage(path: string): void;
+  name?(): string;
+  onOpenPage?(path: string): void;
   unsaved?(): string[];
+  showExport?(): void;
 }): { open(): void; destroy(): void } {
-  let dialog: BuildSiteDialog | null = null;
   function open(): void {
-    if (dialog) { dialog.focus(); return; }
-    const root = opts.root();
-    if (!root) return;
-    dialog = openBuildSite({ api: opts.api, doc: opts.doc, root, name: opts.name(), onOpenPage: opts.onOpenPage, unsaved: opts.unsaved, onClose: () => { dialog = null; } });
+    if (!opts.root()) return;
+    opts.showExport?.();
   }
   const off = opts.api.on("menu:build-website", open);
-  return { open, destroy() { off(); dialog?.close(); } };
-}
-
-// ---- Settings › Export › Website
-
-const OPENS: Record<string, string> = { true: "Disk and web servers", false: "A web server only" };
-
-/** The Website part of Settings › Export: the folder's build options, a Build… button and the last build's result. */
-export function createWebsiteSection(opts: {
-  api: Partial<BuildApi>;
-  root(): string;
-  openBuild?(): void;
-}): { el: HTMLElement; refresh(): Promise<void> } {
-  const box = el("div", "zen-settings-website");
-  const summary = el("p", "zen-settings-website-options");
-  const lastLine = el("p", "zen-settings-build-last");
-  const b = el("button", "zen-settings-build primary", "Export…");
-  b.type = "button";
-  b.addEventListener("click", () => opts.openBuild?.());
-  box.append(summary, lastLine, b);
-  async function refresh(): Promise<void> {
-    const root = opts.root();
-    b.disabled = !root || !opts.openBuild;
-    if (!root) {
-      summary.textContent = "Open a folder to export it.";
-      lastLine.textContent = "";
-      return;
-    }
-    const l = lastBuild(root);
-    lastLine.textContent = l
-      ? `Last build: ${plural(l.result.pages, "page", "pages")} into ${shownOut(root, l.result.out)}, ${new Date(l.at).toLocaleTimeString()}.`
-      : "No build yet.";
-    if (!opts.api.buildOptions) return;
-    try {
-      const o = await opts.api.buildOptions();
-      summary.textContent = `Output ${shownOut(root, o.out)}. ${OPENS[String(o.portable)]}. ${o.drafts ? "Drafts included" : "Drafts left out"}.`;
-    } catch (err) {
-      summary.textContent = message(err);
-    }
-  }
-  return { el: box, refresh };
+  return { open, destroy() { off(); } };
 }

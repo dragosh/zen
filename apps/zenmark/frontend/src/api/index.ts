@@ -171,6 +171,8 @@ export interface Api extends KitHost {
   on(event: "menu:new-page", fn: () => void): () => void;
   /** Zen › Settings… (⌘,): show Settings in the main window. */
   on(event: "menu:settings", fn: () => void): () => void;
+  /** Zenmark › About Zenmark: show the About sheet in the main window (ui/settings-layout). */
+  on(event: "menu:about", fn: () => void): () => void;
   /** File › Close Folder (⇧⌘W) in the app menu: close the folder, back to the home screen. */
   on(event: "menu:close-folder", fn: () => void): () => void;
   on(event: "workspace:opening", fn: (p: OpenProgress) => void): () => void;

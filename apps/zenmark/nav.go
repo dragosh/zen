@@ -1,6 +1,14 @@
 package app
 
-import "github.com/zenmark-org/zenmd/kit/desktop"
+import (
+	"errors"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/zenmark-org/zenmd/engine/session"
+	"github.com/zenmark-org/zenmd/kit/desktop"
+)
 
 // The sidebar's context menu and reordering (ui/sidebar-menu). The edits are
 // the session's; only Finder is the app's.
@@ -30,6 +38,17 @@ func (z *Zen) SetNavHidden(path string, hidden bool) error {
 func (z *Zen) RevealInFinder(path string) error {
 	if err := requireFeature("nav"); err != nil {
 		return err
+	}
+	// The two settings files (Settings › Configuration) are named zen:config/global and zen:config/workspace.
+	if which, ok := strings.CutPrefix(path, session.ConfigPrefix); ok {
+		file, _, err := z.s.ConfigFile(which)
+		if err != nil {
+			return err
+		}
+		if _, err := os.Stat(file); err != nil {
+			return errors.New(filepath.Base(file) + " does not exist yet")
+		}
+		return revealFile(file)
 	}
 	abs, err := z.s.AbsPath(path)
 	if err != nil {

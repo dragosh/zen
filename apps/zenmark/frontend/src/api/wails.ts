@@ -140,6 +140,7 @@ function buildInfo(v: unknown, addons: AddonInfo[]): BuildInfo | undefined {
     app: b.app, features: Array.isArray(b.features) ? idList(b.features) : [...FEATURE_IDS], addons: own.length ? own : addons,
     plugins: idList(b.plugins), layouts: idList(b.layouts), templates: idList(b.templates), dialects: idList(b.dialects),
     theme: typeof b.theme === "string" ? b.theme : "default",
+    ...(typeof b.version === "string" && b.version ? { version: b.version } : {}),
   };
 }
 
@@ -413,9 +414,10 @@ const api: Api = {
       if (list.length) fn(list);
     });
   },
-  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "layouts:changed" | "menu:new-page" | "menu:settings" | "menu:close-folder" | "workspace:opening" | "menu:new-site" | "menu:build-website" | "build:progress" | "menu:print-page" | "menu:find" | "menu:find-next" | "menu:find-previous", fn: (p: any) => void): () => void {
+  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "layouts:changed" | "menu:new-page" | "menu:settings" | "menu:about" | "menu:close-folder" | "workspace:opening" | "menu:new-site" | "menu:build-website" | "build:progress" | "menu:print-page" | "menu:find" | "menu:find-next" | "menu:find-previous", fn: (p: any) => void): () => void {
     if (event === "menu:new-page") return Events.On("menu:new-page", () => fn(undefined));
     if (event === "menu:settings") return Events.On("menu:settings", () => fn(undefined));
+    if (event === "menu:about") return Events.On("menu:about", () => fn(undefined));
     if (event === "menu:close-folder") return Events.On("menu:close-folder", () => fn(undefined));
     if (event === "menu:new-site") return Events.On("menu:new-site", () => fn(undefined));
     if (event === "menu:build-website") return Events.On("menu:build-website", () => fn(undefined));

@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, expect, test } from "vitest";
+import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createFakeApi, sampleWorkspace, ZENMARK_BUILD, type FakeApi } from "../api/fake";
 import { createShell, type Shell } from "./shell";
 import type { Ctx, Feature, Slots } from "@zenmd/kit";
@@ -562,8 +562,8 @@ test("Settings shows the plugins and its sections", async () => {
   await s.start();
   cog().click();
   await tick();
-  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Markdown", "Export", "This build", "Developer"]);
-  expect(api.callsTo("plugins")).toHaveLength(1);
+  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Appearance", "Configuration", "Markdown", "Layouts", "Plugins", "Templates", "Export", "Developer"]);
+  expect(api.callsTo("plugins")).toHaveLength(0); // a list is read when its section is chosen
 });
 
 // ---- app/menu: Zen › Settings… (⌘,) works from any window
@@ -784,10 +784,15 @@ test("bare shell", async () => {
   s = boot(bare, shipped);
   await s.start();
   key(",");
-  expect(sectionNames()).toEqual(["Appearance", "This build"]);
-  // the build lists what it could have, greyed
-  const missing = Array.from(root.querySelectorAll(".zen-build-feature-missing")).map((e) => (e as HTMLElement).dataset.feature);
+  expect(sectionNames()).toEqual(["Appearance"]);
+  // Zenmark › About lists what the build has, and what it could have, greyed; it works in a bare shell
+  esc();
+  bare.emit("menu:about", undefined);
+  expect(document.querySelector(".zen-about")).not.toBeNull();
+  const missing = Array.from(document.querySelectorAll(".zen-about .zen-build-feature-missing")).map((e) => (e as HTMLElement).dataset.feature);
   expect(missing).toEqual(["reader", "nav", "find", "editor", "inspector", "print", "export", "newsite", "developer"]);
+  esc();
+  expect(document.querySelector(".zen-about")).toBeNull();
   // shortcuts of missing features do nothing; Open Folder and Settings stay
   esc();
   key("n");
@@ -822,7 +827,7 @@ test("developer alone in a bare shell gives an Inspector with the Console tab on
   mod("i", { altKey: true }); // ⌥⌘I: no Inspector in this build
   expect(panel.querySelector('[data-tab="info"]')).toBeNull();
   key(",");
-  expect(sectionNames()).toEqual(["Appearance", "This build", "Developer"]);
+  expect(sectionNames()).toEqual(["Appearance", "Developer"]);
 });
 
 test("the Console follows the setting in a developer-only build: switched off, the panel goes", async () => {
@@ -1050,4 +1055,66 @@ test("the welcome fade waits until the window is shown (appReady resolves), then
   shown();
   await tick();
   expect(root.querySelector(".zen-welcome")!.classList.contains("zen-welcome-play")).toBe(true);
+});
+
+// ---- ui/settings-layout: About, Open Console, File › Export › Website…
+
+test("menu:about opens the About sheet with the version of the build, once; Esc closes it", async () => {
+  const api = createFakeApi({ startup: { workspace: sampleWorkspace(), page: "README.md", mode: "read" }, build: { version: "1.2.3" } });
+  const s = boot(api);
+  await s.start();
+  api.emit("menu:about", undefined);
+  api.emit("menu:about", undefined);
+  expect(document.querySelectorAll(".zen-about")).toHaveLength(1);
+  expect(document.querySelector(".zen-about")!.textContent).toContain("Version 1.2.3");
+  esc();
+  expect(document.querySelector(".zen-about")).toBeNull();
+  // an unstamped build says dev
+  const dev = createFakeApi({ startup: { workspace: sampleWorkspace(), page: "README.md", mode: "read" } });
+  shell?.destroy();
+  shell = boot(dev);
+  await shell.start();
+  dev.emit("menu:about", undefined);
+  expect(document.querySelector(".zen-about")!.textContent).toContain("Version dev");
+  esc();
+  // destroy drops the listener
+  shell.destroy();
+  shell = undefined;
+  dev.emit("menu:about", undefined);
+  expect(document.querySelector(".zen-about")).toBeNull();
+});
+
+test("File › Export › Website… (menu:build-website) opens Settings › Export › Website, with no modal", async () => {
+  const api = withWorkspace("README.md");
+  const s = boot(api);
+  await s.start();
+  api.emit("menu:build-website", undefined);
+  await tick();
+  await tick();
+  expect(document.querySelector(".zen-buildsite-backdrop")).toBeNull();
+  expect(root.querySelector(".zen-buildform")!.closest("[role=dialog]")).toBeNull();
+  expect(settingsPage()).not.toBeNull();
+  expect(root.querySelector('.zen-settings-section[data-section="export"]')!.getAttribute("aria-current")).toBe("true");
+  expect(root.querySelector('[role=option][data-item="website"]')!.getAttribute("aria-selected")).toBe("true");
+  expect(root.querySelector(".zen-buildform")).not.toBeNull();
+  api.emit("menu:build-website", undefined); // already open: stays on it
+  await tick();
+  expect(root.querySelectorAll(".zen-settings-page")).toHaveLength(1);
+});
+
+test("Developer › Open Console asks the Inspector for its Console tab", async () => {
+  localStorage.setItem("zen.developer", "1");
+  const s = boot(withWorkspace("README.md"));
+  await s.start();
+  const asked = vi.fn();
+  document.addEventListener("zen:inspector-console", asked);
+  key(",");
+  root.querySelector<HTMLElement>('.zen-settings-section[data-section="developer"]')!.click();
+  await tick();
+  await tick();
+  const open = Array.from(root.querySelectorAll<HTMLButtonElement>(".zen-settings-detail button")).find((b) => b.textContent === "Open Console")!;
+  expect(open.disabled).toBe(false);
+  open.click();
+  expect(asked).toHaveBeenCalledTimes(1);
+  document.removeEventListener("zen:inspector-console", asked);
 });

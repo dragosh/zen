@@ -1,10 +1,10 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import type { LayoutInfo, PluginInfo } from "../api";
-import { createFakeApi, ZENMARK_BUILD } from "../api/fake";
+import type { LayoutInfo, PluginInfo, SiteTemplate } from "../api";
+import { createFakeApi, MYST_DIALECT, ZENMARK_BUILD } from "../api/fake";
 import { rememberBuild, type BuildApi } from "./buildsite";
 import { createSettingsView, type SettingsView } from "./settings";
-import { followTheme, storedTheme, THEME_KEY } from "@zenmd/kit";
+import { storedTheme, THEME_KEY, type DialectInfo } from "@zenmd/kit";
 
 beforeEach(() => {
   localStorage.clear();
@@ -43,403 +43,411 @@ const PLUGINS: PluginInfo[] = [
   { id: "broken", version: "", description: "", source: "folder", status: "invalid", runs: [], problem: "plugin.yml: id must equal the folder name <b>x</b>", kind: "program", ...none },
 ];
 
-type Setup = { api: ReturnType<typeof createFakeApi>; s: SettingsView };
-function setup(hasWorkspace = true, plugins: PluginInfo[] = [], layouts: LayoutInfo[] = []): Setup {
-  const api = createFakeApi({ plugins, layouts });
-  const s = createSettingsView({ api, hasWorkspace: () => hasWorkspace });
+
+const TEMPLATES: SiteTemplate[] = [
+  { id: "techdocs", name: "Technical documentation", description: "Tutorials and <b>reference</b>", version: "1.0.0", ask: [{ key: "title", label: "Site title", default: "{{folder}}" }], builtin: true, update: "", error: "" },
+  { id: "mine", name: "My site", description: "Mine", version: "0.2.0", ask: [], builtin: false, update: "", error: "" },
+  { id: "bad", name: "Bad one", description: "", version: "", ask: [], builtin: false, update: "", error: "template.yml: no files <i>x</i>" },
+];
+
+type Opts = {
+  hasWorkspace?: boolean; plugins?: PluginInfo[]; layouts?: LayoutInfo[]; templates?: SiteTemplate[];
+  features?: string[]; sources?: Record<string, string>; dialects?: DialectInfo[];
+  view?: Partial<Parameters<typeof createSettingsView>[0]>;
+};
+function setup(o: Opts = {}) {
+  const api = createFakeApi({
+    plugins: o.plugins ?? [], layouts: o.layouts ?? [], templates: o.templates, sources: o.sources,
+    ...(o.dialects ? { dialects: o.dialects } : {}),
+    ...(o.features ? { build: { features: o.features } } : {}),
+  });
+  const has = o.hasWorkspace ?? true;
+  const s = createSettingsView({ api, hasWorkspace: () => has, root: () => (has ? "/Users/me/site" : ""), ...o.view });
   document.body.append(s.el);
   s.show();
   return { api, s };
 }
-const settle = async () => { for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0)); };
-const radio = (s: SettingsView, id: string) => s.el.querySelector<HTMLButtonElement>(`[role=radio][data-theme="${id}"]`)!;
-const section = (s: SettingsView, id: string) => s.el.querySelector<HTMLButtonElement>(`.zen-settings-section[data-section="${id}"]`)!;
-const panel = (s: SettingsView, id: string) => s.el.querySelector<HTMLElement>(`.zen-settings-panel[data-section="${id}"]`)!;
-const item = (s: SettingsView, id: string) => s.el.querySelector<HTMLElement>(`.zen-settings-plugin[data-plugin="${id}"]`)!;
-const pick = (s: SettingsView, id: string) => item(s, id).querySelector<HTMLButtonElement>(".zen-settings-plugin-select")!;
-const trust = (s: SettingsView, id: string) => item(s, id).querySelector<HTMLButtonElement>(".zen-settings-plugin-trust");
-const helpPane = (s: SettingsView) => s.el.querySelector<HTMLElement>(".zen-plugin-help")!;
+const settle = async () => { for (let i = 0; i < 8; i++) await new Promise((r) => setTimeout(r, 0)); };
 const key = (el: Element, k: string) => el.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
-async function plugins(plugins: PluginInfo[] = PLUGINS, hasWorkspace = true): Promise<Setup> {
-  const r = setup(hasWorkspace, plugins);
-  section(r.s, "plugins").click();
+const tab = (s: SettingsView, id: string) => s.el.querySelector<HTMLButtonElement>(`.zen-settings-section[data-section="${id}"]`)!;
+const panel = (s: SettingsView, id: string) => s.el.querySelector<HTMLElement>(`.zen-settings-panel[data-section="${id}"]`)!;
+const rows = (s: SettingsView, id: string) => Array.from(panel(s, id).querySelectorAll<HTMLElement>("[role=option]"));
+const row = (s: SettingsView, id: string, item: string) => panel(s, id).querySelector<HTMLElement>(`[role=option][data-item="${item}"]`)!;
+const detail = (s: SettingsView, id: string) => panel(s, id).querySelector<HTMLElement>(".zen-settings-detail")!;
+const btn = (root: ParentNode, text: string) => Array.from(root.querySelectorAll<HTMLButtonElement>("button")).find((b) => b.textContent === text)!;
+const names = (s: SettingsView) => Array.from(s.el.querySelectorAll(".zen-settings-section")).map((b) => b.textContent);
+async function go(s: SettingsView, id: string, item?: string): Promise<void> {
+  tab(s, id).click();
   await settle();
-  return r;
+  if (item) { row(s, id, item).click(); await settle(); }
 }
 
-// ---- the page and its sections
+// ---- 1: the section list per build
 
-test("it is a page with a section list on the left: Appearance, Configuration files, Plugins, Layouts, Export, This build, Developer", () => {
-  const { s } = setup();
-  const names = Array.from(s.el.querySelectorAll(".zen-settings-section")).map((b) => b.textContent);
-  expect(names).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Markdown", "Export", "This build", "Developer"]);
-  expect(s.el.querySelector("h1")!.textContent).toBe("Settings");
-  expect(s.el.getAttribute("aria-label")).toBe("Settings");
-  expect(s.el.classList.contains("zen-settings-page")).toBe(true);
-  expect(s.el.getAttribute("role")).not.toBe("dialog");
+test("section list per build", () => {
+  const list = (features?: string[]) => {
+    const { s } = setup({ features });
+    const n = names(s);
+    s.destroy();
+    return n;
+  };
+  expect(list()).toEqual(["Appearance", "Configuration", "Markdown", "Layouts", "Plugins", "Templates", "Export", "Developer"]); // the full build; no This build
+  // the starting shell
+  expect(list(["reader", "nav", "inspector", "developer"])).toEqual(["Appearance", "Markdown", "Layouts", "Plugins", "Developer"]);
+  // the bare shell
+  expect(list([])).toEqual(["Appearance"]);
+  // a feature brings its section
+  expect(list(["reader", "editor"])).toEqual(["Appearance", "Configuration", "Markdown", "Layouts", "Plugins"]);
+  expect(list(["newsite"])).toEqual(["Appearance", "Templates"]);
+  expect(list(["export"])).toEqual(["Appearance", "Export"]);
+  expect(list(["developer"])).toEqual(["Appearance", "Developer"]);
+  expect(list(["editor"])).toEqual(["Appearance", "Configuration"]);
+  expect(list(["reader"])).toEqual(["Appearance", "Markdown", "Layouts", "Plugins"]);
 });
 
-test("one section shows at a time; the first is Appearance; arrow keys and clicks switch", () => {
+test("every section is two columns, and the arrows of the section list move through the sections", async () => {
   const { s } = setup();
-  const shown = () => Array.from(s.el.querySelectorAll<HTMLElement>(".zen-settings-panel")).filter((p) => !p.hidden).map((p) => p.dataset.section);
-  expect(shown()).toEqual(["appearance"]);
-  expect(section(s, "appearance").getAttribute("aria-current")).toBe("true");
-  section(s, "files").click();
-  expect(shown()).toEqual(["files"]);
-  expect(section(s, "appearance").hasAttribute("aria-current")).toBe(false);
+  await settle();
+  for (const id of ["appearance", "config", "markdown", "layouts", "plugins", "templates", "export", "developer"]) {
+    expect(panel(s, id).querySelector(".zen-settings-cols"), id).not.toBeNull();
+  }
+  expect(s.el.querySelector("h1")!.textContent).toBe("Settings");
   const list = s.el.querySelector<HTMLElement>(".zen-settings-sections")!;
   key(list, "ArrowDown");
-  expect(shown()).toEqual(["plugins"]);
-  expect(document.activeElement).toBe(section(s, "plugins"));
-  key(list, "ArrowDown");
-  expect(shown()).toEqual(["layouts"]);
-  key(list, "ArrowDown");
-  expect(shown()).toEqual(["markdown"]);
-  key(list, "ArrowDown");
-  expect(shown()).toEqual(["export"]);
-  key(list, "ArrowDown");
-  expect(shown()).toEqual(["build"]);
-  key(list, "ArrowDown");
-  expect(shown()).toEqual(["developer"]);
-  key(list, "ArrowDown"); // wraps
-  expect(shown()).toEqual(["appearance"]);
-  key(list, "ArrowUp");
-  expect(shown()).toEqual(["developer"]);
+  expect(tab(s, "config").getAttribute("aria-current")).toBe("true");
 });
 
 // ---- appearance
 
-test("theme: system by default, choosing applies and remembers it", () => {
+test("appearance: the theme is the list, and the old theme tests still hold", async () => {
   const { s } = setup();
-  expect(radio(s, "system").getAttribute("aria-checked")).toBe("true");
-  radio(s, "dark").click();
+  await settle();
+  expect(rows(s, "appearance").map((r) => r.dataset.item)).toEqual(["system", "light", "dark"]);
+  row(s, "appearance", "dark").click();
   expect(document.documentElement.dataset.theme).toBe("dark");
-  expect(localStorage.getItem(THEME_KEY)).toBe("dark");
-  expect(radio(s, "dark").getAttribute("aria-checked")).toBe("true");
-  radio(s, "system").click();
-  expect(document.documentElement.dataset.theme).toBeUndefined();
-  expect(storedTheme()).toBe("system");
-});
-
-test("arrow keys move through the theme options", () => {
-  const { s } = setup();
-  const seg = s.el.querySelector<HTMLElement>("[role=radiogroup]")!;
-  seg.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true }));
-  expect(storedTheme()).toBe("light");
-  seg.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
-  seg.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true }));
   expect(storedTheme()).toBe("dark");
-});
-
-test("showing the view again re-reads the stored theme", () => {
-  const { s } = setup();
-  localStorage.setItem(THEME_KEY, "dark");
+  localStorage.removeItem(THEME_KEY);
   s.show();
-  expect(radio(s, "dark").getAttribute("aria-checked")).toBe("true");
+  await settle();
+  expect(row(s, "appearance", "system").getAttribute("aria-selected")).toBe("true");
 });
 
-// ---- configuration files
+// ---- 4: configuration
 
-test("config files open through the API; folder file disabled without a folder; errors shown as text", async () => {
-  const { api, s } = setup();
-  section(s, "files").click();
-  s.el.querySelector<HTMLButtonElement>('[aria-label="Open config.yml"]')!.click();
+const CONFIG = "theme: dark\nname: <b>x</b>\n";
+test("configuration section", async () => {
+  const { api, s } = setup({ sources: { "zen:config/global": CONFIG, "zen:config/workspace": "plugins: {}\n" } });
+  await go(s, "config");
+  expect(rows(s, "config").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["config.yml", ".zen.yml"]);
+  expect(rows(s, "config")[0].textContent).toContain("All folders");
+  expect(rows(s, "config")[1].textContent).toContain("This folder");
+  expect(rows(s, "config")[1].getAttribute("aria-disabled")).toBeNull();
+  // the file's preview and its actions
+  expect(api.callsTo("source")).toContainEqual(["zen:config/global"]);
+  const d = detail(s, "config");
+  expect(d.querySelector("h3")!.textContent).toBe("config.yml");
+  expect(d.querySelector("pre")!.textContent).toBe(CONFIG);
+  expect(btn(d, "Create")).toBeUndefined(); // it exists
+  btn(d, "Open in Editor").click();
   await settle();
   expect(api.callsTo("openConfig")).toEqual([["global"]]);
-  const status = panel(s, "files").querySelector("[role=status]")!;
-  expect(status.textContent).toContain("config.yml opened");
-  api.failNext("openConfig", new Error("<b>nope</b>"));
-  s.el.querySelector<HTMLButtonElement>('[aria-label="Open .zen.yml"]')!.click();
+  expect(d.querySelector("[role=status]")!.textContent).toContain("config.yml opened");
+  btn(d, "Reveal in Finder").click();
   await settle();
-  expect(status.textContent).toContain("<b>nope</b>");
-  expect(s.el.querySelector("b")).toBeNull();
-
-  const none = setup(false);
-  expect(none.s.el.querySelector<HTMLButtonElement>('[aria-label="Open .zen.yml"]')!.disabled).toBe(true);
+  expect(api.callsTo("revealInFinder")).toEqual([["zen:config/global"]]);
+  // the local file
+  row(s, "config", "workspace").click();
+  await settle();
+  expect(detail(s, "config").querySelector("pre")!.textContent).toBe("plugins: {}\n");
+  // a failing action is shown as text
+  api.failNext("openConfig", new Error("<b>nope</b>"));
+  btn(detail(s, "config"), "Open in Editor").click();
+  await settle();
+  expect(detail(s, "config").querySelector("[role=status]")!.textContent).toContain("<b>nope</b>");
+  expect(detail(s, "config").querySelector("b")).toBeNull();
 });
 
-test("followTheme applies the stored theme and follows other windows", () => {
-  localStorage.setItem(THEME_KEY, "light");
-  const off = followTheme();
-  expect(document.documentElement.dataset.theme).toBe("light");
-  localStorage.setItem(THEME_KEY, "dark");
-  window.dispatchEvent(new StorageEvent("storage", { key: THEME_KEY }));
-  expect(document.documentElement.dataset.theme).toBe("dark");
-  off();
+test("configuration section: Local is disabled with no folder; a missing file offers Create", async () => {
+  const none = setup({ hasWorkspace: false, sources: { "zen:config/global": "" } });
+  await go(none.s, "config");
+  expect(row(none.s, "config", "workspace").getAttribute("aria-disabled")).toBe("true");
+  row(none.s, "config", "workspace").click();
+  await settle();
+  expect(detail(none.s, "config").querySelector("h3")!.textContent).toBe("config.yml"); // not selectable
+  // the global file is empty: Create (it writes the commented template and opens it)
+  const d = detail(none.s, "config");
+  expect(btn(d, "Open in Editor")).toBeUndefined();
+  btn(d, "Create").click();
+  await settle();
+  expect(none.api.callsTo("openConfig")).toEqual([["global"]]);
+  // no source at all (the fake throws) counts as missing too
+  const miss = setup({ sources: {} });
+  await go(miss.s, "config", "workspace");
+  expect(btn(detail(miss.s, "config"), "Create")).toBeDefined();
 });
 
-// ---- plugins: the list
-
-test("plugins: the list reads the API when the view is shown; each row has name, version, origin, kind badge, what runs and status", async () => {
-  const { api, s } = await plugins();
-  expect(api.callsTo("plugins")).toHaveLength(1);
-  const rows = Array.from(s.el.querySelectorAll<HTMLElement>(".zen-settings-plugin"));
-  expect(rows.map((r) => r.dataset.plugin)).toEqual(["highlight", "diagram", "note", "calc", "shout", "old", "broken"]);
-  const text = (id: string) => item(s, id).textContent!;
-  expect(text("highlight")).toContain("0.1.0");
-  expect(text("highlight")).toContain("Built in");
-  expect(text("highlight")).toContain("On");
-  expect(trust(s, "highlight")).toBeNull();
-  expect(text("note")).toContain("This folder");
-  expect(text("note")).toContain("./note.sh");
-  expect(text("note")).toContain("scripts in the page");
-  expect(text("note")).toContain("Not allowed yet");
-  expect(text("calc")).toContain("Your plugins");
-  expect(text("calc")).toContain("bc -l");
-  expect(text("old")).toContain("Blocked");
-  const badge = (id: string) => item(s, id).querySelector(".zen-settings-plugin-kind")!.textContent;
-  expect([badge("highlight"), badge("note"), badge("shout")]).toEqual(["builtin", "program", "script"]);
-  expect(text("shout")).toContain("cannot read files");
+test("configuration section: switching folders refreshes Local", async () => {
+  let open = false;
+  const api = createFakeApi({ sources: { "zen:config/workspace": "a: 1\n" } });
+  const s = createSettingsView({ api, hasWorkspace: () => open });
+  document.body.append(s.el);
+  s.show();
+  await go(s, "config");
+  expect(row(s, "config", "workspace").getAttribute("aria-disabled")).toBe("true");
+  open = true;
   s.show();
   await settle();
-  expect(api.callsTo("plugins")).toHaveLength(2);
+  expect(row(s, "config", "workspace").getAttribute("aria-disabled")).toBeNull();
 });
 
-test("plugins: an invalid plugin shows its problem and no Allow/Block; all text is plain text", async () => {
-  const { s } = await plugins();
-  expect(item(s, "broken").textContent).toContain("Invalid");
-  expect(item(s, "broken").textContent).toContain("id must equal the folder name <b>x</b>");
-  expect(trust(s, "broken")).toBeNull();
-  expect(item(s, "old").textContent).toContain("<img src=x>");
-  expect(s.el.querySelector(".zen-settings-plugins b, .zen-settings-plugins img")).toBeNull();
+test("configuration preview is text", async () => {
+  const { s } = setup({ sources: { "zen:config/global": "<img src=x onerror=alert(1)><script>boom()</script>" } });
+  await go(s, "config");
+  const pre = detail(s, "config").querySelector("pre")!;
+  expect(pre.textContent).toContain("<img src=x onerror=alert(1)>");
+  expect(pre.children).toHaveLength(0);
+  expect(detail(s, "config").querySelector("img, script")).toBeNull();
+});
+
+// ---- 5: markdown
+
+test("markdown section", async () => {
+  const { api, s } = setup({ dialects: [{ ...MYST_DIALECT }, { id: "x", name: "<b>X</b>", summary: "<i>s</i>", on: true }] });
+  await go(s, "markdown");
+  expect(rows(s, "markdown").map((r) => [r.dataset.item, r.querySelector(".zen-settings-item-note")!.textContent])).toEqual([["myst", "Off"], ["x", "On"]]);
+  const box = () => detail(s, "markdown").querySelector<HTMLInputElement>('input[type="checkbox"]')!;
+  expect(detail(s, "markdown").querySelector("h3")!.textContent).toBe("MyST");
+  expect(box().checked).toBe(false);
+  expect(box().disabled).toBe(false);
+  expect(detail(s, "markdown").textContent).toContain(MYST_DIALECT.summary);
+  // the syntax sample, and its rendered preview through api.preview
+  const sample = detail(s, "markdown").querySelector("pre")!;
+  expect(sample.textContent).toContain("{note}");
+  expect(api.callsTo("preview")).toHaveLength(1);
+  expect(api.callsTo("preview")[0][1]).toBe(sample.textContent);
+  expect(detail(s, "markdown").querySelector(".zen-page")).not.toBeNull();
+  // turning it on writes the folder and the list shows it
+  box().click();
+  await settle();
+  expect(api.callsTo("setDialect")).toEqual([["myst", true]]);
+  expect(row(s, "markdown", "myst").querySelector(".zen-settings-item-note")!.textContent).toBe("On");
+  expect(box().checked).toBe(true);
+  // a refused change puts the box back and says why
+  api.failNext("setDialect", new Error("could not save .zen.yml"));
+  box().click();
+  await settle();
+  expect(box().checked).toBe(true);
+  expect(detail(s, "markdown").querySelector("[role=status]")!.textContent).toContain("could not save .zen.yml");
+  // names and summaries are text
+  row(s, "markdown", "x").click();
+  await settle();
+  expect(detail(s, "markdown").querySelector("h3")!.textContent).toBe("<b>X</b>");
+  expect(panel(s, "markdown").querySelector("b, i")).toBeNull();
+  expect(detail(s, "markdown").querySelector("pre")).toBeNull(); // no sample for a dialect that does not give one
+});
+
+test("markdown section: no folder or a read-only app disables the switch; no dialects says so", async () => {
+  const none = setup({ hasWorkspace: false });
+  await go(none.s, "markdown");
+  expect(detail(none.s, "markdown").querySelector<HTMLInputElement>("input")!.disabled).toBe(true);
+  expect(detail(none.s, "markdown").textContent).toContain("Open a folder");
+  const ro = setup({ features: ZENMARK_BUILD.features.filter((f) => f !== "editor") });
+  await go(ro.s, "markdown");
+  expect(detail(ro.s, "markdown").querySelector<HTMLInputElement>("input")!.disabled).toBe(true);
+  expect(detail(ro.s, "markdown").textContent).toContain("read-only");
+  const empty = setup({ dialects: [] });
+  await go(empty.s, "markdown");
+  expect(rows(empty.s, "markdown")).toHaveLength(0);
+  expect(detail(empty.s, "markdown").textContent).toBe("This build reads CommonMark and GFM only.");
+});
+
+test("markdown section: switching folders refreshes the dialect states", async () => {
+  const { api, s } = setup();
+  await go(s, "markdown");
+  expect(api.callsTo("dialects").length).toBeGreaterThan(0);
+  const before = api.callsTo("dialects").length;
+  await api.setDialect("myst", true);
+  s.show();
+  await settle();
+  expect(api.callsTo("dialects").length).toBeGreaterThan(before);
+  expect(row(s, "markdown", "myst").querySelector(".zen-settings-item-note")!.textContent).toBe("On");
+});
+
+// ---- 6: plugin, layout and template lists
+
+const help = (s: SettingsView, id = "plugins") => detail(s, id).querySelector<HTMLElement>(".zen-plugin-help")!;
+const trust = (s: SettingsView, id = "plugins") => detail(s, id).querySelector<HTMLButtonElement>(".zen-settings-plugin-trust");
+const pluginView = async (plugins: PluginInfo[] = PLUGINS) => {
+  const r = setup({ plugins });
+  await go(r.s, "plugins");
+  return r;
+};
+
+test("plugin, layout and template lists", async () => {
+  const { api, s } = await pluginView();
+  expect(api.callsTo("plugins")).toHaveLength(1);
+  expect(rows(s, "plugins").map((r) => r.dataset.item)).toEqual(["*", "highlight", "diagram", "note", "calc", "shout", "old", "broken"]);
+  const note = (id: string) => row(s, "plugins", id).querySelector(".zen-settings-item-note")?.textContent ?? null;
+  // "on" and "Built in" are gone; only exceptions show
+  expect(note("highlight")).toBeNull();
+  expect(note("diagram")).toBeNull();
+  expect(row(s, "plugins", "highlight").textContent).not.toMatch(/\bOn\b|Built in/);
+  expect(note("calc")).toBe("Your plugins");
+  expect(note("shout")).toBe("This folder");
+  expect(note("note")).toBe("Not allowed yet · This folder");
+  expect(note("old")).toBe("Blocked · This folder");
+  expect(note("broken")).toBe("Invalid · This folder");
+  // layouts
+  const l = setup({ layouts: LAYOUTS });
+  await go(l.s, "layouts");
+  const lnote = (id: string) => row(l.s, "layouts", id).querySelector(".zen-settings-item-note")?.textContent ?? null;
+  expect(rows(l.s, "layouts").map((r) => r.dataset.item)).toEqual(["article", "post", "slides", "memo", "mine", "old", "broken"]);
+  expect([lnote("article"), lnote("post"), lnote("slides")]).toEqual([null, null, null]);
+  expect(lnote("memo")).toBe("Not allowed yet · This folder");
+  expect(lnote("mine")).toBe("Your layouts");
+  expect(lnote("old")).toBe("Blocked · This folder");
+  expect(lnote("broken")).toBe("Invalid · This folder");
+  // templates
+  const t = setup({ templates: TEMPLATES });
+  await go(t.s, "templates");
+  expect(rows(t.s, "templates").map((r) => r.dataset.item)).toEqual(["techdocs", "mine", "bad"]);
+  expect(rows(t.s, "templates").map((r) => r.querySelector(".zen-settings-item-note")?.textContent ?? null)).toEqual([null, "Your templates", "Invalid · Your templates"]);
+  expect(rows(t.s, "templates")[0].querySelector(".zen-settings-item-label")!.textContent).toBe("Technical documentation");
+});
+
+test("plugins: the list reads the API each time the page is shown; text is plain; empty and failing states", async () => {
+  const { api, s } = await pluginView();
+  s.show();
+  await settle();
+  expect(api.callsTo("plugins")).toHaveLength(2); // the section chosen, and the page shown again
+  expect(panel(s, "plugins").querySelector("b, img")).toBeNull();
+  row(s, "plugins", "broken").click();
+  expect(help(s).textContent).toContain("id must equal the folder name <b>x</b>");
+  expect(help(s).querySelector("b")).toBeNull();
+  expect(trust(s)).toBeNull(); // invalid: no Allow/Block
+  const e = await pluginView([]);
+  expect(detail(e.s, "plugins").textContent).toContain("No plugins in this folder.");
+  e.api.failNext("plugins", new Error("<i>no folder</i>"));
+  e.s.show();
+  await settle();
+  expect(detail(e.s, "plugins").textContent).toContain("Could not list plugins: <i>no folder</i>");
+  expect(detail(e.s, "plugins").querySelector("i")).toBeNull();
 });
 
 test("plugins: Allow and Block call pluginTrust and refresh the list; the selection stays", async () => {
-  const { api, s } = await plugins();
-  pick(s, "diagram").click();
-  const allow = trust(s, "note")!;
-  expect(allow.textContent).toBe("Allow");
-  expect(allow.getAttribute("aria-label")).toBe("Allow note");
-  expect(trust(s, "old")!.textContent).toBe("Allow");
-  expect(trust(s, "calc")!.textContent).toBe("Block");
-
-  allow.click();
+  const { api, s } = await pluginView();
+  row(s, "plugins", "highlight").click();
+  expect(trust(s)).toBeNull(); // built in
+  row(s, "plugins", "note").click();
+  expect(trust(s)!.textContent).toBe("Allow");
+  expect(trust(s)!.getAttribute("aria-label")).toBe("Allow note");
+  trust(s)!.click();
   await settle();
   expect(api.callsTo("pluginTrust")).toEqual([["note", true]]);
-  expect(api.callsTo("plugins")).toHaveLength(2);
-  expect(item(s, "note").textContent).toContain("On");
-  expect(trust(s, "note")!.textContent).toBe("Block");
-  expect(item(s, "diagram").querySelector(".zen-settings-plugin-select")!.getAttribute("aria-current")).toBe("true");
-
-  trust(s, "calc")!.click();
+  expect(api.callsTo("plugins").length).toBeGreaterThanOrEqual(2);
+  expect(row(s, "plugins", "note").querySelector(".zen-settings-item-note")!.textContent).toBe("This folder");
+  expect(row(s, "plugins", "note").getAttribute("aria-selected")).toBe("true");
+  expect(trust(s)!.textContent).toBe("Block");
+  expect(document.activeElement).toBe(trust(s));
+  row(s, "plugins", "calc").click();
+  trust(s)!.click();
   await settle();
   expect(api.callsTo("pluginTrust")).toEqual([["note", true], ["calc", false]]);
-  expect(item(s, "calc").textContent).toContain("Blocked");
-  expect(trust(s, "calc")!.textContent).toBe("Allow");
-});
-
-test("plugins: empty state, and failures shown as text", async () => {
-  const { api, s } = await plugins([]);
-  expect(s.el.querySelector(".zen-settings-plugins")!.textContent).toBe("No plugins in this folder.");
-  expect(helpPane(s).textContent).toContain("No plugins");
-  api.failNext("plugins", new Error("<i>no folder</i>"));
-  s.show();
+  expect(row(s, "plugins", "calc").querySelector(".zen-settings-item-note")!.textContent).toBe("Blocked · Your plugins");
+  // a failure is shown as text
+  api.failNext("pluginTrust", new Error("cannot write <b>trusted</b>"));
+  row(s, "plugins", "note").click();
+  trust(s)!.click();
   await settle();
-  expect(s.el.querySelector(".zen-settings-plugins")!.textContent).toContain("<i>no folder</i>");
-  expect(s.el.querySelector("i")).toBeNull();
-
-  const t = await plugins();
-  t.api.failNext("pluginTrust", new Error("cannot write trusted-plugins.yml"));
-  trust(t.s, "note")!.click();
-  await settle();
-  expect(t.s.el.querySelector(".zen-settings-plugins-status")!.textContent).toContain("cannot write trusted-plugins.yml");
-  expect(item(t.s, "note").textContent).toContain("Not allowed yet");
+  expect(detail(s, "plugins").querySelector("[role=status]")!.textContent).toContain("cannot write <b>trusted</b>");
+  expect(detail(s, "plugins").querySelector("b")).toBeNull();
 });
 
-// ---- plugins: selection and keyboard
-
-test("plugins: the first plugin is selected by default and its help shows next to the list", async () => {
-  const { s } = await plugins();
-  expect(pick(s, "highlight").getAttribute("aria-current")).toBe("true");
-  expect(pick(s, "diagram").hasAttribute("aria-current")).toBe(false);
-  expect(helpPane(s).querySelector(".zen-plugin-help-title")!.textContent).toContain("highlight");
-  const list = s.el.querySelector(".zen-settings-plugins")!;
-  const pane = helpPane(s);
-  expect(list.compareDocumentPosition(pane) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-});
-
-test("plugins: clicking a plugin shows its help", async () => {
-  const { s } = await plugins();
-  pick(s, "note").click();
-  expect(pick(s, "note").getAttribute("aria-current")).toBe("true");
-  expect(pick(s, "highlight").hasAttribute("aria-current")).toBe(false);
-  expect(helpPane(s).textContent).toContain("Callout boxes.");
-});
-
-test("plugins: ↑/↓ move through the entries, Enter selects, the keys wrap and stop at the ends", async () => {
-  const { s } = await plugins();
-  const list = s.el.querySelector<HTMLElement>(".zen-settings-plugins")!;
-  pick(s, "highlight").focus();
+test("plugins: the first one is selected and its help shows on the right; keys move through the list", async () => {
+  const { s } = await pluginView();
+  // "All plugins" comes first and is the list's first row; the first plugin is selected until the reader picks
+  expect(row(s, "plugins", "highlight").getAttribute("aria-selected")).toBe("true");
+  expect(detail(s, "plugins").querySelector("h3")!.textContent).toBe("highlight");
+  const list = panel(s, "plugins").querySelector<HTMLElement>("[role=listbox]")!;
+  row(s, "plugins", "highlight").focus();
   key(list, "ArrowDown");
-  expect(document.activeElement).toBe(pick(s, "diagram"));
-  expect(pick(s, "highlight").getAttribute("aria-current")).toBe("true"); // moving does not select
-  key(list, "Enter");
-  expect(pick(s, "diagram").getAttribute("aria-current")).toBe("true");
-  expect(helpPane(s).textContent).toContain("Draws diagrams.");
-  key(list, "ArrowUp");
-  key(list, "ArrowUp");
-  expect(document.activeElement).toBe(s.el.querySelector(".zen-settings-plugin-all .zen-settings-plugin-select")); // the All entry is on top
-  key(list, "ArrowUp");
-  expect(document.activeElement).toBe(s.el.querySelector(".zen-settings-plugin-all .zen-settings-plugin-select")); // the top stops
-  key(list, "End");
-  expect(document.activeElement).toBe(pick(s, "broken"));
-  key(list, "ArrowDown");
-  expect(document.activeElement).toBe(pick(s, "broken"));
+  expect(document.activeElement).toBe(row(s, "plugins", "diagram"));
+  expect(help(s).textContent).toContain("Draws diagrams.");
   key(list, "Home");
-  expect(document.activeElement).toBe(s.el.querySelector(".zen-settings-plugin-all .zen-settings-plugin-select"));
+  expect(document.activeElement).toBe(row(s, "plugins", "*"));
 });
 
-// ---- plugins: the help pane
-
-test("help pane: summary, description, and what the plugin adds with option types and defaults", async () => {
-  const { s } = await plugins();
-  const pane = helpPane(s);
+test("plugin help: summary, what it adds with option types and defaults, problems, runs, no help", async () => {
+  const { s } = await pluginView();
+  const pane = help(s);
   expect(pane.querySelector(".zen-plugin-help-summary")!.textContent).toBe("Colours <b>code</b> blocks.");
   expect(pane.querySelector("b")).toBeNull();
   expect(pane.textContent).toContain("Code colours");
   const opts = Array.from(pane.querySelectorAll(".zen-plugin-option")).map((r) => r.textContent);
-  expect(opts).toHaveLength(2);
   expect(opts[0]).toContain("lineNumbers");
   expect(opts[0]).toContain("bool");
   expect(opts[0]).toContain("false");
   expect(opts[0]).toContain("Show a gutter.");
-  expect(opts[1]).toContain("style");
-  expect(opts[1]).toContain("string");
-  expect(opts[1]).toContain("zen");
-
-  pick(s, "note").click();
-  const adds = helpPane(s).querySelector(".zen-plugin-adds")!.textContent!;
+  row(s, "plugins", "note").click();
+  const adds = help(s).querySelector(".zen-plugin-adds")!.textContent!;
   expect(adds).toContain("Blocks");
-  expect(adds).toContain("note");
-  expect(adds).toContain("Inlines");
   expect(adds).toContain("badge");
-  expect(adds).not.toContain("Layouts"); // layouts have their own section
-  pick(s, "diagram").click();
-  expect(helpPane(s).querySelector(".zen-plugin-adds")!.textContent).toContain("mermaid");
-  expect(helpPane(s).querySelector(".zen-plugin-adds")!.textContent).not.toContain("Inlines");
-  expect(helpPane(s).querySelector(".zen-plugin-option")).toBeNull();
+  expect(adds).not.toContain("Layouts");
+  row(s, "plugins", "calc").click();
+  expect(help(s).textContent).toContain("No help");
+  expect(help(s).textContent).toContain("bc -l");
+  row(s, "plugins", "shout").click();
+  expect(help(s).textContent).toContain("cannot read files");
 });
 
-test("help pane: a plugin without help says so; an invalid one shows its problem", async () => {
-  const { s } = await plugins();
-  pick(s, "calc").click();
-  expect(helpPane(s).textContent).toContain("No help");
-  expect(helpPane(s).textContent).toContain("bc -l");
-  expect(helpPane(s).querySelector(".zen-plugin-snippet")).toBeNull();
-  pick(s, "broken").click();
-  expect(helpPane(s).textContent).toContain("id must equal the folder name <b>x</b>");
-  expect(helpPane(s).querySelector("b")).toBeNull();
-});
-
-test("help pane: each snippet has a title, its markdown as text and a Copy button", async () => {
-  const { s } = await plugins();
-  const snippets = Array.from(helpPane(s).querySelectorAll<HTMLElement>(".zen-plugin-snippet"));
-  expect(snippets.map((x) => x.querySelector(".zen-plugin-snippet-title")!.textContent)).toEqual(["A coloured block", "Line numbers"]);
-  expect(snippets[0].querySelector("pre")!.textContent).toBe("```go\nfmt.Println(1)\n```");
-  expect(snippets[0].querySelector("button")!.textContent).toBe("Copy");
-  expect(snippets[0].querySelector("button")!.getAttribute("aria-label")).toBe("Copy A coloured block");
-});
-
-test("Copy uses navigator.clipboard and says Copied", async () => {
+test("plugin help: snippets are text with Copy; built-in ones get a preview, external and whole-page ones do not", async () => {
   const writeText = vi.fn(async () => undefined);
   vi.stubGlobal("navigator", { clipboard: { writeText } });
-  const { s } = await plugins();
-  const btn = helpPane(s).querySelector<HTMLButtonElement>(".zen-plugin-copy")!;
-  btn.click();
+  const { api, s } = await pluginView();
+  const snippets = Array.from(help(s).querySelectorAll<HTMLElement>(".zen-plugin-snippet"));
+  expect(snippets.map((x) => x.querySelector(".zen-plugin-snippet-title")!.textContent)).toEqual(["A coloured block", "Line numbers"]);
+  expect(snippets[0].querySelector("pre")!.textContent).toBe("```go\nfmt.Println(1)\n```");
+  expect(snippets[0].querySelector("button")!.getAttribute("aria-label")).toBe("Copy A coloured block");
+  const copy = snippets[0].querySelector<HTMLButtonElement>("button")!;
+  copy.click();
   await settle();
   expect(writeText).toHaveBeenCalledWith("```go\nfmt.Println(1)\n```");
-  expect(btn.textContent).toBe("Copied");
-});
-
-test("Copy falls back to a textarea and execCommand without a clipboard (or when it refuses)", async () => {
-  const exec = vi.fn(() => true);
-  (document as unknown as { execCommand: unknown }).execCommand = exec;
-  let selected = "";
-  const orig = HTMLTextAreaElement.prototype.select;
-  HTMLTextAreaElement.prototype.select = function (this: HTMLTextAreaElement) { selected = this.value; };
-  try {
-    vi.stubGlobal("navigator", {});
-    const { s } = await plugins();
-    const btn = helpPane(s).querySelector<HTMLButtonElement>(".zen-plugin-copy")!;
-    btn.click();
-    await settle();
-    expect(exec).toHaveBeenCalledWith("copy");
-    expect(selected).toBe("```go\nfmt.Println(1)\n```");
-    expect(btn.textContent).toBe("Copied");
-    expect(document.querySelector("textarea")).toBeNull(); // removed again
-
-    vi.stubGlobal("navigator", { clipboard: { writeText: async () => { throw new Error("denied"); } } });
-    selected = "";
-    btn.click();
-    await settle();
-    expect(selected).toBe("```go\nfmt.Println(1)\n```");
-
-    exec.mockReturnValue(false);
-    btn.click();
-    await settle();
-    expect(btn.textContent).toBe("Copy failed");
-  } finally {
-    HTMLTextAreaElement.prototype.select = orig;
-    delete (document as unknown as { execCommand?: unknown }).execCommand;
-  }
-});
-
-test("built-in snippets get a rendered preview through api.preview; layout pages and external plugins do not", async () => {
-  const { api, s } = await plugins();
-  const calls = api.callsTo("preview");
-  expect(calls).toHaveLength(1); // the second snippet starts with frontmatter: a whole page, not a preview
-  expect(calls[0][1]).toBe("```go\nfmt.Println(1)\n```");
-  const previews = helpPane(s).querySelectorAll(".zen-plugin-snippet-preview");
-  expect(previews).toHaveLength(1);
-  expect(previews[0].textContent).toContain("fmt.Println(1)");
-  pick(s, "note").click();
+  expect(copy.textContent).toBe("Copied");
+  expect(api.callsTo("preview")).toHaveLength(1); // the second snippet is a whole page
+  expect(help(s).querySelectorAll(".zen-plugin-snippet-preview")).toHaveLength(1);
+  row(s, "plugins", "note").click();
   await settle();
   expect(api.callsTo("preview")).toHaveLength(1);
-  expect(helpPane(s).querySelector(".zen-plugin-snippet")).not.toBeNull();
-  expect(helpPane(s).querySelector(".zen-plugin-snippet-preview")).toBeNull();
+  expect(help(s).querySelector(".zen-plugin-snippet-preview")).toBeNull();
 });
 
-test("a failing preview leaves the snippet alone; a stale preview does not land in another plugin's pane", async () => {
-  const { api, s } = await plugins();
+test("plugin help: a failing preview leaves the snippet alone; a stale one does not land in another pane", async () => {
+  const { api, s } = await pluginView();
   api.failNext("preview", new Error("boom"));
-  pick(s, "diagram").click();
+  row(s, "plugins", "diagram").click();
   await settle();
-  expect(helpPane(s).querySelector(".zen-plugin-snippet")).not.toBeNull();
-  expect(helpPane(s).querySelector(".zen-plugin-snippet-preview")).toBeNull();
-  pick(s, "highlight").click();
-  pick(s, "note").click();
+  expect(help(s).querySelector(".zen-plugin-snippet")).not.toBeNull();
+  expect(help(s).querySelector(".zen-plugin-snippet-preview")).toBeNull();
+  row(s, "plugins", "highlight").click();
+  row(s, "plugins", "note").click();
   await settle();
-  expect(helpPane(s).querySelector(".zen-plugin-snippet-preview")).toBeNull();
+  expect(help(s).querySelector(".zen-plugin-snippet-preview")).toBeNull();
 });
 
-// ---- plugins: All plugins
-
-test("All plugins: an entry at the top shows every plugin's main snippet in one page", async () => {
-  const { api, s } = await plugins();
-  const all = s.el.querySelector<HTMLButtonElement>(".zen-settings-plugin-all .zen-settings-plugin-select")!;
-  expect(all.textContent).toContain("All plugins");
-  const first = s.el.querySelector(".zen-settings-plugins")!.firstElementChild!;
-  expect(first.contains(all)).toBe(true);
-  all.click();
+test("All plugins: the main snippet of every plugin on one page", async () => {
+  const { s } = await pluginView();
+  row(s, "plugins", "*").click();
   await settle();
-  expect(all.getAttribute("aria-current")).toBe("true");
-  const pane = helpPane(s);
+  expect(detail(s, "plugins").querySelector("h3")!.textContent).toBe("All plugins");
+  const pane = help(s);
   expect(pane.dataset.view).toBe("all");
   const items = Array.from(pane.querySelectorAll<HTMLElement>(".zen-plugin-all-item"));
-  expect(items.map((i) => i.dataset.plugin)).toEqual(["highlight", "diagram", "note", "calc", "shout", "old"]); // not the invalid one
-  expect(items[0].querySelector("pre")!.textContent).toBe("```go\nfmt.Println(1)\n```"); // the main (first) snippet only
+  expect(items.map((i) => i.dataset.plugin)).toEqual(["highlight", "diagram", "note", "calc", "shout", "old"]);
   expect(items[0].querySelectorAll(".zen-plugin-snippet")).toHaveLength(1);
-  expect(items[2].querySelector("pre")!.textContent).toBe(":::note\nhi\n:::");
-  expect(items[3].querySelector("pre")).toBeNull(); // no snippet: description only
   expect(items[3].textContent).toContain("No help");
-  expect(items[0].querySelector("button")!.textContent).toBe("Copy");
-  expect(api.callsTo("preview").length).toBeGreaterThanOrEqual(2); // built-ins preview
-  expect(items[2].querySelector(".zen-plugin-snippet-preview")).toBeNull(); // external: snippet only
-  pick(s, "note").click();
-  expect(helpPane(s).dataset.view).toBeUndefined();
+  row(s, "plugins", "note").click();
+  expect(help(s).dataset.view).toBeUndefined();
 });
-
-// ---- layouts
 
 const LAYOUTS: LayoutInfo[] = [
   {
@@ -466,452 +474,221 @@ const LAYOUTS: LayoutInfo[] = [
   { id: "old", version: "0.1.0", description: "", source: "folder", status: "blocked", kind: "layout", hasTemplate: false, hasScript: false, problem: "", fields: [], options: [], help: { summary: "", snippets: [] } },
   { id: "broken", version: "", description: "", source: "folder", status: "invalid", kind: "layout", hasTemplate: false, hasScript: false, problem: "layout.yml: template <b>x</b> not found", fields: [], options: [], help: { summary: "", snippets: [] } },
 ];
-const lItem = (s: SettingsView, id: string) => s.el.querySelector<HTMLElement>(`.zen-settings-layout[data-layout="${id}"]`)!;
-const lPick = (s: SettingsView, id: string) => lItem(s, id).querySelector<HTMLButtonElement>(".zen-settings-layout-select")!;
-const lTrust = (s: SettingsView, id: string) => lItem(s, id).querySelector<HTMLButtonElement>(".zen-settings-layout-trust");
-const lHelp = (s: SettingsView) => s.el.querySelector<HTMLElement>(".zen-layout-help")!;
-async function layouts(list: LayoutInfo[] = LAYOUTS): Promise<Setup> {
-  const r = setup(true, [], list);
-  section(r.s, "layouts").click();
-  await settle();
+
+const lHelp = (s: SettingsView) => detail(s, "layouts").querySelector<HTMLElement>(".zen-layout-help")!;
+const layoutView = async (layouts: LayoutInfo[] = LAYOUTS) => {
+  const r = setup({ layouts });
+  await go(r.s, "layouts");
   return r;
-}
+};
 
-test("layouts: the list reads api.layouts() when shown; rows show name, version, origin, status and template/script hints", async () => {
-  const { api, s } = await layouts();
+test("layouts: the first one is selected; help has description, fields, options and hints; text is plain", async () => {
+  const { api, s } = await layoutView();
   expect(api.callsTo("layouts")).toHaveLength(1);
-  expect(api.callsTo("plugins")).toHaveLength(1); // the Plugins section is read too, independently
-  const rows = Array.from(s.el.querySelectorAll<HTMLElement>(".zen-settings-layout"));
-  expect(rows.map((r) => r.dataset.layout)).toEqual(["article", "post", "slides", "memo", "mine", "old", "broken"]);
-  const text = (id: string) => lItem(s, id).textContent!;
-  expect(text("post")).toContain("1.0.0");
-  expect(text("post")).toContain("Built in");
-  expect(text("post")).toContain("template");
-  expect(text("post")).not.toContain("script");
-  expect(text("slides")).toContain("script");
-  expect(text("memo")).toContain("This folder");
-  expect(text("memo")).toContain("template");
-  expect(text("memo")).toContain("script");
-  expect(text("memo")).toContain("Not allowed yet");
-  expect(text("mine")).toContain("Your layouts");
-  expect(text("old")).toContain("Blocked");
-  expect(text("broken")).toContain("Invalid");
-  expect(text("broken")).toContain("template <b>x</b> not found");
-  expect(s.el.querySelector(".zen-settings-layouts b")).toBeNull();
-  expect(lItem(s, "article").querySelector(".zen-settings-layout-source")!.getAttribute("data-source")).toBe("builtin");
-  s.show();
-  await settle();
-  expect(api.callsTo("layouts")).toHaveLength(2);
-});
-
-test("layouts: Allow/Block only for external, non-invalid layouts; they call layoutTrust and refresh", async () => {
-  const { api, s } = await layouts();
-  expect(lTrust(s, "post")).toBeNull();
-  expect(lTrust(s, "broken")).toBeNull();
-  const allow = lTrust(s, "memo")!;
-  expect(allow.textContent).toBe("Allow");
-  expect(lTrust(s, "old")!.textContent).toBe("Allow");
-  expect(lTrust(s, "mine")!.textContent).toBe("Block");
-  lPick(s, "post").click();
-  allow.click();
-  await settle();
-  expect(api.callsTo("layoutTrust")).toEqual([["memo", true]]);
-  expect(api.callsTo("pluginTrust")).toEqual([]);
-  expect(lItem(s, "memo").dataset.status).toBe("on");
-  expect(lTrust(s, "memo")!.textContent).toBe("Block");
-  expect(lPick(s, "post").getAttribute("aria-current")).toBe("true");
-  expect(document.activeElement).toBe(lTrust(s, "memo"));
-  lTrust(s, "memo")!.click();
-  await settle();
-  expect(api.callsTo("layoutTrust")).toEqual([["memo", true], ["memo", false]]);
-  expect(lItem(s, "memo").dataset.status).toBe("blocked");
-});
-
-test("layouts: a failed trust call and a failed list are shown as text", async () => {
-  const { api, s } = await layouts();
-  api.failNext("layoutTrust", new Error("<i>denied</i>"));
-  lTrust(s, "memo")!.click();
-  await settle();
-  const status = panel(s, "layouts").querySelector("[role=status]")!;
-  expect(status.textContent).toContain("Could not allow memo");
-  expect(status.textContent).toContain("<i>denied</i>");
-  expect(panel(s, "layouts").querySelector("i")).toBeNull();
-  api.failNext("layouts", new Error("down"));
-  s.show();
-  await settle();
-  expect(panel(s, "layouts").textContent).toContain("Could not list layouts: down");
-});
-
-test("layouts: empty state", async () => {
-  const { s } = await layouts([]);
-  expect(panel(s, "layouts").textContent).toContain("No layouts");
-});
-
-test("layouts: the first layout is selected and its help shows; clicking another changes it; arrows move", async () => {
-  const { s } = await layouts();
-  expect(lPick(s, "article").getAttribute("aria-current")).toBe("true");
-  expect(lHelp(s).querySelector(".zen-plugin-help-title")!.textContent).toBe("article");
-  lPick(s, "memo").click();
-  expect(lHelp(s).querySelector(".zen-plugin-help-title")!.textContent).toBe("memo");
-  const list = s.el.querySelector<HTMLElement>(".zen-settings-layouts")!;
-  lPick(s, "memo").focus();
-  key(list, "ArrowUp");
-  expect(document.activeElement).toBe(lPick(s, "slides"));
-  key(list, "Enter");
-  expect(lHelp(s).querySelector(".zen-plugin-help-title")!.textContent).toBe("slides");
-  key(list, "Home");
-  expect(document.activeElement).toBe(lPick(s, "article"));
-});
-
-test("layouts help: description, summary as text, fields table, options table, hints", async () => {
-  const { s } = await layouts();
-  lPick(s, "post").click();
+  expect(row(s, "layouts", "article").getAttribute("aria-selected")).toBe("true");
+  expect(detail(s, "layouts").querySelector("h3")!.textContent).toBe("article");
+  row(s, "layouts", "post").click();
   const h = lHelp(s);
   expect(h.textContent).toContain("A blog post");
   expect(h.textContent).toContain("Cover, title, byline.");
-  const fields = Array.from(h.querySelectorAll(".zen-layout-field"));
-  expect(fields.map((f) => f.querySelector(".zen-layout-field-name")!.textContent)).toEqual(["date", "author"]);
-  expect(fields[0].textContent).toContain("date");
-  expect(fields[0].textContent).toContain("Publication date");
+  expect(Array.from(h.querySelectorAll(".zen-layout-field-name")).map((f) => f.textContent)).toEqual(["date", "author"]);
   const opts = Array.from(h.querySelectorAll(".zen-layout-options .zen-plugin-option"));
-  expect(opts).toHaveLength(1);
-  expect(opts[0].textContent).toContain("toc");
-  expect(opts[0].textContent).toContain("bool");
   expect(opts[0].textContent).toContain("default true");
   expect(h.textContent).toContain("page template");
-  lPick(s, "article").click();
+  row(s, "layouts", "article").click();
   expect(lHelp(s).textContent).toContain("The default <b>reading</b> column.");
   expect(lHelp(s).querySelector("b")).toBeNull();
-  expect(lHelp(s).querySelector(".zen-layout-field")).toBeNull();
-  lPick(s, "memo").click();
+  row(s, "layouts", "memo").click();
   expect(lHelp(s).textContent).toContain("runs a page script");
-  lPick(s, "broken").click();
+  row(s, "layouts", "broken").click();
   expect(lHelp(s).textContent).toContain("template <b>x</b> not found");
 });
 
-test("layouts help: every snippet has Copy; built-in layouts get a static preview through api.preview, external ones do not", async () => {
+test("layouts: Allow/Block only for external, valid layouts; they call layoutTrust and refresh", async () => {
+  const { api, s } = await layoutView();
+  const t = () => trust(s, "layouts");
+  row(s, "layouts", "post").click();
+  expect(t()).toBeNull();
+  row(s, "layouts", "broken").click();
+  expect(t()).toBeNull();
+  row(s, "layouts", "memo").click();
+  expect(t()!.textContent).toBe("Allow");
+  t()!.click();
+  await settle();
+  expect(api.callsTo("layoutTrust")).toEqual([["memo", true]]);
+  expect(api.callsTo("pluginTrust")).toEqual([]);
+  expect(row(s, "layouts", "memo").querySelector(".zen-settings-item-note")!.textContent).toBe("This folder");
+  expect(t()!.textContent).toBe("Block");
+  expect(row(s, "layouts", "memo").getAttribute("aria-selected")).toBe("true");
+  api.failNext("layoutTrust", new Error("<i>denied</i>"));
+  t()!.click();
+  await settle();
+  expect(detail(s, "layouts").querySelector("[role=status]")!.textContent).toContain("Could not block memo");
+  expect(detail(s, "layouts").querySelector("i")).toBeNull();
+});
+
+test("layouts: snippets with Copy; built-in layouts preview through api.preview, external ones do not; empty and failing lists", async () => {
   const writeText = vi.fn(async () => {});
   vi.stubGlobal("navigator", { clipboard: { writeText } });
-  const { api, s } = await layouts();
-  const initial = api.callsTo("preview").length; // the first layout (article) is selected and previews its snippet
-  lPick(s, "post").click();
+  const { api, s } = await layoutView();
+  const initial = api.callsTo("preview").length;
+  row(s, "layouts", "post").click();
   await settle();
   const snippets = Array.from(lHelp(s).querySelectorAll<HTMLElement>(".zen-plugin-snippet"));
   expect(snippets.map((x) => x.querySelector("h4")!.textContent)).toEqual(["A post", "Without a cover"]);
-  expect(snippets[0].querySelector("pre")!.textContent).toContain("layout: post");
   snippets[0].querySelector<HTMLButtonElement>(".zen-plugin-copy")!.click();
   await settle();
   expect(writeText).toHaveBeenCalledWith("---\nlayout: post\ndate: 2026-11-17\n---\n# Title");
-  expect(snippets[0].querySelector(".zen-plugin-copy")!.textContent).toBe("Copied");
-  expect(api.callsTo("preview").slice(initial).map((c) => c[1])).toEqual([
-    "---\nlayout: post\ndate: 2026-11-17\n---\n# Title", "---\nlayout: { name: post, cover: false }\n---\n# T",
-  ]);
-  expect(lHelp(s).querySelectorAll(".zen-plugin-snippet-preview")).toHaveLength(2);
-  const before = api.callsTo("preview").length;
-  lPick(s, "memo").click();
-  await settle();
-  expect(api.callsTo("preview")).toHaveLength(before);
-  expect(lHelp(s).querySelector(".zen-plugin-snippet-preview")).toBeNull();
-  expect(lHelp(s).querySelector("pre")!.textContent).toContain("layout: memo");
-});
-
-test("layouts: a failing preview leaves the snippet alone; a stale preview does not land in another layout's pane", async () => {
-  const { api, s } = await layouts();
-  api.failNext("preview", new Error("boom"));
-  lPick(s, "post").click(); // its first snippet's preview fails, the second still lands
-  await settle();
-  expect(lHelp(s).querySelectorAll(".zen-plugin-snippet-preview")).toHaveLength(1);
-  expect(lHelp(s).querySelectorAll(".zen-plugin-snippet")).toHaveLength(2);
-  lPick(s, "slides").click();
-  lPick(s, "memo").click();
+  expect(api.callsTo("preview").length - initial).toBe(2);
+  row(s, "layouts", "memo").click();
   await settle();
   expect(lHelp(s).querySelector(".zen-plugin-snippet-preview")).toBeNull();
+  const e = await layoutView([]);
+  expect(detail(e.s, "layouts").textContent).toContain("No layouts in this folder.");
+  e.api.failNext("layouts", new Error("down"));
+  e.s.show();
+  await settle();
+  expect(detail(e.s, "layouts").textContent).toContain("Could not list layouts: down");
 });
 
-test("layouts: the Plugins help no longer lists layouts a plugin adds", async () => {
-  const { s } = await plugins();
-  expect(panel(s, "plugins").textContent).not.toContain("Layouts");
+test("templates: description, what it asks, the invalid reason as text; Show Templates Folder", async () => {
+  const { api, s } = setup({ templates: TEMPLATES });
+  await go(s, "templates");
+  const d = () => detail(s, "templates");
+  expect(d().querySelector("h3")!.textContent).toBe("Technical documentation");
+  expect(d().textContent).toContain("Tutorials and <b>reference</b>");
+  expect(d().textContent).toContain("Site title");
+  expect(d().querySelector("b")).toBeNull();
+  btn(d(), "Show Templates Folder").click();
+  await settle();
+  expect(api.callsTo("revealTemplates")).toHaveLength(1);
+  row(s, "templates", "bad").click();
+  expect(d().textContent).toContain("template.yml: no files <i>x</i>");
+  expect(d().querySelector("i")).toBeNull();
+  api.failNext("revealTemplates", new Error("no folder"));
+  btn(d(), "Show Templates Folder").click();
+  await settle();
+  expect(d().querySelector("[role=status]")!.textContent).toContain("no folder");
 });
 
-// ---- Export (ui/static-build, app/export)
+// ---- 7: export in place
 
 const WEBSITE_OPTIONS = { out: "/Users/me/site/_site", portable: false, drafts: true, clean: false, print: true };
-function websiteSetup(hasWorkspace = true) {
-  const api = createFakeApi();
-  const build = { buildOptions: vi.fn(() => Promise.resolve({ ...WEBSITE_OPTIONS })) } as unknown as BuildApi;
-  const openBuild = vi.fn();
-  const s = createSettingsView({ api, hasWorkspace: () => hasWorkspace, build, openBuild, root: () => (hasWorkspace ? "/Users/me/site" : "") });
+function exportSetup(o: { hasWorkspace?: boolean; view?: Opts["view"]; features?: string[] } = {}) {
+  const base = createFakeApi(o.features ? { build: { features: o.features } } : {});
+  const build = {
+    buildOptions: vi.fn(() => Promise.resolve({ ...WEBSITE_OPTIONS })),
+    buildWebsite: vi.fn(() => new Promise<never>(() => {})),
+    cancelBuild: vi.fn(() => Promise.resolve()),
+    saveBuildDefaults: vi.fn(() => Promise.resolve("")),
+    pickBuildFolder: vi.fn(() => Promise.resolve("")),
+    openBuiltSite: vi.fn(() => Promise.resolve()),
+    revealBuiltSite: vi.fn(() => Promise.resolve()),
+    on: () => () => {},
+    ...(o.view?.build ?? {}),
+  } as unknown as BuildApi;
+  const has = o.hasWorkspace ?? true;
+  const s = createSettingsView({ api: base, hasWorkspace: () => has, root: () => (has ? "/Users/me/site" : ""), ...o.view, build });
   document.body.append(s.el);
   s.show();
-  return { s, build, openBuild };
+  return { api: base, build, s };
 }
 
-test("website section: the folder's build options and a Build… button that opens the dialog", async () => {
-  const { s, build, openBuild } = websiteSetup();
-  await settle();
-  section(s, "export").click();
-  expect(panel(s, "export").hidden).toBe(false);
+test("export in place", async () => {
+  const { s, build } = exportSetup();
+  await go(s, "export");
+  expect(rows(s, "export").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["Website", "PDF"]);
+  // Website is selected, and its form is on the right: no modal
+  expect(detail(s, "export").querySelector("h3")!.textContent).toBe("Website");
+  const d = detail(s, "export");
+  expect(document.querySelector(".zen-buildsite-backdrop, [aria-modal=true]")).toBeNull();
+  expect(d.querySelector("[role=dialog]")).toBeNull();
   expect(build.buildOptions).toHaveBeenCalled();
-  const text = panel(s, "export").textContent!;
-  expect(text).toContain("_site");
-  expect(text).toContain("A web server only");
-  expect(text).toContain("Drafts included");
-  expect(text).toContain("No build yet");
-  const b = panel(s, "export").querySelector<HTMLButtonElement>(".zen-settings-build")!;
-  expect(b.textContent).toBe("Export…");
-  b.click();
-  expect(openBuild).toHaveBeenCalledTimes(1);
+  expect(d.querySelector<HTMLInputElement>(".zen-buildsite-out")!.value).toBe("_site");
+  expect(Array.from(d.querySelectorAll<HTMLInputElement>("input[type=radio]")).map((r) => [r.value, r.checked])).toEqual([["portable", false], ["hosted", true]]);
+  expect(Array.from(d.querySelectorAll<HTMLInputElement>("input[type=checkbox]")).map((b) => [b.name, b.checked])).toEqual([["drafts", true], ["clean", false], ["print", true]]);
+  expect(btn(d, "Export").type).toBe("submit");
+  // Build starts, progress shows with Cancel
+  btn(d, "Export").click();
+  await settle();
+  expect(build.buildWebsite).toHaveBeenCalledWith({ out: "/Users/me/site/_site", portable: false, drafts: true, clean: false, print: true });
+  expect(d.querySelector("[role=progressbar]")).not.toBeNull();
+  btn(d, "Cancel").click();
+  expect(build.cancelBuild).toHaveBeenCalledTimes(1);
 });
 
-test("website section: shows the last build's time, page count and output folder", async () => {
-  const { s } = websiteSetup();
-  rememberBuild("/Users/me/site", { out: "/Users/me/site/_site", pages: 34, files: 19, warnings: [], millis: 800, cancelled: false });
-  s.show();
-  await settle();
-  const text = panel(s, "export").querySelector(".zen-settings-build-last")!.textContent!;
-  expect(text).toContain("34 pages");
-  expect(text).toContain("_site");
-  expect(text).not.toContain("No build yet");
-});
-
-test("website section: no folder open disables Export…", async () => {
-  const { s, build } = websiteSetup(false);
-  await settle();
-  expect(panel(s, "export").querySelector<HTMLButtonElement>(".zen-settings-build")!.disabled).toBe(true);
-  expect(build.buildOptions).not.toHaveBeenCalled();
-});
-
-// ---- the Export section: Website and PDF (app/export behaviour 8)
-
-test("Export section", async () => {
-  const { api, s } = setup();
-  section(s, "export").click();
-  await settle();
-  const p = panel(s, "export");
-  expect(section(s, "export").textContent).toBe("Export");
-  expect(Array.from(p.querySelectorAll("h3, h4")).map((h) => h.textContent)).toEqual(["Website", "PDF"]);
-  const web = p.querySelector<HTMLButtonElement>(".zen-settings-build")!;
-  const pdf = p.querySelector<HTMLButtonElement>(".zen-settings-export-pdf")!;
-  expect(web.textContent).toBe("Export…");
-  expect(pdf.textContent).toBe("Export PDF…");
-  expect(web.disabled).toBe(true); // no openBuild wired in this setup
-  expect(pdf.disabled).toBe(false);
-  pdf.click();
-  await settle();
-  expect(api.callsTo("printSite")).toHaveLength(1); // opens the preview as File › Export › PDF… does
-});
-
-test("Export section: no folder disables both buttons and says so", async () => {
-  const { api, s } = setup(false);
-  section(s, "export").click();
-  await settle();
-  const p = panel(s, "export");
-  expect(p.textContent).toContain("Open a folder to export it.");
-  expect(p.querySelector<HTMLButtonElement>(".zen-settings-build")!.disabled).toBe(true);
-  expect(p.querySelector<HTMLButtonElement>(".zen-settings-export-pdf")!.disabled).toBe(true);
-  p.querySelector<HTMLButtonElement>(".zen-settings-export-pdf")!.click();
-  expect(api.callsTo("printSite")).toHaveLength(0);
-});
-
-test("Export section: the last PDF with Show in Finder", async () => {
-  const { api, s } = setup();
+test("export in place: PDF, the last PDF, no folder", async () => {
+  const { api, s } = exportSetup();
   try { localStorage.setItem("zen.lastPdfExport", JSON.stringify({ path: "/Users/me/Guide.pdf", at: Date.now() })); } catch { /* no storage */ }
-  s.show();
-  section(s, "export").click();
-  await settle();
-  const p = panel(s, "export");
-  expect(p.textContent).toContain("Guide.pdf");
-  const reveal = Array.from(p.querySelectorAll("button")).find((b) => b.textContent === "Show in Finder")!;
-  reveal.click();
+  await go(s, "export", "pdf");
+  const d = detail(s, "export");
+  expect(d.querySelector("h3")!.textContent).toBe("PDF");
+  expect(d.textContent).toContain("Guide.pdf");
+  btn(d, "Show in Finder").click();
   await settle();
   expect(api.callsTo("revealExport")).toHaveLength(1);
+  btn(d, "Export PDF…").click();
+  await settle();
+  expect(api.callsTo("printSite")).toHaveLength(1);
   try { localStorage.removeItem("zen.lastPdfExport"); } catch { /* no storage */ }
+
+  const none = exportSetup({ hasWorkspace: false });
+  await go(none.s, "export", "pdf");
+  expect(btn(detail(none.s, "export"), "Export PDF…").disabled).toBe(true);
+  row(none.s, "export", "website").click();
+  await settle();
+  expect(detail(none.s, "export").textContent).toContain("Open a folder to export it.");
+  expect(btn(detail(none.s, "export"), "Export").disabled).toBe(true);
+  expect(none.build.buildOptions).not.toHaveBeenCalled();
 });
 
-test("This build section", async () => {
-  // the build has no add-ons: the sections after it still list what it is made of
-  let api = createFakeApi({
-    addons: [],
-    build: { app: "demo", features: ["reader", "editor", "developer"], plugins: ["codeblock", "quiz"], layouts: ["article", "docs"], templates: ["learning"], dialects: ["myst"], theme: "default" },
-  });
-  let s = createSettingsView({ api, hasWorkspace: () => true });
-  document.body.append(s.el);
-  s.show();
-  expect(section(s, "build").textContent).toBe("This build");
-  expect(panel(s, "build").querySelector("h2")?.textContent ?? "").toBe("This build");
-  const group = (id: string) => panel(s, "build").querySelector<HTMLElement>(`[data-group="${id}"]`)!;
-  const heads = Array.from(panel(s, "build").querySelectorAll(".zen-build-group h3")).map((h) => h.textContent);
-  expect(heads).toEqual(["Features", "Add-ons", "Plugins", "Layouts", "Templates", "Dialects", "Theme"]);
-  // the features in catalog order; the ones the build lacks are greyed and say so to screen readers
-  const featureItems = Array.from(group("features").querySelectorAll<HTMLElement>("li"));
-  expect(featureItems.map((li) => li.dataset.feature)).toEqual(["reader", "nav", "find", "editor", "inspector", "print", "export", "newsite", "developer"]);
-  expect(featureItems.filter((li) => li.classList.contains("zen-build-feature-missing")).map((li) => li.dataset.feature)).toEqual(["nav", "find", "inspector", "print", "export", "newsite"]);
-  expect(featureItems[0].textContent).toBe("reader");
-  expect(featureItems[1].textContent).toBe("nav (not in this build)");
-  expect(featureItems[1].querySelector(".zen-visually-hidden")!.textContent).toBe(" (not in this build)");
-  expect(featureItems[0].querySelector(".zen-visually-hidden")).toBeNull();
-  expect(group("addons").textContent).toContain("This build has no add-ons.");
-  expect(group("addons").querySelector(".zen-addon")).toBeNull();
-  expect(group("plugins").querySelector(".zen-build-list")!.textContent).toBe("codeblock, quiz");
-  expect(group("layouts").querySelector(".zen-build-list")!.textContent).toBe("article, docs");
-  expect(group("templates").querySelector(".zen-build-list")!.textContent).toBe("learning");
-  expect(group("dialects").querySelector(".zen-build-list")!.textContent).toBe("myst");
-  expect(group("theme").querySelector(".zen-build-list")!.textContent).toBe("default");
-  expect(panel(s, "build").querySelector("input, button, select")).toBeNull(); // read-only
-  s.destroy();
-
-  // the build has some add-ons: name and summary as text, never as markup; ids too
-  api = createFakeApi({
-    addons: [
-      { id: "vale", name: "Vale linting", summary: "Spelling and style checks." },
-      { id: "voice", name: "<b>Voice</b>", summary: "<img src=x onerror=alert(1)>" },
-    ],
-    build: { plugins: ["<i>x</i>"], layouts: [], templates: [], theme: "default" },
-  });
-  s = createSettingsView({ api, hasWorkspace: () => true });
-  document.body.append(s.el);
-  s.show();
-  const cards = Array.from(panel(s, "build").querySelectorAll<HTMLElement>(".zen-addon"));
-  expect(cards.map((c) => c.dataset.addon)).toEqual(["vale", "voice"]);
-  expect(cards[0].querySelector(".zen-addon-name")!.textContent).toBe("Vale linting");
-  expect(cards[0].querySelector(".zen-addon-summary")!.textContent).toBe("Spelling and style checks.");
-  expect(cards[1].querySelector(".zen-addon-name")!.textContent).toBe("<b>Voice</b>");
-  expect(panel(s, "build").querySelector("b, img, i")).toBeNull();
-  expect(panel(s, "build").textContent).not.toContain("no add-ons");
-  expect(panel(s, "build").querySelector('[data-group="plugins"] .zen-build-list')!.textContent).toBe("<i>x</i>");
-  // an empty list says none
-  expect(panel(s, "build").querySelector('[data-group="layouts"] .zen-build-list')!.textContent).toBe("none");
-  s.destroy();
-
-  // a host that sends no build (older app): just the add-ons
-  api = createFakeApi({ addons: [], build: null });
-  s = createSettingsView({ api, hasWorkspace: () => true });
-  document.body.append(s.el);
-  s.show();
-  expect(Array.from(panel(s, "build").querySelectorAll(".zen-build-group h3")).map((h) => h.textContent)).toEqual(["Add-ons"]);
-  s.destroy();
+test("export in place: the PDF item only with print; a build that runs keeps running when the reader leaves, and the result shows on return", async () => {
+  const only = exportSetup({ features: ["export"] });
+  await go(only.s, "export");
+  expect(rows(only.s, "export").map((r) => r.dataset.item)).toEqual(["website"]);
+  let finish: (r: unknown) => void = () => {};
+  const { s, build } = exportSetup({ view: { build: { buildWebsite: vi.fn(() => new Promise((res) => { finish = res; })) } as unknown as Partial<BuildApi> } });
+  await go(s, "export");
+  btn(detail(s, "export"), "Export").click();
+  await settle();
+  row(s, "export", "pdf").click();
+  await settle();
+  tab(s, "appearance").click();
+  tab(s, "export").click();
+  await settle();
+  row(s, "export", "website").click();
+  await settle();
+  expect(detail(s, "export").querySelector("[role=progressbar]")).not.toBeNull(); // still building, not restarted
+  finish({ out: "/Users/me/site/_site", pages: 34, files: 19, warnings: [], millis: 800, cancelled: false });
+  await settle();
+  row(s, "export", "pdf").click();
+  await settle();
+  row(s, "export", "website").click();
+  await settle();
+  expect(detail(s, "export").querySelector(".zen-buildsite-summary")!.textContent).toContain("Built 34 pages and 19 files into _site");
+  void build;
 });
 
-test("the default fake build has the vale add-on", () => {
-  expect(createFakeApi().addons?.map((a) => a.id)).toEqual(["vale"]);
+test("export in place: open() lands on Website (File › Export › Website…, ⇧⌘B)", async () => {
+  const { s } = exportSetup();
+  s.open("export", "website");
+  await settle();
+  expect(tab(s, "export").getAttribute("aria-current")).toBe("true");
+  expect(row(s, "export", "website").getAttribute("aria-selected")).toBe("true");
+  void rememberBuild;
 });
 
-test("read-only settings", () => {
-  const api = createFakeApi({ addons: [], build: { app: "hashdish", features: ZENMARK_BUILD.features.filter((f) => f !== "editor"), plugins: [], layouts: ["article"], templates: [] } });
-  const s = createSettingsView({ api, hasWorkspace: () => true });
-  document.body.append(s.el);
-  s.show();
-  // no Configuration files section: nothing opens the config files
-  expect(section(s, "files")).toBeNull();
-  const names = Array.from(s.el.querySelectorAll(".zen-settings-section")).map((b) => b.textContent);
-  expect(names).toEqual(["Appearance", "Plugins", "Layouts", "Markdown", "Export", "This build", "Developer"]);
-  expect(s.el.textContent).not.toContain("config.yml");
-  // the build section says so, first
-  const features = panel(s, "build").querySelector<HTMLElement>('[data-group="features"]')!;
-  expect(features.textContent).toContain("Read-only (no editor)");
-  expect(Array.from(panel(s, "build").querySelectorAll(".zen-build-group h3"))[0].textContent).toBe("Features");
-  expect(features.querySelector('li[data-feature="editor"]')!.classList.contains("zen-build-feature-missing")).toBe(true);
-  // Export still has its website and PDF parts
-  expect(panel(s, "export").textContent).toContain("Website");
-  s.destroy();
-});
+// ---- 8: developer
 
-test("Markdown section", async () => {
-  const api = createFakeApi({
-    dialects: [{ id: "myst", name: "MyST", summary: "Directives such as {note}.", on: false }, { id: "x", name: "<b>X</b>", summary: "<i>s</i>", on: true }],
-  });
-  const s = createSettingsView({ api, hasWorkspace: () => true });
-  document.body.append(s.el);
-  s.show();
-  expect(section(s, "markdown").textContent).toBe("Markdown");
-  s.el.querySelector<HTMLButtonElement>('.zen-settings-section[data-section="markdown"]')!.click();
-  await tick();
-  const boxes = () => Array.from(panel(s, "markdown").querySelectorAll<HTMLInputElement>('input[type="checkbox"]'));
-  expect(boxes().map((b) => [b.dataset.dialect, b.checked, b.disabled])).toEqual([["myst", false, false], ["x", true, false]]);
-  const rows = Array.from(panel(s, "markdown").querySelectorAll<HTMLElement>(".zen-dialect"));
-  expect(rows[0].querySelector(".zen-dialect-name")!.textContent).toBe("MyST");
-  expect(rows[0].querySelector(".zen-dialect-summary")!.textContent).toBe("Directives such as {note}.");
-  // names and summaries are text, never markup
-  expect(rows[1].querySelector(".zen-dialect-name")!.textContent).toBe("<b>X</b>");
-  expect(panel(s, "markdown").querySelector("b, i")).toBeNull();
-  expect(panel(s, "markdown").textContent).toContain("Saved in this folder's .zen.yml, so the folder renders the same everywhere.");
-
-  // a click writes the folder through the api and shows the new state
-  boxes()[0].click();
-  await tick();
-  expect(api.callsTo("setDialect")).toEqual([["myst", true]]);
-  expect(boxes()[0].checked).toBe(true);
-  boxes()[1].click();
-  await tick();
-  expect(api.callsTo("setDialect")[1]).toEqual(["x", false]);
-
-  // a refused change puts the box back and says why
-  api.failNext("setDialect", new Error("could not save .zen.yml"));
-  boxes()[0].click();
-  await tick();
-  expect(boxes()[0].checked).toBe(true);
-  expect(panel(s, "markdown").querySelector(".zen-settings-status")!.textContent).toContain("could not save .zen.yml");
-  s.destroy();
-
-  // no folder: the boxes are shown disabled, with the reason
-  const none = createSettingsView({ api: createFakeApi(), hasWorkspace: () => false });
-  document.body.append(none.el);
-  none.show();
-  await tick();
-  expect(Array.from(panel(none, "markdown").querySelectorAll<HTMLInputElement>("input")).every((b) => b.disabled)).toBe(true);
-  expect(panel(none, "markdown").textContent).toContain("Open a folder");
-  none.destroy();
-
-  // a read-only app: disabled, with the reason
-  const ro = createSettingsView({ api: createFakeApi({ build: { features: ZENMARK_BUILD.features.filter((f) => f !== "editor") } }), hasWorkspace: () => true });
-  document.body.append(ro.el);
-  ro.show();
-  await tick();
-  const roBoxes = Array.from(panel(ro, "markdown").querySelectorAll<HTMLInputElement>("input"));
-  expect(roBoxes.length).toBe(1);
-  expect(roBoxes.every((b) => b.disabled)).toBe(true);
-  expect(panel(ro, "markdown").textContent).toContain("read-only");
-  ro.destroy();
-
-  // a build without dialects has no Markdown section
-  const nothing = createSettingsView({ api: createFakeApi({ dialects: [] }), hasWorkspace: () => true });
-  document.body.append(nothing.el);
-  nothing.show();
-  await tick();
-  expect(panel(nothing, "markdown").textContent).toContain("no markdown dialects");
-  nothing.destroy();
-});
-
-const tick = () => new Promise((r) => setTimeout(r, 0));
-
-// kit/shell-features: Settings builds its sections from the build.
-test("Settings sections follow the features of the build", () => {
-  const names = (features: string[]) => {
-    const s = createSettingsView({ api: createFakeApi({ build: { features } }), hasWorkspace: () => true });
-    document.body.append(s.el);
-    s.show();
-    const out = Array.from(s.el.querySelectorAll(".zen-settings-section")).map((b) => b.textContent);
-    s.destroy();
-    return out;
-  };
-  expect(names([])).toEqual(["Appearance", "This build"]);
-  expect(names(["developer"])).toEqual(["Appearance", "This build", "Developer"]);
-  expect(names(["reader"])).toEqual(["Appearance", "Plugins", "Layouts", "Markdown", "This build"]);
-  expect(names(["reader", "editor"])).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Markdown", "This build"]);
-  expect(names(["reader", "export", "print"])).toEqual(["Appearance", "Plugins", "Layouts", "Markdown", "Export", "This build"]);
-  expect(names(ZENMARK_BUILD.features)).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Markdown", "Export", "This build", "Developer"]);
-});
-
-test("Export has the PDF part only with print", () => {
-  const exportText = (features: string[]) => {
-    const s = createSettingsView({ api: createFakeApi({ build: { features } }), hasWorkspace: () => true });
-    document.body.append(s.el);
-    s.show();
-    const t = panel(s, "export").textContent ?? "";
-    s.destroy();
-    return t;
-  };
-  expect(exportText(["reader", "export"])).toContain("Website");
-  expect(exportText(["reader", "export"])).not.toContain("PDF");
-  expect(exportText(["reader", "export", "print"])).toContain("PDF");
+test("developer section is wired: the switch, and Open Console goes to the shell", async () => {
+  const openConsole = vi.fn();
+  const { s } = setup({ view: { openConsole } });
+  await go(s, "developer");
+  const d = detail(s, "developer");
+  expect(rows(s, "developer").map((r) => r.textContent)).toEqual(["Console"]);
+  expect(d.textContent).toContain("Show Console in the Inspector");
+  d.querySelector<HTMLInputElement>("input[type=checkbox]")!.click();
+  const open = Array.from(d.querySelectorAll("button")).find((b) => b.textContent!.includes("Open Console"))!;
+  open.click();
+  expect(openConsole).toHaveBeenCalledTimes(1);
 });

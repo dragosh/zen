@@ -9,13 +9,16 @@ import (
 // EventSettings asks the main window to show Settings (Zen > Settings…).
 const EventSettings = "menu:settings"
 
+// EventAbout asks the main window to show the About sheet (Zenmark > About Zenmark).
+const EventAbout = "menu:about"
+
 // menuActions are the callbacks app.go wires into the custom menu items, so
 // this file does not depend on Zen internals.
 type menuActions struct {
-	NewSite, NewPage, OpenFolder, Settings func()
-	CloseFolder                            func()
-	BuildWebsite, PrintPage, PrintSite     func()
-	Find, FindNext, FindPrevious           func()
+	NewSite, NewPage, OpenFolder, Settings, About func()
+	CloseFolder                                   func()
+	BuildWebsite, PrintPage, PrintSite            func()
+	Find, FindNext, FindPrevious                  func()
 }
 
 // forLabel returns the action of a custom (role-less) item, nil for others.
@@ -43,6 +46,8 @@ func (a menuActions) forLabel(label string) func() {
 		return a.CloseFolder
 	case labelSettings:
 		return a.Settings
+	case labelAbout:
+		return a.About
 	}
 	return nil
 }
@@ -52,6 +57,7 @@ func (a menuActions) forLabel(label string) func() {
 type menuItem struct {
 	Label, Accel string // Accel in Wails syntax, "" for none
 	Role         string // Wails role name, "" for a custom item
+	Event        string // for a custom item that only tells the main window something: the event it sends
 	Children     []menuItem
 	Separator    bool
 }
@@ -69,6 +75,7 @@ const (
 	labelOpenFolder    = "Open Folder…"
 	labelCloseFolder   = "Close Folder"
 	labelSettings      = "Settings…"
+	labelAbout         = "About " + Name
 )
 
 var sep = menuItem{Separator: true}
@@ -131,7 +138,7 @@ func menuSpecFor(dev bool, features []string) []menuItem {
 	)
 	bar := []menuItem{
 		{Label: Name, Children: []menuItem{
-			{Label: "About " + Name, Role: "About"},
+			{Label: labelAbout, Event: EventAbout}, // the About sheet of the main window, not the standard panel
 			{Label: labelSettings, Accel: "CmdOrCtrl+,"},
 			sep,
 			{Label: "Hide " + Name, Accel: "CmdOrCtrl+H", Role: "Hide"},

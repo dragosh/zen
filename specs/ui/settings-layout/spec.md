@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | specified |
+| Status | done |
 | Target version | 0.7.0 |
 | Branch | `feature/26-settings-layout` |
 | Wave | 26 |

@@ -15,7 +15,8 @@ export { createOpening, type Opening, type OpeningOptions } from "./shell/openin
 export { installConsoleCapture, type ConsoleCapture } from "./shell/console";
 export { developerEnabled, developerKey, followDeveloper, setDeveloperEnabled } from "./shell/developer";
 export { applyAppTheme, buildSection } from "./shell/addons";
-export { appearanceSection, createSettingsFrame, developerSection, type SettingsSection, type SettingsView } from "./shell/settings";
+export { appearanceSection, createSettingsFrame, developerSection, reloadSettings, type SettingsItem, type SettingsSection, type SettingsView } from "./shell/settings";
+export { openAbout } from "./shell/about";
 export { createStore } from "./shell/store";
 export { applyTheme, followTheme, setTheme, storedTheme, THEME_KEY, type Theme } from "./shell/theme";
 export { FEATURE_IDS, type AppState, type Ctx, type Feature, type FeatureId, type Slots, type Store } from "./shell/types";

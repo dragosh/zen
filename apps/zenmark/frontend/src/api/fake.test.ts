@@ -331,3 +331,13 @@ test("fake setNavHidden removes the page (and what is under it); revealInFinder 
   await api.revealInFinder("guides/install.md");
   expect(api.callsTo("revealInFinder")).toEqual([["guides/install.md"]]);
 });
+
+test("fake delivers menu:about", () => {
+  const api = createFakeApi();
+  let n = 0;
+  const off = api.on("menu:about", () => { n++; });
+  api.emit("menu:about", undefined);
+  off();
+  api.emit("menu:about", undefined);
+  expect(n).toBe(1);
+});

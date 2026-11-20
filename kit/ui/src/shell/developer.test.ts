@@ -1,7 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, expect, test, vi } from "vitest";
 import { DEV_KEY, developerEnabled, developerKey, followDeveloper, setDeveloperEnabled } from "./developer";
-import { developerSection } from "./settings";
 
 beforeEach(() => { localStorage.clear(); });
 
@@ -43,18 +42,4 @@ test("⌥⌘J (or ⌥⌃J), no Shift, read from the physical key", () => {
   expect(k({ code: "KeyJ", key: "j", metaKey: true })).toBe(false);
   expect(k({ code: "KeyJ", key: "j", altKey: true })).toBe(false);
   expect(k({ code: "KeyJ", key: "J", altKey: true, metaKey: true, shiftKey: true })).toBe(false);
-});
-
-test("the Settings section still has the checkbox, reflecting and changing the setting", () => {
-  const s = developerSection();
-  expect(s.id).toBe("developer");
-  const box = s.el.querySelector<HTMLInputElement>("input[type=checkbox]")!;
-  s.show!();
-  expect(box.checked).toBe(false);
-  box.checked = true;
-  box.dispatchEvent(new Event("change"));
-  expect(developerEnabled()).toBe(true);
-  setDeveloperEnabled(false);
-  s.show!();
-  expect(box.checked).toBe(false);
 });

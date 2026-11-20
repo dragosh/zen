@@ -1,6 +1,7 @@
 package app
 
 import (
+	"github.com/zenmark-org/zenmd/internal/cli"
 	"os"
 	"path/filepath"
 	"reflect"
@@ -60,5 +61,18 @@ func TestLintFollowsAddon(t *testing.T) {
 	}
 	if want := valeIncluded; r.Available != want {
 		t.Fatalf("Lint available = %v, want %v", r.Available, want)
+	}
+}
+
+// Zenmark › About shows the version the build was stamped with ("dev" when it was not).
+func TestBuildInfoVersion(t *testing.T) {
+	if got := buildInfo().Version; got != cli.Version || got == "" {
+		t.Fatalf("version %q, want %q", got, cli.Version)
+	}
+	old := cli.Version
+	cli.Version = "1.2.3"
+	t.Cleanup(func() { cli.Version = old })
+	if got := buildInfo().Version; got != "1.2.3" {
+		t.Fatalf("version %q", got)
 	}
 }
