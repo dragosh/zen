@@ -3,6 +3,7 @@
 // templates and theme; the build includes exactly that (specs/kit/assembly).
 //
 //	app: zenmark
+//	features: all
 //	addons: [vale]
 //	plugins: all
 //	layouts: [article, docs, course]
@@ -27,9 +28,9 @@ import (
 
 // Assembly is one app's make-up. Lists are in the order the app shows them.
 type Assembly struct {
-	App                                 string
-	Addons, Plugins, Layouts, Templates []string
-	Theme                               string
+	App                                           string
+	Features, Addons, Plugins, Layouts, Templates []string
+	Theme                                         string
 }
 
 // Needs is what a layout or a template requires of the assembly.
@@ -38,8 +39,10 @@ type Needs struct{ Layouts, Plugins []string }
 // Catalog is what exists: the known ids of each kind (in built-in order) and
 // what the layouts and templates require.
 type Catalog struct {
-	Addons, Plugins, Layouts, Templates, Themes []string
-	LayoutNeeds, TemplateNeeds                  map[string]Needs
+	Features, Addons, Plugins, Layouts, Templates, Themes []string
+	LayoutNeeds, TemplateNeeds                            map[string]Needs
+	// FeatureNeeds says which features a feature requires (none yet; Check reads it).
+	FeatureNeeds map[string][]string
 }
 
 // DefaultTheme is the look of every app until themes exist.
@@ -85,9 +88,10 @@ func parse(data []byte, cat Catalog) (Assembly, error) {
 		return a, fmt.Errorf("assembly is not valid YAML: %s", strings.TrimPrefix(err.Error(), "yaml: "))
 	}
 	if len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
-		return a, errors.New("assembly must be a mapping with keys app, addons, plugins, layouts, templates and theme")
+		return a, errors.New("assembly must be a mapping with keys app, features, addons, plugins, layouts, templates and theme")
 	}
 	m := doc.Content[0]
+	a.Features = slices.Clone(cat.Features) // a missing features key means all, so an old file never makes an app read-only
 	seen := map[string]bool{}
 	for i := 0; i+1 < len(m.Content); i += 2 {
 		k, v := m.Content[i].Value, m.Content[i+1]
@@ -101,6 +105,8 @@ func parse(data []byte, cat Catalog) (Assembly, error) {
 			a.App, err = scalar(k, v)
 		case "theme":
 			a.Theme, err = scalar(k, v)
+		case "features":
+			a.Features, err = list(k, v, cat.Features)
 		case "addons":
 			a.Addons, err = list(k, v, cat.Addons)
 		case "plugins":
@@ -110,7 +116,7 @@ func parse(data []byte, cat Catalog) (Assembly, error) {
 		case "templates":
 			a.Templates, err = list(k, v, cat.Templates)
 		default:
-			err = fmt.Errorf("unknown key %q; known keys: app, addons, plugins, layouts, templates, theme", k)
+			err = fmt.Errorf("unknown key %q; known keys: app, features, addons, plugins, layouts, templates, theme", k)
 		}
 		if err != nil {
 			return Assembly{}, err
@@ -161,6 +167,7 @@ func list(key string, v *yaml.Node, all []string) ([]string, error) {
 
 // kinds names each list for messages: key, singular, plural.
 var kinds = []struct{ key, one, many string }{
+	{"features", "feature", "features"},
 	{"addons", "add-on", "add-ons"},
 	{"plugins", "plugin", "plugins"},
 	{"layouts", "layout", "layouts"},
@@ -175,8 +182,8 @@ func Check(a Assembly, cat Catalog) error {
 	if !ValidID(a.App) {
 		return fmt.Errorf("app %q must be an id such as zenmark (lower case letters, digits and -)", a.App)
 	}
-	lists := [][]string{a.Addons, a.Plugins, a.Layouts, a.Templates}
-	known := [][]string{cat.Addons, cat.Plugins, cat.Layouts, cat.Templates}
+	lists := [][]string{a.Features, a.Addons, a.Plugins, a.Layouts, a.Templates}
+	known := [][]string{cat.Features, cat.Addons, cat.Plugins, cat.Layouts, cat.Templates}
 	for i, k := range kinds {
 		seen := map[string]bool{}
 		for _, id := range lists[i] {
@@ -194,6 +201,13 @@ func Check(a Assembly, cat Catalog) error {
 	}
 
 	var problems []string
+	for _, f := range a.Features {
+		for _, need := range cat.FeatureNeeds[f] {
+			if !slices.Contains(a.Features, need) {
+				problems = append(problems, fmt.Sprintf("feature %s needs feature %s", f, need))
+			}
+		}
+	}
 	hasLayout := func(id string) bool { return id == FallbackLayout || slices.Contains(a.Layouts, id) }
 	noLayouts := len(a.Layouts) == 0 && len(a.Templates) > 0
 	if noLayouts {

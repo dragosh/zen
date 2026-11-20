@@ -22,6 +22,9 @@ var errPageExists = errors.New("a page with that name already exists")
 // added when name has no extension; missing folders are created inside the
 // workspace. An existing file is never overwritten.
 func (s *Session) CreatePage(name, layout string) (string, error) {
+	if err := s.writable(); err != nil {
+		return "", err
+	}
 	rel, err := newPagePath(name)
 	if err != nil {
 		return "", err

@@ -59,7 +59,6 @@ func TestReadOnlyRefusesWrites(t *testing.T) {
 	dir := tree(t, docs)
 	s, dir := roZen(t, dir)
 	before := snapshot(t, dir)
-	globalBefore, _ := os.Stat(filepath.Join(filepath.Dir(s.globalPath)))
 
 	nav := s.Workspace()
 	var paths []string
@@ -99,7 +98,6 @@ func TestReadOnlyRefusesWrites(t *testing.T) {
 	if _, err := os.Stat(s.globalPath); err == nil {
 		t.Error("the global config file was created")
 	}
-	_ = globalBefore
 
 	// A session that is not read-only still writes.
 	w := New(Options{GlobalPath: filepath.Join(t.TempDir(), "config.yml"), Registry: plugins.NewRegistry(), Events: &sink{}})
@@ -137,8 +135,7 @@ func TestEveryWriterGuarded(t *testing.T) {
 }
 
 func TestReadOnlyReads(t *testing.T) {
-	dir := tree(t, docs)
-	s, _ := roZen(t, dir)
+	s, dir := roZen(t, tree(t, docs))
 	if pg, err := s.Page("README.md"); err != nil || !strings.Contains(pg.HTML, "Home") {
 		t.Errorf("Page: %v %q", err, pg.HTML)
 	}
