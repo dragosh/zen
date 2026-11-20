@@ -537,3 +537,58 @@ func TestMarkdownDialects(t *testing.T) {
 		t.Errorf("repeat: %v", got)
 	}
 }
+
+func TestLogo(t *testing.T) {
+	dir := t.TempDir()
+	global := filepath.Join(t.TempDir(), "config.yml")
+	write := func(p, s string) {
+		if err := os.WriteFile(p, []byte(s), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	ws := filepath.Join(dir, WorkspaceFile)
+	if got := Default().Logo(); got != "" {
+		t.Errorf("default: %q", got)
+	}
+	for _, ok := range []string{"img/logo.svg", "logo.PNG", "a/b.jpg", "a/b.jpeg", "x.gif", "x.webp", "./img/logo.svg"} {
+		write(ws, "logo: "+ok+"\n")
+		c := Load("", dir)
+		want := strings.TrimPrefix(ok, "./")
+		if got := c.Logo(); got != want || len(c.Warnings()) != 0 {
+			t.Errorf("%s: got %q, warnings %v", ok, got, c.Warnings())
+		}
+	}
+	for _, bad := range []string{"../logo.svg", "img/../../logo.svg", "/etc/logo.png", "logo.txt", "logo", "logo.avif", "''", "42", "[a.svg]"} {
+		write(ws, "logo: "+bad+"\n")
+		c := Load("", dir)
+		if got := c.Logo(); got != "" {
+			t.Errorf("%s accepted: %q", bad, got)
+		}
+		if len(c.Warnings()) == 0 && bad != "''" {
+			t.Errorf("%s: no warning", bad)
+		}
+	}
+	// global sets the default, the folder wins; a bad folder value leaves the global one
+	write(global, "logo: g.svg\n")
+	write(ws, "version: 1\n")
+	if got := Load(global, dir).Logo(); got != "g.svg" {
+		t.Errorf("global: %q", got)
+	}
+	write(ws, "logo: f.png\n")
+	if got := Load(global, dir).Logo(); got != "f.png" {
+		t.Errorf("folder: %q", got)
+	}
+	write(ws, "logo: ../x.png\n")
+	if got := Load(global, dir).Logo(); got != "g.svg" {
+		t.Errorf("bad folder value: %q", got)
+	}
+	// not an unknown key
+	write(ws, "logo: f.png\n")
+	if c := Load("", dir); len(c.Extra) != 0 {
+		t.Errorf("extra: %v", c.Extra)
+	}
+	var nilCfg *Config
+	if nilCfg.Logo() != "" {
+		t.Error("nil config")
+	}
+}

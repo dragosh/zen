@@ -785,6 +785,7 @@ test("bare shell", async () => {
   await s.start();
   key(",");
   expect(sectionNames()).toEqual(["Appearance"]);
+  expect(root.querySelector('[role="radiogroup"][aria-label="Navigation"]')).toBeNull(); // no nav: no side to choose
   // Zenmark › About lists what the build has, and what it could have, greyed; it works in a bare shell
   esc();
   bare.emit("menu:about", undefined);
@@ -1117,4 +1118,109 @@ test("Developer › Open Console asks the Inspector for its Console tab", async 
   open.click();
   expect(asked).toHaveBeenCalledTimes(1);
   document.removeEventListener("zen:inspector-console", asked);
+});
+
+// ---- ui/nav-panel: the sidebar's header and footer, and its side (#24)
+
+const sidebar = () => root.querySelector<HTMLElement>(".zen-sidebar")!;
+const navRow = () => root.querySelector<HTMLElement>('[role="radiogroup"][aria-label="Navigation"]');
+
+test("sidebar header: the folder's title and logo, replaced live, with the name when there is no title", async () => {
+  const api = createFakeApi({ startup: { workspace: { ...sampleWorkspace(), title: "My Course", logo: "/_ws/img/logo.svg" }, page: "README.md", mode: "read" } });
+  await boot(api).start();
+  const title = () => sidebar().querySelector<HTMLElement>(".zen-sidebar-head .zen-sidebar-title")!;
+  expect(title().textContent).toBe("My Course");
+  expect(sidebar().querySelector(".zen-sidebar-head img")!.getAttribute("src")).toBe("/_ws/img/logo.svg");
+  api.emit("workspace:changed", { ...sampleWorkspace(), title: "Renamed", logo: "" });
+  expect(title().textContent).toBe("Renamed");
+  expect(sidebar().querySelector(".zen-sidebar-head img")).toBeNull();
+  api.emit("workspace:changed", { ...sampleWorkspace(), title: "", logo: "" });
+  expect(title().textContent).toBe("sample-docs"); // the folder's name
+});
+
+test("sidebar close: the × closes the folder like File › Close Folder", async () => {
+  const api = withWorkspace("README.md");
+  const s = boot(api);
+  await s.start();
+  const x = button("Close folder")!;
+  expect(x).toBeDefined();
+  expect(sidebar().contains(x)).toBe(true);
+  expect(x.title).toBe("Close Folder ⇧⌘W");
+  x.click();
+  await tick();
+  expect(api.callsTo("closeFolder")).toHaveLength(1);
+  expect(root.querySelector(".zen-welcome")).not.toBeNull();
+  expect(s.store.get().workspace).toBeNull();
+});
+
+test("sidebar close: the folder stays when an editor window keeps its changes", async () => {
+  const api = withWorkspace("README.md");
+  api.closeFolder = async () => false;
+  const s = boot(api);
+  await s.start();
+  button("Close folder")!.click();
+  await tick();
+  expect(sidebar()).not.toBeNull();
+  expect(s.store.get().workspace).not.toBeNull();
+});
+
+test("footer buttons per feature: only those the build has, in order, and never a Developer button", async () => {
+  const { features: shipped } = await import("./features");
+  const labels = () => Array.from(sidebar().querySelectorAll(".zen-sidebar-foot button")).map((b) => b.getAttribute("aria-label"));
+  let s = boot(buildWith(ALL), shipped);
+  await s.start();
+  expect(labels()).toEqual(["Settings", "Export", "Inspector"]);
+  expect(root.querySelector(".zen-developer-button")).toBeNull();
+  s.destroy();
+  s = boot(buildWith(without("export")), shipped);
+  await s.start();
+  expect(labels()).toEqual(["Settings", "Inspector"]);
+  s.destroy();
+  s = boot(buildWith(without("inspector")), shipped);
+  await s.start();
+  expect(labels()).toEqual(["Settings", "Export"]);
+});
+
+test("export button opens Settings › Export", async () => {
+  const api = withWorkspace("README.md");
+  await boot(api).start();
+  button("Export")!.click();
+  await tick();
+  await tick();
+  expect(settingsPage()).not.toBeNull();
+  expect(root.querySelector('.zen-settings-section[data-section="export"]')!.getAttribute("aria-current")).toBe("true");
+  button("Export")!.click(); // already open: stays on it
+  await tick();
+  expect(root.querySelectorAll(".zen-settings-page")).toHaveLength(1);
+});
+
+test("Navigation row in Appearance: Left or Right, applied at once to the sidebar and kept", async () => {
+  const api = withWorkspace("README.md");
+  await boot(api).start();
+  const frame = () => root.querySelector<HTMLElement>(".zen-frame")!;
+  expect(frame().dataset.navSide ?? "left").toBe("left");
+  key(",");
+  await tick();
+  const row = navRow()!;
+  expect(row).not.toBeNull();
+  const radios = Array.from(row.querySelectorAll<HTMLInputElement>('input[type="radio"]'));
+  expect(radios.map((r) => r.checked)).toEqual([true, false]);
+  radios[1].click();
+  expect(frame().dataset.navSide).toBe("right");
+  expect(localStorage.getItem("zen.navSide")).toBe("right");
+  radios[0].click();
+  expect(frame().dataset.navSide ?? "left").toBe("left");
+});
+
+test("Navigation row in Appearance: a stored Right is applied when the folder opens", async () => {
+  localStorage.setItem("zen.navSide", "right");
+  await boot(withWorkspace("README.md")).start();
+  expect(root.querySelector<HTMLElement>(".zen-frame")!.dataset.navSide).toBe("right");
+});
+
+test("Navigation row: not on the home screen, where there is no sidebar", async () => {
+  await boot(createFakeApi()).start();
+  key(",");
+  expect(root.querySelector(".zen-home-settings")).not.toBeNull();
+  expect(navRow()).toBeNull();
 });

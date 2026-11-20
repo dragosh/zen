@@ -11,8 +11,10 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
@@ -45,6 +47,7 @@ type Config struct {
 	limits   Limits
 	layouts  LayoutDefaults
 	dialects []string // markdown.dialects of the folder's .zen.yml
+	logo     string   // logo: a folder-relative image path (the folder's, else the global one)
 
 	templates any            // the global templates: key, read by TemplatesDir
 	build     map[string]any // merged build: sections, checked by Build
@@ -93,6 +96,37 @@ func (c *Config) Dialects() []string {
 		return nil
 	}
 	return append([]string(nil), c.dialects...)
+}
+
+// Logo returns the folder's logo as a clean, slash-separated path inside the
+// folder ("" for none): the folder's .zen.yml wins over the global config.
+// It is checked here (no .., not absolute, an image) and again where it is
+// opened.
+func (c *Config) Logo() string {
+	if c == nil {
+		return ""
+	}
+	return c.logo
+}
+
+// logoExts are the image files a logo may be.
+var logoExts = map[string]bool{".svg": true, ".png": true, ".jpg": true, ".jpeg": true, ".gif": true, ".webp": true}
+
+// parseLogo validates a logo: value. ok is false when it is not usable.
+func parseLogo(v any) (string, bool) {
+	s, isStr := v.(string)
+	if !isStr || strings.TrimSpace(s) == "" {
+		return "", false
+	}
+	s = strings.TrimSpace(s)
+	if strings.ContainsAny(s, "\\\x00") || strings.HasPrefix(s, "/") || filepath.IsAbs(s) || strings.Contains(s, ":") {
+		return "", false
+	}
+	clean := path.Clean(s)
+	if clean == "." || clean == ".." || strings.HasPrefix(clean, "../") || !logoExts[strings.ToLower(path.Ext(clean))] {
+		return "", false
+	}
+	return clean, true
 }
 
 // parseMarkdown reads the markdown: mapping of a .zen.yml.
@@ -420,6 +454,12 @@ func (c *Config) loadFile(path string, global bool) {
 				continue
 			}
 			c.dialects = parseMarkdown(v, warn)
+		case "logo":
+			if l, ok := parseLogo(v); ok {
+				c.logo = l
+			} else if v != nil {
+				warn("logo must be an image path inside the folder, such as img/logo.svg")
+			}
 		case "build":
 			c.mergeBuild(v)
 		case "templates":

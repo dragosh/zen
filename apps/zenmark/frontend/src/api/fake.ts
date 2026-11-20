@@ -134,6 +134,8 @@ export function sampleWorkspace(): Workspace {
     root: "/sample-docs",
     name: "sample-docs",
     home: "README.md",
+    title: "Sample docs",
+    logo: "",
     tree: [
       { title: "Sample docs", path: "README.md", kind: "page", children: [] },
       {
