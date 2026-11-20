@@ -30,15 +30,19 @@
 .zen-inspector { order: 1; }
 .zen-inspector:has(~ .zen-main[hidden]) { display: none; }
 
+/* Build: the add-on cards use the whole column, not Settings' 46ch. */
+.zen-inspector .zen-addons { max-width: none; }
+.zen-build-version { margin: 0 0 var(--space-2); color: var(--fg-muted); font-size: 12px; }
+
 /* Problems: one row per problem, a severity dot, its kind, what it is and where. */
-.zen-problem-list { margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-4)); padding: var(--space-1) 0; }
+.zen-problem-list { margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)); padding: var(--space-1) 0; }
 .zen-problem {
   width: 100%;
   display: grid;
   grid-template-columns: 8px 5.5em minmax(0, 1fr) auto;
   gap: 0 var(--space-3);
   align-items: center;
-  padding: 6px var(--space-4);
+  padding: 6px var(--space-3);
   border: 0;
   border-radius: 0;
   background: none;

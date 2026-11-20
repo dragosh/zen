@@ -197,7 +197,86 @@ test("the collapse chevron sits before the close button, after the tools", () =>
 test("panelColumns: a main column on the left and a details column on the right", () => {
   const c = panelColumns();
   expect(c.el.classList.contains("zen-panel-cols")).toBe(true);
-  expect(Array.from(c.el.children)).toEqual([c.left, c.right]);
+  expect(Array.from(c.el.children)).toEqual([c.left, c.el.querySelector('[role="separator"]'), c.right]);
   expect(c.left.classList.contains("zen-panel-col-main")).toBe(true);
   expect(c.right.classList.contains("zen-panel-col-side")).toBe(true);
+});
+
+// ---- ui/inspector-polish: resizable columns
+
+const RESIZE_KEY = "zen.panel.cols.info";
+const sized = (id?: string) => {
+  const c = panelColumns({ id, doc: document });
+  document.body.append(c.el);
+  c.el.getBoundingClientRect = () => ({ left: 100, width: 1000, right: 1100, top: 0, bottom: 0, height: 0, x: 100, y: 0, toJSON: () => ({}) }) as DOMRect;
+  const sep = c.el.querySelector<HTMLElement>('[role="separator"]')!;
+  return { c, sep };
+};
+const press = (el: HTMLElement, key: string) => el.dispatchEvent(new KeyboardEvent("keydown", { key, bubbles: true, cancelable: true }));
+const drag = (sep: HTMLElement, x: number) => {
+  sep.dispatchEvent(new MouseEvent("mousedown", { bubbles: true, cancelable: true, clientX: 700 }));
+  window.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: x }));
+  window.dispatchEvent(new MouseEvent("mouseup", { bubbles: true, clientX: x }));
+};
+
+test("resizable columns: a focusable vertical separator sits between the columns", () => {
+  const { c, sep } = sized("info");
+  expect(Array.from(c.el.children)).toEqual([c.left, sep, c.right]);
+  expect(sep.getAttribute("aria-orientation")).toBe("vertical");
+  expect(sep.tabIndex).toBe(0);
+  expect(sep.getAttribute("aria-valuemin")).toBe("25");
+  expect(sep.getAttribute("aria-valuemax")).toBe("75");
+  expect(Number(sep.getAttribute("aria-valuenow"))).toBeGreaterThanOrEqual(25);
+});
+
+test("resizable columns: ←/→ move 5%, Home and End go to the limits, and each is remembered per tab", () => {
+  const { sep } = sized("info");
+  const start = Number(sep.getAttribute("aria-valuenow"));
+  press(sep, "ArrowRight");
+  expect(Number(sep.getAttribute("aria-valuenow"))).toBe(start + 5);
+  press(sep, "ArrowLeft"); press(sep, "ArrowLeft");
+  expect(Number(sep.getAttribute("aria-valuenow"))).toBe(start - 5);
+  press(sep, "Home");
+  expect(sep.getAttribute("aria-valuenow")).toBe("25");
+  press(sep, "ArrowLeft");
+  expect(sep.getAttribute("aria-valuenow")).toBe("25");
+  press(sep, "End");
+  expect(sep.getAttribute("aria-valuenow")).toBe("75");
+  expect(localStorage.getItem(RESIZE_KEY)).toBe("75");
+  expect(localStorage.getItem("zen.panel.cols.problems")).toBeNull();
+});
+
+test("resizable columns: dragging sets the split from the pointer, within 25-75%, and stores it on release", () => {
+  const { c, sep } = sized("info");
+  drag(sep, 600); // (600 - 100) / 1000
+  expect(sep.getAttribute("aria-valuenow")).toBe("50");
+  expect(c.el.style.getPropertyValue("--zen-cols-left")).toBe("50%");
+  expect(localStorage.getItem(RESIZE_KEY)).toBe("50");
+  drag(sep, 5000);
+  expect(sep.getAttribute("aria-valuenow")).toBe("75");
+  drag(sep, -400);
+  expect(sep.getAttribute("aria-valuenow")).toBe("25");
+  // the listeners are gone after the release
+  window.dispatchEvent(new MouseEvent("mousemove", { bubbles: true, clientX: 600 }));
+  expect(sep.getAttribute("aria-valuenow")).toBe("25");
+});
+
+test("resizable columns: a stored split comes back, a value outside 25-75% is clamped, junk is ignored", () => {
+  localStorage.setItem(RESIZE_KEY, "40");
+  expect(sized("info").sep.getAttribute("aria-valuenow")).toBe("40");
+  localStorage.setItem(RESIZE_KEY, "95");
+  expect(sized("info").sep.getAttribute("aria-valuenow")).toBe("75");
+  localStorage.setItem(RESIZE_KEY, "3");
+  expect(sized("info").sep.getAttribute("aria-valuenow")).toBe("25");
+  localStorage.setItem(RESIZE_KEY, "wide");
+  const n = Number(sized("info").sep.getAttribute("aria-valuenow"));
+  expect(n).toBeGreaterThanOrEqual(25);
+  expect(n).toBeLessThanOrEqual(75);
+});
+
+test("resizable columns: without an id nothing is stored, and the key follows the tab id", () => {
+  const { sep } = sized();
+  press(sep, "End");
+  expect(sep.getAttribute("aria-valuenow")).toBe("75");
+  expect(localStorage.length).toBe(0);
 });

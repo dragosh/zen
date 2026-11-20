@@ -38,7 +38,7 @@ body.zen-panel-resizing { cursor: row-resize; user-select: none; }
   align-items: stretch;
   gap: var(--space-2);
   height: 34px;
-  padding: 0 var(--space-2) 0 var(--space-3);
+  padding: 0 var(--space-3) 0 0; /* the first tab's own padding puts its label on the body's left edge */
   background: var(--bg-subtle);
   border-bottom: 1px solid var(--rule);
 }
@@ -125,21 +125,30 @@ body.zen-panel-resizing { cursor: row-resize; user-select: none; }
 .zen-panel.is-collapsed { height: auto; }
 .zen-panel.is-collapsed .zen-panel-head { border-bottom: 0; }
 
-/* Bodies: one per tab, scrolling on their own. */
-.zen-panel-body { flex: 1; min-height: 0; overflow: auto; padding: var(--space-3) var(--space-4); outline: none; }
+/* Bodies: one per tab, scrolling on their own. Every tab and both columns share one padding. */
+.zen-panel-body { flex: 1; min-height: 0; overflow: auto; padding: var(--space-2) var(--space-3); outline: none; }
 .zen-panel-body[hidden] { display: none; }
 .zen-panel-body:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
 
-/* Two columns: the list or main info on the left, details on the right (narrower). Each scrolls on
-   its own; under about 700 px the panel is one column and the tab scrolls. */
+/* Two columns: the list or main info on the left, details on the right, a draggable separator between
+   them (panelColumns sets --zen-cols-left). Each scrolls on its own and long text wraps; under about
+   700 px the panel is one column and the tab scrolls. */
 .zen-panel-body:has(> .zen-panel-cols) { padding: 0; container-type: inline-size; overflow: hidden; }
-.zen-panel-cols { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 36%); }
-.zen-panel-col { min-width: 0; min-height: 0; overflow: auto; padding: var(--space-3) var(--space-4); }
-.zen-panel-col-side { border-left: 1px solid var(--rule); background: var(--bg-subtle); }
+.zen-panel-cols { height: 100%; display: grid; grid-template-columns: minmax(0, var(--zen-cols-left, 64%)) 0 minmax(0, 1fr); }
+.zen-panel-col { min-width: 0; min-height: 0; overflow: auto; overflow-wrap: anywhere; padding: var(--space-2) var(--space-3); }
+.zen-panel-col-side { background: var(--bg-subtle); }
+/* A 1px rule with an 8px grab area, like the sidebar's edge. */
+.zen-panel-sep { position: relative; z-index: 1; width: 0; cursor: col-resize; outline: none; touch-action: none; }
+.zen-panel-sep::before { content: ""; position: absolute; top: 0; bottom: 0; left: -4px; width: 8px; }
+.zen-panel-sep::after { content: ""; position: absolute; top: 0; bottom: 0; left: 0; width: 1px; background: var(--rule); }
+.zen-panel-sep:hover::after, .zen-panel-sep:focus-visible::after, .zen-panel-cols.is-resizing .zen-panel-sep::after { background: var(--fg-muted); }
+.zen-panel-sep:focus-visible::after { width: 2px; left: -1px; }
+body.zen-panel-col-resizing { cursor: col-resize; user-select: none; }
 @container (max-width: 700px) {
   .zen-panel-cols { display: block; overflow: auto; }
   .zen-panel-col { overflow: visible; }
-  .zen-panel-col-side { border-left: 0; border-top: 1px solid var(--rule); }
+  .zen-panel-sep { display: none; }
+  .zen-panel-col-side { border-top: 1px solid var(--rule); }
 }
 
 .zen-panel-empty {

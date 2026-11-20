@@ -151,7 +151,7 @@ test("tabs: Page Info and Problems as a tablist with one tabpanel each; Page Inf
   expect(tabs(i).map((t) => t.dataset.tab)).toEqual(["info", "problems"]);
   expect(tabs(i).map((t) => t.getAttribute("aria-selected"))).toEqual(["true", "false"]);
   expect(tabs(i).map((t) => t.tabIndex)).toEqual([0, -1]);
-  const panels = Array.from(i.el.querySelectorAll<HTMLElement>('[role="tabpanel"]')).filter((p) => !p.hidden || p.dataset.section !== "console");
+  const panels = Array.from(i.el.querySelectorAll<HTMLElement>('[role="tabpanel"]')).filter((p) => !p.hidden || !["console", "build"].includes(p.dataset.section ?? ""));
   expect(panels.map((p) => p.hidden)).toEqual([false, true]);
   tabs(i).forEach((t, n) => {
     expect(t.getAttribute("aria-controls")).toBe(panels[n].id);

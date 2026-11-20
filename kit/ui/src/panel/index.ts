@@ -77,15 +77,87 @@ export function panelEmpty(title: string, hint = ""): HTMLElement {
   return box;
 }
 
+/** The left column keeps this share of the width, at least and at most (percent). */
+export const COLS_MIN = 25;
+export const COLS_MAX = 75;
+const COLS_DEFAULT = 64;
+const COLS_STEP = 5;
+export const colsKey = (id: string): string => `zen.panel.cols.${id}`;
+const clampCols = (n: number): number => Math.min(COLS_MAX, Math.max(COLS_MIN, Math.round(n)));
+
+const binders = new WeakMap<Element, (id: string) => void>();
+
+/** Gives the columns built without an id (by another feature) their tab's id: the stored split is read now, and kept from then on. */
+export function bindColumns(root: Element | null | undefined, id: string): void {
+  if (root) binders.get(root)?.(id);
+}
+
 /**
  * The two columns of a tab: the list or main info on the left (`.zen-panel-col-main`), the details on the
- * right (`.zen-panel-col-side`, narrower). Each scrolls on its own; under about 700 px wide they stack and the tab scrolls.
+ * right (`.zen-panel-col-side`, narrower), and a separator between them that can be dragged or moved with
+ * ←/→ (5%), Home and End. The left column keeps 25-75% of the width; the split is remembered per tab under
+ * `zen.panel.cols.<id>` (no id: not remembered). Each column scrolls on its own; under about 700 px wide they
+ * stack, the separator is hidden and the tab scrolls.
  */
-export function panelColumns(): { el: HTMLElement; left: HTMLElement; right: HTMLElement } {
+export function panelColumns(o: { id?: string; doc?: Document } = {}): { el: HTMLElement; left: HTMLElement; right: HTMLElement } {
+  const doc = o.doc ?? document;
   const root = el("div", "zen-panel-cols");
   const left = el("div", "zen-panel-col zen-panel-col-main");
   const right = el("div", "zen-panel-col zen-panel-col-side");
-  root.append(left, right);
+  const sep = el("div", "zen-panel-sep");
+  sep.setAttribute("role", "separator");
+  sep.setAttribute("aria-orientation", "vertical");
+  sep.setAttribute("aria-label", "Resize columns");
+  sep.setAttribute("aria-valuemin", String(COLS_MIN));
+  sep.setAttribute("aria-valuemax", String(COLS_MAX));
+  sep.tabIndex = 0;
+  root.append(left, sep, right);
+
+  let id = o.id ?? "";
+  let pct = COLS_DEFAULT;
+  const paint = () => {
+    root.style.setProperty("--zen-cols-left", `${pct}%`);
+    sep.setAttribute("aria-valuenow", String(pct));
+  };
+  const set = (n: number, store: boolean) => {
+    pct = clampCols(n);
+    paint();
+    if (store && id) write(colsKey(id), String(pct));
+  };
+  const load = () => {
+    const n = Number.parseFloat(id ? read(colsKey(id)) ?? "" : "");
+    pct = Number.isFinite(n) ? clampCols(n) : COLS_DEFAULT;
+    paint();
+  };
+  load();
+  binders.set(root, (next) => { if (!id) { id = next; load(); } });
+
+  sep.addEventListener("keydown", (e) => {
+    const to = ({ ArrowLeft: pct - COLS_STEP, ArrowRight: pct + COLS_STEP, Home: COLS_MIN, End: COLS_MAX } as Record<string, number | undefined>)[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    set(to, true);
+  });
+  sep.addEventListener("mousedown", (e) => {
+    e.preventDefault();
+    const view = doc.defaultView;
+    if (!view) return;
+    root.classList.add("is-resizing");
+    doc.body.classList.add("zen-panel-col-resizing");
+    const move = (ev: MouseEvent) => {
+      const r = root.getBoundingClientRect();
+      if (r.width > 0) set(((ev.clientX - r.left) / r.width) * 100, false);
+    };
+    const up = () => {
+      view.removeEventListener("mousemove", move);
+      view.removeEventListener("mouseup", up);
+      root.classList.remove("is-resizing");
+      doc.body.classList.remove("zen-panel-col-resizing");
+      set(pct, true);
+    };
+    view.addEventListener("mousemove", move);
+    view.addEventListener("mouseup", up);
+  });
   return { el: root, left, right };
 }
 
