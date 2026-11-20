@@ -94,18 +94,18 @@ test("section list per build", () => {
     s.destroy();
     return n;
   };
-  expect(list()).toEqual(["Appearance", "Accessibility", "Configuration", "Markdown", "Templates", "Layouts", "Plugins", "Export", "Developer"]); // the full build; no This build
+  expect(list()).toEqual(["Configuration", "Appearance", "Accessibility", "Markdown", "Templates", "Layouts", "Plugins", "Export", "Developer"]); // the full build; no This build
   // the starting shell
-  expect(list(["reader", "nav", "inspector", "developer"])).toEqual(["Appearance", "Accessibility", "Configuration", "Markdown", "Templates", "Layouts", "Plugins", "Developer"]);
+  expect(list(["reader", "nav", "inspector", "developer"])).toEqual(["Configuration", "Appearance", "Accessibility", "Markdown", "Templates", "Layouts", "Plugins", "Developer"]);
   // the bare shell
   expect(list([])).toEqual(["Appearance", "Accessibility"]);
   // a feature brings its section
-  expect(list(["reader", "editor"])).toEqual(["Appearance", "Accessibility", "Configuration", "Markdown", "Templates", "Layouts", "Plugins"]);
+  expect(list(["reader", "editor"])).toEqual(["Configuration", "Appearance", "Accessibility", "Markdown", "Templates", "Layouts", "Plugins"]);
   expect(list(["newsite"])).toEqual(["Appearance", "Accessibility", "Templates"]);
   expect(list(["export"])).toEqual(["Appearance", "Accessibility", "Export"]);
   expect(list(["developer"])).toEqual(["Appearance", "Accessibility", "Developer"]);
-  expect(list(["editor"])).toEqual(["Appearance", "Accessibility", "Configuration"]);
-  expect(list(["reader"])).toEqual(["Appearance", "Accessibility", "Configuration", "Markdown", "Templates", "Layouts", "Plugins"]);
+  expect(list(["editor"])).toEqual(["Configuration", "Appearance", "Accessibility"]);
+  expect(list(["reader"])).toEqual(["Configuration", "Appearance", "Accessibility", "Markdown", "Templates", "Layouts", "Plugins"]);
 });
 
 test("templates: below Markdown in every build with the reader; without New Site it lists none and asks nothing", async () => {
@@ -125,9 +125,9 @@ test("every section is two columns, and the arrows of the section list move thro
   expect(s.el.querySelector("h1")!.textContent).toBe("Settings");
   const list = s.el.querySelector<HTMLElement>(".zen-settings-sections")!;
   key(list, "ArrowDown");
-  expect(tab(s, "accessibility").getAttribute("aria-current")).toBe("true");
+  expect(tab(s, "appearance").getAttribute("aria-current")).toBe("true");
   key(list, "ArrowDown");
-  expect(tab(s, "config").getAttribute("aria-current")).toBe("true");
+  expect(tab(s, "accessibility").getAttribute("aria-current")).toBe("true");
 });
 
 // ---- appearance
@@ -136,7 +136,7 @@ test("appearance items", async () => {
   const nav = Object.assign(document.createElement("div"), { className: "my-nav-row", textContent: "Left / Right" });
   nav.setAttribute("aria-label", "Navigation");
   const { s } = setup({ view: { appearanceExtra: [nav] } });
-  await settle();
+  await go(s, "appearance");
   // Theme, then Navigation, vertically, like Accessibility
   expect(rows(s, "appearance").map((r) => r.dataset.item)).toEqual(["theme", "extra-0"]);
   expect(rows(s, "appearance").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["Theme", "Navigation"]);
@@ -168,7 +168,7 @@ test("appearance items", async () => {
 
 test("appearance items: without nav there is only Theme", async () => {
   const { s } = setup({ view: { appearanceExtra: [] } });
-  await settle();
+  await go(s, "appearance");
   expect(rows(s, "appearance").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["Theme"]);
   expect(detail(s, "appearance").querySelector(".zen-theme-preview")).not.toBeNull();
 });
@@ -258,8 +258,24 @@ test("configuration: in every build with the reader; without the editor it only 
   expect(labels()).toEqual(["Reveal in Finder"]); // no Open in Editor or Create without the editor
   const bare = setup({ features: ["reader"], sources: {} });
   await go(bare.s, "config");
+  // no file exists and none can be created: both are greyed out, nothing is shown
+  expect(rows(bare.s, "config").map((r) => r.getAttribute("aria-disabled"))).toEqual(["true", "true"]);
   expect(Array.from(detail(bare.s, "config").querySelectorAll("button"))).toHaveLength(0);
-  expect(detail(bare.s, "config").textContent).toContain("does not exist yet");
+});
+
+test("configuration: first; a file that does not exist is disabled when this build cannot create it", async () => {
+  // the starting shell (no editor): only config.yml exists, so .zenmd.yml is greyed out and cannot be picked
+  const { s } = setup({ features: ["reader", "nav", "inspector", "developer"], sources: { "zen:config/global": "theme: dark\n" } });
+  expect(names(s)[0]).toBe("Configuration");
+  await go(s, "config");
+  expect(row(s, "config", "global").getAttribute("aria-disabled")).toBeNull();
+  expect(row(s, "config", "workspace").getAttribute("aria-disabled")).toBe("true");
+  expect(row(s, "config", "workspace").textContent).toContain("Not created yet");
+  expect(detail(s, "config").textContent).not.toContain("does not exist yet");
+  // with the editor, a missing file stays selectable so it can be created
+  const ed = setup({ sources: { "zen:config/global": "theme: dark\n" } });
+  await go(ed.s, "config");
+  expect(row(ed.s, "config", "workspace").getAttribute("aria-disabled")).toBeNull();
 });
 
 test("configuration preview is text", async () => {

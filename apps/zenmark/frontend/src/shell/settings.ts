@@ -60,10 +60,20 @@ export function createSettingsView(opts: {
   // ---- Configuration: the two config files, each with a read-only preview and its actions
 
   const folderFile = () => opts.configFile?.() || ".zenmd.yml";
-  const configItems = (): SettingsItem[] => [
-    { id: "global", label: "config.yml", note: "All folders" },
-    { id: "workspace", label: folderFile() === ".zenmd.yml" ? ".zenmd.yml" : `${folderFile()} (old name)`, note: "This folder", disabled: !opts.hasWorkspace() },
-  ];
+  // A file that does not exist is greyed out when this build cannot create it (no editor): there is nothing to show.
+  const configItems = async (): Promise<SettingsItem[]> => {
+    const canCreate = hasFeature(api, "editor");
+    const exists = async (which: "global" | "workspace") => {
+      try { return (await api.source(`zen:config/${which}`)) !== ""; } catch { return false; }
+    };
+    const open = opts.hasWorkspace();
+    const [g, w] = await Promise.all([exists("global"), open ? exists("workspace") : Promise.resolve(false)]);
+    const missing = (e: boolean) => (e ? {} : { note: canCreate ? undefined : "Not created yet", disabled: !canCreate });
+    return [
+      { id: "global", label: "config.yml", note: "All folders", ...missing(g) },
+      { id: "workspace", label: folderFile() === ".zenmd.yml" ? ".zenmd.yml" : `${folderFile()} (old name)`, note: "This folder", ...(open ? missing(w) : { disabled: true }) },
+    ].map((i) => ({ ...i, note: i.note ?? (i.id === "global" ? "All folders" : "This folder") }));
+  };
   function renderConfig(item: SettingsItem, right: HTMLElement): () => void {
     const which = item.id as "global" | "workspace";
     const name = which === "workspace" ? folderFile() : item.label;
@@ -224,11 +234,11 @@ export function createSettingsView(opts: {
   };
 
   frame = createSettingsFrame([
+    // Configuration first. The config files are shown with the reader (it reads them) or the editor (it opens them).
+    ...(hasFeature(api, "reader") || hasFeature(api, "editor") ? [config] : []),
     appearanceSection(doc, opts.appearanceExtra),
     // Accessibility is in every build; its Reading item is the reader's.
     accessibilitySection(doc, { reader: hasFeature(api, "reader"), setZoom: opts.setZoom }),
-    // The config files are shown with the reader (it reads them) or the editor (it opens them).
-    ...(hasFeature(api, "reader") || hasFeature(api, "editor") ? [config] : []),
     // The sections of a feature the build leaves out are not there at all (kit/shell-features): Markdown, Templates,
     // Layouts and Plugins belong to the reader (Templates also to newsite, and lists none without it), Export to
     // export, Developer to developer.

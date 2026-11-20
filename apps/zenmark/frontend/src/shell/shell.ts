@@ -420,7 +420,8 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     closeFrame();
     store.set({ workspace: null, path: "", anchor: "", page: undefined, dirty: false });
     // The fade (shell.css) plays only once the window is on screen; it would finish unseen in the hidden window.
-    const view = el("main", windowShown ? "zen-welcome zen-welcome-play" : "zen-welcome");
+    // The fade is the app starting: once the window is on screen, a later home screen (Close Folder) shows at once.
+    const view = el("main", windowShown ? "zen-welcome zen-welcome-still" : "zen-welcome");
     // One of the backgrounds, behind a scrim (shell.css); it is not in the page view.
     const pick = Math.min(INTRO_IMAGES.length - 1, Math.max(0, Math.floor(random() * INTRO_IMAGES.length)));
     const bg = el("div", "zen-welcome-bg");

@@ -397,7 +397,8 @@ h4.zen-plugin-help-title { font-size: 14px; }
 /* The logo and the text fade in together, slowly. */
 @keyframes zen-welcome-fade { from { opacity: 0; } to { opacity: 1; } }
 /* The window is hidden until it is ready (kit/desktop); the fade starts when it is shown (.zen-welcome-play). */
-.zen-welcome:not(.zen-welcome-play) :is(.zen-welcome-first, .zen-welcome-later) { opacity: 0; }
+/* Only the first home screen of a launch fades in; a later one (.zen-welcome-still) shows at once. */
+.zen-welcome:not(.zen-welcome-play):not(.zen-welcome-still) :is(.zen-welcome-first, .zen-welcome-later) { opacity: 0; }
 .zen-welcome-play .zen-welcome-first { animation: zen-welcome-fade 2s ease-out both; }
 .zen-welcome-play .zen-welcome-later { animation: zen-welcome-fade 2s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .zen-welcome .zen-welcome-first, .zen-welcome .zen-welcome-later { animation: none; opacity: 1; } }

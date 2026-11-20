@@ -570,7 +570,7 @@ test("Settings shows the plugins and its sections", async () => {
   await s.start();
   cog().click();
   await tick();
-  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Appearance", "Accessibility", "Configuration", "Markdown", "Templates", "Layouts", "Plugins", "Export", "Developer"]);
+  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Configuration", "Appearance", "Accessibility", "Markdown", "Templates", "Layouts", "Plugins", "Export", "Developer"]);
   expect(api.callsTo("plugins")).toHaveLength(0); // a list is read when its section is chosen
 });
 
@@ -1061,6 +1061,26 @@ test("the welcome fade waits until the window is shown (appReady resolves), then
   expect(root.querySelector(".zen-welcome")!.classList.contains("zen-welcome-play")).toBe(true);
 });
 
+test("the welcome fade plays only when the app starts, not when a folder is closed", async () => {
+  // the app starts on the home screen: it fades in once
+  const home = createFakeApi();
+  shell = createShell(root, { api: home, features: features(), search: "", assetWaitMs: 0 });
+  await shell.start();
+  await tick();
+  expect(root.querySelector(".zen-welcome")!.classList.contains("zen-welcome-play")).toBe(true);
+  shell.destroy();
+  // the app starts in a folder; closing it shows the home screen at once, with no fade
+  const api = withWorkspace("README.md");
+  shell = createShell(root, { api, features: features(), search: "", assetWaitMs: 0 });
+  await shell.start();
+  await tick();
+  api.emit("menu:close-folder", undefined);
+  await tick();
+  const view = root.querySelector(".zen-welcome")!;
+  expect(view.classList.contains("zen-welcome-play")).toBe(false);
+  expect(view.classList.contains("zen-welcome-still")).toBe(true);
+});
+
 // ---- ui/settings-layout: Open Console, File › Export › Website…
 
 test("there is no About sheet in the web page: Zenmark › About is the standard macOS panel", async () => {
@@ -1187,6 +1207,8 @@ test("Navigation row in Appearance: Left or Right, applied at once to the sideba
   expect(frame().dataset.navSide ?? "left").toBe("left");
   key(",");
   await tick();
+  root.querySelector<HTMLElement>('.zen-settings-section[data-section="appearance"]')!.click();
+  await tick();
   root.querySelector<HTMLElement>('[role=option][data-item="extra-0"]')!.click();
   const row = navRow()!;
   expect(row).not.toBeNull();
@@ -1210,8 +1232,9 @@ test("Navigation is below Theme on the home screen too (a setting of this Mac, a
   key(",");
   await tick();
   expect(root.querySelector(".zen-home-settings")).not.toBeNull();
-  const items = Array.from(root.querySelectorAll<HTMLElement>('[data-section="appearance"] [role=option], [role=option][data-item]'))
-    .filter((o) => o.closest(".zen-home-settings"))
+  root.querySelector<HTMLElement>('.zen-settings-section[data-section="appearance"]')!.click();
+  await tick();
+  const items = Array.from(root.querySelectorAll<HTMLElement>('.zen-home-settings [data-section="appearance"] [role=option]'))
     .map((o) => o.textContent?.trim());
   expect(items.slice(0, 2)).toEqual(["Theme", "Navigation"]);
   root.querySelector<HTMLElement>('[role=option][data-item="extra-0"]')!.click();
