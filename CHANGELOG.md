@@ -7,6 +7,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- Intro screen: the window opens at full size with no flash (it is shown once the first screen is drawn), the logo and text fade in together, centred, over one of three random backgrounds; ⌘P does nothing until a folder is open (#23).
 - Every big piece of the app (reader, nav, find, editor, inspector, print, export, new site, developer) is a feature an app assembly can leave out, with checked needs; `features: []` builds a bare shell. Zenmark restarts from a shell with the reader, sidebar, Inspector and Developer panel (#9).
 - Markdown dialects: a folder can turn on MyST syntax (```` ```{note} ```` and `:::{note}` directives) in `.zen.yml`; the app suggests it for MyST projects, and Settings › Markdown switches it (#3).
 - `app-assembly.yml` can leave out features; an app built without the editor is read-only and never changes the folder.
