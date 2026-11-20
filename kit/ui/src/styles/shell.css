@@ -457,8 +457,8 @@ h4.zen-plugin-help-title { font-size: 14px; }
 @keyframes zen-welcome-fade { from { opacity: 0; } to { opacity: 1; } }
 /* The window is hidden until it is ready (kit/desktop); the fade starts when it is shown (.zen-welcome-play). */
 .zen-welcome:not(.zen-welcome-play) :is(.zen-welcome-first, .zen-welcome-later) { opacity: 0; }
-.zen-welcome-play .zen-welcome-first { animation: zen-welcome-fade 0.8s ease-out both; }
-.zen-welcome-play .zen-welcome-later { animation: zen-welcome-fade 0.7s ease-out 0.6s both; }
+.zen-welcome-play .zen-welcome-first { animation: zen-welcome-fade 1.6s ease-out both; }
+.zen-welcome-play .zen-welcome-later { animation: zen-welcome-fade 1.4s ease-out 1.2s both; }
 @media (prefers-reduced-motion: reduce) { .zen-welcome .zen-welcome-first, .zen-welcome .zen-welcome-later { animation: none; opacity: 1; } }
 
 /* New Site dialog (core/init); the frame matches New Page. */

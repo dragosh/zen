@@ -120,7 +120,9 @@ func Run(o Options) error {
 		// Size first, then position: Wails' SetPosition keeps the current height
 		// when it turns the top-left y into macOS's bottom-left origin, so the
 		// other order (and SetBounds) leaves the frame off the work area.
-		if s := a.Screen.GetPrimary(); s != nil {
+		// The window's own screen, from macOS: a.Screen.GetPrimary() is still nil
+		// here (Wails fills its screen list lazily).
+		if s, _ := win.GetScreen(); s != nil {
 			win.SetSize(s.WorkArea.Width, s.WorkArea.Height)
 			win.SetPosition(s.WorkArea.X, s.WorkArea.Y)
 		}
