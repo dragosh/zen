@@ -124,16 +124,16 @@ and marked "not in this build" for screen readers.
 
 ## Notes
 
-- **The roadmap.** Zenmark's `app-assembly.yml` becomes the bare shell when this merges:
+- **The roadmap.** When this merges, Zenmark's `app-assembly.yml` becomes **the starting shell**. That shell is the main view, the sidebar, the page view, Settings, the Inspector and the Developer panel, and nothing else. This covers roadmap steps 1, 2, 7 and 12 (#10, #11, #16, #21), and the merge closes those issues:
   ```yaml
-  features: []
+  features: [reader, nav, inspector, developer]
   addons: []
   plugins: []
-  layouts: []
+  layouts: [article]
   templates: []
   dialects: []
   ```
-  This is what the local edits on main started. The GitHub Project then has one issue per step. Each step adds ids to the file, checks them in the real app (`task package`, then open `bin/Zenmark.app`), fixes what turns up, and updates the guide:
+  The shell is improved there first, before anything else comes back. The tests still cover the fully bare build (`features: []`) with a test assembly. The GitHub Project has one issue per remaining step. Each step adds ids to the file, checks them in the real app (`task package`, then open `bin/Zenmark.app`), fixes what turns up, and updates the guide:
   1. `reader` + `layouts: [article]`
   2. `nav`
   3. `plugins: [codeblock]`, then the other plugins
@@ -169,6 +169,6 @@ and marked "not in this build" for screen readers.
 > 2. The Go gating: `ErrFeatureMissing`, `requireFeature`, the menu table, the headless/CLI export.
 > 3. The frontend: `FeatureId`, `features.ts`, shell mounting, keys, Settings, the bare-shell card, This build.
 >
-> Keep `apps/zenmark/app-assembly.yml` at `features: all` in the branch and test the bare shell with a test assembly or fake build. The lead switches Zenmark to the bare shell at merge. Do not launch the app.
+> Test the bare shell (`features: []`) and each missing feature with a test assembly or fake build. As the last commit, switch `apps/zenmark/app-assembly.yml` to the starting shell in Notes (`features: [reader, nav, inspector, developer]`, `layouts: [article]`, everything else empty) and regenerate `assembly_gen.go`; tests that assume the full Zenmark build must then use a test assembly or `features: all` fixture instead of the app's file. Do not launch the app.
 >
 > Done when the table's tests pass with and without `-tags addon_vale`, the existing suites pass unchanged against `features: all`, and the frontend checks pass in `apps/zenmark/frontend`.
