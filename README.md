@@ -36,7 +36,7 @@ zenmd examples/demo   # open the user guide, which shows every feature
 To get the app bundle:
 
 ```sh
-task package                                # bin/Zenmark.app, as apps/zenmark/app-assembly.yml lists (Vale is downloaded once, checksum-checked)
+task package                                # bin/Zenmark.app, as apps/zenmark/app-assembly.yml lists (for now the starting shell; see the roadmap)
 task package ADDONS=                        # the same without add-ons
 ditto bin/Zenmark.app /Applications/Zenmark.app
 INSTALL_DIR=~/.local/bin task install:cli   # point zenmd at the installed app instead

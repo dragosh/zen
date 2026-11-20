@@ -96,10 +96,27 @@ release workflow passes the repository variable `ADDONS`, and when it is unset
 the file decides. `zenmd version` lists the add-ons; `zenmd version --verbose`
 the whole assembly. Settings › This build shows it in the app.
 
-`features:` lists the parts of the app itself that a build keeps (specs/kit/features;
-a missing key means `all`). Today there is one, `editor`: an app built with
-`features: []` is a read-only reader. The session refuses every write to the folder
-and its settings files (`ErrReadOnly`), and the edit actions are not in the UI.
+`features:` lists the parts of the app itself that a build keeps (specs/kit/features,
+specs/kit/shell-features; a missing key means `all`). A missing feature leaves no menu
+item, shortcut, button or Settings section, and its service methods refuse
+("this app is built without find"):
+
+| Feature | Brings | Needs |
+|---|---|---|
+| `reader` | the page view, links, live reload, image zoom | – |
+| `nav` | the sidebar, breadcrumbs | `reader` |
+| `find` | the find bar, ⌘F | `reader` |
+| `editor` | editor windows, New Page, sidebar editing; without it the app is read-only (`ErrReadOnly`) | `reader` |
+| `inspector` | the Inspector panel, ⌥⌘I | `reader` |
+| `print` | Print Page and Site | `reader` |
+| `export` | Export › Website (and PDF with `print`), `zenmd export` | `reader` |
+| `newsite` | New Site from Template | a template |
+| `developer` | the Developer panel, Settings › Developer | – |
+
+Plugins, layouts, dialects and the `vale` add-on need `reader`. `features: []` is a
+bare shell: the window, home, Open/Close Folder and Settings. Zenmark is being
+rebuilt from a starting shell (`reader, nav, inspector, developer`) one roadmap
+step at a time (GitHub Project "Zenmark roadmap").
 
 `dialects:` lists the markdown dialects the app can read (specs/engine/dialects;
 missing means none). A folder turns one on in its `.zen.yml`.
