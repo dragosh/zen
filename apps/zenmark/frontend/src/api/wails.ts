@@ -25,7 +25,7 @@ function nodes(list: Raw[] | null | undefined): NavNode[] {
 
 function workspace(w: Raw): Workspace | null {
   if (!w) return null;
-  return { root: w.root ?? "", name: w.name ?? "", home: w.home ?? "", tree: nodes(w.tree) };
+  return { root: w.root ?? "", name: w.name ?? "", home: w.home ?? "", title: w.title ?? "", logo: w.logo ?? "", tree: nodes(w.tree) };
 }
 
 const LAYOUT_SOURCES = ["builtin", "folder", "user"] as const;

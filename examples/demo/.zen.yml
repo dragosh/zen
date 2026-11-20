@@ -2,6 +2,10 @@
 # overridden by a page's frontmatter. Open from the cog > .zen.yml.
 version: 1
 
+# The sidebar shows this image beside the folder's title (a path inside the folder:
+# .svg, .png, .jpg, .gif or .webp); without it Zenmark's mark is shown.
+# logo: images/logo.svg
+
 # Layouts by path, the first match wins. A page's own layout beats these.
 layouts:
   "blog/**": post

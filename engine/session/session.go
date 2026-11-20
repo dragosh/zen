@@ -5,7 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
+	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -67,10 +70,12 @@ type NavNode struct {
 
 // Workspace is the open folder: its name, home page and sidebar tree.
 type Workspace struct {
-	Root string    `json:"root"`
-	Name string    `json:"name"`
-	Home string    `json:"home"`
-	Tree []NavNode `json:"tree"`
+	Root  string    `json:"root"`
+	Name  string    `json:"name"`
+	Home  string    `json:"home"`
+	Title string    `json:"title"` // the home page's first heading, else Name
+	Logo  string    `json:"logo"`  // "/_ws/<path>" of the folder's logo, "" for Zenmark's mark
+	Tree  []NavNode `json:"tree"`
 }
 
 // Crumb is one step of a page's breadcrumb.
@@ -202,9 +207,11 @@ type Session struct {
 	openGen     int
 	openTimeout time.Duration // 0 = from limits.openTimeout (tests set it)
 
-	indexCtx  context.Context       // set while open indexes: cancel stops the index (guarded by mu)
-	indexStep func(done, total int) // progress of that index (guarded by mu)
-	indexErr  error                 // why that index stopped (guarded by mu)
+	indexCtx   context.Context       // set while open indexes: cancel stops the index (guarded by mu)
+	indexStep  func(done, total int) // progress of that index (guarded by mu)
+	indexErr   error                 // why that index stopped (guarded by mu)
+	logo       string                // the logo URL the frontend last got, to tell when it changed (guarded by mu)
+	logoWarned string                // the logo path already reported in the log (guarded by mu)
 }
 
 // Options configures a Session; every field is optional.
@@ -440,7 +447,72 @@ func (s *Session) workspaceLocked() *Workspace {
 	if s.ws == nil {
 		return nil
 	}
-	return &Workspace{Root: s.ws.Root(), Name: s.ws.Name(), Home: s.ws.Home(), Tree: s.tree}
+	logo := s.logoLocked()
+	s.logo = logo
+	return &Workspace{Root: s.ws.Root(), Name: s.ws.Name(), Home: s.ws.Home(), Title: s.titleLocked(), Logo: logo, Tree: s.tree}
+}
+
+// titleLocked is the folder's title for the sidebar: the first heading of the
+// home page, from the index (no file is read), else the folder's name.
+func (s *Session) titleLocked() string {
+	home := s.ws.Home()
+	if home == "" {
+		return s.ws.Name()
+	}
+	var find func([]NavNode) string
+	find = func(ns []NavNode) string {
+		for _, n := range ns {
+			if n.Kind == "page" && n.Path == home {
+				return n.Title
+			}
+			if t := find(n.Children); t != "" {
+				return t
+			}
+		}
+		return ""
+	}
+	t := strings.TrimSpace(find(s.tree))
+	// A page without a heading is titled by its file name: that is not a title.
+	if t == "" || t == strings.TrimSuffix(path.Base(home), path.Ext(home)) {
+		return s.ws.Name()
+	}
+	return t
+}
+
+// logoChangedLocked reports whether the logo URL differs from the one the
+// frontend last got.
+func (s *Session) logoChangedLocked() bool {
+	if s.ws == nil {
+		return false
+	}
+	return s.logoLocked() != s.logo
+}
+
+// logoLocked is the /_ws/ URL of the logo the config names, "" when there is
+// none or it cannot be used. The file is opened through the workspace's
+// confined asset access (inside the folder, an image, no link out of it), so a
+// logo outside the folder falls back to the mark. A bad one is logged once.
+func (s *Session) logoLocked() string {
+	p := s.cfg.Logo()
+	if p == "" {
+		s.logoWarned = ""
+		return ""
+	}
+	f, err := s.ws.Asset(p)
+	if err != nil {
+		if s.logoWarned != p {
+			s.logoWarned = p
+			slog.Warn("logo "+p+" is not used: "+err.Error(), "source", "workspace")
+		}
+		return ""
+	}
+	f.Close()
+	s.logoWarned = ""
+	segs := strings.Split(p, "/")
+	for i, seg := range segs {
+		segs[i] = url.PathEscape(seg)
+	}
+	return "/_ws/" + strings.Join(segs, "/")
 }
 
 // Workspace is the open folder with its sidebar tree; nil when none is open.
@@ -695,6 +767,9 @@ func (s *Session) handle(evs []watch.Event) {
 	} else if reindex {
 		changed = s.reindexLocked()
 	}
+	if (assets || cfg) && s.logoChangedLocked() {
+		changed = true // the logo file or the logo: key changed
+	}
 	var ws *Workspace
 	if changed {
 		ws = s.workspaceLocked()
@@ -724,6 +799,9 @@ func (s *Session) reloadConfig() {
 		return
 	}
 	changed := s.rebuildLocked()
+	if s.ws != nil && s.logoChangedLocked() {
+		changed = true
+	}
 	var ws *Workspace
 	if changed {
 		ws = s.workspaceLocked()

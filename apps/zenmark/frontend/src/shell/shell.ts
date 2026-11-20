@@ -7,6 +7,7 @@ import {
   applyAppTheme, button, closeWindowKey, createHistory, createInspector, INSPECTOR_CONSOLE, createLayout, createOpening, createStore, developerEnabled, el, followDeveloper, hasFeature, mountPreview, openAbout, reloadKey, shellAction,
   type Ctx, type Feature, type Inspector, type Layout, type Store,
 } from "@zenmd/kit";
+import { navSideRow } from "@zenmd/kit/shell/layout";
 import { BRAND } from "../brand";
 // ?no-inline: a file of the app, not a data: URL (the CSP allows images from 'self' only).
 import logoUrl from "../assets/logo.svg?no-inline";
@@ -61,6 +62,9 @@ const CONFIG_TITLES: Record<string, string> = {
   "zen:config/global": "config.yml — settings for all folders",
   "zen:config/workspace": ".zen.yml — settings for this folder",
 };
+
+/** What the sidebar header shows: the folder's logo and its title (the folder's name when it has none). */
+const identity = (w: Workspace) => ({ logo: w.logo ?? "", title: w.title || w.name });
 
 function findTitle(nodes: NavNode[], path: string): string {
   for (const n of nodes) {
@@ -278,6 +282,7 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     settings = createSettingsView({
       api, hasWorkspace: () => store.get().workspace !== null,
       build: api, root: () => store.get().workspace?.root ?? "", ...settingsWiring,
+      appearanceExtra: has("nav") ? [navSideRow(doc)] : [],
     });
     layout.showView(settings.el);
     layout.setSettingsOpen(true);
@@ -315,6 +320,12 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     syncHistoryButtons();
     if (inside) layout?.el.querySelector<HTMLElement>(".zen-settings-button")?.focus();
   }
+  /** The Export button of the sidebar (⇧⌘B): Settings › Export. */
+  function openExport(): void {
+    if (kind.kind !== "main" || !has("export")) return;
+    openSettings();
+    settings?.open("export");
+  }
   function toggleSettings(): void {
     if (settings) closeSettings();
     else openSettings();
@@ -327,7 +338,11 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     const path = page || workspace.home;
     if (path && has("reader")) navigate(path, page ? anchor : "");
 
-    layout = createLayout({ onBack: back, onForward: forward, onOpenFolder: () => void openFolder(), onSettings: () => toggleSettings() });
+    layout = createLayout({
+      onBack: back, onForward: forward, onOpenFolder: () => void openFolder(), onSettings: () => toggleSettings(),
+      onClose: () => void closeFolder(), onExport: () => openExport(),
+    });
+    layout.setIdentity(identity(workspace));
     root.replaceChildren(layout.el);
     // What the build leaves out leaves no trace: no sidebar without nav, no Inspector button without the inspector feature.
     if (!has("nav")) {
@@ -335,6 +350,7 @@ export function createShell(root: HTMLElement, { api, features, search, random =
       layout.el.querySelector('[data-action="toggle-sidebar"]')?.remove();
     }
     if (!has("inspector")) layout.el.querySelector(".zen-inspector-button")?.remove();
+    if (!has("export")) layout.el.querySelector(".zen-export-button")?.remove();
     // The Console is a tab of the Inspector, which the page feature owns. A build with `developer` but not `inspector`
     // has a panel of its own with the Console tab only (⌥⌘J, no button), there while the setting is on (ui/inspector).
     if (has("developer") && !has("inspector")) {
@@ -614,6 +630,7 @@ export function createShell(root: HTMLElement, { api, features, search, random =
   const offWorkspace = api.on("workspace:changed", (workspace) => {
     if (!store.get().workspace) return;
     store.set({ workspace });
+    layout?.setIdentity(identity(workspace));
     if (editorTitle) titleEditor(workspace, store.get().path);
   });
   // Go closes the editor windows before it opens another folder.

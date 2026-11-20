@@ -20,7 +20,7 @@ func TestPayloadShapes(t *testing.T) {
 		want string
 	}{
 		{"Startup", Startup{Workspace: &Workspace{Root: "/r", Name: "r", Home: "README.md", Tree: []NavNode{{Title: "Home", Path: "README.md", Kind: "page", Children: []NavNode{}}}}, Page: "README.md", Mode: "read"},
-			`{"workspace":{"root":"/r","name":"r","home":"README.md","tree":[{"title":"Home","path":"README.md","kind":"page","children":[]}]},"page":"README.md","mode":"read"}`},
+			`{"workspace":{"root":"/r","name":"r","home":"README.md","title":"","logo":"","tree":[{"title":"Home","path":"README.md","kind":"page","children":[]}]},"page":"README.md","mode":"read"}`},
 		{"StartupError", Startup{Mode: "read", Error: "boom"},
 			`{"workspace":null,"page":"","mode":"read","error":"boom"}`},
 		{"Page", Page{Layout: PageLayout{Name: "article", Source: "builtin"}, Path: "a.md", Title: "A", HTML: "<p>x</p>", Frontmatter: map[string]any{"k": 1}, Breadcrumb: []Crumb{{Title: "A", Path: "a.md"}}, Assets: PageAssets{CSS: []string{"/c.css"}, JS: []string{}}, Warnings: []string{}},
