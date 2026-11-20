@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -88,9 +87,12 @@ func Run(o Options) error {
 	win := a.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:   MainWindowName,
 		Title:  o.Name,
-		Width:  1100, // the size it returns to when un-maximised
+		Width:  1100, // replaced by the screen's work area at start (ApplicationStarted)
 		Height: 720,
 		URL:    "/",
+		// Hidden until the frontend drew its first screen (eventAppReady), so
+		// the launch shows no blank or half-drawn window.
+		Hidden: true,
 		// Element full screen, for the slides layout's full page (F).
 		Mac: application.MacWindow{
 			WebviewPreferences: application.MacWebviewPreferences{FullscreenEnabled: application.Enabled},
@@ -106,24 +108,33 @@ func Run(o Options) error {
 		o.OnCreated(a, win)
 	}
 
+	ready := newReadyGate()
+	a.Event.On(eventAppReady, func(*application.CustomEvent) { ready.Ready() })
+
 	a.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
-		// Fill the screen's usable area (not macOS full-screen mode). Done
-		// here because macOS ignores maximising a window that is not shown
-		// yet (StartState: WindowStateMaximised had no effect).
-		// Editor windows are sized from the main window (90%), so the startup
-		// editor waits until maximising has finished (it is asynchronous), or
-		// one second at most.
-		maximised := make(chan struct{})
-		var once sync.Once
-		win.OnWindowEvent(events.Common.WindowMaximise, func(*application.WindowEvent) {
-			once.Do(func() { close(maximised) })
-		})
-		win.Maximise()
+		// Fill the screen's usable area (not macOS full-screen mode). The window
+		// is hidden, so it gets the work area's frame now and appears at full
+		// size: no Maximise, which macOS ignores on a hidden window
+		// (StartState: WindowStateMaximised had no effect) and animates (zoom:)
+		// on a shown one. A frame equal to the work area is the zoomed frame.
+		// Size first, then position: Wails' SetPosition keeps the current height
+		// when it turns the top-left y into macOS's bottom-left origin, so the
+		// other order (and SetBounds) leaves the frame off the work area.
+		// The window's own screen, from macOS: a.Screen.GetPrimary() is still nil
+		// here (Wails fills its screen list lazily).
+		if s, _ := win.GetScreen(); s != nil {
+			win.SetSize(s.WorkArea.Width, s.WorkArea.Height)
+			win.SetPosition(s.WorkArea.X, s.WorkArea.Y)
+		}
 		go func() {
-			select {
-			case <-maximised:
-			case <-time.After(time.Second):
-			}
+			// Shown when the frontend is ready, or after showTimeout, so that it
+			// never stays hidden (and its error screen is seen). Editor windows
+			// are sized from the main window (90%), so the startup editor opens
+			// after this, when the frame is final.
+			showWhenReady(ready, time.After(showTimeout), func() {
+				win.Show()
+				a.Event.Emit(eventAppShown, nil)
+			})
 			if o.OnStarted != nil {
 				if err := o.OnStarted(a, win); err != nil {
 					a.Dialog.Warning().SetTitle("Could not edit").SetMessage(err.Error()).Show()

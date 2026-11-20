@@ -26,6 +26,14 @@ const (
 	closeReplyTimeout = 3 * time.Second     // no reply at all: the frontend is gone
 )
 
+// eventAppReady: frontend -> Go, once its first screen is drawn (api/wails.ts
+// appReady); the hidden main window is shown then (showWhenReady).
+const eventAppReady = "app:ready"
+
+// eventAppShown: Go -> frontend, once the main window is on screen; the
+// welcome fade starts then (it would finish unseen in the hidden window).
+const eventAppShown = "app:shown"
+
 // Window names. The frontend derives the same names from its URL
 // (api/wails.ts) to tell which close request is meant for it.
 const (

@@ -5,6 +5,11 @@ import { Zen } from "../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/in
 // The headless service is unexported, so the generated index leaves it out.
 import * as HeadlessService from "../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/headlessservice.js";
 import { FEATURE_IDS, type LogEntry } from "@zenmd/kit";
+
+/** Resolves when Go has shown the main window (app:shown, kit/desktop); listened to from the start so it is not missed. */
+const windowShown = new Promise<void>((resolve) => {
+  const off = Events.On("app:shown", () => { off(); resolve(); });
+});
 import type { AddonInfo, Alert, Api, BuildInfo, BuildOptions, Crumb, DialectInfo, LayoutField, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
 
 type Raw = Record<string, any> | null | undefined;
@@ -216,6 +221,11 @@ const api: Api = {
   },
   async pickFolder() {
     return workspace((await call(Zen.PickFolder())) as Raw);
+  },
+  async appReady() {
+    await Events.Emit("app:ready", null);
+    // Go answers app:shown once the window is on screen; it may already have shown it (its 2 s fallback).
+    await Promise.race([windowShown, new Promise((r) => setTimeout(r, 3000))]);
   },
   async cancelOpen() {
     await call(Zen.CancelOpen());

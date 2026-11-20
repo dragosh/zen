@@ -10,6 +10,9 @@ import {
 import { BRAND } from "../brand";
 // ?no-inline: a file of the app, not a data: URL (the CSP allows images from 'self' only).
 import logoUrl from "../assets/logo.svg?no-inline";
+import intro1 from "../assets/intro/intro-1.jpg?no-inline";
+import intro2 from "../assets/intro/intro-2.jpg?no-inline";
+import intro3 from "../assets/intro/intro-3.jpg?no-inline";
 import { registerBuildSite } from "./buildsite";
 import { installPagePrint } from "@zenmd/runtime/print/page";
 import { openNewPage, type NewPageDialog } from "./newpage";
@@ -21,7 +24,27 @@ export type ShellOptions = {
   features: Feature[];
   /** The window URL's query string; read once. Default: location.search. */
   search?: string;
+  /** Picks the home screen's background (0 up to, not including, 1); default Math.random. */
+  random?: () => number;
+  /** The most the window waits for its images and fonts before it asks to be shown; default 1000 ms. */
+  assetWaitMs?: number;
 };
+
+/** The home screen's backgrounds; one is picked each time it opens. */
+const INTRO_IMAGES = [intro1, intro2, intro3];
+
+/** Resolves when the image has loaded or failed; at once when it already has. */
+function imageSettled(img: HTMLImageElement): Promise<void> {
+  if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+  return new Promise((resolve) => {
+    img.addEventListener("load", () => resolve(), { once: true });
+    img.addEventListener("error", () => resolve(), { once: true });
+  });
+}
+
+/** ⌘P, no other modifiers. */
+const printKey = (e: KeyboardEvent): boolean =>
+  (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "p";
 
 export type WindowKind = { kind: "main" } | { kind: "editor"; path: string } | { kind: "print" };
 
@@ -96,7 +119,7 @@ const EMPTY_HINT = "Select a page from the sidebar";
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-export function createShell(root: HTMLElement, { api, features, search }: ShellOptions): Shell {
+export function createShell(root: HTMLElement, { api, features, search, random = Math.random, assetWaitMs = 1000 }: ShellOptions): Shell {
   const doc = root.ownerDocument;
   const kind = windowKind(search ?? doc.defaultView?.location.search ?? "");
   const store = createStore();
@@ -338,33 +361,47 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     unmountMain = feature("editor")?.mount(slots, ctx) ?? null;
   }
 
+  /** What the home screen loads (logo, background); the window is shown when these have loaded or failed. */
+  let welcomeAssets: HTMLImageElement[] = [];
+
   function showWelcome(error = ""): void {
     closeFrame();
     store.set({ workspace: null, path: "", anchor: "", page: undefined, dirty: false });
-    const view = el("main", "zen-welcome");
+    // The fade (shell.css) plays only once the window is on screen; it would finish unseen in the hidden window.
+    const view = el("main", windowShown ? "zen-welcome zen-welcome-play" : "zen-welcome");
+    // One of the backgrounds, behind a scrim (shell.css); it is not in the page view.
+    const pick = Math.min(INTRO_IMAGES.length - 1, Math.max(0, Math.floor(random() * INTRO_IMAGES.length)));
+    const bg = el("div", "zen-welcome-bg");
+    bg.setAttribute("aria-hidden", "true");
+    bg.style.backgroundImage = `url("${INTRO_IMAGES[pick]}")`;
+    const bgImage = new Image();
+    bgImage.src = INTRO_IMAGES[pick];
+    welcomeAssets = [bgImage];
     // Points up to the menu bar (top-left of the screen on macOS).
-    const menuHint = el("p", "zen-welcome-menuhint");
+    const menuHint = el("p", "zen-welcome-menuhint zen-welcome-later");
     menuHint.append(
       el("span", "", `↖ File menu: Open Folder… · ${has("newsite") ? "New Site… (⇧⌘N) · " : ""}`),
       button("Settings", () => openSettings(), { className: "link zen-welcome-settings", text: "Settings ⌘," }),
     );
     const status = el("p", "zen-welcome-status");
     status.setAttribute("role", "status");
-    const mark = el("img", "zen-welcome-logo");
+    const mark = el("img", "zen-welcome-logo zen-welcome-first");
+    welcomeAssets.push(mark);
     mark.src = logoUrl;
     mark.alt = "";
     mark.setAttribute("aria-hidden", "true");
     mark.draggable = false;
-    const open = el("div", "zen-welcome-open");
+    const open = el("div", "zen-welcome-open zen-welcome-later");
     open.append(
       button("Open a folder", () => void openFolder(status), { className: "primary" }),
       el("p", "zen-hint", "⌘O"),
     );
     view.append(
+      bg,
       menuHint,
       mark,
-      el("h1", "", BRAND),
-      el("p", "zen-welcome-tagline", "Markdown folders as sites, documents and courses"),
+      el("h1", "zen-welcome-later", BRAND),
+      el("p", "zen-welcome-tagline zen-welcome-later", "Markdown folders as sites, documents and courses"),
       open,
       status,
     );
@@ -388,7 +425,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       return;
     }
     if (destroyed || !view.isConnected || all.length === 0) return;
-    const section = el("section", "zen-welcome-templates");
+    const section = el("section", "zen-welcome-templates zen-welcome-later");
     section.setAttribute("aria-labelledby", "zen-welcome-templates-title");
     const heading = el("h2", "", "Start from a template");
     heading.id = "zen-welcome-templates-title";
@@ -417,8 +454,43 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     root.replaceChildren(view);
   }
 
+  /**
+   * Tells Go the first screen is drawn so it shows the hidden main window (no flash on launch). It waits for
+   * the fonts and the home screen's images, to load or fail, for a second at most; Go shows the window after
+   * two seconds anyway. Sent once; a failed start sends it too, so the error screen is seen.
+   */
+  let readySent = false;
+  /** The main window is on screen (appReady resolved); until then the welcome fade waits. */
+  let windowShown = kind.kind !== "main";
+  async function sendReady(): Promise<void> {
+    if (readySent || kind.kind !== "main") return;
+    readySent = true;
+    const loading: Promise<unknown>[] = welcomeAssets.map(imageSettled);
+    const fonts = (doc as Document & { fonts?: { ready: Promise<unknown> } }).fonts;
+    if (fonts) loading.push(fonts.ready.catch(() => undefined));
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([Promise.all(loading), new Promise((r) => { timer = setTimeout(r, assetWaitMs); })]);
+    clearTimeout(timer);
+    if (destroyed) return;
+    try {
+      await api.appReady();
+    } catch (err) {
+      console.error("zen: could not tell the window it is ready", err);
+    }
+    if (destroyed) return;
+    windowShown = true;
+    root.querySelector(".zen-welcome")?.classList.add("zen-welcome-play");
+  }
+
   let stopPreview: (() => void) | null = null;
   async function start(): Promise<void> {
+    try {
+      await startScreen();
+    } finally {
+      void sendReady();
+    }
+  }
+  async function startScreen(): Promise<void> {
     if (kind.kind === "print") {
       // Print Preview (ui/print) needs no folder view: it fetches the whole site as one document.
       stopPreview?.();
@@ -435,7 +507,14 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     if (destroyed) return;
     applyAppTheme(doc, api.build);
     // ⌘P and the print menu event, only in a build with print (kit/shell-features).
-    if (has("print") && !offPagePrint) offPagePrint = installPagePrint(doc, api);
+    if (has("print") && !offPagePrint) {
+      // Print Page waits for a folder: File › Print Page… is disabled without one, and so is this.
+      const printApi = {
+        on: (ev: "menu:print-page", fn: () => void) => api.on(ev, () => { if (kind.kind !== "main" || store.get().workspace) fn(); }),
+        printWindow: api.printWindow?.bind(api),
+      };
+      offPagePrint = installPagePrint(doc, printApi);
+    }
     if (kind.kind === "editor") {
       if (!hasFeature(api, "editor")) showError(new Error("This app is read-only"));
       else if (startup.workspace) showEditor(startup.workspace, kind.path);
@@ -476,6 +555,12 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       return;
     }
     if (kind.kind !== "main") return; // an editor window has no folder or history
+    // With no folder open there is nothing to print: ⌘P would print the home screen.
+    if (!store.get().workspace && !homeSettings && printKey(e)) {
+      e.preventDefault();
+      e.stopImmediatePropagation();
+      return;
+    }
     if (e.key === "Escape" && settings && !newPage && !e.defaultPrevented) {
       e.preventDefault();
       closeSettings();
