@@ -288,6 +288,9 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     });
     layout.showView(settings.el);
     layout.setSettingsOpen(true);
+    // The Export button is on while Settings shows Export (the page says when its section changes).
+    const view = settings;
+    view.el.addEventListener("zen-settings-section", () => layout?.setActive("export", view.current() === "export"));
     syncHistoryButtons();
     settings.show();
   }
@@ -319,6 +322,7 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     settings = null;
     layout?.showView(null);
     layout?.setSettingsOpen(false);
+    layout?.setActive("export", false);
     syncHistoryButtons();
     if (inside) layout?.el.querySelector<HTMLElement>(".zen-settings-button")?.focus();
   }

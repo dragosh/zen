@@ -317,7 +317,7 @@ test("startup error", async () => {
 
 test("escapes workspace name", async () => {
   const name = '<img src=x onerror="window.pwned=1"><script>window.pwned=1</script>';
-  const ws = { ...sampleWorkspace(), name };
+  const ws = { ...sampleWorkspace(), name, title: name };
   const { features: shipped } = await import("./features");
   const s = boot(createFakeApi({ startup: { workspace: ws, page: "", mode: "read" } }), shipped);
   await s.start();
@@ -325,6 +325,14 @@ test("escapes workspace name", async () => {
   expect(root.querySelector("script")).toBeNull();
   expect(root.querySelector("nav")?.textContent).toContain(name);
   expect((window as unknown as { pwned?: number }).pwned).toBeUndefined();
+});
+
+test("the sidebar header falls back to the workspace name without a title, and it is the only heading", async () => {
+  const ws = { ...sampleWorkspace(), name: "my-folder", title: undefined };
+  const s = boot(createFakeApi({ startup: { workspace: ws, page: "", mode: "read" } }));
+  await s.start();
+  expect(root.querySelector(".zen-sidebar-title")?.textContent).toBe("my-folder");
+  expect(root.querySelector(".zen-nav-ws")).toBeNull();
 });
 
 test("shell sources never use innerHTML", async () => {
@@ -340,7 +348,7 @@ test("shipped features make the app usable", async () => {
   expect(shipped.map((f) => f.id).sort()).toEqual(["editor", "nav", "reader"]);
   const s = boot(withWorkspace("README.md"), shipped);
   await s.start();
-  expect(root.querySelector("nav")?.textContent).toContain("sample-docs");
+  expect(root.querySelector("nav")?.textContent).toContain("Sample docs");
   const settle = () => new Promise((r) => setTimeout(r, 0));
   await settle();
   expect(root.querySelector("main .zen-page")).not.toBeNull();
@@ -1179,6 +1187,7 @@ test("Navigation row in Appearance: Left or Right, applied at once to the sideba
   expect(frame().dataset.navSide ?? "left").toBe("left");
   key(",");
   await tick();
+  root.querySelector<HTMLElement>('[role=option][data-item="extra-0"]')!.click();
   const row = navRow()!;
   expect(row).not.toBeNull();
   const radios = Array.from(row.querySelectorAll<HTMLInputElement>('input[type="radio"]'));
@@ -1226,4 +1235,22 @@ test("accessibility applied before mount", async () => {
   delete root$.dataset.contrast;
   delete root$.dataset.reduceMotion;
   root$.style.removeProperty("--zen-text-size");
+});
+
+test("the Export button is on while Settings shows Export, and off when it closes or switches section", async () => {
+  await boot(withWorkspace("README.md")).start();
+  const exp = () => root.querySelector<HTMLElement>(".zen-export-button")!;
+  const section = (id: string) => root.querySelector<HTMLElement>(`.zen-settings-section[data-section="${id}"]`)!;
+  expect(exp().getAttribute("aria-pressed")).toBe("false");
+  exp().click();
+  await tick();
+  expect(exp().getAttribute("aria-pressed")).toBe("true");
+  expect(root.querySelector(".zen-settings-button")!.getAttribute("aria-expanded")).toBe("true");
+  section("appearance").click();
+  expect(exp().getAttribute("aria-pressed")).toBe("false");
+  section("export").click();
+  expect(exp().getAttribute("aria-pressed")).toBe("true");
+  key(",");
+  await tick();
+  expect(exp().getAttribute("aria-pressed")).toBe("false");
 });
