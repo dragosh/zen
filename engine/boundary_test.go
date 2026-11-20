@@ -29,10 +29,10 @@ func goList(t *testing.T, args ...string) []string {
 func TestPackageLayout(t *testing.T) {
 	public := []string{
 		"engine",
-		"engine/config", "engine/extplugins", "engine/index", "engine/layouts", "engine/lint",
+		"engine/config", "engine/dialects", "engine/extplugins", "engine/index", "engine/layouts", "engine/lint",
 		"engine/plugins", "engine/render", "engine/scriptplugins", "engine/session",
 		"engine/session/sessiontest", "engine/site", "engine/sitetemplates", "engine/watch", "engine/workspace",
-		"builtins", "builtins/layouts", "builtins/sitetemplates",
+		"builtins", "builtins/dialects/myst", "builtins/layouts", "builtins/sitetemplates",
 		"builtins/plugins/check", "builtins/plugins/codeblock", "builtins/plugins/diagram",
 		"builtins/plugins/quiz", "builtins/plugins/sandbox",
 	}
