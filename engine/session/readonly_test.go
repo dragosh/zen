@@ -81,6 +81,7 @@ func TestReadOnlyRefusesWrites(t *testing.T) {
 			_, err := s.SaveBuildDefaults(BuildOptions{Out: filepath.Join(dir, "_site")}, true)
 			return err
 		},
+		"SetDialect":         func() error { return s.SetDialect("myst", true) },
 		"EnsureConfig ws":    func() error { _, err := s.EnsureConfig("workspace"); return err },
 		"EnsureConfig glob.": func() error { _, err := s.EnsureConfig("global"); return err },
 	}
@@ -114,7 +115,7 @@ func TestReadOnlyRefusesWrites(t *testing.T) {
 // The exported writers of the session: a new one must be listed here as
 // guarded (and covered by TestReadOnlyRefusesWrites) or as exempt.
 func TestEveryWriterGuarded(t *testing.T) {
-	guarded := []string{"Save", "CreatePage", "ReorderNav", "SetNavHidden", "SaveBuildDefaults", "EnsureConfig"}
+	guarded := []string{"Save", "CreatePage", "ReorderNav", "SetNavHidden", "SaveBuildDefaults", "EnsureConfig", "SetDialect"}
 	exempt := []string{"SetOpenTimeout"} // a test and embedder knob, writes nothing to disk
 	typ := reflect.TypeOf(&Session{})
 	have := map[string]bool{}

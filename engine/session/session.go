@@ -13,6 +13,7 @@ import (
 
 	"github.com/zenmark-org/zenmd/builtins"
 	"github.com/zenmark-org/zenmd/engine/config"
+	"github.com/zenmark-org/zenmd/engine/dialects"
 	"github.com/zenmark-org/zenmd/engine/extplugins"
 	"github.com/zenmark-org/zenmd/engine/index"
 	"github.com/zenmark-org/zenmd/engine/layouts"
@@ -200,17 +201,18 @@ type Session struct {
 
 // Options configures a Session; every field is optional.
 type Options struct {
-	GlobalPath string            // config.yml; "" for none
-	ConfigDir  string            // trust, plugin data, user plugins/layouts, templates; default: the folder of GlobalPath
-	Registry   *plugins.Registry // built-in plugins; nil = the default set
-	Layouts    *layouts.Registry // built-in layouts; nil = the default set
-	Events     Events            // may be nil
-	Prompter   Prompter          // may be nil: never asks
-	Runtime    fs.FS             // the browser runtime (zen.js, zen.css) for Build and Print; nil = the embedded runtime package
-	Presets    fs.FS             // the built-in site templates; nil = the default set
-	Watch      bool              // live reload: watch the open folder
-	ReadOnly   bool              // refuse every write to the folder and the settings files (ErrReadOnly); reading and exporting still work
-	Version    string            // asset versioning of the built-ins; "" = "dev"
+	GlobalPath string             // config.yml; "" for none
+	ConfigDir  string             // trust, plugin data, user plugins/layouts, templates; default: the folder of GlobalPath
+	Registry   *plugins.Registry  // built-in plugins; nil = the default set
+	Layouts    *layouts.Registry  // built-in layouts; nil = the default set
+	Dialects   *dialects.Registry // markdown dialects the build has; the folder's .zen.yml turns them on; nil = the default set
+	Events     Events             // may be nil
+	Prompter   Prompter           // may be nil: never asks
+	Runtime    fs.FS              // the browser runtime (zen.js, zen.css) for Build and Print; nil = the embedded runtime package
+	Presets    fs.FS              // the built-in site templates; nil = the default set
+	Watch      bool               // live reload: watch the open folder
+	ReadOnly   bool               // refuse every write to the folder and the settings files (ErrReadOnly); reading and exporting still work
+	Version    string             // asset versioning of the built-ins; "" = "dev"
 }
 
 // New creates a session with no folder open. Call Close when done.
