@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { AddonInfo, Page } from "../host";
 import { alert } from "../lint/test-util";
+import { INSPECTOR_MARK, type ProblemTarget } from "./events";
 import { createInspector, type Inspector } from "./index";
 
 const VALE: AddonInfo = { id: "vale", name: "Vale linting", summary: "Spelling and style checks." };
@@ -135,38 +136,6 @@ test("two columns: the list on the left, the selected problem's details on the r
   expect(detail(i, "where")).toContain("Gone page");
 });
 
-test("Show scrolls the page to a broken link and focuses it", () => {
-  const spy = vi.fn();
-  (window.HTMLElement.prototype as unknown as { scrollIntoView: unknown }).scrollIntoView = spy;
-  const i = make();
-  rows(i)[0].click();
-  i.el.querySelector<HTMLButtonElement>('[data-action="show"]')!.click();
-  const a = root.querySelector("a[data-zen-link=broken]")!;
-  expect(spy.mock.contexts[0]).toBe(a);
-  expect(document.activeElement).toBe(a);
-});
-
-test("Show on a missing image scrolls to and focuses the image", () => {
-  const spy = vi.fn();
-  (window.HTMLElement.prototype as unknown as { scrollIntoView: unknown }).scrollIntoView = spy;
-  const i = make();
-  failImage(root.querySelector("#bad")!);
-  rows(i)[1].click();
-  expect(detail(i, "rule")).toBe("missing-image");
-  i.el.querySelector<HTMLButtonElement>('[data-action="show"]')!.click();
-  expect(document.activeElement).toBe(root.querySelector("#bad"));
-});
-
-test("Show on a spelling problem asks the host to scroll to its mark", () => {
-  const i = make();
-  const a = alert({ line: 3, match: "teh" });
-  i.setIssues([a]);
-  rows(i)[1].click();
-  expect(select).not.toHaveBeenCalled(); // choosing only shows the details
-  i.el.querySelector<HTMLButtonElement>('[data-action="show"]')!.click();
-  expect(select).toHaveBeenCalledWith(a, 0);
-});
-
 test("empty state: No problems on this page.", () => {
   const i = make([VALE], "<p>fine</p>");
   i.setIssues([]);
@@ -189,22 +158,107 @@ test("a selected problem that goes away leaves the details empty", () => {
   expect(i.el.querySelector(".zen-problem-details")!.textContent).toContain("Select a problem");
 });
 
-// ui/accessibility 11: Reduce motion = On reaches the JS scroll too, not only the CSS.
-test("Show scrolls smoothly, and not when Reduce motion is On", () => {
-  const spy = vi.fn();
-  (window.HTMLElement.prototype as unknown as { scrollIntoView: unknown }).scrollIntoView = spy;
+
+let marks: (ProblemTarget | null)[] = [];
+const onMark = (e: Event) => marks.push((e as CustomEvent<ProblemTarget | null>).detail);
+beforeEach(() => { marks = []; document.addEventListener(INSPECTOR_MARK, onMark); });
+afterEach(() => document.removeEventListener(INSPECTOR_MARK, onMark));
+const key = (i: Inspector, k: string) => {
+  const r = i.el.querySelector<HTMLElement>(".zen-problem:focus") ?? rows(i)[0];
+  r.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
+};
+
+test("click shows in page: one click selects, shows the details and asks the page to mark it; there is no Show button", () => {
+  const i = make();
+  expect(i.el.querySelector('[data-action="show"]')).toBeNull();
+  rows(i)[0].click();
+  expect(rows(i)[0].getAttribute("aria-selected")).toBe("true");
+  expect(detail(i, "rule")).toBe("broken-link");
+  expect(marks).toHaveLength(1);
+  expect(marks[0]).toMatchObject({ kind: "link", severity: "warning", text: "Gone page" });
+  expect(i.el.querySelector('[data-action="show"]')).toBeNull();
+  expect(i.el.querySelector(".zen-problem-details button")).toBeNull();
+});
+
+test("click shows in page: a missing image sends its src and alt, a spelling problem its word and index", () => {
+  const i = make();
+  failImage(root.querySelector("#bad")!);
+  i.setIssues([alert({ line: 3, match: "teh", severity: "error" })]);
+  marks = [];
+  rows(i)[1].click();
+  expect(marks.at(-1)).toMatchObject({ kind: "image", src: "/_ws/missing.png", text: "Missing one" });
+  rows(i)[2].click();
+  expect(marks.at(-1)).toMatchObject({ kind: "spelling", severity: "error", text: "teh", offset: 0, length: 3 });
+  expect(select).not.toHaveBeenCalled();
+});
+
+test("click shows in page: choosing a page warning clears the mark, there is nothing to show", () => {
+  const i = warned(["unknown layout \"x\""], { html: "<a data-zen-link='broken'>Gone</a>" });
+  select1(i, 1);
+  select1(i, 0);
+  expect(marks.at(-1)).toBeNull();
+});
+
+test("click shows in page: Enter and Space are the button's own click; selecting again marks again", () => {
+  const i = make();
+  const r = rows(i)[0];
+  expect(r.tagName).toBe("BUTTON");
+  r.click();
+  r.click();
+  expect(marks).toHaveLength(2);
+});
+
+test("click shows in page: arrow keys move the selection and each move marks that problem", () => {
+  const i = make();
+  failImage(root.querySelector("#bad")!);
+  rows(i)[0].focus();
+  rows(i)[0].click();
+  key(i, "ArrowDown");
+  expect(rows(i)[1].getAttribute("aria-selected")).toBe("true");
+  expect(document.activeElement).toBe(rows(i)[1]);
+  expect(marks.at(-1)).toMatchObject({ kind: "image" });
+  key(i, "ArrowDown"); // the last one stays
+  expect(rows(i)[1].getAttribute("aria-selected")).toBe("true");
+  key(i, "ArrowUp");
+  expect(rows(i)[0].getAttribute("aria-selected")).toBe("true");
+  expect(marks.at(-1)).toMatchObject({ kind: "link" });
+  expect(document.activeElement).toBe(rows(i)[0]); // focus stays in the list
+});
+
+test("click shows in page: the refresh of the same page keeps the selection and does not mark again", () => {
   const i = make();
   rows(i)[0].click();
-  i.el.querySelector<HTMLButtonElement>('[data-action="show"]')!.click();
-  expect(spy.mock.calls.at(-1)![0]).toMatchObject({ behavior: "smooth" });
-  document.documentElement.dataset.reduceMotion = "on";
-  try {
-    i.el.querySelector<HTMLButtonElement>('[data-action="show"]')!.click();
-    expect(spy.mock.calls.at(-1)![0]).toMatchObject({ behavior: "auto" });
-  } finally {
-    delete document.documentElement.dataset.reduceMotion;
-  }
+  marks = [];
+  i.setIssues([]);
+  expect(rows(i)[0].getAttribute("aria-selected")).toBe("true");
+  expect(marks).toEqual([]);
 });
+
+test("click shows in page: the mark is cleared when the selection goes away, the page changes or the Inspector closes", () => {
+  const i = make();
+  i.setIssues([alert({ line: 3, match: "teh" })]);
+  rows(i)[1].click();
+  marks = [];
+  i.setIssues([]);
+  expect(marks.at(-1)).toBeNull();
+  rows(i)[0].click();
+  marks = [];
+  i.setPage("b.md", page(), document.createElement("article"));
+  expect(marks.at(-1)).toBeNull();
+  const j = make();
+  rows(j)[0].click();
+  marks = [];
+  j.close();
+  expect(marks.at(-1)).toBeNull();
+});
+
+test("hostile href: a problem's href and text are compared as values, never used as a selector", () => {
+  const nasty = `"]'),a[x='\\`;
+  const i = make([VALE], `<p><a data-zen-link="broken" href='${nasty.replace(/'/g, "&#39;")}'>t</a></p>`);
+  expect(() => rows(i)[0].click()).not.toThrow();
+  expect(marks[0]!.href).toBe(nasty);
+});
+
 
 // ---- ui/inspector-polish: the page's render warnings
 
