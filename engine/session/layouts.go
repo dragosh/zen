@@ -266,7 +266,8 @@ func (s *Session) Layouts() []LayoutInfo {
 // reloads the layouts of the open folder. Allowing shows the native Allow /
 // Block dialog first and records Allow only when the user confirms there;
 // declining changes nothing. Blocking needs no dialog.
-func (s *Session) LayoutTrust(id string, allow bool) error {
+func (s *Session) LayoutTrust(id string, allow bool) (err error) {
+	defer s.logFail("LayoutTrust", &err)
 	s.reloadMu.Lock()
 	defer s.reloadMu.Unlock()
 	s.mu.Lock()
@@ -287,11 +288,12 @@ func (s *Session) LayoutTrust(id string, allow bool) error {
 			return nil
 		}
 	}
-	err := s.trust.Set(c.l, layoutScope(ls.root, c.l), allow)
+	err = s.trust.Set(c.l, layoutScope(ls.root, c.l), allow)
 	if err != nil && !errors.Is(err, extplugins.ErrChanged) {
 		return err
 	}
 	s.reloadLayoutsHeld(false)
+	logTrust("layout", id, allow)
 	if err != nil {
 		return errors.New("the layout changed; check Settings › Layouts and allow it again")
 	}
@@ -387,7 +389,8 @@ func (s *Session) layoutStoragePath(id string) (string, error) {
 
 // LayoutStorageGet returns the JSON text stored under key by a layout, "null"
 // when there is none.
-func (s *Session) LayoutStorageGet(id, key string) (string, error) {
+func (s *Session) LayoutStorageGet(id, key string) (r0 string, err error) {
+	defer s.logFail("LayoutStorageGet", &err)
 	if err := validKey(key); err != nil {
 		return "", err
 	}
@@ -400,7 +403,8 @@ func (s *Session) LayoutStorageGet(id, key string) (string, error) {
 
 // LayoutStorageSet stores a JSON value for a layout (1 MB per layout and
 // folder, written atomically).
-func (s *Session) LayoutStorageSet(id, key, value string) error {
+func (s *Session) LayoutStorageSet(id, key, value string) (err error) {
+	defer s.logFail("LayoutStorageSet", &err)
 	if err := validKey(key); err != nil {
 		return err
 	}
@@ -416,7 +420,8 @@ func (s *Session) LayoutStorageSet(id, key, value string) error {
 
 // LayoutStorageKeys lists the layout's storage keys that start with prefix
 // ("" for all), sorted.
-func (s *Session) LayoutStorageKeys(id, prefix string) ([]string, error) {
+func (s *Session) LayoutStorageKeys(id, prefix string) (r0 []string, err error) {
+	defer s.logFail("LayoutStorageKeys", &err)
 	if prefix != "" {
 		if err := validKey(prefix); err != nil {
 			return nil, err

@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | specified |
+| Status | done |
 | Target version | 0.7.0 |
 | Branch | `feature/app-logging` |
 | Wave | 30 |

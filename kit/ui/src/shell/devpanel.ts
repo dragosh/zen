@@ -10,6 +10,10 @@ import { button, el } from "./dom";
 export const MAX_ENTRIES = 2000;
 const LEVELS: LogLevel[] = ["debug", "info", "warn", "error"];
 const RANK: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
+/** Where the chosen minimum level is remembered, per machine. */
+export const LEVEL_KEY = "zen.console.level";
+/** Debug is detail for tracing: the Console starts at Info and up. */
+const DEFAULT_LEVEL: LogLevel = "info";
 const FOLLOW_SLACK = 24; // px from the bottom that still counts as "at the bottom"
 
 type Source = "all" | "app" | "plugin" | "console";
@@ -52,7 +56,14 @@ export function createConsoleTab({ doc, host, capture, tools }: ConsoleTabOption
   const hasGo = typeof host.logs === "function";
   const sources = hasGo ? SOURCES : SOURCES.filter((s) => s.id === "console");
   let source: Source = sources[0].id;
-  let minLevel: LogLevel = "debug";
+  const store = (() => { try { return doc.defaultView?.localStorage ?? null; } catch { return null; } })();
+  const savedLevel = (): LogLevel => {
+    try {
+      const v = store?.getItem(LEVEL_KEY);
+      return v && (LEVELS as string[]).includes(v) ? (v as LogLevel) : DEFAULT_LEVEL;
+    } catch { return DEFAULT_LEVEL; }
+  };
+  let minLevel: LogLevel = savedLevel();
   let query = "";
   let selected: LogEntry | null = null;
 
@@ -74,7 +85,12 @@ export function createConsoleTab({ doc, host, capture, tools }: ConsoleTabOption
     o.value = l;
     level.append(o);
   }
-  level.addEventListener("change", () => { minLevel = level.value as LogLevel; rebuild(); });
+  level.value = minLevel;
+  level.addEventListener("change", () => {
+    minLevel = level.value as LogLevel;
+    try { store?.setItem(LEVEL_KEY, minLevel); } catch { /* not remembered */ }
+    rebuild();
+  });
 
   const filter = el("input", "zen-dev-text-filter");
   filter.type = "search";

@@ -213,6 +213,8 @@ type Session struct {
 	indexStep    func(done, total int) // progress of that index (guarded by mu)
 	indexErr     error                 // why that index stopped (guarded by mu)
 	logo         string                // the logo URL the frontend last got, to tell when it changed (guarded by mu)
+	pageCount    int                   // pages the last index covered, for the log (guarded by mu)
+	indexTook    time.Duration         // how long that index took (guarded by mu)
 	noticeLogged string                // the config notice already in the log (guarded by mu)
 	configFile   string                // the settings file name the frontend last got (guarded by mu)
 	logoWarned   string                // the logo path already reported in the log (guarded by mu)
@@ -365,6 +367,7 @@ func (s *Session) reindexLocked() bool {
 		// The folder grew past the limits while open: keep the current tree.
 		return false
 	}
+	s.pageCount = len(files)
 	srcs := make(map[string][]byte, len(files))
 	read := func(p string) []byte {
 		if b, ok := srcs[p]; ok {
@@ -642,7 +645,8 @@ func (sn renderSnap) render(path string, src []byte) (Page, error) {
 }
 
 // Page renders a workspace page.
-func (s *Session) Page(path string) (Page, error) {
+func (s *Session) Page(path string) (r0 Page, err error) {
+	defer s.logFail("Page", &err)
 	if !isMarkdownPath(path) {
 		return Page{}, s.cleanErr(path, workspace.ErrNotMarkdown)
 	}
@@ -661,8 +665,10 @@ func (s *Session) Page(path string) (Page, error) {
 	sn := s.snapLocked(path)
 	s.mu.Unlock()
 
+	start := time.Now()
 	p, err := sn.render(path, src) // backends run here, not under the lock
 	if err == nil {
+		logRendered(sn.root, p, time.Since(start), s.ConfigNotice())
 		s.mu.Lock()
 		if s.ws == ws {
 			s.current = path
@@ -674,7 +680,8 @@ func (s *Session) Page(path string) (Page, error) {
 
 // Source returns the markdown of a page, or the text of a settings file for
 // the editor (zen:config/global, zen:config/workspace).
-func (s *Session) Source(path string) (string, error) {
+func (s *Session) Source(path string) (r0 string, err error) {
+	defer s.logFail("Source", &err)
 	if which, ok := configWhich(path); ok {
 		return s.configSource(which)
 	}
@@ -700,7 +707,8 @@ func (s *Session) PageSource(path string) (string, error) {
 }
 
 // Preview renders unsaved text as if it were path.
-func (s *Session) Preview(path, content string) (Page, error) {
+func (s *Session) Preview(path, content string) (r0 Page, err error) {
+	defer s.logFail("Preview", &err)
 	if !isMarkdownPath(path) {
 		return Page{}, s.cleanErr(path, workspace.ErrNotMarkdown)
 	}
@@ -720,7 +728,8 @@ func (s *Session) Preview(path, content string) (Page, error) {
 }
 
 // Save writes a page.
-func (s *Session) Save(path, content string) error {
+func (s *Session) Save(path, content string) (err error) {
+	defer s.logFail("Save", &err)
 	if err := s.writable(); err != nil {
 		return err
 	}
@@ -732,7 +741,11 @@ func (s *Session) Save(path, content string) error {
 	if s.ws == nil {
 		return errNoWorkspace
 	}
-	return s.cleanErr(path, s.ws.Write(path, []byte(content)))
+	err = s.cleanErr(path, s.ws.Write(path, []byte(content)))
+	if err == nil {
+		logApp(slog.LevelInfo, "page saved", "path", path)
+	}
+	return err
 }
 
 // cleanErr turns an error into a message without absolute paths.
@@ -790,9 +803,11 @@ func (s *Session) handle(evs []watch.Event) {
 	seen := map[string]bool{}
 	reindex, assets, cfg := false, false, false
 	for _, e := range evs {
+		logApp(slog.LevelDebug, "file event", "path", e.Path, "kind", string(e.Kind))
 		switch {
 		case e.Path == config.WorkspaceFile || e.Path == config.LegacyWorkspaceFile:
 			cfg = true
+			logApp(slog.LevelInfo, "config reloaded", "file", e.Path)
 		case isMarkdownPath(e.Path):
 			reindex = true
 			if !seen[e.Path] {

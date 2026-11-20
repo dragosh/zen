@@ -41,7 +41,8 @@ type siteFolderPicker interface{ PickSiteFolder() (string, error) }
 
 // PickSiteFolder shows the folder panel (New Folder enabled) and returns the
 // chosen folder, "" on cancel.
-func (z *Zen) PickSiteFolder() (string, error) {
+func (z *Zen) PickSiteFolder() (r0 string, err error) {
+	defer z.logCall("PickSiteFolder", &err)
 	if err := requireFeature("newsite"); err != nil {
 		return "", err
 	}
@@ -58,7 +59,8 @@ func (z *Zen) PickSiteFolder() (string, error) {
 // is overwritten), then opens the folder as Open Folder does: editor windows
 // are closed first (each asks about unsaved changes), and the result is what
 // the frontend shows.
-func (z *Zen) CreateSite(id, dir string, values map[string]string) (Startup, error) {
+func (z *Zen) CreateSite(id, dir string, values map[string]string) (r0 Startup, err error) {
+	defer z.logCall("CreateSite", &err)
 	if err := requireFeature("newsite"); err != nil {
 		return Startup{}, err
 	}
@@ -94,7 +96,8 @@ func (z *Zen) TemplatesDir() (string, error) {
 
 // RevealTemplates shows the templates folder in Finder, creating it (with the
 // built-in presets) when it is not there yet.
-func (z *Zen) RevealTemplates() error {
+func (z *Zen) RevealTemplates() (err error) {
+	defer z.logCall("RevealTemplates", &err)
 	if err := requireFeature("newsite"); err != nil {
 		return err
 	}

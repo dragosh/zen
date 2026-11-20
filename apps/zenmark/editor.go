@@ -10,7 +10,8 @@ import (
 
 // OpenEditor opens the page in its own editor window, or focuses the one
 // already open for it.
-func (z *Zen) OpenEditor(p string) error {
+func (z *Zen) OpenEditor(p string) (err error) {
+	defer z.logCall("OpenEditor", &err)
 	if z.ro {
 		return session.ErrReadOnly
 	}

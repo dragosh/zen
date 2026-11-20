@@ -191,3 +191,39 @@ test("the tools are a source dropdown, the level and text filters, then Clear an
   await open();
   expect(Array.from(tools.children).map((c) => c.className.split(" ")[0])).toEqual(["zen-console-source", "zen-dev-level-filter", "zen-dev-text-filter", "zen-dev-clear", "zen-dev-copy", "zen-dev-status"]);
 });
+
+// ---- app/logging: the level filter starts at Info+ and is remembered per machine
+
+const level = () => tools.querySelector<HTMLSelectElement>("select.zen-dev-level-filter")!;
+const setLevel = (v: string) => { level().value = v; level().dispatchEvent(new Event("change")); };
+
+test("default level is Info+: debug entries are hidden until All levels is chosen", async () => {
+  localStorage.removeItem("zen.console.level");
+  await open([entry("debug", "app", "d"), entry("info", "app", "i"), entry("warn", "app", "w")]);
+  expect(level().value).toBe("info");
+  expect(rows()).toHaveLength(2);
+  setLevel("debug");
+  expect(rows()).toHaveLength(3);
+});
+
+test("the chosen level is remembered in zen.console.level", async () => {
+  localStorage.removeItem("zen.console.level");
+  await open([entry("debug", "app", "d"), entry("info", "app", "i")]);
+  setLevel("debug");
+  expect(localStorage.getItem("zen.console.level")).toBe("debug");
+  panel.destroy();
+  await open([entry("debug", "app", "d"), entry("info", "app", "i")]);
+  expect(level().value).toBe("debug");
+  expect(rows()).toHaveLength(2);
+  localStorage.setItem("zen.console.level", "nonsense"); // a bad value is ignored
+  panel.destroy();
+  await open([entry("debug", "app", "d")]);
+  expect(level().value).toBe("info");
+  localStorage.removeItem("zen.console.level");
+});
+
+test("the backlog from before the Console opened shows when it opens, oldest first", async () => {
+  localStorage.removeItem("zen.console.level");
+  await open([entry("info", "app", "Zenmark started"), entry("info", "app", "folder opened")]);
+  expect(rows().map((r) => r!.includes("Zenmark started"))).toEqual([true, false]);
+});

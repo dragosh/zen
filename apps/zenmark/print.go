@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"log/slog"
 	"net/url"
 
 	"github.com/zenmark-org/zenmd/kit/desktop"
@@ -20,13 +21,15 @@ const (
 
 // PrintPage asks the main window to print the page it shows, through the
 // macOS print panel.
-func (z *Zen) PrintPage() error {
+func (z *Zen) PrintPage() (err error) {
+	defer z.logCall("PrintPage", &err)
 	if err := requireFeature("print"); err != nil {
 		return err
 	}
 	if z.s.Workspace() == nil {
 		return errNoWorkspace
 	}
+	desktop.LogApp(slog.LevelInfo, "print", "what", "page", "page", z.s.Current())
 	if z.events != nil {
 		z.events.Emit(EventPrintPage, nil)
 	}
@@ -37,16 +40,19 @@ func (z *Zen) PrintPage() error {
 // Page, Print Site), once the page has prepared itself for paper.
 // window.print() does nothing in the macOS web view, so the frontend calls
 // this instead. title becomes the job name (and the suggested PDF file name).
-func (z *Zen) PrintWindow(ctx context.Context, title string) error {
+func (z *Zen) PrintWindow(ctx context.Context, title string) (err error) {
+	defer z.logCall("PrintWindow", &err)
 	if err := requireFeature("print"); err != nil {
 		return err
 	}
+	desktop.LogApp(slog.LevelInfo, "print panel opened")
 	return desktop.PrintFromContext(ctx, title, Name)
 }
 
 // PrintSite opens the Print Preview window for the whole folder, or focuses
 // the one that is open.
-func (z *Zen) PrintSite() error {
+func (z *Zen) PrintSite() (err error) {
+	defer z.logCall("PrintSite", &err)
 	if err := requireFeature("print"); err != nil {
 		return err
 	}
@@ -54,6 +60,7 @@ func (z *Zen) PrintSite() error {
 	if ws == nil {
 		return errNoWorkspace
 	}
+	desktop.LogApp(slog.LevelInfo, "print", "what", "site", "pages", len(z.s.Workspace().Tree))
 	current := z.s.Current()
 	u := "/?window=" + printWindowName
 	if current != "" {

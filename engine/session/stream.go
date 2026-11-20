@@ -65,7 +65,8 @@ func newCallID() (string, error) {
 
 // PluginCancel cancels a running stream; it ends with error "cancelled". A
 // finished or unknown call is not an error.
-func (s *Session) PluginCancel(call string) error {
+func (s *Session) PluginCancel(call string) (err error) {
+	defer s.logFail("PluginCancel", &err)
 	s.streams.cancel(call)
 	return nil
 }
@@ -133,7 +134,8 @@ func (st *streams) wait(d time.Duration) {
 // returns the id of the call. Output arrives as EventPluginStream events.
 //
 // page is the workspace path of the page the block is on (see PluginInvoke).
-func (s *Session) PluginStream(id, page, payload string) (string, error) {
+func (s *Session) PluginStream(id, page, payload string) (r0 string, err error) {
+	defer s.logFail("PluginStream", &err)
 	if !json.Valid([]byte(payload)) {
 		return "", errors.New("the payload is not valid JSON")
 	}

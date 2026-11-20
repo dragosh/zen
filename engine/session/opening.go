@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"path/filepath"
 	"sync"
 	"time"
@@ -137,7 +138,15 @@ func (s *Session) Open(dir string) error {
 	name := filepath.Base(dir)
 	p := &openProgress{s: s, name: name}
 	timeout := s.timeoutOf(l)
+	s.mu.Lock()
+	prevName := ""
+	if s.ws != nil {
+		prevName = s.ws.Name()
+	}
+	s.mu.Unlock()
+	start := time.Now()
 	err := s.openIn(parent, dir, l, timeout, p)
+	s.logOpened(dir, name, prevName, err, time.Since(start))
 	if dir != "" {
 		if err != nil {
 			p.end("failed")
@@ -191,7 +200,9 @@ func (s *Session) openIn(parent context.Context, dir string, l config.Limits, ti
 	s.lay, s.lreg, s.site = lay, lay.reg, nil
 	s.indexCtx, s.indexErr = ctx, nil
 	s.indexStep = func(done, total int) { p.send("indexing", done, total) }
+	indexStart := time.Now()
 	s.rebuildLocked()
+	s.indexTook = time.Since(indexStart)
 	err := s.indexErr
 	s.indexCtx, s.indexStep, s.indexErr = nil, nil, nil
 	if err != nil {
@@ -258,7 +269,9 @@ func (s *Session) startWatch(root string, async bool) {
 	start := func() {
 		w, err := watch.Start(root, s.handle)
 		if err != nil {
-			return // the workspace stays usable without live reload
+			// The workspace stays usable without live reload.
+			logApp(slog.LevelWarn, "watcher failed to start; changes on disk will not show", "error", scrubRoot(root, err.Error()))
+			return
 		}
 		s.watchMu.Lock()
 		defer s.watchMu.Unlock()
@@ -282,4 +295,38 @@ func (s *Session) OpenError(err error) error {
 		return err // no paths in these
 	}
 	return s.cleanErr(".", err)
+}
+
+// logOpened logs how an open went: what was opened, closed or switched to, with
+// the page count and the time it took; a slow index is a warning.
+func (s *Session) logOpened(dir, name, prevName string, err error, took time.Duration) {
+	switch {
+	case errors.Is(err, context.Canceled):
+		logApp(slog.LevelInfo, "folder open cancelled", "name", name)
+		return
+	case errors.Is(err, context.DeadlineExceeded):
+		logApp(slog.LevelWarn, "folder open timed out", "name", name, "ms", took.Milliseconds())
+		return
+	case err != nil:
+		return // the caller reports it to the user, and the service logs it
+	}
+	level := slog.LevelInfo
+	if s.noWatch {
+		level = slog.LevelDebug // the build's own session, inside an export: not something the user did
+	}
+	if dir == "" {
+		logApp(level, "folder closed", "name", prevName)
+		return
+	}
+	s.mu.Lock()
+	pages, indexTook := s.pageCount, s.indexTook
+	s.mu.Unlock()
+	if prevName != "" {
+		logApp(level, "folder switched", "name", name, "from", prevName, "pages", pages, "ms", took.Milliseconds())
+	} else {
+		logApp(level, "folder opened", "name", name, "pages", pages, "ms", took.Milliseconds())
+	}
+	if indexTook > slowIndex {
+		logApp(slog.LevelWarn, "slow index", "name", name, "pages", pages, "ms", indexTook.Milliseconds())
+	}
 }

@@ -3,6 +3,7 @@ package session
 import (
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -146,7 +147,9 @@ func (s *Session) saveConfig(which, content string) error {
 		os.Remove(tmp.Name())
 		return errors.New("could not save " + name)
 	}
+	logApp(slog.LevelInfo, "config saved", "file", name)
 	s.reloadConfig()
+	logApp(slog.LevelInfo, "config reloaded", "file", name)
 	return nil
 }
 
