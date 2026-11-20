@@ -4,7 +4,7 @@
 // (kit/ui/test/boundary.test.ts); an app gives it a KitHost.
 export { hasAddon, hasFeature } from "./host";
 export type {
-  AddonInfo, Alert, BuildInfo, Crumb, Draft, KitHost, LayoutSource, LintResult, LogEntry, LogLevel, NavNode, OpenProgress, Page, PageInfo, PageLayoutRef, PluginStreamEvent, Workspace,
+  AddonInfo, Alert, BuildInfo, Crumb, DialectInfo, Draft, KitHost, LayoutSource, LintResult, LogEntry, LogLevel, NavNode, OpenProgress, Page, PageInfo, PageLayoutRef, PluginStreamEvent, Workspace,
 } from "./host";
 export { button, el, logo } from "./shell/dom";
 export { copyText } from "./shell/clipboard";

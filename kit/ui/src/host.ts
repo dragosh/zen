@@ -37,7 +37,10 @@ export type { PluginStreamEvent };
 export type AddonInfo = { id: string; name: string; summary: string };
 
 /** What an app is built from (kit/assembly): shown in Settings › This build; `theme` becomes `data-app-theme` on the root element. */
-export type BuildInfo = { app: string; features: string[]; addons: AddonInfo[]; plugins: string[]; layouts: string[]; templates: string[]; theme: string };
+export type BuildInfo = { app: string; features: string[]; addons: AddonInfo[]; plugins: string[]; layouts: string[]; templates: string[]; dialects: string[]; theme: string };
+
+/** A markdown dialect of the build (engine/dialects) and whether the open folder uses it: Settings › Markdown lists these. */
+export type DialectInfo = { id: string; name: string; summary: string; on: boolean };
 
 /** Whether the app was built with the add-on (`hasAddon(host, "vale")`): false when the host lists none. */
 export function hasAddon(host: Pick<KitHost, "addons">, id: string): boolean {
@@ -62,6 +65,14 @@ export interface KitHost extends RuntimeHost {
   addons?: readonly AddonInfo[];
   /** The assembly of this build (add-ons, plugins, layouts, templates, theme); known once startup has answered. Hosts without one omit it. */
   build?: BuildInfo;
+  /** The markdown dialects of this build with the open folder's choice (Settings › Markdown); an app without them omits it. */
+  dialects?(): Promise<DialectInfo[]>;
+  /** Turns a dialect on or off for the open folder (writes its .zen.yml); refused in a read-only app. */
+  setDialect?(id: string, on: boolean): Promise<void>;
+  /** The id of a dialect the open folder looks written for and has not turned on or dismissed, "" for none (the hint above the page). */
+  dialectHint?(): Promise<string>;
+  /** "Not now" on the hint: remembered by the app for this folder, not written into the folder. */
+  dismissDialectHint?(id: string): Promise<void>;
   page(path: string): Promise<Page>;
   source(path: string): Promise<string>;
   preview(path: string, content: string): Promise<Page>; // render unsaved text

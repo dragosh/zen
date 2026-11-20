@@ -31,6 +31,9 @@ func TestDialectsService(t *testing.T) {
 	if got := z.Startup().DialectHint; got != "myst" {
 		t.Errorf("Startup hint %q", got)
 	}
+	if got := z.DialectHint(); got != "myst" {
+		t.Errorf("DialectHint %q", got)
+	}
 	if d := z.Dialects(); len(d) != 1 || d[0].ID != "myst" || d[0].On {
 		t.Errorf("Dialects %+v", d)
 	}

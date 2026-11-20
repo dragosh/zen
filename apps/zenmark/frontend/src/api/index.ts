@@ -1,6 +1,6 @@
 // The typed client for the Go services. Types and the Api interface mirror
 // docs/PLAN.md "Service API" exactly; UI features import only from here.
-import type { AddonInfo, Alert, BuildInfo, Draft, KitHost, LayoutSource, LintResult, OpenProgress, Page, PageInfo, PluginStreamEvent, Workspace } from "@zenmd/kit";
+import type { AddonInfo, Alert, BuildInfo, DialectInfo, Draft, KitHost, LayoutSource, LintResult, OpenProgress, Page, PageInfo, PluginStreamEvent, Workspace } from "@zenmd/kit";
 import { createFakeApi, sampleWorkspace, type FakeOptions } from "./fake";
 import { inApp, wailsReady } from "./detect";
 
@@ -56,7 +56,7 @@ export type BuildProgress = { done: number; total: number };
 export type PageLayout = string;
 
 /** The data types the kit declares (kit/ui/src/host.ts); the app's api speaks them. */
-export type { AddonInfo, Alert, BuildInfo, Crumb, Draft, LayoutSource, LintResult, NavNode, OpenProgress, Page, PageInfo, PageLayoutRef, PluginStreamEvent, Workspace } from "@zenmd/kit";
+export type { AddonInfo, Alert, BuildInfo, Crumb, DialectInfo, Draft, LayoutSource, LintResult, NavNode, OpenProgress, Page, PageInfo, PageLayoutRef, PluginStreamEvent, Workspace } from "@zenmd/kit";
 
 /** The page, source, preview, save, lint, draft and openEditor calls are KitHost (the kit's side); the storage, invoke, stream, cancel and openExternal calls are RuntimeHost, the runtime's side. */
 export interface Api extends KitHost {
@@ -64,6 +64,12 @@ export interface Api extends KitHost {
   addons?: readonly AddonInfo[];
   /** The assembly of this build (kit/assembly): set by startup() together with the add-ons. */
   build?: BuildInfo;
+  /** The markdown dialects of the build with the open folder's choice (engine/dialects). */
+  dialects(): Promise<DialectInfo[]>;
+  setDialect(id: string, on: boolean): Promise<void>;
+  /** The dialect the open folder looks written for and has not turned on or dismissed; "" for none. */
+  dialectHint(): Promise<string>;
+  dismissDialectHint(id: string): Promise<void>;
   startup(): Promise<Startup>;
   pickFolder(): Promise<Workspace | null>; // native folder dialog; null also when the opening was cancelled
   /** Stops the folder that is opening; the one open before stays. */

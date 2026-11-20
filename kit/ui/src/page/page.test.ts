@@ -253,3 +253,91 @@ test("with the editor the edit link is shown", async () => {
   expect(article().querySelector<HTMLElement>("[data-zen-action=edit]")!.hidden).toBe(false);
   expect(btn(env.slots.actions, "Edit")).toBeDefined();
 });
+
+const hint = () => env.slots.main.querySelector<HTMLElement>(".zen-dialect-hint");
+
+const unmountPage = () => { unmount?.(); unmount = undefined; };
+
+test("dialect hint", async () => {
+  const api = createFakeApi({ sources: { ...SOURCES }, dialectHint: "myst" });
+  env = setup(api);
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await tick();
+  // one quiet line above the page, announced politely, text only
+  expect(hint()!.hidden).toBe(false);
+  expect(hint()!.getAttribute("role")).toBe("status");
+  expect(hint()!.textContent).toContain("This folder looks like a MyST project. Turn on MyST syntax?");
+  expect(Array.from(hint()!.querySelectorAll("button")).map((b) => b.textContent)).toEqual(["Turn on", "Not now"]);
+  expect(hint()!.compareDocumentPosition(article()) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+  // Turn on writes the folder and the pages render again
+  const before = api.callsTo("page").length;
+  btn(hint()!, "Turn on").click();
+  await tick();
+  expect(api.callsTo("setDialect")).toEqual([["myst", true]]);
+  expect(hint()!.hidden).toBe(true);
+  expect(api.callsTo("page").length).toBeGreaterThan(before);
+  expect(api.callsTo("dismissDialectHint")).toEqual([]);
+  unmountPage();
+
+  // Not now is remembered by the app
+  const api2 = createFakeApi({ sources: { ...SOURCES }, dialectHint: "myst" });
+  env = setup(api2);
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await tick();
+  btn(hint()!, "Not now").click();
+  await tick();
+  expect(api2.callsTo("dismissDialectHint")).toEqual([["myst"]]);
+  expect(api2.callsTo("setDialect")).toEqual([]);
+  expect(hint()!.hidden).toBe(true);
+  unmountPage();
+
+  // Esc dismisses it like Not now
+  const api3 = createFakeApi({ sources: { ...SOURCES }, dialectHint: "myst" });
+  env = setup(api3);
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await tick();
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  await tick();
+  expect(api3.callsTo("dismissDialectHint")).toEqual([["myst"]]);
+  expect(hint()!.hidden).toBe(true);
+  unmountPage();
+
+  // a refused Turn on says why and keeps the hint
+  const api4 = createFakeApi({ sources: { ...SOURCES }, dialectHint: "myst" });
+  env = setup(api4);
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await tick();
+  api4.failNext("setDialect", new Error("could not save .zen.yml"));
+  btn(hint()!, "Turn on").click();
+  await tick();
+  expect(hint()!.hidden).toBe(false);
+  expect(hint()!.textContent).toContain("could not save .zen.yml");
+  unmountPage();
+
+  // no hint: nothing suggested, a read-only app, an api without the calls
+  for (const [name, a] of [
+    ["none", createFakeApi({ sources: { ...SOURCES }, dialectHint: "" })],
+    ["read-only", createFakeApi({ sources: { ...SOURCES }, dialectHint: "myst", build: { features: [] } })],
+    ["dialect not in the list", createFakeApi({ sources: { ...SOURCES }, dialectHint: "mkdocs" })],
+  ] as const) {
+    env = setup(a);
+    env.ctx.store.set({ path: "README.md" });
+    mount();
+    await tick();
+    expect(hint() === null || hint()!.hidden, name).toBe(true);
+    unmountPage();
+    document.body.replaceChildren();
+  }
+  const bare = createFakeApi({ sources: { ...SOURCES } }) as unknown as Record<string, unknown>;
+  delete bare.dialectHint;
+  env = setup(bare as unknown as ReturnType<typeof createFakeApi>);
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await tick();
+  expect(hint() === null || hint()!.hidden).toBe(true);
+});

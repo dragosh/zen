@@ -1,6 +1,6 @@
 // The Settings page of Zenmark: the kit's frame (kit/ui shell/settings.ts, with Appearance) and
 // zen's sections: Configuration files (the two config files open in zen's own editor window),
-// Plugins (shell/pluginhelp.ts), Layouts, Export (the website and the PDF) and This build (kit/addons, kit/assembly,
+// Plugins (shell/pluginhelp.ts), Layouts, Markdown (the dialects the folder uses), Export (the website and the PDF) and This build (kit/addons, kit/assembly,
 // read-only). All text through textContent.
 import { appearanceSection, button, buildSection, createSettingsFrame, developerSection, el, hasFeature, type SettingsSection, type SettingsView } from "@zenmd/kit";
 import type { Api } from "../api";
@@ -68,6 +68,54 @@ export function createSettingsView(opts: {
     },
   };
 
+  // ---- Markdown (engine/dialects): one checkbox per dialect of the build, saved in the folder's .zen.yml
+
+  const markdownEl = el("div", "zen-addons zen-markdown");
+  const markdownStatus = el("p", "zen-settings-status");
+  markdownStatus.setAttribute("role", "status");
+  const markdownNote = el("p", "zen-build-list", "Saved in this folder's .zen.yml, so the folder renders the same everywhere.");
+  let markdownSeq = 0;
+  async function showMarkdown(): Promise<void> {
+    const mine = ++markdownSeq;
+    markdownStatus.textContent = "";
+    let list: Awaited<ReturnType<Api["dialects"]>> = [];
+    try {
+      list = await (api.dialects?.() ?? Promise.resolve([]));
+    } catch (err) {
+      markdownStatus.textContent = `Could not read the markdown syntaxes: ${message(err)}`;
+    }
+    if (mine !== markdownSeq) return;
+    if (list.length === 0) {
+      markdownEl.replaceChildren(el("p", "zen-addons-empty", "This build has no markdown dialects."), markdownStatus);
+      return;
+    }
+    const open = opts.hasWorkspace();
+    const editable = hasFeature(api, "editor");
+    const reason = !open ? "Open a folder to choose its markdown syntaxes." : !editable ? "This app is read-only, so the folder's settings cannot be changed." : "";
+    const rows = list.map((d) => {
+      const row = el("label", "zen-addon zen-dialect");
+      row.dataset.dialect = d.id;
+      const box = doc().createElement("input");
+      box.type = "checkbox";
+      box.dataset.dialect = d.id;
+      box.checked = d.on;
+      box.disabled = reason !== "";
+      box.addEventListener("change", () => {
+        const want = box.checked;
+        markdownStatus.textContent = "";
+        api.setDialect(d.id, want).catch((err) => {
+          box.checked = !want;
+          markdownStatus.textContent = `Could not save ${d.name}: ${message(err)}`;
+        });
+      });
+      const head = el("div", "zen-dialect-head");
+      head.append(box, el("span", "zen-addon-name zen-dialect-name", d.name));
+      row.append(head, el("p", "zen-addon-summary zen-dialect-summary", d.summary));
+      return row;
+    });
+    markdownEl.replaceChildren(...rows, ...(reason ? [el("p", "zen-build-list", reason)] : []), markdownNote, markdownStatus);
+  }
+
   // ---- Plugins, Layouts, Export
 
   const plugins = createPluginsSection({ api });
@@ -107,6 +155,7 @@ export function createSettingsView(opts: {
     ...(hasFeature(api, "editor") ? [files] : []),
     { id: "plugins", label: "Plugins", el: plugins.el, show: () => void plugins.refresh(), destroy: () => plugins.destroy() },
     { id: "layouts", label: "Layouts", el: layouts.el, show: () => void layouts.refresh(), destroy: () => layouts.destroy() },
+    { id: "markdown", label: "Markdown", el: markdownEl, show: () => void showMarkdown(), destroy: () => { markdownSeq++; } },
     { id: "export", label: "Export", el: exportEl, show: () => { void website.refresh(); showPdf(); } },
     buildSection(api),
     developerSection(),

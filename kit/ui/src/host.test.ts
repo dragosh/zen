@@ -11,7 +11,7 @@ test("hasAddon: by id, false without a list", () => {
 });
 
 test("hasFeature: by id; true when the host does not say (no build info)", () => {
-  const build = (features: string[]): BuildInfo => ({ app: "x", features, addons: [], plugins: [], layouts: [], templates: [], theme: "default" });
+  const build = (features: string[]): BuildInfo => ({ app: "x", features, addons: [], plugins: [], layouts: [], templates: [], dialects: [], theme: "default" });
   expect(hasFeature({ build: build(["editor"]) }, "editor")).toBe(true);
   expect(hasFeature({ build: build([]) }, "editor")).toBe(false);
   expect(hasFeature({ build: build(["editor"]) }, "newsite")).toBe(false);

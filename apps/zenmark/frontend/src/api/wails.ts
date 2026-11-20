@@ -5,7 +5,7 @@ import { Zen } from "../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/in
 // The headless service is unexported, so the generated index leaves it out.
 import * as HeadlessService from "../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/headlessservice.js";
 import type { LogEntry } from "@zenmd/kit";
-import type { AddonInfo, Alert, Api, BuildInfo, BuildOptions, Crumb, LayoutField, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
+import type { AddonInfo, Alert, Api, BuildInfo, BuildOptions, Crumb, DialectInfo, LayoutField, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
 
 type Raw = Record<string, any> | null | undefined;
 
@@ -112,6 +112,15 @@ function addonInfos(v: unknown): AddonInfo[] {
   return out;
 }
 
+/** The markdown dialects of the build; entries that are not {id, name, summary} strings are dropped. */
+function dialectInfos(v: unknown): DialectInfo[] {
+  const out: DialectInfo[] = [];
+  for (const d of Array.isArray(v) ? (v as Raw[]) : []) {
+    if (typeof d?.id === "string" && typeof d?.name === "string" && typeof d?.summary === "string") out.push({ id: d.id, name: d.name, summary: d.summary, on: d.on === true });
+  }
+  return out;
+}
+
 /** A list of ids: only the strings are kept. */
 function idList(v: unknown): string[] {
   return (Array.isArray(v) ? v : []).filter((x): x is string => typeof x === "string");
@@ -124,7 +133,7 @@ function buildInfo(v: unknown, addons: AddonInfo[]): BuildInfo | undefined {
   const own = addonInfos(b.addons);
   return {
     app: b.app, features: Array.isArray(b.features) ? idList(b.features) : ["editor"], addons: own.length ? own : addons,
-    plugins: idList(b.plugins), layouts: idList(b.layouts), templates: idList(b.templates),
+    plugins: idList(b.plugins), layouts: idList(b.layouts), templates: idList(b.templates), dialects: idList(b.dialects),
     theme: typeof b.theme === "string" ? b.theme : "default",
   };
 }
@@ -281,6 +290,19 @@ const api: Api = {
   },
   async printFailed(message) {
     await call(HeadlessService.PrintFailed(message));
+  },
+  async dialects() {
+    return dialectInfos(await call(Zen.Dialects()));
+  },
+  async setDialect(id, on) {
+    await call(Zen.SetDialect(id, on));
+  },
+  async dialectHint() {
+    const id = await call(Zen.DialectHint());
+    return typeof id === "string" ? id : "";
+  },
+  async dismissDialectHint(id) {
+    await call(Zen.DismissDialectHint(id));
   },
   async reorderNav(parent, paths) {
     await call(Zen.ReorderNav(parent, paths));

@@ -558,7 +558,7 @@ test("Settings shows the plugins and its sections", async () => {
   await s.start();
   cog().click();
   await tick();
-  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Export", "This build", "Developer"]);
+  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Markdown", "Export", "This build", "Developer"]);
   expect(api.callsTo("plugins")).toHaveLength(1);
 });
 

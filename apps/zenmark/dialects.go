@@ -15,3 +15,9 @@ func (z *Zen) SetDialect(id string, on bool) error { return z.s.SetDialect(id, o
 // DismissDialectHint hides the "turn on MyST?" hint for the open folder; the
 // choice is kept in the app's settings, not in the folder.
 func (z *Zen) DismissDialectHint(id string) error { return z.s.DismissDialectHint(id) }
+
+// DialectHint is the dialect the open folder looks written for (a myst.yml, a
+// Jupyter Book _config.yml, a Sphinx conf.py) and has not turned on or
+// dismissed; "" for none, and always "" in a read-only app. Startup.DialectHint
+// says the same when a folder opens.
+func (z *Zen) DialectHint() string { return z.s.DialectHint() }

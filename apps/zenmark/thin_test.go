@@ -19,7 +19,7 @@ var delegating = []string{
 	"Layouts", "LayoutTrust", "LayoutStorageGet", "LayoutStorageSet", "LayoutStorageKeys",
 	"BuildOptions", "BuildWebsite", "CancelBuild", "SaveBuildDefaults",
 	"SiteTemplates", "TemplatesDir", "ReorderNav", "SetNavHidden",
-	"Dialects", "SetDialect", "DismissDialectHint",
+	"Dialects", "SetDialect", "DismissDialectHint", "DialectHint",
 }
 
 func TestAppIsThin(t *testing.T) {
