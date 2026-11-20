@@ -142,7 +142,7 @@ func TestMystUnknown(t *testing.T) {
 
 func TestMystDenied(t *testing.T) {
 	reg := newReg(t)
-	reg.Deny(plugins.Manifest{ID: "note", Blocks: []string{"note"}})
+	reg.Deny(plugins.Manifest{ID: "note", Default: true, Blocks: []string{"note"}})
 	r := New(reg, folderCfg(t, mystOn), fakeResolver{}).WithDialects(mystReg(t))
 	own := render(t, r, ":::note\nx\n:::\n")
 	p := render(t, r, "```{note}\nx\n```\n")
@@ -187,8 +187,8 @@ func TestMystNestingLimit(t *testing.T) {
 func TestMystOptionsSanitised(t *testing.T) {
 	r := mystRenderer(t, mystOn, admonitions("note", "note"))
 	p := render(t, r, "```{note} <script>alert(1)</script>\n:class: \"><img src=x onerror=alert(1)>\n:1bad: x\nbody <b onclick=x>b</b>\n```\n")
-	lacks(t, p.HTML, "<script", "<img", "onerror=alert", "onclick")
-	contains(t, p.HTML, "&lt;script&gt;")
+	lacks(t, p.HTML, "<script", "<img", "onclick")
+	contains(t, p.HTML, "&lt;script&gt;", "&lt;img")
 	contains(t, strings.Join(p.Warnings, "\n"), "1bad")
 }
 
