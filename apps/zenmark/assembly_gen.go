@@ -7,6 +7,7 @@ import (
 
 	"github.com/zenmark-org/zenmd/builtins/layouts"
 	"github.com/zenmark-org/zenmd/builtins/plugins/codeblock"
+	"github.com/zenmark-org/zenmd/builtins/plugins/diagram"
 	"github.com/zenmark-org/zenmd/builtins/sitetemplates"
 	"github.com/zenmark-org/zenmd/engine/dialects"
 	enginelayouts "github.com/zenmark-org/zenmd/engine/layouts"
@@ -17,7 +18,7 @@ import (
 // assemblyPlugins is the registry of the built-in plugins this app includes.
 func assemblyPlugins() *plugins.Registry {
 	r := plugins.NewRegistry()
-	for _, p := range []plugins.Plugin{codeblock.New()} {
+	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New()} {
 		if err := r.Register(p); err != nil {
 			panic(err)
 		}
@@ -54,7 +55,7 @@ func assemblyDialects() *dialects.Registry {
 var assemblyInfo = session.BuildInfo{
 	App:       "zenmark",
 	Features:  []string{"reader", "nav", "inspector", "developer"},
-	Plugins:   []string{"codeblock"},
+	Plugins:   []string{"codeblock", "diagram"},
 	Layouts:   []string{"article"},
 	Templates: []string{},
 	Dialects:  []string{},
