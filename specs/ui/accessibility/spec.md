@@ -5,9 +5,9 @@
 | Status | specified |
 | Target version | 0.7.0 |
 | Branch | `feature/ui-accessibility` |
-| Wave | 26 |
-| Depends on | kit/shell-features (the bare shell, `hasFeature`), #23 intro screen (merged first: both edit `kit/ui/src/styles/shell.css` and the shell) |
-| Owns | `kit/ui/src/shell/{a11y,a11y.test}.ts` (new), `kit/ui/src/shell/settings.ts` (the new section), `kit/ui/src/shell/keys.ts` (zoom keys), `runtime/src/css/{tokens,page}.css` (reading variables), the `prefers-reduced-motion` and contrast rules in `runtime/src/css/base.css`, `kit/ui/src/styles/shell.css`, `kit/ui/src/{panel/panel,print/preview,find/find,nav/nav}.css`, `apps/zenmark/menu.go` (View menu) + `menu_test.go`, `apps/zenmark/frontend/src/{main.ts,shell/settings.ts,shell/shell.ts}` (wiring) (+ the tests of all of these) |
+| Wave | 27 |
+| Depends on | kit/shell-features (the bare shell, `hasFeature`), #23 intro screen (merged), ui/settings-layout (#26, the two-column frame), #25 (the Inspector panel) |
+| Owns | `kit/ui/src/shell/{a11y,a11y.test}.ts` (new), `kit/ui/src/shell/settings.ts` (the new section), `kit/ui/src/shell/keys.ts` (zoom keys), `runtime/src/css/{tokens,page}.css` (reading variables), the `prefers-reduced-motion` and contrast rules in `runtime/src/css/base.css`, `kit/ui/src/styles/shell.css`, `kit/ui/src/{panel/panel,print/preview,find/find,nav/nav,inspector/inspector}.css`, `kit/ui/src/shell/settings.css`, `apps/zenmark/menu.go` (View menu) + `menu_test.go`, `apps/zenmark/frontend/src/{main.ts,shell/settings.ts}` (wiring) (+ the tests of all of these). Runs beside ui/nav-panel, which owns `layout.ts`, `shell.ts`, the api files and `nav/panel.css` |
 
 ## Purpose
 
@@ -181,6 +181,8 @@ Accessibility
   - #26 restyles Settings into two columns and adds Appearance › Navigation. This spec only adds one section to today's frame.
   - #25 (Inspector) and #24 (Nav panel) keep these variables and the reduced-motion twin rules.
 - **Integration (lead, at merge):**
+  - `apps/zenmark/frontend/src/api/{index,wails,fake}.ts`: the `menu:zoom-in`, `menu:zoom-out` and `menu:zoom-reset` events (ui/nav-panel owns those files in this wave); until then `main.ts` listens with the Wails `Events.On` directly.
+  - `kit/ui/src/nav/panel.css` (ui/nav-panel): add the reduced-motion twin if it has motion rules.
   - docs/UI.md: the Accessibility paragraph gains the section, the attributes, View › Zoom and "Contrast more".
   - docs/BUILD.md: Accessibility is in the bare shell.
   - README: a features line.
