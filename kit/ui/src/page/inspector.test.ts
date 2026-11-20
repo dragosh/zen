@@ -109,13 +109,9 @@ test("issues live in the panel: listed, selected, and cleared on navigation", as
   await settle();
   const item = panel().querySelector<HTMLButtonElement>('.zen-problem[data-kind="spelling"]')!;
   expect(item.textContent).toContain("teh");
-  vi.useFakeTimers();
-  item.click(); // selects it; Show scrolls to the mark
-  panel().querySelector<HTMLButtonElement>('[data-action="show"]')!.click();
+  item.click(); // one click selects it and scrolls to its mark
   const m = env.slots.main.querySelector("mark.zen-lint")!;
   expect(spy.mock.contexts[0]).toBe(m);
-  expect(m.classList.contains("zen-lint-flash")).toBe(true);
-  vi.useRealTimers();
 
   api.lintResult = { available: false, alerts: [] };
   env.ctx.navigate("b.md");
@@ -270,7 +266,7 @@ test("problem marks: only one at a time; null, a page warning and an unknown tar
   mark({ kind: "link", href: "gone.md", text: "Gone page" });
   mark({ kind: "link", href: "nothing.md", text: "Nope" });
   expect(registry.size).toBe(0);
-  expect(scrolled).toHaveLength(3); // the warning and the unknown link scrolled nowhere
+  expect(scrolled).toHaveLength(4); // the warning and the unknown link scrolled nowhere
 });
 
 test("problem marks: the page changing clears it", async () => {
@@ -291,8 +287,8 @@ test("problem marks: the Inspector closing clears it", async () => {
 });
 
 test("problem marks: the background flash fades, and stays still when Reduce motion is on", async () => {
-  vi.useFakeTimers();
   await shown();
+  vi.useFakeTimers();
   mark({ kind: "link", href: "gone.md", text: "Gone page" });
   expect(registry.has("zen-problem")).toBe(true);
   vi.advanceTimersByTime(1500);

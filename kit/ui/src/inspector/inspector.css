@@ -30,9 +30,32 @@
 .zen-inspector { order: 1; }
 .zen-inspector:has(~ .zen-main[hidden]) { display: none; }
 
-/* Build: the add-on cards use the whole column, not Settings' 46ch. */
-.zen-inspector .zen-addons { max-width: none; }
-.zen-build-version { margin: 0 0 var(--space-2); color: var(--fg-muted); font-size: 12px; }
+/* Build: the items are the Problems list pattern (one row each, the selected one marked the same way); the add-on cards use the whole column, not Settings' 46ch. */
+.zen-inspector .zen-addons, .zen-inspector .zen-build-addons { max-width: none; }
+.zen-build-addons { display: flex; flex-direction: column; gap: var(--space-2); }
+.zen-build-items { margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)); padding: var(--space-1) 0; }
+.zen-build-item {
+  width: 100%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0 var(--space-3);
+  align-items: center;
+  padding: 6px var(--space-3);
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.zen-build-item + .zen-build-item { border-top: 1px solid var(--rule); }
+.zen-build-item:hover { background: var(--btn-bg-hover); }
+.zen-build-item[aria-selected="true"] { background: var(--btn-bg); box-shadow: inset 2px 0 0 var(--fg); }
+.zen-build-item:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.zen-build-item-note { color: var(--fg-muted); font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+.zen-build-names { margin: 0; padding: 0; list-style: none; font-family: var(--font-mono); }
+.zen-build-none { margin: 0; color: var(--fg-muted); }
 
 /* Problems: one row per problem, a severity dot, its kind, what it is and where. */
 .zen-problem-list { margin: calc(-1 * var(--space-2)) calc(-1 * var(--space-3)); padding: var(--space-1) 0; }
@@ -69,5 +92,16 @@
 
 .zen-inspector-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-4); }
 .zen-inspector-actions button { font-size: 12px; padding: 2px var(--space-2); }
+
+/* A problem shown in the page (kit/ui/src/inspector/mark.ts): the Vale mark pattern, as Custom Highlights so the page's DOM is not
+   changed. The underline is in the problem's lint colour; zen-problem is the background flash (it is taken away after a moment,
+   or stays while Reduce motion is on). A missing image has no text to underline, so it gets an outline instead. */
+::highlight(zen-problem) { background-color: var(--btn-bg); }
+::highlight(zen-problem-error) { text-decoration: underline wavy var(--lint-error) 1.5px; }
+::highlight(zen-problem-warning) { text-decoration: underline wavy var(--lint-warning) 1.5px; }
+::highlight(zen-problem-suggestion) { text-decoration: underline wavy var(--lint-suggestion) 1.5px; }
+img[data-zen-problem] { outline: 2px solid var(--lint-warning); outline-offset: 2px; }
+img[data-zen-problem="error"] { outline-color: var(--lint-error); }
+img[data-zen-problem="suggestion"] { outline-color: var(--lint-suggestion); }
 
 @media print { .zen-inspector, .zen-inspector-toggle, .zen-inspector-button { display: none; } }

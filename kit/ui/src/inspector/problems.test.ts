@@ -171,6 +171,7 @@ const key = (i: Inspector, k: string) => {
 test("click shows in page: one click selects, shows the details and asks the page to mark it; there is no Show button", () => {
   const i = make();
   expect(i.el.querySelector('[data-action="show"]')).toBeNull();
+  marks = [];
   rows(i)[0].click();
   expect(rows(i)[0].getAttribute("aria-selected")).toBe("true");
   expect(detail(i, "rule")).toBe("broken-link");
@@ -189,7 +190,7 @@ test("click shows in page: a missing image sends its src and alt, a spelling pro
   expect(marks.at(-1)).toMatchObject({ kind: "image", src: "/_ws/missing.png", text: "Missing one" });
   rows(i)[2].click();
   expect(marks.at(-1)).toMatchObject({ kind: "spelling", severity: "error", text: "teh", offset: 0, length: 3 });
-  expect(select).not.toHaveBeenCalled();
+  expect(select).toHaveBeenCalledTimes(1); // the editor's source selection
 });
 
 test("click shows in page: choosing a page warning clears the mark, there is nothing to show", () => {
@@ -203,6 +204,7 @@ test("click shows in page: Enter and Space are the button's own click; selecting
   const i = make();
   const r = rows(i)[0];
   expect(r.tagName).toBe("BUTTON");
+  marks = [];
   r.click();
   r.click();
   expect(marks).toHaveLength(2);
@@ -255,6 +257,7 @@ test("click shows in page: the mark is cleared when the selection goes away, the
 test("hostile href: a problem's href and text are compared as values, never used as a selector", () => {
   const nasty = `"]'),a[x='\\`;
   const i = make([VALE], `<p><a data-zen-link="broken" href='${nasty.replace(/'/g, "&#39;")}'>t</a></p>`);
+  marks = [];
   expect(() => rows(i)[0].click()).not.toThrow();
   expect(marks[0]!.href).toBe(nasty);
 });

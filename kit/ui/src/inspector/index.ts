@@ -6,21 +6,20 @@
 // nothing about loading pages. All text goes in through textContent.
 import "./inspector.css";
 import { hasAddon, hasFeature, type Alert, type KitHost, type Page, type PageInfo } from "../host";
-import { reducedMotion } from "../shell/a11y";
 import { installConsoleCapture } from "../shell/console";
 import { copyText } from "../shell/clipboard";
 import { developerEnabled, developerKey, followDeveloper } from "../shell/developer";
 import { createConsoleTab, type ConsoleTab } from "../shell/devpanel";
-import { buildSection } from "../shell/addons";
 import { button, el } from "../shell/dom";
 import { BOTTOM_PANEL_HEIGHT, bindColumns, createTabbedPanel, PANEL_COLLAPSED_KEY, panelColumns, panelEmpty, panelProps } from "../panel";
-import { INSPECTOR_CLOSE, INSPECTOR_CONSOLE, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorIcon, inspectorLabel, type InspectorState } from "./events";
+import { INSPECTOR_CLOSE, INSPECTOR_CONSOLE, INSPECTOR_MARK, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorIcon, inspectorLabel, type InspectorState } from "./events";
+import { buildItems } from "./build";
 import { formatDate, formatSize, readingLabel } from "./format";
-import { brokenLinks, failedAlready, isCheck, missingImage, sameProblem, spellingProblems, warningProblems, type Filter, type Problem } from "./problems";
+import { brokenLinks, failedAlready, isCheck, missingImage, problemTarget, sameProblem, spellingProblems, warningProblems, type Filter, type Problem } from "./problems";
 import { pageStats, type PageStats } from "./stats";
 
 export { pageStats, type PageStats } from "./stats";
-export { INSPECTOR_CLOSE, INSPECTOR_CONSOLE, INSPECTOR_STATE, INSPECTOR_TOGGLE, type InspectorState } from "./events";
+export { INSPECTOR_CLOSE, INSPECTOR_CONSOLE, INSPECTOR_MARK, INSPECTOR_STATE, INSPECTOR_TOGGLE, type InspectorState, type ProblemTarget } from "./events";
 
 export const OPEN_KEY = "zen.inspector.open";
 /** The last tab, by id. */
@@ -33,8 +32,8 @@ export type InspectorOptions = {
    * and the build's features and log calls (Page Info and Problems need `inspector`, the Console `developer`).
    */
   host: Pick<KitHost, "pageInfo" | "revealInFinder" | "addons" | "build" | "logs" | "onLog">;
-  /** Show on a spelling problem: scroll to its mark and select it. */
-  onSelectIssue(alert: Alert, index: number): void;
+  /** Choosing a spelling problem also calls this (the editor selects the word in its source); the reader answers INSPECTOR_MARK instead. */
+  onSelectIssue?(alert: Alert, index: number): void;
   /** The panel was opened or closed (button, shortcut or API); not called when nothing changes. */
   onOpenChange?(open: boolean): void;
   /**
@@ -198,17 +197,43 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
     frame.body("console").append(consoleTab.el);
   }
 
-  // ---- Build: the version and the features on the left, what else the build contains on the right (the same content as Settings › This build)
+  // ---- Build: the items of the build on the left, the selected one's details on the right (the same content as Settings › This build)
   let buildTab: { show(): void } | null = null;
   if (consoleFeature) {
     const cols = panelColumns({ id: "build", doc: o.doc });
-    const section = buildSection(o.host);
+    let item = "version";
     const draw = () => {
-      section.show?.();
-      const groups = Array.from(section.el?.children ?? []) as HTMLElement[];
-      const features = groups.filter((g) => g.dataset.group === "features");
-      cols.left.replaceChildren(el("p", "zen-build-version", `Version ${o.host.build?.version || "dev"}`), ...features);
-      cols.right.replaceChildren(...groups.filter((g) => g.dataset.group !== "features"));
+      const items = buildItems(o.host);
+      if (!items.some((i) => i.id === item)) item = "version";
+      const list = el("div", "zen-build-items");
+      list.setAttribute("role", "listbox");
+      list.setAttribute("aria-label", "Build");
+      const rowOf = new Map<string, HTMLElement>();
+      const choose = (id: string) => {
+        item = id;
+        for (const [k, r] of Array.from(rowOf)) r.setAttribute("aria-selected", String(k === id));
+        cols.right.replaceChildren(items.find((i) => i.id === id)!.details());
+      };
+      for (const it of items) {
+        const r = el("button", "zen-build-item");
+        r.type = "button";
+        r.setAttribute("role", "option");
+        r.dataset.item = it.id;
+        r.append(el("span", "zen-build-item-name", it.name), el("span", "zen-build-item-note", it.note));
+        r.addEventListener("click", () => choose(it.id));
+        rowOf.set(it.id, r);
+        list.append(r);
+      }
+      list.addEventListener("keydown", (k) => {
+        const step = k.key === "ArrowDown" ? 1 : k.key === "ArrowUp" ? -1 : 0;
+        if (!step) return;
+        k.preventDefault();
+        const rs = Array.from(rowOf.values());
+        const next = rs[rs.indexOf(k.target as HTMLElement) + step];
+        if (next) { next.focus(); next.click(); }
+      });
+      cols.left.replaceChildren(list);
+      choose(item);
     };
     draw();
     frame.body("build").append(cols.el);
@@ -231,23 +256,27 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
   const spelling = (): Problem[] => (lintOn && Array.isArray(alerts) ? spellingProblems(alerts) : []);
   let all: Problem[] = [];
 
-  function showProblem(p: Problem): void {
-    if (p.alert) {
-      o.onSelectIssue(p.alert, p.index ?? 0);
-      return;
-    }
-    const t = p.el;
-    if (!t?.isConnected) return;
-    const reduced = reducedMotion(o.doc);
-    t.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
-    if (!t.hasAttribute("tabindex")) t.setAttribute("tabindex", "-1"); // a broken link has no href and an image is not focusable
-    t.focus({ preventScroll: true });
+  /** Shows the problem in the page: the page scrolls to it and marks it (kit/ui/src/page). A page warning has nothing to show: it clears the mark. */
+  function showInPage(p: Problem | null): void {
+    const detail = p && p.kind !== "warning" ? problemTarget(p, checkRoot) : null;
+    o.doc.dispatchEvent(new CustomEvent(INSPECTOR_MARK, { detail }));
+  }
+  const rowOfProblem = new Map<Problem, HTMLElement>();
+  function selectProblem(p: Problem | null): void {
+    selected = p;
+    for (const [q, r] of Array.from(rowOfProblem)) r.setAttribute("aria-selected", String(q === p));
+    renderProblemDetails();
+    showInPage(p);
+    if (p?.alert) o.onSelectIssue?.(p.alert, p.index ?? 0); // the editor selects the word in its source
   }
 
   function renderProblems(): void {
     if (!problems) return;
     all = [...warnings(), ...checks(), ...spelling()];
+    const before = selected;
     if (selected) selected = all.find((p) => sameProblem(p, selected!)) ?? null;
+    if (before && !selected) showInPage(null); // the problem is gone: so is its mark
+    rowOfProblem.clear();
     const shown = all.filter((p) => filter === "all" || (filter === "checks") === isCheck(p));
     if (shown.length === 0) {
       problemList.replaceChildren(alerts === "checking" && filter !== "checks" && lintOn ? panelEmpty("Checking…") : panelEmpty("No problems on this page."));
@@ -266,9 +295,18 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
         dot.setAttribute("aria-hidden", "true");
         r.append(dot, el("span", "zen-problem-kind", KIND_LABEL[p.kind]), el("span", "zen-problem-label", p.label), el("span", "zen-problem-where", p.where));
         r.title = p.message;
-        r.addEventListener("click", () => { selected = p; renderProblems(); });
+        r.addEventListener("click", () => selectProblem(p));
+        rowOfProblem.set(p, r);
         list.append(r);
       }
+      list.addEventListener("keydown", (k) => {
+        const step = k.key === "ArrowDown" ? 1 : k.key === "ArrowUp" ? -1 : 0;
+        if (!step) return;
+        k.preventDefault();
+        const rs = Array.from(list.querySelectorAll<HTMLElement>(".zen-problem"));
+        const next = rs[rs.indexOf(k.target as HTMLElement) + step];
+        if (next) { next.focus(); next.click(); }
+      });
       problemList.replaceChildren(list);
     }
     renderProblemDetails();
@@ -289,13 +327,6 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
     }
     const box = el("div", "zen-problem-details");
     box.append(rows([["Message", "message", p.message], ...(p.fix ? [["Fix", "fix", p.fix] as [string, string, string]] : []), ["Where", "where", p.where], ["Rule", "rule", p.rule, true]]));
-    if (p.kind !== "warning") { // a page warning is about the page as a whole: there is nothing to scroll to
-      const show = button("Show", () => showProblem(p), { className: "zen-problem-show", title: "Scroll the page to it" });
-      show.dataset.action = "show";
-      const actions = el("div", "zen-inspector-actions");
-      actions.append(show);
-      box.append(actions);
-    }
     problemDetails.replaceChildren(box);
   }
 
@@ -455,6 +486,7 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
       if (!isOpen) return;
       isOpen = false;
       write(OPEN_KEY, "0");
+      showInPage(null);
       fetchSeq++;
       sync();
       o.onOpenChange?.(false);
@@ -473,6 +505,7 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
       panel.querySelector<HTMLElement>('[role="tab"][data-tab="console"]')?.focus();
     },
     setPage(next: string | null, p?: Page, root?: ParentNode) {
+      showInPage(null); // the mark belongs to the page that was shown
       if (next === null || !p || !root) {
         path = null;
         page = null;
@@ -515,6 +548,7 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
       o.doc.removeEventListener(INSPECTOR_CONSOLE, onConsole);
       o.doc.removeEventListener("keydown", onDevKey);
       stopFollow();
+      showInPage(null);
       watch(null);
       fetchSeq++;
       clearTimeout(copiedTimer);
