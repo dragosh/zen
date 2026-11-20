@@ -128,3 +128,19 @@ func TestFor(t *testing.T) {
 		t.Errorf("SiteTemplatesFor(nil) lists %d", len(entries))
 	}
 }
+
+func TestDialects(t *testing.T) {
+	all := Dialects()
+	if l := all.List(); len(l) != 1 || l[0].ID() != "myst" || l[0].Name() == "" || l[0].Summary() == "" {
+		t.Errorf("Dialects: %+v", l)
+	}
+	if r, err := DialectsFor(nil); err != nil || len(r.List()) != 0 {
+		t.Errorf("none: %v %v", r, err)
+	}
+	if _, err := DialectsFor([]string{"mkdocs"}); err == nil || !strings.Contains(err.Error(), "myst") {
+		t.Errorf("unknown id: %v", err)
+	}
+	if _, err := DialectsFor([]string{"myst", "myst"}); err == nil {
+		t.Error("repeated id accepted")
+	}
+}
