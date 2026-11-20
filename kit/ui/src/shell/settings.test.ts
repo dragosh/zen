@@ -113,7 +113,10 @@ test("two-column frame: stacks below 720 px, an empty list shows its empty text,
   expect(v.el.classList.contains("zen-settings-narrow")).toBe(true);
   fire(721);
   expect(v.el.classList.contains("zen-settings-narrow")).toBe(false);
-  expect(detail(v, "empty").textContent).toBe("Nothing here.");
+  // the empty text is in the left column, where the items would be, like every section; the right column is empty
+  const emptyList = v.el.querySelector<HTMLElement>('[data-section="empty"] [role=listbox]')!;
+  expect(emptyList.querySelector(".zen-settings-empty")!.textContent).toBe("Nothing here.");
+  expect(detail(v, "empty").textContent).toBe("");
   expect(rows(v, "empty")).toHaveLength(0);
   tab(v, "cur").click();
   await settle();

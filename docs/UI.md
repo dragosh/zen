@@ -7,6 +7,13 @@ for behaviour. Implemented by the `ui/*` specs.
 
 ## Principles
 
+- **UI consistency (a constraint on every design).** The same kind of thing looks
+  and behaves the same everywhere. Before adding a view, reuse the pattern that
+  already exists for its kind; a new pattern needs a reason in its spec.
+  - **Settings:** every section uses the two-column frame. The left column holds the items, one per row, vertically (Theme, Navigation; Zoom, Motion…). The right column holds the selected item's controls, preview, help and actions. A section with nothing to list shows its empty text, or its failure text, in the left column, where the items would be. Nothing that lists items lives in the right column.
+  - **Panels:** every Inspector tab uses the panel's two resizable columns and the same padding and header tools.
+  - **States:** the same `aria-*` state means the same look everywhere. Active, selected, disabled, empty and error each have one style.
+  - **Fix the pattern, not the instance.** When feedback hits one place, change the shared component so that every place that uses it changes together, and add a test that holds the rule for all of them.
 - **Black and white.** No hue anywhere in the chrome. Buttons are grayscale.
   Colour only comes from the user's content (images, diagrams) and the three
   lint signal colours (wavy squiggles: red error, amber warning, blue suggestion)

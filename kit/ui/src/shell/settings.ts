@@ -414,6 +414,13 @@ export function createSettingsFrame(sections: SettingsSection[]): SettingsView {
   const enabled = (pane: Pane) => pane.items.filter((i) => !i.disabled);
 
   function drawList(pane: Pane): void {
+    // Nothing to list: the empty text stands where the items would be, in every section alike.
+    if (!pane.items.length) {
+      const empty = pane.section.empty;
+      const text = empty ? (typeof empty === "function" ? empty() : empty) : "";
+      pane.list.replaceChildren(...(text ? [el("p", "zen-settings-empty", text)] : []));
+      return;
+    }
     pane.list.replaceChildren(...pane.items.map((it) => {
       const r = el("div", "zen-settings-item");
       r.setAttribute("role", "option");
@@ -440,8 +447,7 @@ export function createSettingsFrame(sections: SettingsSection[]): SettingsView {
     pane.cleanup = null;
     const it = pane.items.find((i) => i.id === pane.selected);
     if (!it) {
-      const empty = pane.section.empty;
-      pane.detail.replaceChildren(...(empty ? [document.createTextNode(typeof empty === "function" ? empty() : empty)] : []));
+      pane.detail.replaceChildren(); // the empty text is in the left column (drawList)
       return;
     }
     pane.detail.replaceChildren(el("h3", "zen-settings-detail-title", it.label));

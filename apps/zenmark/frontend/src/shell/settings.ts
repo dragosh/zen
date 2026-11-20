@@ -113,8 +113,24 @@ export function createSettingsView(opts: {
       return [{ id: "dialects", label: "Dialects" }];
     },
     render(_item, right) {
+      // CommonMark and GFM: what every folder reads, listed first and always on.
+      const baseEntry = (): HTMLElement => {
+        const entry = el("div", "zen-dialect-entry");
+        entry.dataset.dialect = "commonmark";
+        const head = el("div", "zen-dialect");
+        const box = el("input");
+        box.type = "checkbox";
+        box.checked = true;
+        box.disabled = true;
+        box.setAttribute("aria-label", "CommonMark and GFM, always on");
+        head.append(box, el("span", "zen-dialect-pick", "CommonMark and GFM"), el("span", "zen-settings-item-note", "Always on"));
+        entry.append(head);
+        return entry;
+      };
       if (!dialects.length) {
-        right.append(el("p", "zen-settings-hint", dialectFailure || "No dialects in this build."));
+        right.append(el("div", "zen-dialect-list"));
+        right.lastElementChild!.append(baseEntry());
+        if (dialectFailure) right.append(el("p", "zen-settings-hint", dialectFailure));
         return;
       }
       let gone = false;
@@ -126,7 +142,7 @@ export function createSettingsView(opts: {
       status.setAttribute("role", "status");
       const list = el("div", "zen-dialect-list");
       const draw = () => {
-        list.replaceChildren();
+        list.replaceChildren(baseEntry());
         for (const d of dialects) {
           const selected = d.id === pickedDialect;
           const entry = el("div", "zen-dialect-entry");

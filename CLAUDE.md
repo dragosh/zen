@@ -74,6 +74,12 @@ task test && task build                             # the lead, after each merge
   inspector, developer]`). The roadmap is the GitHub Project "Zenmark roadmap"
   (#9 and its sub-issues). Don't cut a release from `main` during the roadmap.
   Hotfixes go on `release/0.6`.
+- **UI consistency is a constraint** on every design (docs/UI.md, Principles).
+  Reuse the existing pattern for each kind of view: the Settings frame (items
+  on the left, details on the right, empty text in the left column), the
+  panel columns, and one style per state. Fix the shared component, never one
+  instance. Every spec's UI section names the pattern it reuses, and the lead
+  checks it in review.
 - UI: black and white tokens only (docs/UI.md), keyboard reachable, and
   `prefers-reduced-motion` respected.
 - Commits and PRs: plain messages with no Co-Authored-By lines. Never put

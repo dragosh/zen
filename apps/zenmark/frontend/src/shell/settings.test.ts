@@ -84,6 +84,9 @@ async function go(s: SettingsView, id: string, item?: string): Promise<void> {
 
 // ---- 1: the section list per build
 
+/** The left column of a section: its items, or its empty text. */
+const leftCol = (v: { el: HTMLElement }, id: string) => v.el.querySelector<HTMLElement>(`[data-section="${id}"] [role=listbox]`)!;
+
 test("section list per build", () => {
   const list = (features?: string[]) => {
     const { s } = setup({ features });
@@ -248,8 +251,7 @@ test("markdown section", async () => {
   expect(rows(s, "markdown").map((r) => [r.dataset.item, r.querySelector(".zen-settings-item-label")!.textContent])).toEqual([["dialects", "Dialects"]]);
   expect(row(s, "markdown", "dialects").getAttribute("aria-selected")).toBe("true");
   expect(detail(s, "markdown").querySelector("h3")!.textContent).toBe("Dialects");
-  expect(detail(s, "markdown").textContent).not.toContain("CommonMark");
-  const entries = () => Array.from(detail(s, "markdown").querySelectorAll<HTMLElement>(".zen-dialect-entry"));
+  const entries = () => Array.from(detail(s, "markdown").querySelectorAll<HTMLElement>(".zen-dialect-entry[data-dialect]:not([data-dialect=commonmark])"));
   expect(entries().map((e) => e.dataset.dialect)).toEqual(["myst", "x"]);
   const box = (id = "myst") => detail(s, "markdown").querySelector<HTMLInputElement>(`input[type="checkbox"][data-dialect="${id}"]`)!;
   expect(box().checked).toBe(false);
@@ -290,18 +292,29 @@ test("markdown section", async () => {
 test("markdown section: no folder or a read-only app disables the switch; no dialects says so", async () => {
   const none = setup({ hasWorkspace: false });
   await go(none.s, "markdown");
-  expect(detail(none.s, "markdown").querySelector<HTMLInputElement>("input")!.disabled).toBe(true);
+  expect(detail(none.s, "markdown").querySelector<HTMLInputElement>('input[data-dialect="myst"]')!.disabled).toBe(true);
   expect(detail(none.s, "markdown").textContent).toContain("Open a folder");
   const ro = setup({ features: ZENMARK_BUILD.features.filter((f) => f !== "editor") });
   await go(ro.s, "markdown");
-  expect(detail(ro.s, "markdown").querySelector<HTMLInputElement>("input")!.disabled).toBe(true);
+  expect(detail(ro.s, "markdown").querySelector<HTMLInputElement>('input[data-dialect="myst"]')!.disabled).toBe(true);
   expect(detail(ro.s, "markdown").textContent).toContain("read-only");
-  // no dialects: still the Dialects item, with one short line and no CommonMark sentence
+  // no dialects: still the Dialects item, with CommonMark and GFM, always on
   const empty = setup({ dialects: [] });
   await go(empty.s, "markdown");
   expect(rows(empty.s, "markdown").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["Dialects"]);
-  expect(detail(empty.s, "markdown").textContent).toBe("DialectsNo dialects in this build.");
-  expect(detail(empty.s, "markdown").textContent).not.toContain("CommonMark");
+  const base = detail(empty.s, "markdown").querySelector<HTMLElement>('[data-dialect="commonmark"]')!;
+  expect(base.textContent).toContain("CommonMark and GFM");
+  expect(base.textContent).toContain("Always on");
+  const box = base.querySelector<HTMLInputElement>("input")!;
+  expect([box.checked, box.disabled]).toEqual([true, true]);
+  expect(detail(empty.s, "markdown").textContent).not.toContain("No dialects");
+});
+
+test("markdown section: CommonMark and GFM come first, always on, then the build's dialects", async () => {
+  const { s } = setup();
+  await go(s, "markdown");
+  const entries = Array.from(detail(s, "markdown").querySelectorAll<HTMLElement>(".zen-dialect-entry")).map((e) => e.dataset.dialect);
+  expect(entries).toEqual(["commonmark", "myst"]);
 });
 
 test("markdown section: switching folders refreshes the dialect states", async () => {
@@ -369,12 +382,13 @@ test("plugins: the list reads the API each time the page is shown; text is plain
   expect(help(s).querySelector("b")).toBeNull();
   expect(trust(s)).toBeNull(); // invalid: no Allow/Block
   const e = await pluginView([]);
-  expect(detail(e.s, "plugins").textContent).toContain("No plugins in this folder.");
+  expect(leftCol(e.s, "plugins").textContent).toContain("No plugins in this folder.");
+  expect(detail(e.s, "plugins").textContent).toBe("");
   e.api.failNext("plugins", new Error("<i>no folder</i>"));
   e.s.show();
   await settle();
-  expect(detail(e.s, "plugins").textContent).toContain("Could not list plugins: <i>no folder</i>");
-  expect(detail(e.s, "plugins").querySelector("i")).toBeNull();
+  expect(leftCol(e.s, "plugins").textContent).toContain("Could not list plugins: <i>no folder</i>");
+  expect(leftCol(e.s, "plugins").querySelector("i")).toBeNull();
 });
 
 test("plugins: Allow and Block call pluginTrust and refresh the list; the selection stays", async () => {
@@ -587,11 +601,12 @@ test("layouts: snippets with Copy; built-in layouts preview through api.preview,
   await settle();
   expect(lHelp(s).querySelector(".zen-plugin-snippet-preview")).toBeNull();
   const e = await layoutView([]);
-  expect(detail(e.s, "layouts").textContent).toContain("No layouts in this folder.");
+  expect(leftCol(e.s, "layouts").textContent).toContain("No layouts in this folder.");
+  expect(detail(e.s, "layouts").textContent).toBe("");
   e.api.failNext("layouts", new Error("down"));
   e.s.show();
   await settle();
-  expect(detail(e.s, "layouts").textContent).toContain("Could not list layouts: down");
+  expect(leftCol(e.s, "layouts").textContent).toContain("Could not list layouts: down");
 });
 
 test("templates: description, what it asks, the invalid reason as text; Show Templates Folder", async () => {

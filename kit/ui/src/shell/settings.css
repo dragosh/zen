@@ -16,6 +16,8 @@
 .zen-settings-item[aria-disabled="true"]:hover { background: none; color: var(--fg-muted); }
 .zen-settings-item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .zen-settings-item-note { font-size: 11px; font-weight: 400; color: var(--fg-muted); }
+/* A section with nothing to list says so in the left column, where the items would be. */
+.zen-settings-empty { margin: 0; padding: var(--space-1) var(--space-2); color: var(--fg-muted); font: 13px/1.4 var(--font-ui); }
 /* Below 720 px the right column goes under the left one. */
 .zen-settings-narrow .zen-settings-cols { grid-template-columns: minmax(0, 1fr); }
 .zen-settings-narrow .zen-settings-list { padding: 0 0 var(--space-3); border-right: 0; border-bottom: 1px solid var(--rule); }

@@ -1205,11 +1205,19 @@ test("Navigation row in Appearance: a stored Right is applied when the folder op
   expect(root.querySelector<HTMLElement>(".zen-frame")!.dataset.navSide).toBe("right");
 });
 
-test("Navigation row: not on the home screen, where there is no sidebar", async () => {
+test("Navigation is below Theme on the home screen too (a setting of this Mac, applied when a folder opens)", async () => {
   await boot(createFakeApi()).start();
   key(",");
+  await tick();
   expect(root.querySelector(".zen-home-settings")).not.toBeNull();
-  expect(navRow()).toBeNull();
+  const items = Array.from(root.querySelectorAll<HTMLElement>('[data-section="appearance"] [role=option], [role=option][data-item]'))
+    .filter((o) => o.closest(".zen-home-settings"))
+    .map((o) => o.textContent?.trim());
+  expect(items.slice(0, 2)).toEqual(["Theme", "Navigation"]);
+  root.querySelector<HTMLElement>('[role=option][data-item="extra-0"]')!.click();
+  const radios = Array.from(navRow()!.querySelectorAll<HTMLInputElement>('input[type="radio"]'));
+  radios[1].click();
+  expect(localStorage.getItem("zen.navSide")).toBe("right");
 });
 
 // ui/accessibility 13: the options are on <html> before the shell's first render, so no window shows the defaults first.

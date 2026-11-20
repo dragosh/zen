@@ -42,6 +42,9 @@ Edge cases to cover: ...
 ## UI
 
 States, keyboard, accessibility, reference to UI.md. "None" for non-visual features.
+**UI consistency:** name the existing pattern each view reuses (docs/UI.md
+Principles: the Settings frame, the panel columns, the states). A new pattern
+needs a reason here.
 
 ## Security
 

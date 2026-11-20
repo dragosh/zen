@@ -299,6 +299,8 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     settings = createSettingsView({
       api, hasWorkspace: () => false,
       build: api, root: () => "", ...settingsWiring,
+      // The sidebar's side is a setting of this Mac, chosen here too and applied when a folder opens.
+      appearanceExtra: has("nav") ? [navSideRow(doc)] : [],
     });
     homeSettings = true;
     const view = el("main", "zen-home-settings");
