@@ -82,7 +82,8 @@ func lintOff() LintResult { return LintResult{Alerts: []LintAlert{}} }
 
 // Lint returns Vale's alerts for a page: content, or the file on disk when
 // content is "". Unavailable without the linter add-on, without vale or with `lint: false`.
-func (s *Session) Lint(path, content string) (LintResult, error) {
+func (s *Session) Lint(path, content string) (r0 LintResult, err error) {
+	defer s.logFail("Lint", &err)
 	if _, ok := configWhich(path); ok {
 		return lintOff(), nil // settings files are not prose
 	}

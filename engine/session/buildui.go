@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -155,7 +156,8 @@ func writeAtomic(path string, data []byte, perm os.FileMode) error {
 
 // BuildOptions returns the form's starting values for the open folder: the
 // build: section of the config, then what was used last time.
-func (s *Session) BuildOptions() (BuildOptions, error) {
+func (s *Session) BuildOptions() (r0 BuildOptions, err error) {
+	defer s.logFail("BuildOptions", &err)
 	root, err := s.buildFolder()
 	if err != nil {
 		return BuildOptions{}, err
@@ -245,10 +247,23 @@ var summaryRE = regexp.MustCompile(`^Built (\d+) pages and (\d+) files into `)
 
 // BuildWebsite is Build for the app: cancelled by CancelBuild, and it reports
 // progress as build:progress events.
-func (s *Session) BuildWebsite(o BuildOptions) (BuildResult, error) {
-	return s.Build(context.Background(), o, func(done, total int) {
+func (s *Session) BuildWebsite(o BuildOptions) (r0 BuildResult, err error) {
+	defer s.logFail("BuildWebsite", &err)
+	root, _ := s.buildFolder()
+	logApp(slog.LevelInfo, "export started", "out", relPath(root, absOut(root, o.Out)), "portable", o.Portable)
+	res, err := s.Build(context.Background(), o, func(done, total int) {
 		s.emit(EventBuildProgress, BuildProgress{Done: done, Total: total})
 	})
+	switch {
+	case err != nil:
+		// The service logs the error the UI gets.
+	case res.Cancelled:
+		logApp(slog.LevelInfo, "export cancelled", "pages", res.Pages)
+	default:
+		logApp(slog.LevelInfo, "export finished", "pages", res.Pages, "files", res.Files, "ms", res.Millis,
+			"out", relPath(root, res.Out), "warnings", len(res.Warnings))
+	}
+	return res, err
 }
 
 // Build builds the open folder like `zenmd build` and returns the result.
@@ -355,7 +370,8 @@ func (s *Session) CancelBuild() {
 // only returns the preview text; with it, it edits the YAML tree, so comments
 // and other keys stay, and writes the file atomically. It returns the same
 // text either way.
-func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (string, error) {
+func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (r0 string, err error) {
+	defer s.logFail("SaveBuildDefaults", &err)
 	if err := s.writable(); err != nil {
 		return "", err
 	}

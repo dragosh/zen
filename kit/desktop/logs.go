@@ -2,6 +2,7 @@ package desktop
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 	"strings"
 	"sync"
@@ -165,13 +166,73 @@ type logHandler struct {
 	ring  *LogRing
 	tee   slog.Handler
 	attrs []slog.Attr
+	lim   *debugLimiter // shared by every handler derived from this one
+}
+
+// DebugPerSecond is how many debug entries of one kind (one message) the log
+// keeps each second; the rest are counted in a single "… N more" entry.
+const DebugPerSecond = 20
+
+// debugLimiter keeps a busy debug source (a file event per file, a render per
+// page) from filling the ring.
+type debugLimiter struct {
+	mu    sync.Mutex
+	kinds map[string]*debugBucket
+}
+
+type debugBucket struct {
+	start   time.Time
+	n       int
+	dropped int
+	timer   *time.Timer
+}
+
+// allow reports whether a debug entry of this kind may be kept now. The first
+// entry dropped in a window schedules the "… N more" entry for its end.
+func (l *debugLimiter) allow(ring *LogRing, kind string) bool {
+	now := time.Now()
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	b := l.kinds[kind]
+	if b == nil {
+		b = &debugBucket{start: now}
+		l.kinds[kind] = b
+	}
+	if now.Sub(b.start) >= time.Second {
+		b.start, b.n = now, 0
+	}
+	if b.n < DebugPerSecond {
+		b.n++
+		return true
+	}
+	b.dropped++
+	if b.timer == nil {
+		b.timer = time.AfterFunc(time.Second-now.Sub(b.start), func() {
+			l.mu.Lock()
+			n := b.dropped
+			b.dropped, b.timer = 0, nil
+			l.mu.Unlock()
+			if n > 0 {
+				ring.Add("debug", "app", fmt.Sprintf("… %d more %s", n, kind))
+			}
+		})
+	}
+	return false
+}
+
+// LogApp logs a message from the app itself (source "app") at level, with
+// key, value attributes that show after the message. It goes through
+// log/slog, so it reaches the Console and stderr like any other record.
+// Callers pass folder-relative paths and never file contents or option values.
+func LogApp(level slog.Level, msg string, attrs ...any) {
+	slog.Log(context.Background(), level, msg, append(attrs[:len(attrs):len(attrs)], "source", "app")...)
 }
 
 // NewLogHandler returns a slog handler that keeps every record (debug and up)
 // in r and passes the ones tee accepts on to it. A "source" attribute ("app",
 // "plugin") picks the entry's source; it is not repeated in the message.
 func NewLogHandler(r *LogRing, tee slog.Handler) slog.Handler {
-	return &logHandler{ring: r, tee: tee}
+	return &logHandler{ring: r, tee: tee, lim: &debugLimiter{kinds: map[string]*debugBucket{}}}
 }
 
 func (h *logHandler) Enabled(context.Context, slog.Level) bool { return true }
@@ -189,13 +250,19 @@ func levelName(l slog.Level) string {
 }
 
 func (h *logHandler) Handle(ctx context.Context, rec slog.Record) error {
+	if rec.Level < slog.LevelInfo && !h.lim.allow(h.ring, rec.Message) {
+		return nil
+	}
 	source := "app"
 	var b strings.Builder
 	b.WriteString(rec.Message)
 	add := func(a slog.Attr) {
 		a.Value = a.Value.Resolve()
 		if a.Key == "source" {
-			source = a.Value.String()
+			// The Console has three Go-side sources; the folder's own notices are the app's.
+			if source = a.Value.String(); source == "workspace" {
+				source = "app"
+			}
 			return
 		}
 		if a.Equal(slog.Attr{}) {

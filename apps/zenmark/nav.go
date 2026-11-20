@@ -35,7 +35,8 @@ func (z *Zen) SetNavHidden(path string, hidden bool) error {
 
 // RevealInFinder shows a page or folder of the open folder in Finder; anything
 // outside the folder is refused.
-func (z *Zen) RevealInFinder(path string) error {
+func (z *Zen) RevealInFinder(path string) (err error) {
+	defer z.logCall("RevealInFinder", &err)
 	if err := requireFeature("nav"); err != nil {
 		return err
 	}

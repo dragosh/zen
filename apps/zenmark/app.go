@@ -40,6 +40,7 @@ func Run(opts Options) error {
 	sink := desktop.NewSink()
 	logs, stopLogs := installLogging(sink)
 	defer stopLogs()
+	logStartup()                    // the first entry of the Console
 	dialogs := desktop.Dialogs(nil) // bound to the application by desktop.Run
 	windows := desktop.NewWindows(desktop.WindowsOptions{Title: Name})
 	// The main window always reads; `zenmd edit` opens an editor window once

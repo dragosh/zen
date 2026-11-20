@@ -21,7 +21,8 @@ var errPageExists = errors.New("a page with that name already exists")
 // first help snippet is the starting text) and returns its workspace path. ".md" is
 // added when name has no extension; missing folders are created inside the
 // workspace. An existing file is never overwritten.
-func (s *Session) CreatePage(name, layout string) (string, error) {
+func (s *Session) CreatePage(name, layout string) (r0 string, err error) {
+	defer s.logFail("CreatePage", &err)
 	if err := s.writable(); err != nil {
 		return "", err
 	}

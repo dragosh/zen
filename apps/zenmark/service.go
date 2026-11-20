@@ -169,7 +169,7 @@ func readOnlyBuild() bool { return !slices.Contains(assemblyInfo.Features, "edit
 // with the frontend's content security policy.
 func (z *Zen) middleware(next http.Handler) http.Handler {
 	h := z.s.Handler()
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return recovering(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		for _, prefix := range session.Routes {
 			if strings.HasPrefix(r.URL.Path, prefix) {
 				h.ServeHTTP(w, r)
@@ -178,7 +178,7 @@ func (z *Zen) middleware(next http.Handler) http.Handler {
 		}
 		w.Header().Set("Content-Security-Policy", frontendCSP)
 		next.ServeHTTP(w, r)
-	})
+	}))
 }
 
 // frontendCSP is sent with everything that is not a workspace or plugin file.
@@ -225,7 +225,8 @@ func (z *Zen) openInitial() {
 
 // PickFolder shows the folder dialog and opens the chosen folder; null on
 // cancel, also when the opening itself was cancelled (CancelOpen).
-func (z *Zen) PickFolder() (*Workspace, error) {
+func (z *Zen) PickFolder() (r0 *Workspace, err error) {
+	defer z.logCall("PickFolder", &err)
 	dir, err := z.dialogs.PickFolder()
 	if err != nil || dir == "" {
 		return nil, err

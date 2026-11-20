@@ -20,7 +20,8 @@ type PageInfo struct {
 // PageInfo returns the size, times and location of a markdown file inside the
 // open folder. Like Page and Source it accepts nothing that resolves outside
 // the folder, and its errors carry no absolute path.
-func (s *Session) PageInfo(path string) (PageInfo, error) {
+func (s *Session) PageInfo(path string) (r0 PageInfo, err error) {
+	defer s.logFail("PageInfo", &err)
 	if !isMarkdownPath(path) {
 		s.mu.Lock()
 		err := s.cleanErr(path, workspace.ErrNotMarkdown)

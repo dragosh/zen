@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"slices"
@@ -41,7 +42,8 @@ func (s *Session) Dialects() []DialectInfo {
 // editing its .zenmd.yml (comments and other keys stay; the file is created when
 // there is none) and reloads: the pages render again. It is a write, so it
 // goes through the read-only guard.
-func (s *Session) SetDialect(id string, on bool) error {
+func (s *Session) SetDialect(id string, on bool) (err error) {
+	defer s.logFail("SetDialect", &err)
 	if err := s.writable(); err != nil {
 		return err
 	}
@@ -71,7 +73,11 @@ func (s *Session) SetDialect(id string, on bool) error {
 	if err != nil {
 		return err
 	}
-	return s.saveConfig("workspace", string(out))
+	if err := s.saveConfig("workspace", string(out)); err != nil {
+		return err
+	}
+	logApp(slog.LevelInfo, "dialect switched", "id", id, "on", on)
+	return nil
 }
 
 // DialectHint is the id of a dialect the open folder looks written for (a
@@ -105,7 +111,8 @@ func (s *Session) DialectHint() string {
 // DismissDialectHint remembers that the open folder does not want the hint for
 // a dialect. The choice is app state (the settings folder), not the folder's:
 // it writes nothing the folder owns, so a read-only app may do it too.
-func (s *Session) DismissDialectHint(id string) error {
+func (s *Session) DismissDialectHint(id string) (err error) {
+	defer s.logFail("DismissDialectHint", &err)
 	if s.dbase.Get(id) == nil {
 		return fmt.Errorf("dialect %s is not in this build", id)
 	}

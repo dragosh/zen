@@ -61,8 +61,9 @@ func TestConfigAndSaveLogging(t *testing.T) {
 	if err := b.z.Save("zen:config/workspace", "toc: true\n"); err != nil {
 		t.Fatal(err)
 	}
-	mustContain(t, h.all(), "INFO config saved", "file=.zenmd.yml")
-	b.z.reloadConfig()
+	mustContain(t, h.all(), "INFO config saved", "file=.zenmd.yml", "INFO config reloaded")
+	h.recs = nil
+	b.z.handle([]watch.Event{{Path: ".zenmd.yml", Kind: watch.Changed}}) // edited on disk
 	mustContain(t, h.all(), "INFO config reloaded", "file=.zenmd.yml")
 }
 
@@ -105,7 +106,7 @@ func TestNoAbsolutePaths(t *testing.T) {
 func TestNoSecretsLogged(t *testing.T) {
 	h := capture(t)
 	b := newBuildZen(t, map[string]string{
-		"README.md":   "# Home\n\nSECRET-BODY-TEXT\n",
+		"README.md":  "# Home\n\nSECRET-BODY-TEXT\n",
 		".zenmd.yml": "plugins:\n  calc:\n    token: SECRET-TOKEN-VALUE\n",
 	})
 	if _, err := b.z.Page("README.md"); err != nil {

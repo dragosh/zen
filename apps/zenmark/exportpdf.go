@@ -7,10 +7,12 @@ package app
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/zenmark-org/zenmd/engine/config"
@@ -71,7 +73,8 @@ const lastPDFFolderFile = "export-pdf-folder"
 // ExportPDF shows the save panel for the window that calls it and writes the
 // open folder's print document there as a PDF, without the print panel. title
 // is only the job's name. It returns the file, "" when the panel was cancelled.
-func (z *Zen) ExportPDF(ctx context.Context, title string) (string, error) {
+func (z *Zen) ExportPDF(ctx context.Context, title string) (r0 string, err error) {
+	defer z.logCall("ExportPDF", &err)
 	if err := requireFeature("export"); err != nil {
 		return "", err
 	}
@@ -99,16 +102,20 @@ func (z *Zen) ExportPDF(ctx context.Context, title string) (string, error) {
 	if !strings.EqualFold(filepath.Ext(path), ".pdf") {
 		path += ".pdf"
 	}
+	desktop.LogApp(slog.LevelInfo, "export started", "format", "pdf", "name", filepath.Base(path))
+	start := time.Now()
 	if _, err := pdfIO.save(w, path, title); err != nil {
 		return "", err
 	}
+	desktop.LogApp(slog.LevelInfo, "export finished", "format", "pdf", "name", filepath.Base(path), "ms", time.Since(start).Milliseconds())
 	z.export.set(path)
 	rememberPDFFolder(filepath.Dir(path))
 	return path, nil
 }
 
 // RevealExport shows the file the last export wrote in Finder. It takes no path.
-func (z *Zen) RevealExport() error {
+func (z *Zen) RevealExport() (err error) {
+	defer z.logCall("RevealExport", &err)
 	if err := requireFeature("export"); err != nil {
 		return err
 	}

@@ -38,7 +38,8 @@ func siblingsOf(nodes []NavNode, path, parent string) (list []NavNode, owner str
 // are written, each through its frontmatter alone (config.SetNavKey). All
 // edits are prepared before the first write, and a failing write puts the
 // earlier files back. The tree is rebuilt at once and workspace:changed sent.
-func (s *Session) ReorderNav(parent string, paths []string) error {
+func (s *Session) ReorderNav(parent string, paths []string) (err error) {
+	defer s.logFail("ReorderNav", &err)
 	if err := s.writable(); err != nil {
 		return err
 	}
@@ -132,7 +133,8 @@ func (s *Session) writeNavLocked(edits []navEdit) (*Workspace, error) {
 // SetNavHidden writes `nav: hidden: true` into the page's frontmatter, or with
 // hidden false removes the key, and rebuilds the tree. The page may be one the
 // sidebar does not show (hidden), so it can be shown again.
-func (s *Session) SetNavHidden(path string, hidden bool) error {
+func (s *Session) SetNavHidden(path string, hidden bool) (err error) {
+	defer s.logFail("SetNavHidden", &err)
 	if err := s.writable(); err != nil {
 		return err
 	}

@@ -480,7 +480,8 @@ func (s *Session) Plugins() []PluginInfo {
 // Block dialog first and records Allow only when the user confirms there
 // (nothing a page script does can allow a plugin); declining changes nothing.
 // Blocking needs no dialog.
-func (s *Session) PluginTrust(id string, allow bool) error {
+func (s *Session) PluginTrust(id string, allow bool) (err error) {
+	defer s.logFail("PluginTrust", &err)
 	s.reloadMu.Lock()
 	defer s.reloadMu.Unlock()
 	s.mu.Lock()
@@ -501,7 +502,7 @@ func (s *Session) PluginTrust(id string, allow bool) error {
 			return nil
 		}
 	}
-	err := s.trust.Set(c.p, scopeOf(ext.root, *c), allow)
+	err = s.trust.Set(c.p, scopeOf(ext.root, *c), allow)
 	if err != nil && !errors.Is(err, extplugins.ErrChanged) {
 		return err
 	}
@@ -509,6 +510,7 @@ func (s *Session) PluginTrust(id string, allow bool) error {
 		s.streams.cancelPlugin(id)
 	}
 	s.reloadHeld(false, true)
+	logTrust("plugin", id, allow)
 	if err != nil {
 		return errors.New("the plugin changed; check Settings › Plugins and allow it again")
 	}
@@ -709,7 +711,8 @@ func readStore(path string) (map[string]json.RawMessage, error) {
 
 // PluginStorageGet returns the JSON text stored under key by an external
 // plugin, "null" when there is none.
-func (s *Session) PluginStorageGet(id, key string) (string, error) {
+func (s *Session) PluginStorageGet(id, key string) (r0 string, err error) {
+	defer s.logFail("PluginStorageGet", &err)
 	if err := validKey(key); err != nil {
 		return "", err
 	}
@@ -737,7 +740,8 @@ func getAt(path, key string) (string, error) {
 
 // PluginStorageSet stores a JSON value for an external plugin (1 MB per
 // plugin and folder, written atomically).
-func (s *Session) PluginStorageSet(id, key, value string) error {
+func (s *Session) PluginStorageSet(id, key, value string) (err error) {
+	defer s.logFail("PluginStorageSet", &err)
 	if err := validKey(key); err != nil {
 		return err
 	}
@@ -801,7 +805,8 @@ func (p pluginStore) Keys(prefix string) ([]string, error) {
 //
 // page is the workspace path of the page the block is on: its frontmatter
 // decides whether the plugin is on and its options, and it is ZEN_PAGE.
-func (s *Session) PluginInvoke(id, page, payload string) (string, error) {
+func (s *Session) PluginInvoke(id, page, payload string) (r0 string, err error) {
+	defer s.logFail("PluginInvoke", &err)
 	if !json.Valid([]byte(payload)) {
 		return "", errors.New("the payload is not valid JSON")
 	}
@@ -830,7 +835,8 @@ func (s *Session) PluginInvoke(id, page, payload string) (string, error) {
 
 // PluginStorageKeys lists the plugin's storage keys that start with prefix
 // ("" for all), sorted.
-func (s *Session) PluginStorageKeys(id, prefix string) ([]string, error) {
+func (s *Session) PluginStorageKeys(id, prefix string) (r0 []string, err error) {
+	defer s.logFail("PluginStorageKeys", &err)
 	if prefix != "" {
 		if err := validKey(prefix); err != nil {
 			return nil, err

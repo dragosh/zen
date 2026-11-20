@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -161,6 +162,9 @@ func (w *Watcher) loop() {
 }
 
 func (w *Watcher) fail(err error) {
+	// A watcher error is a warning: the folder stays usable, without live reload.
+	msg := strings.ReplaceAll(strings.ReplaceAll(err.Error(), w.root+string(filepath.Separator), ""), w.root, ".")
+	slog.Warn("watcher error: "+msg, "source", "app")
 	w.mu.Lock()
 	if w.err == nil {
 		w.err = err
