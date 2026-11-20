@@ -211,3 +211,45 @@ test("Edit with no page does nothing", () => {
   btn(env.slots.actions, "Edit").click();
   expect(env.api.callsTo("openEditor")).toHaveLength(0);
 });
+
+test("read-only: no edit actions", async () => {
+  const api = createFakeApi({ sources: { ...SOURCES }, build: { features: [] } });
+  const page = api.page.bind(api);
+  api.page = async (path: string) => {
+    const pg = await page(path);
+    return { ...pg, html: pg.html + `<p><a data-zen-action="edit" href="#">Edit this page</a></p>` };
+  };
+  env = setup(api);
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await tick();
+  expect(article().querySelector("h1")?.textContent).toBe("Sample docs");
+  // no Edit button
+  expect(btn(env.slots.actions, "Edit")).toBeUndefined();
+  // ⌘E is not taken
+  const e = new KeyboardEvent("keydown", { key: "e", metaKey: true, cancelable: true, bubbles: true });
+  document.dispatchEvent(e);
+  expect(e.defaultPrevented).toBe(false);
+  // the layout's Edit this page link is hidden, and does nothing
+  const link = article().querySelector<HTMLElement>("[data-zen-action=edit]")!;
+  expect(link.hidden).toBe(true);
+  link.click();
+  await tick();
+  expect(env.api.callsTo("openEditor")).toHaveLength(0);
+  // reading is unchanged
+  env.ctx.navigate("b.md");
+  await tick();
+  expect(article().querySelector("h1")?.textContent).toBe("B");
+});
+
+test("with the editor the edit link is shown", async () => {
+  const api = createFakeApi({ sources: { ...SOURCES } });
+  const page = api.page.bind(api);
+  api.page = async (path: string) => ({ ...(await page(path)), html: `<p><a data-zen-action="edit" href="#">Edit this page</a></p>` });
+  env = setup(api);
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await tick();
+  expect(article().querySelector<HTMLElement>("[data-zen-action=edit]")!.hidden).toBe(false);
+  expect(btn(env.slots.actions, "Edit")).toBeDefined();
+});

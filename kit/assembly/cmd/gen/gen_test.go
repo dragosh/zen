@@ -132,6 +132,7 @@ func TestNoInjection(t *testing.T) {
 		`templates: ['learning` + "`" + `']`,
 		`theme: 'default"; panic("x")'`,
 		`app: 'demo"; panic("x")'`,
+		`features: ['editor"}; panic("x")']`,
 	} {
 		dir := appDir(t, "app: demo\n"+bad+"\n")
 		code, _, errOut := gen(dir)
@@ -154,5 +155,25 @@ func TestErrors(t *testing.T) {
 	dir := appDir(t, "app: demo\nlayouts: [course]\n")
 	if code, _, errOut := gen(dir); code == 0 || !strings.Contains(errOut, "layout course needs plugin check") {
 		t.Errorf("dependency: code %d, err %q", code, errOut)
+	}
+}
+
+func TestFeaturesGenerated(t *testing.T) {
+	read := func(yml string) string {
+		dir := appDir(t, yml)
+		if code, _, errOut := gen(dir); code != 0 {
+			t.Fatalf("gen: %s", errOut)
+		}
+		src, _ := os.ReadFile(filepath.Join(dir, "assembly_gen.go"))
+		return string(src)
+	}
+	if got := read("app: demo\nfeatures: all\n"); !strings.Contains(got, `Features:  []string{"editor"}`) {
+		t.Errorf("features all:\n%s", got)
+	}
+	if got := read("app: demo\n"); !strings.Contains(got, `Features:  []string{"editor"}`) {
+		t.Errorf("missing features means all:\n%s", got)
+	}
+	if got := read("app: demo\nfeatures: []\n"); !strings.Contains(got, `Features:  []string{}`) {
+		t.Errorf("features none:\n%s", got)
 	}
 }

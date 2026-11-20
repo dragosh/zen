@@ -730,7 +730,7 @@ test("This build section", async () => {
   // the build has no add-ons: the sections after it still list what it is made of
   let api = createFakeApi({
     addons: [],
-    build: { app: "demo", plugins: ["codeblock", "quiz"], layouts: ["article", "docs"], templates: ["learning"], theme: "default" },
+    build: { app: "demo", features: ["editor"], plugins: ["codeblock", "quiz"], layouts: ["article", "docs"], templates: ["learning"], theme: "default" },
   });
   let s = createSettingsView({ api, hasWorkspace: () => true });
   document.body.append(s.el);
@@ -739,7 +739,8 @@ test("This build section", async () => {
   expect(panel(s, "build").querySelector("h2")?.textContent ?? "").toBe("This build");
   const group = (id: string) => panel(s, "build").querySelector<HTMLElement>(`[data-group="${id}"]`)!;
   const heads = Array.from(panel(s, "build").querySelectorAll(".zen-build-group h3")).map((h) => h.textContent);
-  expect(heads).toEqual(["Add-ons", "Plugins", "Layouts", "Templates", "Theme"]);
+  expect(heads).toEqual(["Features", "Add-ons", "Plugins", "Layouts", "Templates", "Theme"]);
+  expect(group("features").querySelector(".zen-build-list")!.textContent).toBe("editor");
   expect(group("addons").textContent).toContain("This build has no add-ons.");
   expect(group("addons").querySelector(".zen-addon")).toBeNull();
   expect(group("plugins").querySelector(".zen-build-list")!.textContent).toBe("codeblock, quiz");
@@ -783,4 +784,23 @@ test("This build section", async () => {
 
 test("the default fake build has the vale add-on", () => {
   expect(createFakeApi().addons?.map((a) => a.id)).toEqual(["vale"]);
+});
+
+test("read-only settings", () => {
+  const api = createFakeApi({ addons: [], build: { app: "hashdish", features: [], plugins: [], layouts: ["article"], templates: [] } });
+  const s = createSettingsView({ api, hasWorkspace: () => true });
+  document.body.append(s.el);
+  s.show();
+  // no Configuration files section: nothing opens the config files
+  expect(section(s, "files")).toBeNull();
+  const names = Array.from(s.el.querySelectorAll(".zen-settings-section")).map((b) => b.textContent);
+  expect(names).toEqual(["Appearance", "Plugins", "Layouts", "Export", "This build", "Developer"]);
+  expect(s.el.textContent).not.toContain("config.yml");
+  // the build section says so, first
+  const features = panel(s, "build").querySelector<HTMLElement>('[data-group="features"]')!;
+  expect(features.textContent).toContain("Read-only (no editor)");
+  expect(Array.from(panel(s, "build").querySelectorAll(".zen-build-group h3"))[0].textContent).toBe("Features");
+  // Export still has its website and PDF parts
+  expect(panel(s, "export").textContent).toContain("Website");
+  s.destroy();
 });

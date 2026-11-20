@@ -102,10 +102,10 @@ describe("wails api", () => {
     results.Startup = {
       workspace: null, page: "", mode: "read",
       addons: [{ id: "vale", name: "Vale linting", summary: "s" }],
-      build: { app: "zenmark", addons: [{ id: "vale", name: "Vale linting", summary: "s" }], plugins: ["codeblock", 3, null, "quiz"], layouts: ["article"], templates: null, theme: "default", extra: 1 },
+      build: { app: "zenmark", features: ["editor", 4], addons: [{ id: "vale", name: "Vale linting", summary: "s" }], plugins: ["codeblock", 3, null, "quiz"], layouts: ["article"], templates: null, theme: "default", extra: 1 },
     };
     const s = await api.startup();
-    const want = { app: "zenmark", addons: [{ id: "vale", name: "Vale linting", summary: "s" }], plugins: ["codeblock", "quiz"], layouts: ["article"], templates: [], theme: "default" };
+    const want = { app: "zenmark", features: ["editor"], addons: [{ id: "vale", name: "Vale linting", summary: "s" }], plugins: ["codeblock", "quiz"], layouts: ["article"], templates: [], theme: "default" };
     expect(s.build).toEqual(want);
     expect(api.build).toEqual(want);
     results.Startup = { workspace: null, page: "", mode: "read" };
