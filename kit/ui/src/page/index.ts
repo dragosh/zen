@@ -155,7 +155,7 @@ export const pageFeature: Feature = {
     // Without the inspector feature there is no panel, no button state and no page info call: the page talks to a stand-in.
     const inspectorOn = hasFeature(ctx.api, "inspector");
     const inspector: Inspector = !inspectorOn ? inertInspector(doc) : createInspector({
-      doc, host: ctx.api, external: true,
+      doc, host: ctx.api, external: true, pageWarnings: true,
       onSelectIssue(_alert: Alert, i: number) {
         const m = lintMarks[i];
         if (!m?.isConnected) return;
@@ -163,6 +163,12 @@ export const pageFeature: Feature = {
         flash(m);
       },
     });
+    // The render warnings of the page are Problems in the Inspector; the bar above the page is for a build without it, so none is lost.
+    const showWarnings = (list: readonly string[]): void => {
+      const shown = inspectorOn ? [] : list;
+      warningText.textContent = shown.join("\n");
+      warnings.hidden = shown.length === 0;
+    };
     // Without the editor feature (a read-only app) there is no Edit button, no ⌘E and no edit links.
     const editable = hasFeature(ctx.api, "editor");
     if (editable) slots.actions.append(edit);
@@ -290,8 +296,7 @@ export const pageFeature: Feature = {
       if (!keepScroll) inspector.setIssues("checking");
       inspector.setPage(path, page, article);
       void lint(path, mine);
-      warningText.textContent = page.warnings.join("\n");
-      warnings.hidden = page.warnings.length === 0;
+      showWarnings(page.warnings);
       doc.title = `${page.title} — ${ctx.brand}`;
       ctx.store.set({ page });
       if (keepScroll) main.scrollTop = scroll;
@@ -354,8 +359,7 @@ export const pageFeature: Feature = {
       render(page);
       inspector.setPage(path, page, article);
       void lint(path, mine, content);
-      warningText.textContent = page.warnings.join("\n");
-      warnings.hidden = page.warnings.length === 0;
+      showWarnings(page.warnings);
       doc.title = `${page.title} — ${ctx.brand}`;
       ctx.store.set({ page });
       main.scrollTop = scroll;

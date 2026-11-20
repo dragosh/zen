@@ -788,7 +788,6 @@ test("bare shell", async () => {
   expect(root.querySelector('[role="radiogroup"][aria-label="Navigation"]')).toBeNull(); // no nav: no side to choose
   // Zenmark › About is the standard macOS panel: the web page has no About sheet and does not listen for menu:about
   esc();
-  (bare as unknown as { emit(e: string, p: undefined): void }).emit("menu:about", undefined);
   expect(document.querySelector(".zen-about")).toBeNull();
   // shortcuts of missing features do nothing; Open Folder and Settings stay
   esc();
@@ -1056,11 +1055,10 @@ test("the welcome fade waits until the window is shown (appReady resolves), then
 
 // ---- ui/settings-layout: Open Console, File › Export › Website…
 
-test("menu:about is gone: no About sheet, in a full build or after destroy", async () => {
+test("there is no About sheet in the web page: Zenmark › About is the standard macOS panel", async () => {
   const api = createFakeApi({ startup: { workspace: sampleWorkspace(), page: "README.md", mode: "read" }, build: { version: "1.2.3" } });
   const s = boot(api);
   await s.start();
-  (api as unknown as { emit(e: string, p: undefined): void }).emit("menu:about", undefined);
   expect(document.querySelector(".zen-about")).toBeNull();
   expect(document.body.textContent).not.toContain("Version 1.2.3");
 });

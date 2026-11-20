@@ -197,7 +197,7 @@ test("the collapse chevron sits before the close button, after the tools", () =>
 test("panelColumns: a main column on the left and a details column on the right", () => {
   const c = panelColumns();
   expect(c.el.classList.contains("zen-panel-cols")).toBe(true);
-  expect(Array.from(c.el.children)).toEqual([c.left, c.right]);
+  expect(Array.from(c.el.children)).toEqual([c.left, c.el.querySelector('[role="separator"]'), c.right]);
   expect(c.left.classList.contains("zen-panel-col-main")).toBe(true);
   expect(c.right.classList.contains("zen-panel-col-side")).toBe(true);
 });
@@ -272,14 +272,6 @@ test("resizable columns: a stored split comes back, a value outside 25-75% is cl
   const n = Number(sized("info").sep.getAttribute("aria-valuenow"));
   expect(n).toBeGreaterThanOrEqual(25);
   expect(n).toBeLessThanOrEqual(75);
-});
-
-test("resizable columns: every column scrolls on its own and wraps, and the separator hides when the columns stack", async () => {
-  const { readFileSync } = await import("node:fs");
-  const css = readFileSync(new URL("./panel.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-  expect(css).toMatch(/\.zen-panel-col\s*\{[^}]*overflow-wrap:\s*anywhere/);
-  expect(css).toMatch(/@container \(max-width:\s*700px\)\s*\{[^@]*\.zen-panel-sep\s*\{[^}]*display:\s*none/);
-  expect(css).toMatch(/\.zen-panel-sep:(hover|focus-visible)[^{]*\{[^}]*--fg-muted/);
 });
 
 test("resizable columns: without an id nothing is stored, and the key follows the tab id", () => {

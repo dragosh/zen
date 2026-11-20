@@ -9,7 +9,7 @@
 import type { Alert } from "../host";
 import { severityOf } from "../lint";
 
-export type ProblemKind = "link" | "image" | "spelling";
+export type ProblemKind = "link" | "image" | "spelling" | "warning";
 export type ProblemSeverity = "error" | "warning" | "suggestion";
 
 export type Problem = {
@@ -22,6 +22,8 @@ export type Problem = {
   where: string;
   /** broken-link, missing-image, or the Vale check ("Vale.Spelling"). */
   rule: string;
+  /** Warnings: what to do about it, when it is known. */
+  fix?: string;
   /** Checks: the element in the page. */
   el?: HTMLElement;
   /** Spelling: the alert and its index in the list the host gave. */
@@ -59,6 +61,21 @@ export function missingImage(img: HTMLImageElement): Problem {
     message: "Missing image: the file could not be loaded.",
     where: `Image: ${label}`,
   };
+}
+
+/** What to do about a render warning the renderer is known to give; "" for any other. */
+export function warningFix(message: string): string {
+  if (/^dialect \S+ is not in this build/.test(message)) return "Settings › Markdown, or remove it from .zen.yml";
+  if (/^unknown layout\b/.test(message)) return "Settings › Layouts, or change layout: in the front matter";
+  return "";
+}
+
+/** The render warnings of a page (`Page.warnings`) as problems: a dialect not in the build, an unknown layout. Plain text, as they come. */
+export function warningProblems(warnings: readonly string[]): Problem[] {
+  return warnings.map((message) => {
+    const fix = warningFix(message);
+    return { kind: "warning", severity: "warning", label: message, message, where: "Page", rule: "page-warning", ...(fix ? { fix } : {}) };
+  });
 }
 
 export function spellingProblems(alerts: readonly Alert[]): Problem[] {

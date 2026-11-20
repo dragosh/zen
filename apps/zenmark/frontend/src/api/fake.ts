@@ -10,7 +10,7 @@ type Method = "startup" | "appReady" | "pickFolder" | "cancelOpen" | "closeFolde
   | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys"
   | "reorderNav" | "setNavHidden" | "dialects" | "setDialect" | "dialectHint" | "dismissDialectHint"
   | "logs" | "layouts" | "layoutTrust" | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys";
-type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "layouts:changed": undefined; "menu:new-page": undefined; "menu:settings": undefined; "menu:about": undefined; "menu:close-folder": undefined; "workspace:opening": OpenProgress; "menu:new-site": undefined; "menu:build-website": undefined; "build:progress": BuildProgress; "menu:print-page": undefined; "menu:find": undefined; "menu:find-next": undefined; "menu:find-previous": undefined; "menu:zoom-in": undefined; "menu:zoom-out": undefined; "menu:zoom-reset": undefined };
+type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "layouts:changed": undefined; "menu:new-page": undefined; "menu:settings": undefined; "menu:close-folder": undefined; "workspace:opening": OpenProgress; "menu:new-site": undefined; "menu:build-website": undefined; "build:progress": BuildProgress; "menu:print-page": undefined; "menu:find": undefined; "menu:find-next": undefined; "menu:find-previous": undefined; "menu:zoom-in": undefined; "menu:zoom-out": undefined; "menu:zoom-reset": undefined };
 
 /** A plugin as tests write it: the help and what it adds default to nothing. */
 export type PluginSeed = Omit<PluginInfo, "help" | "blocks" | "inlines" | "layouts" | "options"> & Partial<Pick<PluginInfo, "help" | "blocks" | "inlines" | "layouts" | "options">>;
@@ -218,7 +218,6 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     "layouts:changed": new Set(),
     "menu:new-page": new Set(),
     "menu:settings": new Set(),
-    "menu:about": new Set(),
     "menu:close-folder": new Set(),
     "workspace:opening": new Set(),
     "menu:new-site": new Set(),

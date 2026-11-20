@@ -143,7 +143,7 @@ test("the panel is tabbed and remembers the tab", async () => {
   mount();
   await settle();
   const tabs = Array.from(panel().querySelectorAll('[role="tab"]'));
-  expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual(["false", "true", "false"]); // Page Info, Problems, Console (hidden while its switch is off)
+  expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual(["false", "true", "false", "false"]); // Page Info, Problems, Console and Build (hidden while its switch is off)
 });
 
 // ---- ui/inspector-polish: warnings go to Problems
@@ -161,7 +161,7 @@ test("warnings go to Problems: the bar stays empty with the inspector feature, a
   mount();
   await settle();
   expect(bar().hidden).toBe(true);
-  expect(bar().textContent).toBe("");
+  expect(bar().querySelector(".zen-page-warnings-text")!.textContent).toBe("");
   expect(problemRows()).toHaveLength(2);
   expect(problemRows()[0]).toContain('unknown layout "slides"');
   expect(states.at(-1)?.count).toBe(2 + 1); // two warnings and the spelling alert

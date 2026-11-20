@@ -268,7 +268,7 @@ test("page warnings: the live reload replaces them, and the selection stays on t
   expect(detail(i, "message")).toBe(LAYOUT);
   i.setPage("a.md", { ...page(), warnings: [] }, r);
   expect(rows(i)).toHaveLength(0);
-  expect(i.el.querySelector('[data-tab="problems"] .zen-panel-count')!.hidden).toBe(true);
+  expect(i.el.querySelector<HTMLElement>('[data-tab="problems"] .zen-panel-count')!.hidden).toBe(true);
 });
 
 test("page warnings: an inspector that is not told to list them (the editor's) does not", () => {

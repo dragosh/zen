@@ -4,7 +4,7 @@
 // editor under a small header.
 import type { Api, NavNode, Workspace } from "../api";
 import {
-  applyAppTheme, button, closeWindowKey, createHistory, createInspector, INSPECTOR_CONSOLE, createLayout, createOpening, createStore, developerEnabled, el, followDeveloper, hasFeature, mountPreview, openAbout, reloadKey, shellAction,
+  applyAppTheme, button, closeWindowKey, createHistory, createInspector, INSPECTOR_CONSOLE, createLayout, createOpening, createStore, developerEnabled, el, followDeveloper, hasFeature, mountPreview, reloadKey, shellAction,
   type Ctx, type Feature, type Inspector, type Layout, type Store,
 } from "@zenmd/kit";
 import { navSideRow } from "@zenmd/kit/shell/layout";
@@ -641,10 +641,6 @@ export function createShell(root: HTMLElement, { api, features, search, random =
   const offNewSite = siteApi ? siteApi.on("menu:new-site", () => showNewSite()) : () => {};
   // Zen › Settings… (⌘,) from any window: Go shows the main window first.
   const offSettings = api.on("menu:settings", openSettings);
-  // Zenmark › About Zenmark: a sheet in the main window with the version and what the build is made of.
-  const offAbout = api.on("menu:about", () => {
-    if (kind.kind === "main") openAbout(doc, { host: api, name: BRAND, version: api.build?.version || "dev", logoUrl });
-  });
   // File › Close Folder (⇧⌘W): Go closes the editor windows first (each may keep its changes), then the folder.
   let closing = false;
   async function closeFolder(): Promise<void> {
@@ -699,7 +695,6 @@ export function createShell(root: HTMLElement, { api, features, search, random =
       offNewSite();
       newSite?.close();
       offSettings();
-      offAbout();
       offCloseFolder();
       offOpened();
       offOpening();

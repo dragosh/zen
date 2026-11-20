@@ -5,7 +5,7 @@ const css = readFileSync(new URL("./panel.css", import.meta.url), "utf8").replac
 
 test("panel.css uses tokens only", () => {
   expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(|hsla?\(|oklch\(/i);
-  const known = ["--bg", "--bg-subtle", "--fg", "--fg-muted", "--rule", "--font-ui", "--font-mono", "--radius", "--btn-bg", "--btn-bg-hover", "--focus", "--lint-error", "--lint-warning"]
+  const known = ["--bg", "--bg-subtle", "--fg", "--fg-muted", "--rule", "--font-ui", "--font-mono", "--radius", "--btn-bg", "--btn-bg-hover", "--focus", "--lint-error", "--lint-warning", "--zen-cols-left" /* the split panelColumns sets */]
     .concat(Array.from({ length: 7 }, (_, i) => `--space-${i + 1}`));
   for (const m of Array.from(css.matchAll(/var\((--[a-z0-9-]+)/g))) expect(known).toContain(m[1]);
 });
@@ -19,4 +19,11 @@ test("two columns scroll on their own and stack under 700 px", () => {
   expect(css).toMatch(/\.zen-panel-col\s*\{[^}]*overflow:\s*auto/);
   expect(css).toMatch(/@container \(max-width:\s*700px\)/);
   expect(css).toMatch(/\.zen-panel\.is-collapsed/);
+});
+
+test("resizable columns: every column wraps, the separator is a muted rule on hover and focus, and it hides when the columns stack", () => {
+  expect(css).toMatch(/\.zen-panel-col\s*\{[^}]*overflow-wrap:\s*anywhere/);
+  expect(css).toMatch(/@container \(max-width:\s*700px\)\s*\{[^@]*\.zen-panel-sep\s*\{[^}]*display:\s*none/);
+  expect(css).toMatch(/\.zen-panel-sep:hover[^{]*\{[^}]*--fg-muted/);
+  expect(css).toMatch(/\.zen-panel-sep:focus-visible/);
 });
