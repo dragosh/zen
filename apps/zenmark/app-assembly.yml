@@ -2,11 +2,16 @@
 # that kind, so a new built-in joins Zenmark without editing this file; a niche
 # app lists only what it needs. After editing, `task build` regenerates
 # assembly_gen.go (or run: go run ./kit/assembly/cmd/gen apps/zenmark).
+#
+# Zenmark is being rebuilt from a starting shell (specs/kit/shell-features): the
+# main view, the sidebar, the page view, Settings, the Inspector and the Developer
+# panel. Each step of the roadmap adds ids here, checks them in the real app and
+# updates the guide. When `features: all` is back, Zenmark is at parity for 0.7.0.
 app: zenmark
-features: all
+features: [reader, nav, inspector, developer]
 addons: []
-plugins: all
-layouts: all
-templates: all
-dialects: all
+plugins: []
+layouts: [article]
+templates: []
+dialects: []
 theme: default
