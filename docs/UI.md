@@ -75,7 +75,7 @@ Spacing scale 4/8/12/16/24/32/48. Radius 6px. No shadows except the modal.
 ```
 
 - **Sidebar.** Workspace name on top, with Open… (⌘O) in the top-right corner
-  and a settings cog (⌘,) at the bottom. The cog opens a Settings page in the main pane (the sidebar stays; Esc or Back returns): a section list (Appearance, Configuration files, Plugins) on the left, the section on the right. Plugins is a list with the help of the selected plugin beside it. Tree of pages; a node with children has
+  and a settings cog (⌘,) at the bottom. The cog opens a Settings page in the main pane (the sidebar stays; Esc or Back returns): the section list (Appearance, Configuration, Markdown, Layouts, Plugins, Templates, Export, Developer, each only when its feature is in the build) on the left, and every section in two columns: its items on the left, the selected item's preview, help and actions on the right (ui/settings-layout). Export and the Developer switch work in place. What the build contains is in Zenmark › About. Tree of pages; a node with children has
   a disclosure triangle and is itself a page. Current page is marked with a
   filled background (`--btn-bg`) and `aria-current="page"`. "Other pages"
   lists files nothing links to. Arrow keys move, Enter opens, ←/→ collapse/expand.
