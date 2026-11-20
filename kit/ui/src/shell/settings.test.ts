@@ -88,8 +88,10 @@ test("two-column frame: the selected item is remembered per section for the sess
   await settle();
   rows(v, "a")[1].click();
   tab(v, "b").click();
+  await settle();
   rows(v, "b")[1].click();
   tab(v, "a").click();
+  await settle();
   v.show(); // the page is shown again: lists re-read, selection kept
   await settle();
   expect(rows(v, "a").map((r) => r.getAttribute("aria-selected"))).toEqual(["false", "true"]);
@@ -113,6 +115,8 @@ test("two-column frame: stacks below 720 px, an empty list shows its empty text,
   expect(v.el.classList.contains("zen-settings-narrow")).toBe(false);
   expect(detail(v, "empty").textContent).toBe("Nothing here.");
   expect(rows(v, "empty")).toHaveLength(0);
+  tab(v, "cur").click();
+  await settle();
   expect(rows(v, "cur").map((r) => r.getAttribute("aria-selected"))).toEqual(["false", "true"]); // current() wins over "first"
   expect(picked).toEqual([]); // not picked by the frame itself
   rows(v, "cur")[0].click();

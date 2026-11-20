@@ -297,7 +297,6 @@ test("plugin, layout and template lists", async () => {
   expect(note("note")).toBe("Not allowed yet · This folder");
   expect(note("old")).toBe("Blocked · This folder");
   expect(note("broken")).toBe("Invalid · This folder");
-  expect(row(s, "plugins", "broken").dataset.status).toBe("invalid");
   // layouts
   const l = setup({ layouts: LAYOUTS });
   await go(l.s, "layouts");
@@ -320,7 +319,7 @@ test("plugins: the list reads the API each time the page is shown; text is plain
   const { api, s } = await pluginView();
   s.show();
   await settle();
-  expect(api.callsTo("plugins")).toHaveLength(3); // page shown, section chosen (and shown again)
+  expect(api.callsTo("plugins")).toHaveLength(2); // the section chosen, and the page shown again
   expect(panel(s, "plugins").querySelector("b, img")).toBeNull();
   row(s, "plugins", "broken").click();
   expect(help(s).textContent).toContain("id must equal the folder name <b>x</b>");
@@ -518,7 +517,7 @@ test("layouts: Allow/Block only for external, valid layouts; they call layoutTru
   await settle();
   expect(api.callsTo("layoutTrust")).toEqual([["memo", true]]);
   expect(api.callsTo("pluginTrust")).toEqual([]);
-  expect(row(s, "layouts", "memo").dataset.status).toBe("on");
+  expect(row(s, "layouts", "memo").querySelector(".zen-settings-item-note")!.textContent).toBe("This folder");
   expect(t()!.textContent).toBe("Block");
   expect(row(s, "layouts", "memo").getAttribute("aria-selected")).toBe("true");
   api.failNext("layoutTrust", new Error("<i>denied</i>"));
@@ -589,7 +588,7 @@ function exportSetup(o: { hasWorkspace?: boolean; view?: Opts["view"]; features?
     ...(o.view?.build ?? {}),
   } as unknown as BuildApi;
   const has = o.hasWorkspace ?? true;
-  const s = createSettingsView({ api: base, hasWorkspace: () => has, build, root: () => (has ? "/Users/me/site" : ""), ...o.view, ...{ build } });
+  const s = createSettingsView({ api: base, hasWorkspace: () => has, root: () => (has ? "/Users/me/site" : ""), ...o.view, build });
   document.body.append(s.el);
   s.show();
   return { api: base, build, s };
@@ -644,7 +643,9 @@ test("export in place: PDF, the last PDF, no folder", async () => {
 });
 
 test("export in place: the PDF item only with print; a build that runs keeps running when the reader leaves, and the result shows on return", async () => {
-  expect(rows(exportSetup({ features: ["export"] }).s, "export").map((r) => r.dataset.item)).toEqual(["website"]);
+  const only = exportSetup({ features: ["export"] });
+  await go(only.s, "export");
+  expect(rows(only.s, "export").map((r) => r.dataset.item)).toEqual(["website"]);
   let finish: (r: unknown) => void = () => {};
   const { s, build } = exportSetup({ view: { build: { buildWebsite: vi.fn(() => new Promise((res) => { finish = res; })) } as unknown as Partial<BuildApi> } });
   await go(s, "export");

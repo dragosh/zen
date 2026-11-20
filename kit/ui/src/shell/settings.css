@@ -1,0 +1,47 @@
+/* Settings in two columns (shell/settings.ts) and the About sheet (shell/about.ts). Tokens of docs/UI.md only. */
+.zen-settings-cols { display: grid; grid-template-columns: 240px minmax(0, 1fr); align-items: start; }
+.zen-settings-cols.zen-settings-single { display: block; }
+.zen-settings-list { display: flex; flex-direction: column; gap: 2px; padding-right: var(--space-3); border-right: 1px solid var(--rule); min-height: 120px; }
+.zen-settings-detail { min-width: 0; padding-left: var(--space-5); font-size: 13px; line-height: 1.5; }
+.zen-settings-single .zen-settings-detail { padding-left: 0; }
+.zen-settings-detail-title { margin: 0 0 var(--space-3); font: 600 15px var(--font-ui); }
+.zen-settings-item {
+  display: flex; flex-direction: column; gap: 1px;
+  padding: 6px var(--space-2); border-radius: var(--radius);
+  color: var(--fg-muted); cursor: pointer; overflow-wrap: anywhere;
+}
+.zen-settings-item:hover { background: var(--btn-bg); color: var(--fg); }
+.zen-settings-item[aria-selected="true"] { background: var(--btn-bg); color: var(--fg); font-weight: 600; }
+.zen-settings-item[aria-disabled="true"] { opacity: 0.5; cursor: default; }
+.zen-settings-item[aria-disabled="true"]:hover { background: none; color: var(--fg-muted); }
+.zen-settings-item:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.zen-settings-item-note { font-size: 11px; font-weight: 400; color: var(--fg-muted); }
+/* Below 720 px the right column goes under the left one. */
+.zen-settings-narrow .zen-settings-cols { grid-template-columns: minmax(0, 1fr); }
+.zen-settings-narrow .zen-settings-list { padding: 0 0 var(--space-3); border-right: 0; border-bottom: 1px solid var(--rule); }
+.zen-settings-narrow .zen-settings-detail { padding: var(--space-4) 0 0; }
+.zen-settings-detail pre.zen-settings-file-preview { margin: 0 0 var(--space-3); padding: var(--space-3); max-height: 50vh; overflow: auto; background: var(--bg-subtle); border-radius: var(--radius); font: 12px var(--font-mono); white-space: pre-wrap; overflow-wrap: anywhere; }
+.zen-settings-actions { display: flex; flex-wrap: wrap; gap: var(--space-2); margin: var(--space-3) 0 0; }
+
+/* The Appearance preview: the tokens of each theme, set here so the preview shows a theme the page is not in. */
+.zen-theme-preview { margin: var(--space-3) 0; padding: var(--space-4); max-width: 46ch; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--bg); color: var(--fg); }
+.zen-theme-preview[data-theme="light"] { --bg: #ffffff; --bg-subtle: #f5f5f4; --fg: #111111; --fg-muted: #6b6b6b; --rule: #e2e2e0; }
+.zen-theme-preview[data-theme="dark"] { --bg: #0b0b0b; --bg-subtle: #161616; --fg: #ededed; --fg-muted: #9a9a9a; --rule: #2a2a2a; }
+.zen-theme-preview-title { margin: 0 0 var(--space-2); font: 600 1.3rem var(--font-body); }
+.zen-theme-preview-text { margin: 0; font: 15px/1.6 var(--font-body); }
+.zen-theme-preview a { color: var(--fg); text-decoration: underline; }
+.zen-theme-preview code { padding: 1px 4px; background: var(--bg-subtle); border-radius: 3px; font: 0.88em var(--font-mono); }
+
+/* About */
+.zen-about-backdrop { position: fixed; inset: 0; z-index: 40; display: flex; align-items: flex-start; justify-content: center; padding: 8vh 16px 16px; background: color-mix(in srgb, var(--fg) 18%, transparent); }
+.zen-about {
+  width: min(460px, 100%); max-height: 84vh; overflow: auto; box-sizing: border-box; padding: var(--space-5);
+  background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: var(--radius);
+  box-shadow: 0 12px 32px color-mix(in srgb, var(--fg) 18%, transparent); font-family: var(--font-ui); font-size: 13px;
+}
+.zen-about-head { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); margin-bottom: var(--space-4); text-align: center; }
+.zen-about-logo { width: 56px; height: 56px; }
+.zen-about-name { margin: var(--space-2) 0 0; font: 600 20px var(--font-ui); }
+.zen-about-version, .zen-about-copyright { margin: 0; color: var(--fg-muted); font-size: 12px; }
+.zen-about-foot { display: flex; justify-content: flex-end; margin-top: var(--space-4); }
+@media (prefers-reduced-motion: reduce) { .zen-about, .zen-settings-item { transition: none; } }
