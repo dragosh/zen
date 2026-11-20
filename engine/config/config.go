@@ -533,3 +533,6 @@ func cloneValue(v any) any {
 	}
 	return v
 }
+
+// Dialects is a stub until the next commit.
+func (c *Config) Dialects() []string { return nil }

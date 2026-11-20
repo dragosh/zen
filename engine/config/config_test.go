@@ -472,3 +472,68 @@ func TestLayoutDefaultsInvalid(t *testing.T) {
 		t.Errorf("layouts must be a mapping: %v", w)
 	}
 }
+
+func TestMarkdownDialects(t *testing.T) {
+	dir := t.TempDir()
+	global := filepath.Join(t.TempDir(), "config.yml")
+	write := func(p, s string) {
+		if err := os.WriteFile(p, []byte(s), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	// none by default
+	if got := Default().Dialects(); len(got) != 0 {
+		t.Errorf("default: %v", got)
+	}
+	// the folder's .zen.yml chooses them
+	write(filepath.Join(dir, WorkspaceFile), "markdown:\n  dialects: [myst, mkdocs]\n")
+	c := Load("", dir)
+	if got := c.Dialects(); !reflect.DeepEqual(got, []string{"myst", "mkdocs"}) {
+		t.Errorf("folder: %v", got)
+	}
+	if len(c.Warnings()) != 0 {
+		t.Errorf("warnings: %v", c.Warnings())
+	}
+	// flow mapping
+	write(filepath.Join(dir, WorkspaceFile), "markdown: { dialects: [myst] }\n")
+	if got := Load("", dir).Dialects(); !reflect.DeepEqual(got, []string{"myst"}) {
+		t.Errorf("flow: %v", got)
+	}
+	// the global config cannot
+	write(global, "markdown:\n  dialects: [myst]\n")
+	write(filepath.Join(dir, WorkspaceFile), "version: 1\n")
+	c = Load(global, dir)
+	if got := c.Dialects(); len(got) != 0 {
+		t.Errorf("global: %v", got)
+	}
+	if w := strings.Join(c.Warnings(), "\n"); !strings.Contains(w, "markdown") || !strings.Contains(w, ".zen.yml") {
+		t.Errorf("global warning: %q", w)
+	}
+	// front matter cannot, and says so
+	write(filepath.Join(dir, WorkspaceFile), "markdown:\n  dialects: [myst]\n")
+	s := Load("", dir).ForPage(map[string]any{"markdown": map[string]any{"dialects": []any{"mkdocs"}}})
+	if w := strings.Join(s.Warnings, "\n"); !strings.Contains(w, "frontmatter: markdown") {
+		t.Errorf("frontmatter warning: %q", w)
+	}
+	if got := Load("", dir).Dialects(); !reflect.DeepEqual(got, []string{"myst"}) {
+		t.Errorf("frontmatter changed the folder's: %v", got)
+	}
+	// wrong shapes warn and contribute nothing
+	for yml, want := range map[string]string{
+		"markdown: yes\n":                      "markdown must be a mapping",
+		"markdown:\n  dialects: myst\n":        "dialects must be a list",
+		"markdown:\n  dialects: [Bad Id, 3]\n": "dialects",
+		"markdown:\n  other: 1\n":              "markdown.other",
+	} {
+		write(filepath.Join(dir, WorkspaceFile), yml)
+		c := Load("", dir)
+		if len(c.Dialects()) != 0 || !strings.Contains(strings.Join(c.Warnings(), "\n"), want) {
+			t.Errorf("%q: %v, warnings %v", yml, c.Dialects(), c.Warnings())
+		}
+	}
+	// a repeated id counts once
+	write(filepath.Join(dir, WorkspaceFile), "markdown:\n  dialects: [myst, myst]\n")
+	if got := Load("", dir).Dialects(); !reflect.DeepEqual(got, []string{"myst"}) {
+		t.Errorf("repeat: %v", got)
+	}
+}

@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/zenmark-org/zenmd/engine/config"
+	"github.com/zenmark-org/zenmd/engine/dialects"
 	"github.com/zenmark-org/zenmd/engine/layouts"
 	"github.com/zenmark-org/zenmd/engine/plugins"
 	"github.com/zenmark-org/zenmd/engine/workspace"
@@ -415,3 +416,6 @@ func nodeText(n ast.Node, src []byte) string {
 	})
 	return b.String()
 }
+
+// WithDialects is a stub until the next commit.
+func (r *Renderer) WithDialects(reg *dialects.Registry) *Renderer { return r }
