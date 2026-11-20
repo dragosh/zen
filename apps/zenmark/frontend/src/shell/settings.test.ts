@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { afterEach, beforeEach, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import type { LayoutInfo, PluginInfo, SiteTemplate } from "../api";
 import { createFakeApi, MYST_DIALECT, ZENMARK_BUILD } from "../api/fake";
 import { rememberBuild, type BuildApi } from "./buildsite";
@@ -91,24 +91,24 @@ test("section list per build", () => {
     s.destroy();
     return n;
   };
-  expect(list()).toEqual(["Appearance", "Configuration", "Markdown", "Layouts", "Plugins", "Templates", "Export", "Developer"]); // the full build; no This build
+  expect(list()).toEqual(["Appearance", "Accessibility", "Configuration", "Markdown", "Layouts", "Plugins", "Templates", "Export", "Developer"]); // the full build; no This build
   // the starting shell
-  expect(list(["reader", "nav", "inspector", "developer"])).toEqual(["Appearance", "Markdown", "Layouts", "Plugins", "Developer"]);
+  expect(list(["reader", "nav", "inspector", "developer"])).toEqual(["Appearance", "Accessibility", "Markdown", "Layouts", "Plugins", "Developer"]);
   // the bare shell
-  expect(list([])).toEqual(["Appearance"]);
+  expect(list([])).toEqual(["Appearance", "Accessibility"]);
   // a feature brings its section
-  expect(list(["reader", "editor"])).toEqual(["Appearance", "Configuration", "Markdown", "Layouts", "Plugins"]);
-  expect(list(["newsite"])).toEqual(["Appearance", "Templates"]);
-  expect(list(["export"])).toEqual(["Appearance", "Export"]);
-  expect(list(["developer"])).toEqual(["Appearance", "Developer"]);
-  expect(list(["editor"])).toEqual(["Appearance", "Configuration"]);
-  expect(list(["reader"])).toEqual(["Appearance", "Markdown", "Layouts", "Plugins"]);
+  expect(list(["reader", "editor"])).toEqual(["Appearance", "Accessibility", "Configuration", "Markdown", "Layouts", "Plugins"]);
+  expect(list(["newsite"])).toEqual(["Appearance", "Accessibility", "Templates"]);
+  expect(list(["export"])).toEqual(["Appearance", "Accessibility", "Export"]);
+  expect(list(["developer"])).toEqual(["Appearance", "Accessibility", "Developer"]);
+  expect(list(["editor"])).toEqual(["Appearance", "Accessibility", "Configuration"]);
+  expect(list(["reader"])).toEqual(["Appearance", "Accessibility", "Markdown", "Layouts", "Plugins"]);
 });
 
 test("every section is two columns, and the arrows of the section list move through the sections", async () => {
   const { s } = setup();
   await settle();
-  for (const id of ["appearance", "config", "markdown", "layouts", "plugins", "templates", "export", "developer"]) {
+  for (const id of ["appearance", "accessibility", "config", "markdown", "layouts", "plugins", "templates", "export", "developer"]) {
     expect(panel(s, id).querySelector(".zen-settings-cols"), id).not.toBeNull();
   }
   expect(s.el.querySelector("h1")!.textContent).toBe("Settings");
@@ -691,4 +691,144 @@ test("developer section is wired: the switch, and Open Console goes to the shell
   const open = Array.from(d.querySelectorAll("button")).find((b) => b.textContent!.includes("Open Console"))!;
   open.click();
   expect(openConsole).toHaveBeenCalledTimes(1);
+});
+
+// ---- ui/accessibility: Settings › Accessibility, in the two-column frame
+
+const spin = (s: SettingsView, label: string) => detail(s, "accessibility").querySelector<HTMLElement>(`[role=spinbutton][aria-label="${label}"]`)!;
+const group = (s: SettingsView, label: string) => detail(s, "accessibility").querySelector<HTMLElement>(`[role=radiogroup][aria-label="${label}"]`)!;
+const radio = (g: HTMLElement, text: string) => Array.from(g.querySelectorAll<HTMLElement>("[role=radio]")).find((r) => r.textContent === text)!;
+const a11yRoot = () => document.documentElement;
+const resetBtn = (s: SettingsView) => btn(detail(s, "accessibility"), "Reset to defaults");
+
+describe("Accessibility section", () => {
+  beforeEach(() => {
+    for (const k of Object.keys(localStorage)) if (k.startsWith("zen.a11y.")) localStorage.removeItem(k);
+    delete a11yRoot().dataset.reduceMotion;
+    delete a11yRoot().dataset.contrast;
+    delete a11yRoot().dataset.linkUnderline;
+    a11yRoot().removeAttribute("style");
+  });
+
+  test("it is in the bare shell, and Reading only with reader", async () => {
+    const bare = setup({ features: [] });
+    await go(bare.s, "accessibility");
+    expect(names(bare.s)).toEqual(["Appearance", "Accessibility"]);
+    expect(rows(bare.s, "accessibility").map((r) => r.dataset.item)).toEqual(["zoom", "motion", "contrast"]);
+    expect(rows(bare.s, "accessibility").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["Zoom", "Motion", "Contrast"]);
+    bare.s.destroy();
+    document.body.replaceChildren();
+
+    const full = setup({ features: ["reader"] });
+    await go(full.s, "accessibility");
+    expect(rows(full.s, "accessibility").map((r) => r.dataset.item)).toEqual(["zoom", "motion", "contrast", "reading"]);
+    // two columns: the list, and the right column with the item's controls
+    expect(panel(full.s, "accessibility").querySelector(".zen-settings-cols")).not.toBeNull();
+    expect(detail(full.s, "accessibility").querySelector("h3")!.textContent).toBe("Zoom");
+  });
+
+  test("zoom: a stepper that shows the value, and sets the whole window", async () => {
+    const zooms: number[] = [];
+    const { s } = setup({ features: [], view: { setZoom: (z: number) => zooms.push(z) } });
+    await go(s, "accessibility", "zoom");
+    const z = spin(s, "Zoom");
+    expect(z.getAttribute("aria-valuetext")).toBe("100 percent");
+    expect(z.textContent).toContain("100%");
+    expect(resetBtn(s).disabled).toBe(true); // at the defaults
+    btn(detail(s, "accessibility"), "+").click();
+    expect(zooms).toEqual([1.1]);
+    expect(localStorage.getItem("zen.a11y.zoom")).toBe("1.1");
+    expect(spin(s, "Zoom").getAttribute("aria-valuetext")).toBe("110 percent");
+    expect(spin(s, "Zoom").textContent).toContain("110%");
+    expect(resetBtn(s).disabled).toBe(false);
+    // the keys of a spinbutton: arrows, Home and End
+    key(spin(s, "Zoom"), "ArrowUp");
+    expect(zooms.at(-1)).toBe(1.25);
+    key(spin(s, "Zoom"), "ArrowDown");
+    expect(zooms.at(-1)).toBe(1.1);
+    key(spin(s, "Zoom"), "End");
+    expect(zooms.at(-1)).toBe(2);
+    expect(btn(detail(s, "accessibility"), "+").disabled).toBe(true); // the end
+    key(spin(s, "Zoom"), "Home");
+    expect(zooms.at(-1)).toBe(0.75);
+    expect(btn(detail(s, "accessibility"), "−").disabled).toBe(true);
+    // Reset puts it back, in the window too
+    resetBtn(s).click();
+    expect(zooms.at(-1)).toBe(1);
+    expect(localStorage.getItem("zen.a11y.zoom")).toBeNull();
+    expect(spin(s, "Zoom").getAttribute("aria-valuetext")).toBe("100 percent");
+    expect(resetBtn(s).disabled).toBe(true);
+  });
+
+  test("motion and contrast apply at once; each radiogroup takes arrow keys", async () => {
+    const { s } = setup({ features: [] });
+    await go(s, "accessibility", "motion");
+    const m = group(s, "Reduce motion");
+    expect(Array.from(m.querySelectorAll("[role=radio]")).map((r) => r.textContent)).toEqual(["System", "On"]);
+    expect(radio(m, "System").getAttribute("aria-checked")).toBe("true");
+    radio(m, "On").click();
+    expect(a11yRoot().dataset.reduceMotion).toBe("on");
+    expect(localStorage.getItem("zen.a11y.reduceMotion")).toBe("on");
+    expect(radio(group(s, "Reduce motion"), "On").getAttribute("aria-checked")).toBe("true");
+    key(radio(group(s, "Reduce motion"), "On"), "ArrowLeft");
+    expect(a11yRoot().dataset.reduceMotion).toBeUndefined();
+    await go(s, "accessibility", "contrast");
+    radio(group(s, "Increase contrast"), "On").click();
+    expect(a11yRoot().dataset.contrast).toBe("more");
+    expect(resetBtn(s).disabled).toBe(false);
+    resetBtn(s).click();
+    expect(a11yRoot().dataset.contrast).toBeUndefined();
+  });
+
+  test("reading: text size, font, spacing, width, underline and a live sample", async () => {
+    const { s } = setup({ features: ["reader"] });
+    await go(s, "accessibility", "reading");
+    const size = spin(s, "Text size");
+    expect(size.getAttribute("aria-valuetext")).toBe("17 pixels");
+    key(size, "ArrowUp");
+    expect(a11yRoot().style.getPropertyValue("--zen-text-size")).toBe("18px");
+    expect(spin(s, "Text size").getAttribute("aria-valuetext")).toBe("18 pixels");
+    key(spin(s, "Text size"), "End");
+    expect(a11yRoot().style.getPropertyValue("--zen-text-size")).toBe("28px");
+    key(spin(s, "Text size"), "Home");
+    expect(a11yRoot().style.getPropertyValue("--zen-text-size")).toBe("14px");
+    radio(group(s, "Font"), "Sans").click();
+    expect(a11yRoot().style.getPropertyValue("--zen-text-font")).toBe("var(--font-ui)");
+    radio(group(s, "Line spacing"), "Loose").click();
+    expect(a11yRoot().style.getPropertyValue("--zen-line-height")).toBe("2.2");
+    radio(group(s, "Line width"), "Narrow").click();
+    expect(a11yRoot().style.getPropertyValue("--zen-measure")).toBe("60ch");
+    const under = detail(s, "accessibility").querySelector<HTMLInputElement>("input[type=checkbox]")!;
+    expect(under.closest("label")!.textContent).toBe("Underline links");
+    under.checked = true;
+    under.dispatchEvent(new Event("change", { bubbles: true }));
+    expect(a11yRoot().dataset.linkUnderline).toBe("on");
+    // the sample paragraph is a preview, hidden from the screen reader
+    const sample = detail(s, "accessibility").querySelector<HTMLElement>(".zen-a11y-sample")!;
+    expect(sample.getAttribute("aria-hidden")).toBe("true");
+    expect(sample.textContent).not.toBe("");
+    resetBtn(s).click();
+    expect(a11yRoot().style.getPropertyValue("--zen-text-size")).toBe("");
+    expect(a11yRoot().dataset.linkUnderline).toBeUndefined();
+    expect(spin(s, "Text size").getAttribute("aria-valuetext")).toBe("17 pixels");
+  });
+
+  test("without storage it says so", async () => {
+    const { s } = setup({ features: [] });
+    await go(s, "accessibility", "motion");
+    expect(detail(s, "accessibility").textContent).not.toContain("Not saved");
+    vi.stubGlobal("localStorage", { getItem() { throw new Error("no"); }, setItem() { throw new Error("no"); }, removeItem() { throw new Error("no"); } });
+    await go(s, "accessibility", "contrast");
+    expect(detail(s, "accessibility").textContent).toContain("Not saved: applies to this window only.");
+  });
+});
+
+test("appearanceExtra: the extra rows show in Appearance", async () => {
+  const extra = Object.assign(document.createElement("div"), { className: "my-extra-row", textContent: "Left / Right" });
+  const { s } = setup({ view: { appearanceExtra: [extra] } });
+  await settle();
+  expect(detail(s, "appearance").querySelector(".my-extra-row")).toBe(extra);
+  expect(detail(s, "appearance").querySelector(".zen-theme-preview")).not.toBeNull();
+  // the preview is before the extra row
+  expect(detail(s, "appearance").querySelector(".zen-theme-preview")!.compareDocumentPosition(extra) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
 });

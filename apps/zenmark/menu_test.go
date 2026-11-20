@@ -83,11 +83,15 @@ func TestMenuSpecProduction(t *testing.T) {
 		"  Find… [CmdOrCtrl+F]",
 		"  Find Next [CmdOrCtrl+G]",
 		"  Find Previous [CmdOrCtrl+Shift+G]",
+		"# View",
+		"Actual Size [CmdOrCtrl+0]",
+		"Zoom In [CmdOrCtrl+Plus]",
+		"Zoom Out [CmdOrCtrl+-]",
 		"# Window",
 		"Minimise [CmdOrCtrl+M]",
 		"Zoom",
 	})
-	banned := []string{"view", "services", "speech", "develop", "devtools", "developer", "reload", "full screen", "paste and match", "close window", "close all"}
+	banned := []string{"services", "speech", "develop", "devtools", "developer", "reload", "full screen", "paste and match", "close window", "close all"}
 	for _, line := range rows(menuSpec(false)) {
 		for _, b := range banned {
 			if strings.Contains(strings.ToLower(line), b) {
@@ -482,5 +486,84 @@ func TestMenuBareShell(t *testing.T) {
 	// Developer alone brings the Develop menu in a dev build.
 	if !slices.Contains(rows(menuSpecFor(true, []string{"developer"})), "# Develop") {
 		t.Error("developer lacks the Develop menu")
+	}
+}
+
+// View is new in the shell (ui/accessibility): Actual Size, Zoom In and Zoom Out, between Edit and Window,
+// in every build, with the bare shell too. They only send an event; the window steps the zoom and saves it.
+func TestViewMenu(t *testing.T) {
+	for name, features := range map[string][]string{"full": allFeatures, "bare": nil} {
+		bar := menuSpecFor(false, features)
+		var labels []string
+		for _, top := range bar {
+			labels = append(labels, top.Label)
+		}
+		i := slices.Index(labels, "View")
+		if i < 0 {
+			t.Fatalf("%s: no View menu in %v", name, labels)
+		}
+		if labels[i-1] != "Edit" || labels[i+1] != "Window" {
+			t.Errorf("%s: View is between %s and %s, want Edit and Window", name, labels[i-1], labels[i+1])
+		}
+		want := []menuItem{
+			{Label: "Actual Size", Accel: "CmdOrCtrl+0", Event: "menu:zoom-reset"},
+			{Label: "Zoom In", Accel: "CmdOrCtrl+Plus", Event: "menu:zoom-in"},
+			{Label: "Zoom Out", Accel: "CmdOrCtrl+-", Event: "menu:zoom-out"},
+		}
+		got := bar[i].Children
+		if len(got) != len(want) {
+			t.Fatalf("%s: View items %+v", name, got)
+		}
+		for j := range want {
+			if got[j].Label != want[j].Label || got[j].Accel != want[j].Accel || got[j].Event != want[j].Event || got[j].Role != "" {
+				t.Errorf("%s: View item %d = %+v, want %+v", name, j, got[j], want[j])
+			}
+		}
+	}
+	for ev, want := range map[string]string{EventZoomIn: "menu:zoom-in", EventZoomOut: "menu:zoom-out", EventZoomReset: "menu:zoom-reset", EventZoomChanged: "app:zoom"} {
+		if ev != want {
+			t.Errorf("event %q, want %q", ev, want)
+		}
+	}
+	// the window's own Zoom (the macOS window zoom) is still in Window
+	if !slices.Contains(rows(menuSpecFor(false, nil)), "Zoom") {
+		t.Error("Window > Zoom is gone")
+	}
+}
+
+// The ends do nothing, and the menu items are disabled there.
+func TestZoomMenuEnds(t *testing.T) {
+	cases := []struct {
+		z       float64
+		in, out bool
+	}{{0.75, true, false}, {0.9, true, true}, {1, true, true}, {1.5, true, true}, {2, false, true}, {3, false, true}, {0.1, true, false}}
+	for _, c := range cases {
+		in, out := zoomEnabled(c.z)
+		if in != c.in || out != c.out {
+			t.Errorf("zoomEnabled(%v) = %v, %v; want %v, %v", c.z, in, out, c.in, c.out)
+		}
+	}
+	var in, out []bool
+	st := newZoomState()
+	st.add(func(on bool) { in = append(in, on) }, func(on bool) { out = append(out, on) })
+	st.set(2)
+	st.set(1)
+	st.set(0.75)
+	if got := in; len(got) != 4 || got[0] != true || got[1] != false || got[2] != true || got[3] != true {
+		t.Errorf("zoom in states %v", got)
+	}
+	if got := out; len(got) != 4 || got[0] != true || got[1] != true || got[2] != true || got[3] != false {
+		t.Errorf("zoom out states %v", got)
+	}
+	var nilState *zoomState
+	nilState.set(2) // tests and headless
+	// what the window sends: a JSON number; anything else is ignored
+	if z, ok := zoomFromEvent(float64(1.25)); !ok || z != 1.25 {
+		t.Errorf("zoomFromEvent(1.25) = %v, %v", z, ok)
+	}
+	for _, bad := range []any{nil, "2", true, map[string]any{}, float64(0), float64(-1), float64(9)} {
+		if _, ok := zoomFromEvent(bad); ok {
+			t.Errorf("zoomFromEvent(%v) accepted", bad)
+		}
 	}
 }
