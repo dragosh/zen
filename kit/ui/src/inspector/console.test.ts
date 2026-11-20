@@ -56,7 +56,7 @@ test("the Console tab shows only while the switch is on, live, and the key of th
   const i = make(baseHost(["inspector", "developer"]));
   expect(tabIds(i)).toEqual(["info", "problems"]);
   setDeveloperEnabled(true);
-  expect(tabIds(i)).toEqual(["info", "problems", "console"]);
+  expect(tabIds(i)).toEqual(["info", "problems", "console", "build"]);
   setDeveloperEnabled(false);
   expect(tabIds(i)).toEqual(["info", "problems"]);
 });
@@ -183,7 +183,7 @@ test("a developer-only build has a panel with the Console tab alone, toggled by 
   const on = (e: Event) => states.push((e as CustomEvent).detail);
   document.addEventListener(INSPECTOR_STATE, on);
   const i = make(baseHost(["developer"]), false, true);
-  expect(allTabIds(i)).toEqual(["console"]);
+  expect(allTabIds(i)).toEqual(["console", "build"]);
   expect(i.el.querySelector('[data-section="info"], [data-section="problems"]')).toBeNull();
   expect(i.available).toBe(false); // the Inspector button (⌥⌘I) has nothing to inspect
   expect(i.button.hidden).toBe(true);
@@ -233,13 +233,13 @@ test("a build with both, with a remembered open panel: it reopens with the tabs 
 test("the panel is shown with only the Console while no page is open", () => {
   setDeveloperEnabled(true);
   const i = make(baseHost(["inspector", "developer"]), false, true);
-  expect(tabIds(i)).toEqual(["console"]);
+  expect(tabIds(i)).toEqual(["console", "build"]);
   jKey();
   expect(i.el.hidden).toBe(false);
   expect(i.available).toBe(false);
   const a = document.createElement("article");
   i.setPage("a.md", page(), a);
-  expect(tabIds(i)).toEqual(["info", "problems", "console"]);
+  expect(tabIds(i)).toEqual(["info", "problems", "console", "build"]);
 });
 
 // ---- the panel itself: columns, collapse, height

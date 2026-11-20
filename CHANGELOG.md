@@ -17,8 +17,9 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 - Find in page: ⌘F (Edit › Find) opens a find bar in the reader and the editor with a match count, next/previous (⌘G, ⇧⌘G) and a match-case toggle (#4).
 
 ### Changed
+- The Inspector's columns can be resized and have the same padding in every tab; page warnings (an unknown layout, a dialect not in the build) are listed under Problems; what the build contains is the Inspector's Build tab, and Zenmark › About is the standard macOS panel again.
 - The sidebar has a header with the folder's logo (`.zen.yml` `logo:`), its title and a close button, and a footer with Settings, Export and Inspector; Settings › Appearance › Navigation puts it on the left or the right (#24).
-- Settings has two columns in every section (the item on the left, its preview, help and actions on the right); Export and the Developer switch work in place; This build moved to Zenmark › About, which shows the version (#26).
+- Settings has two columns in every section (the item on the left, its preview, help and actions on the right); Export and the Developer switch work in place; This build moved out of Settings (#26).
 - Inspector: one panel with Page Info, Problems (broken links, missing images and spelling) and Console tabs in two columns that can be collapsed; the Developer panel and its button are gone, and ⌥⌘J opens the Console in the Inspector (#25).
 - Vale linting is now an add-on, included only in builds made with `ADDONS=vale`; Settings › Add-ons lists what a build includes, and `zenmd version` names the add-ons.
 - Menu: New Page…, Close Folder, Build Website…, Print Page… and Print Site… are greyed out while no folder is open (#6).

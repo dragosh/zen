@@ -11,11 +11,12 @@ import { installConsoleCapture } from "../shell/console";
 import { copyText } from "../shell/clipboard";
 import { developerEnabled, developerKey, followDeveloper } from "../shell/developer";
 import { createConsoleTab, type ConsoleTab } from "../shell/devpanel";
+import { buildSection } from "../shell/addons";
 import { button, el } from "../shell/dom";
-import { BOTTOM_PANEL_HEIGHT, createTabbedPanel, PANEL_COLLAPSED_KEY, panelColumns, panelEmpty, panelProps } from "../panel";
+import { BOTTOM_PANEL_HEIGHT, bindColumns, createTabbedPanel, PANEL_COLLAPSED_KEY, panelColumns, panelEmpty, panelProps } from "../panel";
 import { INSPECTOR_CLOSE, INSPECTOR_CONSOLE, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorIcon, inspectorLabel, type InspectorState } from "./events";
 import { formatDate, formatSize, readingLabel } from "./format";
-import { brokenLinks, failedAlready, isCheck, missingImage, sameProblem, spellingProblems, type Filter, type Problem } from "./problems";
+import { brokenLinks, failedAlready, isCheck, missingImage, sameProblem, spellingProblems, warningProblems, type Filter, type Problem } from "./problems";
 import { pageStats, type PageStats } from "./stats";
 
 export { pageStats, type PageStats } from "./stats";
@@ -42,6 +43,8 @@ export type InspectorOptions = {
    * `button` is the toggle and nothing is sent.
    */
   external?: boolean;
+  /** List the page's render warnings (`Page.warnings`) under Problems. The main window does; the editor's preview does not (the editor has its own console). */
+  pageWarnings?: boolean;
 };
 
 export type Inspector = {
@@ -79,7 +82,7 @@ export function inspectorKey(e: KeyboardEvent): boolean {
 }
 
 const SOURCE_LABEL: Record<string, string> = { builtin: "built-in", folder: "folder", user: "user" };
-const KIND_LABEL: Record<Problem["kind"], string> = { link: "Link", image: "Image", spelling: "Spelling" };
+const KIND_LABEL: Record<Problem["kind"], string> = { link: "Link", image: "Image", spelling: "Spelling", warning: "Warning" };
 
 type FileState =
   | { status: "loading" }
@@ -117,7 +120,7 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
   const consoleFeature = hasFeature(o.host, "developer");
   const TABS = [
     ...(pageTabs ? [{ id: "info", label: "Page Info" }, { id: "problems", label: "Problems" }] : []),
-    ...(consoleFeature ? [{ id: "console", label: "Console" }] : []),
+    ...(consoleFeature ? [{ id: "console", label: "Console" }, { id: "build", label: "Build" }] : []),
   ];
   const frame = createTabbedPanel({
     doc: o.doc,
@@ -165,13 +168,13 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
   let failed = new Set<HTMLImageElement>();
 
   // ---- Page Info: the page on the left, the file on the right
-  const info = pageTabs ? panelColumns() : null;
+  const info = pageTabs ? panelColumns({ id: "info", doc: o.doc }) : null;
   if (info) frame.body("info").append(info.el);
   const pageBody = info?.left ?? el("div");
   const fileBody = info?.right ?? el("div");
 
   // ---- Problems: the list on the left, the selected problem on the right
-  const problems = pageTabs ? panelColumns() : null;
+  const problems = pageTabs ? panelColumns({ id: "problems", doc: o.doc }) : null;
   if (problems) frame.body("problems").append(problems.el);
   const problemList = problems?.left ?? el("div");
   const problemDetails = problems?.right ?? el("div");
@@ -195,6 +198,25 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
     frame.body("console").append(consoleTab.el);
   }
 
+  // ---- Build: the version and the features on the left, what else the build contains on the right (the same content as Settings › This build)
+  let buildTab: { show(): void } | null = null;
+  if (consoleFeature) {
+    const cols = panelColumns({ id: "build", doc: o.doc });
+    const section = buildSection(o.host);
+    const draw = () => {
+      section.show?.();
+      const groups = Array.from(section.el?.children ?? []) as HTMLElement[];
+      const features = groups.filter((g) => g.dataset.group === "features");
+      cols.left.replaceChildren(el("p", "zen-build-version", `Version ${o.host.build?.version || "dev"}`), ...features);
+      cols.right.replaceChildren(...groups.filter((g) => g.dataset.group !== "features"));
+    };
+    draw();
+    frame.body("build").append(cols.el);
+    buildTab = { show: draw };
+  }
+  // The Console's columns come from the Console tab; they take their split from this tab's id.
+  if (consoleFeature) bindColumns(frame.body("console").querySelector(".zen-panel-cols"), "console");
+
   const rows = panelProps;
   const heading = (t: string) => el("h3", "zen-panel-heading", t);
 
@@ -205,6 +227,7 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
     const imgs = Array.from(checkRoot.querySelectorAll("img")).filter((i) => failed.has(i)).map(missingImage);
     return [...brokenLinks(checkRoot), ...imgs];
   };
+  const warnings = (): Problem[] => (o.pageWarnings && page ? warningProblems(page.warnings) : []);
   const spelling = (): Problem[] => (lintOn && Array.isArray(alerts) ? spellingProblems(alerts) : []);
   let all: Problem[] = [];
 
@@ -223,7 +246,7 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
 
   function renderProblems(): void {
     if (!problems) return;
-    all = [...checks(), ...spelling()];
+    all = [...warnings(), ...checks(), ...spelling()];
     if (selected) selected = all.find((p) => sameProblem(p, selected!)) ?? null;
     const shown = all.filter((p) => filter === "all" || (filter === "checks") === isCheck(p));
     if (shown.length === 0) {
@@ -265,12 +288,14 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
       return;
     }
     const box = el("div", "zen-problem-details");
-    box.append(rows([["Message", "message", p.message], ["Where", "where", p.where], ["Rule", "rule", p.rule, true]]));
-    const show = button("Show", () => showProblem(p), { className: "zen-problem-show", title: "Scroll the page to it" });
-    show.dataset.action = "show";
-    const actions = el("div", "zen-inspector-actions");
-    actions.append(show);
-    box.append(actions);
+    box.append(rows([["Message", "message", p.message], ...(p.fix ? [["Fix", "fix", p.fix] as [string, string, string]] : []), ["Where", "where", p.where], ["Rule", "rule", p.rule, true]]));
+    if (p.kind !== "warning") { // a page warning is about the page as a whole: there is nothing to scroll to
+      const show = button("Show", () => showProblem(p), { className: "zen-problem-show", title: "Scroll the page to it" });
+      show.dataset.action = "show";
+      const actions = el("div", "zen-inspector-actions");
+      actions.append(show);
+      box.append(actions);
+    }
     problemDetails.replaceChildren(box);
   }
 
@@ -393,6 +418,7 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
     frame.setTabVisible("info", pageTabs && path !== null);
     frame.setTabVisible("problems", pageTabs && path !== null);
     frame.setTabVisible("console", consoleOn());
+    frame.setTabVisible("build", consoleOn());
   }
 
   function sync(): void {
@@ -405,6 +431,7 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
       consoleStarted = true;
       void consoleTab.start();
     }
+    if (isOpen && !panel.hidden && consoleOn()) buildTab?.show();
     announce();
   }
 

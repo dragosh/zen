@@ -153,7 +153,8 @@ test("page:changed re-renders the current page in place and keeps scroll", async
   expect(events).toHaveLength(1);
 });
 
-test("warnings bar is shown, escaped and dismissible", async () => {
+test("warnings bar (a build without the inspector feature) is shown, escaped and dismissible", async () => {
+  env = setup(createFakeApi({ sources: { ...SOURCES }, build: { features: ["reader"] } }));
   const real = env.api.page;
   env.api.page = async (p) => ({ ...(await real(p)), warnings: ["bad <i>front</i>matter"] });
   env.ctx.store.set({ path: "README.md" });

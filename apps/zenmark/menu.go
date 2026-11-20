@@ -10,9 +10,6 @@ import (
 // EventSettings asks the main window to show Settings (Zen > Settings…).
 const EventSettings = "menu:settings"
 
-// EventAbout asks the main window to show the About sheet (Zenmark > About Zenmark).
-const EventAbout = "menu:about"
-
 // The View menu's zoom items (ui/accessibility) send these to every window; the one in front steps the
 // zoom (Window.SetZoom) and saves it, so the menu, the keys and Settings share one code path.
 const (
@@ -27,10 +24,10 @@ const (
 // menuActions are the callbacks app.go wires into the custom menu items, so
 // this file does not depend on Zen internals.
 type menuActions struct {
-	NewSite, NewPage, OpenFolder, Settings, About func()
-	CloseFolder                                   func()
-	BuildWebsite, PrintPage, PrintSite            func()
-	Find, FindNext, FindPrevious                  func()
+	NewSite, NewPage, OpenFolder, Settings func()
+	CloseFolder                            func()
+	BuildWebsite, PrintPage, PrintSite     func()
+	Find, FindNext, FindPrevious           func()
 
 	// emit sends the event of a custom item that only tells the windows something (View > Zoom In); buildMenu sets it.
 	emit func(event string)
@@ -63,8 +60,6 @@ func (a menuActions) forLabel(label string) func() {
 		return a.CloseFolder
 	case labelSettings:
 		return a.Settings
-	case labelAbout:
-		return a.About
 	}
 	return nil
 }
@@ -163,7 +158,7 @@ func menuSpecFor(dev bool, features []string) []menuItem {
 	}
 	bar := []menuItem{
 		{Label: Name, Children: []menuItem{
-			{Label: labelAbout, Event: EventAbout}, // the About sheet of the main window, not the standard panel
+			{Label: labelAbout, Role: "About"}, // the standard macOS panel; the build is the Inspector's Build tab
 			{Label: labelSettings, Accel: "CmdOrCtrl+,"},
 			sep,
 			{Label: "Hide " + Name, Accel: "CmdOrCtrl+H", Role: "Hide"},

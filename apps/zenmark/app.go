@@ -8,9 +8,9 @@ import (
 	"io/fs"
 	"path/filepath"
 
+	"github.com/wailsapp/wails/v3/pkg/application"
 	"github.com/zenmark-org/zenmd/engine/config"
 	"github.com/zenmark-org/zenmd/kit/desktop"
-	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
 // Name is the product's name as people see it: window titles, the app menu.
@@ -114,7 +114,6 @@ func Run(opts Options) error {
 					}()
 				},
 				Settings:    settingsAction(win, sink),
-				About:       showAndEmit(win, sink, EventAbout),
 				CloseFolder: showAndEmit(win, sink, EventCloseFolder),
 			}, z.menu, desktop.DevBuild)
 		},
