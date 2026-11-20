@@ -3,7 +3,7 @@ title: All settings
 ---
 # All settings
 
-## config.yml and .zen.yml
+## config.yml and .zenmd.yml
 
 ```yaml
 version: 1                      # file format version

@@ -57,7 +57,7 @@ own: every folder in `sites/` with a `template.yml` is a template. Zen never
 overwrites a template you changed, and does not bring back one you deleted.
 
 To keep the templates somewhere else, set the folder in the global
-`config.yml` (a folder's `.zen.yml` cannot):
+`config.yml` (a folder's `.zenmd.yml` cannot):
 
 ```yaml
 templates:

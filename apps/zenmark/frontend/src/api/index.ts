@@ -98,7 +98,7 @@ export interface Api extends KitHost {
   buildOptions(): Promise<BuildOptions>;
   buildWebsite(o: BuildOptions): Promise<BuildResult>;
   cancelBuild(): Promise<void>;
-  /** Without confirm: the preview text, nothing written. With it: writes .zen.yml. */
+  /** Without confirm: the preview text, nothing written. With it: writes .zenmd.yml. */
   saveBuildDefaults(o: BuildOptions, confirm: boolean): Promise<string>;
   pickBuildFolder(): Promise<string>;
   openBuiltSite(out: string): Promise<void>;
@@ -142,7 +142,7 @@ export interface Api extends KitHost {
    */
   draft(path: string, content: string | null): void;
   /**
-   * Opens the global config.yml or the folder's .zen.yml in zen's editor
+   * Opens the global config.yml or the folder's .zenmd.yml in zen's editor
    * window (as page zen:config/global or zen:config/workspace), creating it
    * from a commented template if missing.
    */

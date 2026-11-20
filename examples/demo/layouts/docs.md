@@ -38,7 +38,7 @@ your guide. Give pages `nav: { order: 1 }` to place them.
 
 ## Every page of a folder
 
-Put the layout in `.zen.yml` and no page needs frontmatter:
+Put the layout in `.zenmd.yml` and no page needs frontmatter:
 
 ```yaml
 layout: docs

@@ -58,7 +58,7 @@ press Cancel.
 
 The result lists the warnings by page; click one to open that page. **Open in
 Browser** shows the site, and **Show in Finder** shows its folder. **Save as
-folder defaults** writes your choices into `.zen.yml`, after showing you what
+folder defaults** writes your choices into `.zenmd.yml`, after showing you what
 it will change. The build uses the saved files, so save pages you are editing
 first. The same options are in Settings › Export, next to the PDF export.
 

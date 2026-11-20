@@ -213,9 +213,9 @@ func TestLintConfigSwitch(t *testing.T) {
 
 	// Workspace switch; frontmatter turns it back on.
 	ws := tree(t, map[string]string{
-		".zenmd.yml":  "plugins:\n  lint: false\n",
-		"README.md": "# Home\n",
-		"on.md":     "---\nplugins:\n  lint: true\n---\n# On\n",
+		".zenmd.yml": "plugins:\n  lint: false\n",
+		"README.md":  "# Home\n",
+		"on.md":      "---\nplugins:\n  lint: true\n---\n# On\n",
 	})
 	z2, _, _, _ := newTestZen(t, ws, "", "read")
 	if r, _ := z2.Lint("README.md", ""); r.Available {

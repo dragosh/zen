@@ -1,6 +1,7 @@
 package session
 
 import (
+	"github.com/zenmark-org/zenmd/builtins"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -180,8 +181,8 @@ func TestReadOnlyNeverMoves(t *testing.T) {
 	if err := s.SetDialect("myst", true); err == nil {
 		t.Error("want read-only")
 	}
-	if _, err := s.EnsureConfig("workspace"); err == nil {
-		t.Error("EnsureConfig wrote in a read-only app")
+	if p, err := s.EnsureConfig("workspace"); err != nil || filepath.Base(p) != ".zen.yml" {
+		t.Errorf("EnsureConfig: %q %v", p, err) // it only names the file in use; nothing is written
 	}
 	if after := snapshot(t, dir); len(after) != len(before) || after[".zen.yml"] != before[".zen.yml"] {
 		t.Errorf("the folder changed: %v", after)
@@ -231,7 +232,15 @@ func TestEditorSaveMovesLegacyFile(t *testing.T) {
 func TestEitherConfigFileReloads(t *testing.T) {
 	for _, name := range []string{".zenmd.yml", ".zen.yml"} {
 		dir := tree(t, map[string]string{"README.md": mystPage})
-		s := dialectSession(t, dir, t.TempDir(), false, false)
+		s := New(Options{
+			GlobalPath: filepath.Join(t.TempDir(), "config.yml"), Registry: noteRegistry(t), Dialects: builtins.Dialects(),
+			Events: &sink{}, Runtime: stubAssets(), Watch: true,
+		})
+		t.Cleanup(s.Close)
+		if err := s.Open(dir); err != nil {
+			t.Fatal(err)
+		}
+		time.Sleep(200 * time.Millisecond) // the watcher is up
 		if strings.Contains(pageHTML(t, s, "README.md"), `data-zen-plugin="note"`) {
 			t.Fatal("on too early")
 		}

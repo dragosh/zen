@@ -420,7 +420,7 @@ func (z *Zen) BuildWebsite(o BuildOptions) (BuildResult, error) {
 func (z *Zen) CancelBuild() { z.s.CancelBuild() }
 
 // SaveBuildDefaults writes the options into the build: section of the
-// folder's .zen.yml; without confirm it only returns the preview text.
+// folder's .zenmd.yml; without confirm it only returns the preview text.
 func (z *Zen) SaveBuildDefaults(o BuildOptions, confirm bool) (string, error) {
 	if err := requireFeature("export"); err != nil {
 		return "", err

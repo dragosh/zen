@@ -15,7 +15,7 @@ export interface BuildApi {
   buildOptions(): Promise<BuildOptions>;
   buildWebsite(o: BuildOptions): Promise<BuildResult>;
   cancelBuild(): Promise<void>;
-  /** Without confirm: the preview text, nothing written. With it: writes .zen.yml and returns the same text. */
+  /** Without confirm: the preview text, nothing written. With it: writes .zenmd.yml and returns the same text. */
   saveBuildDefaults(o: BuildOptions, confirm: boolean): Promise<string>;
   /** The native folder panel; "" when cancelled. */
   pickBuildFolder(): Promise<string>;
@@ -59,7 +59,7 @@ export type BuildFormOptions = {
   root(): string;
   /** Opens a page in the main window. */
   onOpenPage(path: string): void;
-  /** Paths with unsaved changes in editor windows ("zen:config/workspace" is .zen.yml); the website uses the saved files. */
+  /** Paths with unsaved changes in editor windows ("zen:config/workspace" is .zenmd.yml); the website uses the saved files. */
   unsaved?(): string[];
 };
 export type BuildForm = {
@@ -158,7 +158,7 @@ export function createBuildForm(opts: BuildFormOptions): BuildForm {
   const build = el("button", "primary", "Export");
   build.type = "submit";
   const spacer = el("span", "zen-buildsite-spacer");
-  // A read-only app never writes into the folder (.zen.yml): no Save as folder defaults.
+  // A read-only app never writes into the folder (.zenmd.yml): no Save as folder defaults.
   footer.append(...(hasFeature(api, "editor") ? [saveLink] : []), spacer, build);
 
   form.append(options, note, none, last, progress, preview, result, error, status, footer);
@@ -243,7 +243,7 @@ export function createBuildForm(opts: BuildFormOptions): BuildForm {
   async function saveDefaults(): Promise<void> {
     error.textContent = status.textContent = "";
     if ((opts.unsaved?.() ?? []).includes(WORKSPACE_CONFIG)) {
-      error.textContent = ".zen.yml has unsaved changes in an editor; save or close it first, then try again.";
+      error.textContent = ".zenmd.yml has unsaved changes in an editor; save or close it first, then try again.";
       return;
     }
     const o = read();
@@ -257,13 +257,13 @@ export function createBuildForm(opts: BuildFormOptions): BuildForm {
     const pre = el("pre", "zen-buildsite-preview", text);
     const row = el("div", "zen-buildsite-preview-actions");
     const decline = button("Cancel changes", () => { preview.hidden = true; preview.replaceChildren(); saveLink.focus(); });
-    const write = button("Write .zen.yml", async () => {
+    const write = button("Write .zenmd.yml", async () => {
       write.disabled = decline.disabled = true;
       try {
         await api.saveBuildDefaults(o, true);
         preview.hidden = true;
         preview.replaceChildren();
-        status.textContent = "Saved to .zen.yml.";
+        status.textContent = "Saved to .zenmd.yml.";
       } catch (err) {
         error.textContent = message(err);
         write.disabled = decline.disabled = false;

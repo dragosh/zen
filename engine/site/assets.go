@@ -6,6 +6,8 @@ import (
 	"io/fs"
 	"path"
 	"strings"
+
+	"github.com/zenmark-org/zenmd/engine/config"
 )
 
 // assetRef is a plugin or layout file named by a page's asset URL.
@@ -105,7 +107,8 @@ func (s *site) copyWorkspace(p string) (string, error) {
 	}
 	err := func() error {
 		low := strings.ToLower(p)
-		if low == zenDir || strings.HasPrefix(low, zenDir+"/") || strings.HasSuffix(low, ".html") || path.Base(low) == markerName {
+		base := path.Base(low) // the folder's settings file, under either name, is not content
+		if low == zenDir || strings.HasPrefix(low, zenDir+"/") || strings.HasSuffix(low, ".html") || path.Base(low) == markerName || base == config.WorkspaceFile || base == config.LegacyWorkspaceFile {
 			return errors.New("a name zen keeps for itself")
 		}
 		if s.outRel != "" && (p == s.outRel || strings.HasPrefix(p, s.outRel+"/")) {

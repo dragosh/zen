@@ -38,7 +38,7 @@ func (s *Session) Dialects() []DialectInfo {
 }
 
 // SetDialect turns a dialect of the build on or off for the open folder by
-// editing its .zen.yml (comments and other keys stay; the file is created when
+// editing its .zenmd.yml (comments and other keys stay; the file is created when
 // there is none) and reloads: the pages render again. It is a write, so it
 // goes through the read-only guard.
 func (s *Session) SetDialect(id string, on bool) error {

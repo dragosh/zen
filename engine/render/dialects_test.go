@@ -55,9 +55,9 @@ func TestDialectOff(t *testing.T) {
 	src := "```{note} Remember\nBody text.\n```\n"
 	// the dialect exists in the build but the folder does not list it
 	for name, r := range map[string]*Renderer{
-		"default":      New(newReg(t, note), config.Default(), fakeResolver{}).WithDialects(mystReg(t)),
-		"no .zenmd.yml":  New(newReg(t, note), folderCfg(t, "version: 1\n"), fakeResolver{}).WithDialects(mystReg(t)),
-		"not in build": New(newReg(t, note), folderCfg(t, mystOn), fakeResolver{}),
+		"default":       New(newReg(t, note), config.Default(), fakeResolver{}).WithDialects(mystReg(t)),
+		"no .zenmd.yml": New(newReg(t, note), folderCfg(t, "version: 1\n"), fakeResolver{}).WithDialects(mystReg(t)),
+		"not in build":  New(newReg(t, note), folderCfg(t, mystOn), fakeResolver{}),
 	} {
 		p := render(t, r, src)
 		contains(t, p.HTML, "<pre><code", "Body text.")

@@ -110,8 +110,8 @@ func TestBuildOptions(t *testing.T) {
 
 	// The folder's build: section pre-fills the form.
 	b2 := newBuildZen(t, map[string]string{
-		"README.md": "# Home\n",
-		".zenmd.yml":  "version: 1\nbuild:\n  out: public\n  portable: false\n  drafts: true\n",
+		"README.md":  "# Home\n",
+		".zenmd.yml": "version: 1\nbuild:\n  out: public\n  portable: false\n  drafts: true\n",
 	})
 	o, err = b2.z.BuildOptions()
 	if err != nil {
@@ -479,9 +479,9 @@ func TestSaveBuildDefaults(t *testing.T) {
 
 func TestDialogDraftsOverrideConfig(t *testing.T) {
 	dir := tree(t, map[string]string{
-		"README.md": "# Home\n",
-		"wip.md":    "---\ndraft: true\n---\n# WIP\n",
-		".zenmd.yml":  "version: 1\nbuild:\n  drafts: true\n",
+		"README.md":  "# Home\n",
+		"wip.md":     "---\ndraft: true\n---\n# WIP\n",
+		".zenmd.yml": "version: 1\nbuild:\n  drafts: true\n",
 	})
 	out := filepath.Join(t.TempDir(), "site")
 	r := runBuild(t, dir, t.TempDir(), SiteOptions{Out: out, NoDrafts: true})

@@ -11,7 +11,7 @@ help:
   snippets:
     - title: A documentation page
       markdown: "---\ntitle: Install\nlayout: docs\n---\n# Install\n\nIntro.\n\n## Download\n\nText.\n\n## Check\n\nMore text.\n"
-    - title: Every page of a folder (in .zen.yml)
+    - title: Every page of a folder (in .zenmd.yml)
       markdown: "layout: docs\n"
     - title: Without the rail
       markdown: "---\nlayout: { name: docs, toc: false }\n---\n# A short page\n"

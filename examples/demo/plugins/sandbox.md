@@ -34,7 +34,7 @@ It uses the `container` tool on your Mac (Apple's container platform), not Docke
    ```
 
 A page picks an image by its key (`image=python`). It can never name an image
-itself, and a folder's `.zen.yml` cannot change these settings.
+itself, and a folder's `.zenmd.yml` cannot change these settings.
 
 ## A Python block
 

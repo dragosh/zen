@@ -9,7 +9,7 @@ The first one is **MyST**, the syntax of MyST, Jupyter Book and Sphinx.
 
 ## Turn it on
 
-A folder chooses its dialects in `.zen.yml`, so it renders the same in the app,
+A folder chooses its dialects in `.zenmd.yml`, so it renders the same in the app,
 in `zenmd export`, on another Mac and in CI:
 
 ```yaml

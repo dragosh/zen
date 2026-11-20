@@ -1,5 +1,5 @@
 // Package config answers "which settings apply to this page" by merging
-// defaults, the global config file, the workspace `.zen.yml` and the page's
+// defaults, the global config file, the workspace `.zenmd.yml` and the page's
 // frontmatter. Configuration is data only: nothing in it is executed,
 // included or resolved as a path.
 package config
@@ -21,7 +21,7 @@ import (
 
 const (
 	// WorkspaceFile is the name of the workspace config file in the root.
-	WorkspaceFile = ".zen.yml"
+	WorkspaceFile = ".zenmd.yml"
 
 	schemaVersion  = 1
 	defaultTheme   = "system"
@@ -44,9 +44,10 @@ type Config struct {
 	theme    string
 	plugins  map[string]plugin
 	warnings []string
+	notice   string // the folder still has the old settings file (Notice)
 	limits   Limits
 	layouts  LayoutDefaults
-	dialects []string // markdown.dialects of the folder's .zen.yml
+	dialects []string // markdown.dialects of the folder's .zenmd.yml
 	logo     string   // logo: a folder-relative image path (the folder's, else the global one)
 
 	templates any            // the global templates: key, read by TemplatesDir
@@ -87,7 +88,7 @@ const (
 	DefaultOpenTimeout = 30
 )
 
-// Dialects returns the markdown dialects the folder's .zen.yml turns on, in
+// Dialects returns the markdown dialects the folder's .zenmd.yml turns on, in
 // order (none by default). Only the folder chooses them: the global config
 // and a page's frontmatter cannot. An id that no build has is the caller's to
 // report.
@@ -99,7 +100,7 @@ func (c *Config) Dialects() []string {
 }
 
 // Logo returns the folder's logo as a clean, slash-separated path inside the
-// folder ("" for none): the folder's .zen.yml wins over the global config.
+// folder ("" for none): the folder's .zenmd.yml wins over the global config.
 // It is checked here (no .., not absolute, an image) and again where it is
 // opened.
 func (c *Config) Logo() string {
@@ -129,7 +130,7 @@ func parseLogo(v any) (string, bool) {
 	return clean, true
 }
 
-// parseMarkdown reads the markdown: mapping of a .zen.yml.
+// parseMarkdown reads the markdown: mapping of a .zenmd.yml.
 func parseMarkdown(v any, warn func(string, ...any)) []string {
 	if v == nil {
 		return nil
@@ -219,7 +220,7 @@ func Default() *Config {
 	}
 }
 
-// Load reads the global file and <workspaceRoot>/.zen.yml on top of the
+// Load reads the global file and <workspaceRoot>/.zenmd.yml on top of the
 // defaults. A missing file is not an error; an unreadable or invalid file
 // contributes nothing but a warning. An empty path skips that layer.
 func Load(globalPath, workspaceRoot string) *Config {
@@ -228,9 +229,21 @@ func Load(globalPath, workspaceRoot string) *Config {
 		c.loadFile(globalPath, true)
 	}
 	if workspaceRoot != "" {
-		c.loadFile(filepath.Join(workspaceRoot, WorkspaceFile), false)
+		path, legacy, both := WorkspaceConfigPath(workspaceRoot)
+		c.loadFile(path, false)
+		c.notice = Notice(legacy, both)
 	}
 	return c
+}
+
+// Notice is the text about a folder that still has the old settings file, or
+// "". Pages carry it as a warning (ForPage); it is not a load warning, so a
+// build does not print it twice.
+func (c *Config) Notice() string {
+	if c == nil {
+		return ""
+	}
+	return c.notice
 }
 
 // Warnings returns the problems found while loading the config files.
@@ -253,6 +266,9 @@ func (c *Config) ForPage(frontmatter map[string]any) Settings {
 	for id, p := range c.plugins {
 		s.plugins[id] = plugin{enabled: p.enabled, options: cloneMap(p.options)}
 	}
+	if c.notice != "" {
+		s.Warnings = append(s.Warnings, c.notice)
+	}
 	warn := func(format string, args ...any) {
 		s.Warnings = append(s.Warnings, "frontmatter: "+fmt.Sprintf(format, args...))
 	}
@@ -264,7 +280,7 @@ func (c *Config) ForPage(frontmatter map[string]any) Settings {
 		}
 	}
 	if _, ok := frontmatter["markdown"]; ok {
-		warn("markdown can only be set in the folder's .zen.yml")
+		warn("markdown can only be set in the folder's .zenmd.yml")
 	}
 	if v, ok := frontmatter["plugins"]; ok && v != nil {
 		mergePlugins(s.plugins, v, warn)
@@ -450,7 +466,7 @@ func (c *Config) loadFile(path string, global bool) {
 			c.layouts.Rules = append(rules, c.layouts.Rules...)
 		case "markdown":
 			if global {
-				warn("markdown can only be set in a folder's .zen.yml")
+				warn("markdown can only be set in a folder's .zenmd.yml")
 				continue
 			}
 			c.dialects = parseMarkdown(v, warn)

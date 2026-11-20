@@ -61,8 +61,8 @@ plugins:
 
 `layout: post` gives the page the look of a [layout](../layouts/index.md), and
 `layoutOptions:` sets its options. Fields such as `date` or `tagline` are read
-by the layout. A folder can choose layouts by path in `.zen.yml`, so a page
+by the layout. A folder can choose layouts by path in `.zenmd.yml`, so a page
 needs no frontmatter at all; see [the blog](../blog/index.md).
 
-Page settings override the folder's `.zen.yml`, which overrides the global
+Page settings override the folder's `.zenmd.yml`, which overrides the global
 `config.yml`. See [settings](../configuration/settings.md).

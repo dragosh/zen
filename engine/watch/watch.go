@@ -12,6 +12,8 @@ import (
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+
+	"github.com/zenmark-org/zenmd/engine/config"
 )
 
 // Kind is the kind of change: "changed", "created" or "removed".
@@ -318,7 +320,7 @@ func ignoredDir(rel string) bool {
 }
 
 func relevant(rel string) bool {
-	if rel == ".zen.yml" {
+	if rel == config.WorkspaceFile || rel == config.LegacyWorkspaceFile {
 		return true
 	}
 	switch strings.ToLower(filepath.Ext(rel)) {

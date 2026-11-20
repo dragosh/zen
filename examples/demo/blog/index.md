@@ -4,7 +4,7 @@ layout: landing
 tagline: Notes on writing in plain files
 ---
 Short posts that show the `post` layout. They carry no `layout:` line: the
-folder's `.zen.yml` gives every page under `blog/` that layout by path.
+folder's `.zenmd.yml` gives every page under `blog/` that layout by path.
 
 ```yaml
 layouts:

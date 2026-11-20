@@ -451,7 +451,7 @@ All five plugins in this folder have a `help` section, so read them in
 Settings, under Plugins.
 
 A plugin is switched on, off and given options like the built-in ones: in
-frontmatter, `.zen.yml` or `config.yml` (see [Plugins](index.md)).
+frontmatter, `.zenmd.yml` or `config.yml` (see [Plugins](index.md)).
 
 ## What a backend receives
 

@@ -79,7 +79,7 @@ func (plugin) Manifest() plugins.Manifest {
 		Description: "Run a block's code in a container (starts containers with `container run`)",
 		Default:     true,
 		Help: plugins.Help{
-			Summary: "Runs a block's code in a container (Apple's container tool; start its service with container system start). The block shows the code, a Run button and a console. A block names an image by a key, and the keys come from the images setting of your global config.yml: a page or a folder's .zen.yml cannot name an image or change these settings.",
+			Summary: "Runs a block's code in a container (Apple's container tool; start its service with container system start). The block shows the code, a Run button and a console. A block names an image by a key, and the keys come from the images setting of your global config.yml: a page or a folder's .zenmd.yml cannot name an image or change these settings.",
 			Snippets: []plugins.Snippet{
 				{Title: "A Python block", Markdown: plugins.Fences("~~~sandbox {image=python cmd=\"python main.py\" file=main.py editable}\nprint(\"hello from a container\")\n~~~")},
 				{Title: "Name the image in config.yml", Markdown: "Open the global config.yml from Settings and add the images, then pull each image once (zen never pulls on Run):\n\n" + plugins.Fences("~~~yaml\nplugins:\n  sandbox:\n    images:\n      python: \"python:3.12-slim\"\n    timeout: 30      # seconds, at most 600\n    network: false   # no network by default\n    memory: 512M\n    cpus: 1\n~~~")},

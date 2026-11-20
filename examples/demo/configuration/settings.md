@@ -9,7 +9,7 @@ list of sections is on the left:
 
 - **Appearance**: System, Light or Dark, for every zen window on this Mac.
 - **Configuration files**: **config.yml** holds settings for all folders and
-  **.zen.yml** the settings for the open folder. **Open** edits one in zen's
+  **.zenmd.yml** the settings for the open folder. **Open** edits one in zen's
   editor.
 - **Plugins**: every plugin, with its kind (built in, script, program or
   page), where it comes from and what it runs. An external plugin has an
@@ -59,11 +59,11 @@ From weakest to strongest:
 1. zen's defaults
 2. the global `config.yml`
    (`~/Library/Application Support/zen/config.yml`)
-3. the folder's `.zen.yml`
+3. the folder's `.zenmd.yml`
 4. a page's [frontmatter](../reading/frontmatter.md)
 
 Folder limits are the exception: only the global file can change them, so a
 downloaded folder cannot lift its own limits.
 
-This folder's own `.zen.yml` is an example (open it from the settings page); see
+This folder's own `.zenmd.yml` is an example (open it from the settings page); see
 [all settings](reference.md).

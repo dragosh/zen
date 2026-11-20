@@ -30,7 +30,7 @@ type Manifest struct {
 // Option describes one plugin option. Type is "string", "bool", "int", "map"
 // (string to string, a map[string]string) or "list" (strings, a []string).
 // Scope is "" (config, folder and page may set it) or "user": only the global
-// config.yml may set it; the same option in .zen.yml or frontmatter is
+// config.yml may set it; the same option in .zenmd.yml or frontmatter is
 // ignored with a warning.
 type Option struct {
 	Type        string

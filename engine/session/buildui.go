@@ -3,7 +3,7 @@ package session
 // File › Build Website… (⇧⌘B) and Settings › Website: the services behind the
 // dialog (ui/static-build). They run the same code as `zenmd build` (WriteSite)
 // on the open folder; this file adds the options, progress, cancel and the
-// "save as folder defaults" edit of .zen.yml.
+// "save as folder defaults" edit of .zenmd.yml.
 
 import (
 	"bytes"
@@ -351,7 +351,7 @@ func (s *Session) CancelBuild() {
 }
 
 // SaveBuildDefaults writes out, portable and drafts into the build: section of
-// the folder's .zen.yml (clean and print are per run). Without confirm it
+// the folder's .zenmd.yml (clean and print are per run). Without confirm it
 // only returns the preview text; with it, it edits the YAML tree, so comments
 // and other keys stay, and writes the file atomically. It returns the same
 // text either way.
@@ -363,7 +363,7 @@ func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (string, error
 	if err != nil {
 		return "", err
 	}
-	path := filepath.Join(root, ".zen.yml")
+	path, legacy, _ := config.WorkspaceConfigPath(root)
 	var doc yaml.Node
 	data, rerr := os.ReadFile(path)
 	if rerr != nil && !os.IsNotExist(rerr) {
@@ -371,7 +371,7 @@ func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (string, error
 	}
 	if rerr == nil {
 		if err := yaml.Unmarshal(data, &doc); err != nil {
-			return "", fmt.Errorf(".zen.yml is not valid YAML: %v", err)
+			return "", fmt.Errorf(".zenmd.yml is not valid YAML: %v", err)
 		}
 	}
 	fresh := doc.Kind == 0
@@ -380,7 +380,7 @@ func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (string, error
 	}
 	top := doc.Content[0]
 	if doc.Kind != yaml.DocumentNode || top.Kind != yaml.MappingNode {
-		return "", errors.New(".zen.yml is not a YAML mapping; fix it first")
+		return "", errors.New(".zenmd.yml is not a YAML mapping; fix it first")
 	}
 	if fresh {
 		setKey(top, "version", scalar("1", "!!int"))
@@ -391,7 +391,7 @@ func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (string, error
 		build = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
 		setKey(top, "build", build)
 	case build.Kind != yaml.MappingNode:
-		return "", errors.New("build in .zen.yml must be a mapping with keys such as out and portable")
+		return "", errors.New("build in .zenmd.yml must be a mapping with keys such as out and portable")
 	}
 
 	out := o.Out
@@ -428,13 +428,13 @@ func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (string, error
 		setKey(build, w.key, scalar(w.val, w.tag))
 	}
 	if len(changes) == 0 {
-		return "Nothing to change: .zen.yml already has these build defaults.", nil
+		return "Nothing to change: .zenmd.yml already has these build defaults.", nil
 	}
 	var sb strings.Builder
 	if added {
-		sb.WriteString("Adds to .zen.yml:")
+		sb.WriteString("Adds to .zenmd.yml:")
 	} else {
-		sb.WriteString("Changes .zen.yml:")
+		sb.WriteString("Changes .zenmd.yml:")
 	}
 	for _, c := range changes {
 		sb.WriteString("\n  build." + c.key + ": " + c.now)
@@ -458,6 +458,12 @@ func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (string, error
 	perm := os.FileMode(0o644)
 	if fi, err := os.Stat(path); err == nil {
 		perm = fi.Mode().Perm()
+	}
+	if legacy { // the first write moves the old file to the new name
+		if err := config.MoveLegacy(root); err != nil {
+			return "", err
+		}
+		path = filepath.Join(root, config.WorkspaceFile)
 	}
 	if err := writeAtomic(path, buf.Bytes(), perm); err != nil {
 		return "", err

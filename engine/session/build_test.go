@@ -326,8 +326,8 @@ func (optPlugin) RenderBlock(ctx plugins.Context, b plugins.Block) (string, erro
 
 func TestBuildNoUserOptions(t *testing.T) {
 	dir := tree(t, map[string]string{
-		"README.md": "# Home\n\n:::opt\nx\n:::\n",
-		".zenmd.yml":  "version: 1\nplugins:\n  opt:\n    label: folder\n",
+		"README.md":  "# Home\n\n:::opt\nx\n:::\n",
+		".zenmd.yml": "version: 1\nplugins:\n  opt:\n    label: folder\n",
 	})
 	cfg := t.TempDir()
 	if err := os.WriteFile(filepath.Join(cfg, "config.yml"), []byte("version: 1\nplugins:\n  opt:\n    token: SECRET-TOKEN\n"), 0o600); err != nil {
@@ -396,7 +396,7 @@ func TestBuildConfig(t *testing.T) {
 		"docs.md":     "---\nlayout: docs\n---\n# Docs\n\ntext\n",
 		"wip.md":      "---\ndraft: true\n---\n# WIP\n",
 		"secret/x.md": "# X\n",
-		".zenmd.yml":    "version: 1\nbuild:\n  out: public\n  id: my-notes\n  editURL: https://github.com/me/notes/edit/main/{path}\n  exclude: [\"secret/**\"]\n",
+		".zenmd.yml":  "version: 1\nbuild:\n  out: public\n  id: my-notes\n  editURL: https://github.com/me/notes/edit/main/{path}\n  exclude: [\"secret/**\"]\n",
 	})
 	cfg := t.TempDir()
 	r := runBuild(t, dir, cfg, SiteOptions{})

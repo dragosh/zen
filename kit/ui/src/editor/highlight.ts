@@ -187,7 +187,7 @@ export function highlight(text: string): Token[] {
 }
 
 /**
- * YAML for the settings files (config.yml, .zen.yml): keys, comments,
+ * YAML for the settings files (config.yml, .zenmd.yml): keys, comments,
  * strings, numbers and true/false/null.
  */
 export function highlightYaml(text: string): Token[] {

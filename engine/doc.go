@@ -17,7 +17,7 @@
 //   - session: the headless folder session (open, page, preview, save, watch,
 //     trust, build, print, site templates, an http.Handler for plugin assets)
 //   - workspace: scanning a folder for markdown, and page paths
-//   - config: the global and per-folder config files (.zen.yml)
+//   - config: the global and per-folder config files (.zenmd.yml)
 //   - index: titles, headings, links and search over a workspace
 //   - render: markdown to sanitised HTML, with frontmatter, directives and plugin blocks
 //   - plugins: the plugin API and registry (built-ins are in package builtins)
