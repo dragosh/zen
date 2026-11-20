@@ -18,4 +18,7 @@ export type Ctx = {
   /** Shows the New Page dialog for a new page in `folder` ("" or ending in "/"); the sidebar menu's New Page Here… is left out without it. */
   newPage?(folder: string): void;
 };
-export type Feature = { id: "nav" | "page" | "editor"; mount(slots: Slots, ctx: Ctx): () => void }; // returns unmount
+/** The features an app can have (kit/assembly's catalog, in its order). `reader`, `nav` and `editor` are mounted as features; the others are gated where they act. */
+export const FEATURE_IDS = ["reader", "nav", "find", "editor", "inspector", "print", "export", "newsite", "developer"] as const;
+export type FeatureId = (typeof FEATURE_IDS)[number];
+export type Feature = { id: FeatureId; mount(slots: Slots, ctx: Ctx): () => void }; // returns unmount

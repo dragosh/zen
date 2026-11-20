@@ -23,7 +23,7 @@ function recorder(id: Feature["id"]): Feature {
     },
   };
 }
-const features = () => [recorder("nav"), recorder("page"), recorder("editor")];
+const features = () => [recorder("nav"), recorder("reader"), recorder("editor")];
 const EDITOR = "?window=editor&path=guides%2Finstall.md";
 
 function boot(api: FakeApi, search = EDITOR, feats: Feature[] = features()): Shell {
@@ -132,7 +132,7 @@ test("the main window ignores the editor feature and startup mode", async () => 
   const api = createFakeApi({ startup: { workspace: sampleWorkspace(), page: "README.md", mode: "edit" } });
   const s = boot(api, "");
   await s.start();
-  expect(log).toEqual(["mount nav README.md", "mount page README.md"]);
+  expect(log).toEqual(["mount nav README.md", "mount reader README.md"]);
   expect(s.store.get().mode).toBe("read");
 });
 

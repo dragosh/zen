@@ -766,7 +766,8 @@ test("bare shell", async () => {
   s.destroy();
 
   // Settings is reachable (⌘,) with Appearance and This build only
-  s = boot(buildWith([]), shipped);
+  const bare = buildWith([]);
+  s = boot(bare, shipped);
   await s.start();
   key(",");
   expect(sectionNames()).toEqual(["Appearance", "This build"]);
@@ -782,10 +783,10 @@ test("bare shell", async () => {
   mod("e");
   mod("\\");
   expect(document.querySelector(".zen-newpage-backdrop, .zen-newsite, .zen-find")).toBeNull();
-  expect(api.callsTo("printWindow")).toHaveLength(0);
+  expect(bare.callsTo("printWindow")).toHaveLength(0);
   key("o");
   await tick();
-  expect(api.callsTo("pickFolder")).toHaveLength(1);
+  expect(bare.callsTo("pickFolder")).toHaveLength(1);
 });
 
 test("developer alone in a bare shell gives a working Developer panel", async () => {
@@ -814,7 +815,7 @@ const MISSING: { feature: string; check(api: FakeApi): Promise<void> | void }[] 
   } },
   { feature: "find", check: () => {
     mod("f");
-    expect(root.querySelector(".zen-find")).toBeNull();
+    expect(document.querySelector(".zen-find")).toBeNull();
   } },
   { feature: "editor", check: () => {
     expect(root.querySelector('[title="Edit (⌘E)"]')).toBeNull();
@@ -893,7 +894,7 @@ test("with every feature the same controls are there", async () => {
   expect(root.querySelector(".zen-developer-button")).not.toBeNull();
   expect(root.querySelector('[data-action="toggle-sidebar"]')).not.toBeNull();
   mod("f");
-  expect(root.querySelector(".zen-find")).not.toBeNull();
+  expect(document.querySelector(".zen-find")).not.toBeNull();
   const e = new KeyboardEvent("keydown", { key: "p", metaKey: true, bubbles: true, cancelable: true });
   document.dispatchEvent(e);
   expect(e.defaultPrevented).toBe(true);

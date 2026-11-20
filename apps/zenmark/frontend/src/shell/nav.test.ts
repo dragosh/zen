@@ -15,7 +15,7 @@ const nav = () => root.querySelector<HTMLElement>("[role=tree]")!.parentElement!
 
 async function boot(page = "README.md", mode: "read" | "edit" = "read") {
   api = createFakeApi({ startup: { workspace: deepWorkspace(), page, mode } });
-  shell = createShell(root, { api, features: [navFeature, stub("page"), stub("editor")] });
+  shell = createShell(root, { api, features: [navFeature, stub("reader"), stub("editor")] });
   await shell.start();
   await tick();
 }

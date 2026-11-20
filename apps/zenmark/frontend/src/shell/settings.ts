@@ -147,18 +147,24 @@ export function createSettingsView(opts: {
       pdfLast.textContent = "No PDF yet.";
     }
   };
-  exportEl.append(webHead, website.el, pdfHead, pdfLast, pdfButton, pdfStatus);
+  // The PDF is the print document: its part is there only with print as well as export.
+  const withPdf = hasFeature(api, "print");
+  exportEl.append(webHead, website.el, ...(withPdf ? [pdfHead, pdfLast, pdfButton, pdfStatus] : []));
 
   frame = createSettingsFrame([
     appearanceSection(doc),
     // Nothing opens the config files in an app without the editor: the section is not there.
     ...(hasFeature(api, "editor") ? [files] : []),
-    { id: "plugins", label: "Plugins", el: plugins.el, show: () => void plugins.refresh(), destroy: () => plugins.destroy() },
-    { id: "layouts", label: "Layouts", el: layouts.el, show: () => void layouts.refresh(), destroy: () => layouts.destroy() },
-    { id: "markdown", label: "Markdown", el: markdownEl, show: () => void showMarkdown(), destroy: () => { markdownSeq++; } },
-    { id: "export", label: "Export", el: exportEl, show: () => { void website.refresh(); showPdf(); } },
+    // The sections of a feature the build leaves out are not there at all (kit/shell-features): Plugins, Layouts and
+    // Markdown belong to the reader, Export to export, Developer to developer. This build is always there.
+    ...(hasFeature(api, "reader") ? [
+      { id: "plugins", label: "Plugins", el: plugins.el, show: () => void plugins.refresh(), destroy: () => plugins.destroy() },
+      { id: "layouts", label: "Layouts", el: layouts.el, show: () => void layouts.refresh(), destroy: () => layouts.destroy() },
+      { id: "markdown", label: "Markdown", el: markdownEl, show: () => void showMarkdown(), destroy: () => { markdownSeq++; } },
+    ] : []),
+    ...(hasFeature(api, "export") ? [{ id: "export", label: "Export", el: exportEl, show: () => { void website.refresh(); if (withPdf) showPdf(); } }] : []),
     buildSection(api),
-    developerSection(),
+    ...(hasFeature(api, "developer") ? [developerSection()] : []),
   ]);
   return frame;
 }

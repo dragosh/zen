@@ -4,7 +4,7 @@ import { Events, Window } from "@wailsio/runtime";
 import { Zen } from "../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/index.js";
 // The headless service is unexported, so the generated index leaves it out.
 import * as HeadlessService from "../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/headlessservice.js";
-import type { LogEntry } from "@zenmd/kit";
+import { FEATURE_IDS, type LogEntry } from "@zenmd/kit";
 import type { AddonInfo, Alert, Api, BuildInfo, BuildOptions, Crumb, DialectInfo, LayoutField, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
 
 type Raw = Record<string, any> | null | undefined;
@@ -132,7 +132,7 @@ function buildInfo(v: unknown, addons: AddonInfo[]): BuildInfo | undefined {
   if (!b || typeof b !== "object" || typeof b.app !== "string") return undefined;
   const own = addonInfos(b.addons);
   return {
-    app: b.app, features: Array.isArray(b.features) ? idList(b.features) : ["editor"], addons: own.length ? own : addons,
+    app: b.app, features: Array.isArray(b.features) ? idList(b.features) : [...FEATURE_IDS], addons: own.length ? own : addons,
     plugins: idList(b.plugins), layouts: idList(b.layouts), templates: idList(b.templates), dialects: idList(b.dialects),
     theme: typeof b.theme === "string" ? b.theme : "default",
   };

@@ -4,7 +4,7 @@
 // editor under a small header.
 import type { Api, NavNode, Workspace } from "../api";
 import {
-  applyAppTheme, button, closeWindowKey, createDeveloper, createHistory, createLayout, createOpening, createStore, el, hasFeature, mountPreview, reloadKey,
+  applyAppTheme, button, closeWindowKey, createDeveloper, createHistory, createLayout, createOpening, createStore, el, hasFeature, mountPreview, reloadKey, shellAction,
   type Ctx, type Developer, type Feature, type Layout, type Store,
 } from "@zenmd/kit";
 import { BRAND } from "../brand";
@@ -87,6 +87,11 @@ export type Shell = {
   destroy(): void;
 };
 
+/** The pages of a folder's tree, groups not counted. */
+function countPages(nodes: NavNode[]): number {
+  return nodes.reduce((n, node) => n + (node.kind === "page" ? 1 : 0) + countPages(node.children), 0);
+}
+
 const EMPTY_HINT = "Select a page from the sidebar";
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
@@ -96,15 +101,17 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   const kind = windowKind(search ?? doc.defaultView?.location.search ?? "");
   const store = createStore();
   const history = createHistory();
-  // An app without the editor feature (kit/features) has no editor: not in the main window, and an editor window is refused.
-  const feature = (id: Feature["id"]) => (id === "editor" && !hasFeature(api, "editor") ? undefined : features.find((f) => f.id === id));
+  // A feature the build leaves out is not mounted (kit/features, kit/shell-features): not in the main window,
+  // and an editor window is refused. The build is known once startup has answered, so this is looked up when mounting.
+  const feature = (id: Feature["id"]) => (hasFeature(api, id) ? features.find((f) => f.id === id) : undefined);
+  const has = (id: string) => hasFeature(api, id);
 
   let layout: Layout | null = null;
   let homeSettings = false; // Settings shown on the home screen (no folder open)
   let developer: Developer | null = null;
   let unmountNav: (() => void) | null = null;
   let unmountMain: (() => void) | null = null;
-  let mainId: "page" | null = null;
+  let mainId: "reader" | null = null;
   let editorTitle: HTMLElement | null = null;
   let unsubscribeStore: (() => void) | null = null;
   let destroyed = false;
@@ -140,9 +147,13 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   /** Mounts the page in `main` once there is a path (editing has its own window). */
   function syncMain(): void {
     if (!layout) return;
-    const { path } = store.get();
-    const want = path === "" ? null : "page";
     syncHistoryButtons();
+    if (!has("reader")) { // a bare shell: the folder is open, and this build shows no pages
+      showBare(layout);
+      return;
+    }
+    const { path } = store.get();
+    const want = path === "" ? null : "reader";
     if (want === mainId && (want !== null || layout.slots.main.childNodes.length > 0)) return;
 
     unmountMain?.();
@@ -156,6 +167,18 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       return;
     }
     unmountMain = feature(want)?.mount(layout.slots, ctx) ?? null;
+  }
+
+  /** The quiet card of a build without the reader: the folder's name, its page count and a line saying why there is nothing to read. */
+  function showBare(l: Layout): void {
+    const ws = store.get().workspace;
+    if (!ws) return;
+    mainId = null;
+    const pages = countPages(ws.tree);
+    const card = el("div", "zen-welcome zen-bare");
+    card.append(el("h1", "", ws.name), el("p", "", `${pages} ${pages === 1 ? "page" : "pages"}`), el("p", "", "This build shows no pages."));
+    l.slots.actions.replaceChildren();
+    l.slots.main.replaceChildren(card);
   }
 
   function closeFrame(): void {
@@ -200,7 +223,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   const siteApi: SiteApi | null = api;
   let newSite: NewSiteDialog | null = null;
   function showNewSite(preselect?: string): void {
-    if (kind.kind !== "main" || !siteApi || newSite) return;
+    if (kind.kind !== "main" || !siteApi || newSite || !has("newsite")) return;
     newSite = openNewSite({
       api: siteApi, doc, preselect,
       onCreated: (s) => { if (!destroyed && s.workspace) showFrame(s.workspace, s.page); },
@@ -269,11 +292,19 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     history.reset();
     store.set({ workspace, path: "", anchor: "", mode: "read", page: undefined, dirty: false });
     const path = page || workspace.home;
-    if (path) navigate(path, page ? anchor : "");
+    if (path && has("reader")) navigate(path, page ? anchor : "");
 
     layout = createLayout({ onBack: back, onForward: forward, onOpenFolder: () => void openFolder(), onSettings: () => toggleSettings(), onDeveloper: () => developer?.toggle() });
     root.replaceChildren(layout.el);
-    developer = createDeveloper(layout, api, doc); // the button and ⌥⌘J, while "Show developer tab" is on (ui/developer-tab)
+    // What the build leaves out leaves no trace: no sidebar without nav, no Inspector or Developer button without theirs.
+    if (!has("nav")) {
+      layout.toggleSidebar();
+      layout.el.querySelector('[data-action="toggle-sidebar"]')?.remove();
+    }
+    if (!has("inspector")) layout.el.querySelector(".zen-inspector-button")?.remove();
+    if (!has("developer")) layout.el.querySelector(".zen-developer-button")?.remove();
+    // The button and ⌥⌘J, while "Show developer tab" is on (ui/developer-tab).
+    developer = has("developer") ? createDeveloper(layout, api, doc) : null;
     doc.title = `${workspace.name} — ${BRAND}`;
     unmountNav = feature("nav")?.mount(layout.slots, ctx) ?? null;
     syncMain();
@@ -314,7 +345,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     // Points up to the menu bar (top-left of the screen on macOS).
     const menuHint = el("p", "zen-welcome-menuhint");
     menuHint.append(
-      el("span", "", "↖ File menu: Open Folder… · New Site… (⇧⌘N) · "),
+      el("span", "", `↖ File menu: Open Folder… · ${has("newsite") ? "New Site… (⇧⌘N) · " : ""}`),
       button("Settings", () => openSettings(), { className: "link zen-welcome-settings", text: "Settings ⌘," }),
     );
     const status = el("p", "zen-welcome-status");
@@ -348,7 +379,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
 
   /** "Start from a template": a card for each valid template, below Open a folder. */
   async function showTemplates(view: HTMLElement): Promise<void> {
-    if (!siteApi) return;
+    if (!siteApi || !has("newsite")) return;
     let all: SiteTemplate[];
     try {
       all = (await siteApi.siteTemplates()).filter((t) => !t.error);
@@ -403,12 +434,14 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     }
     if (destroyed) return;
     applyAppTheme(doc, api.build);
+    // ⌘P and the print menu event, only in a build with print (kit/shell-features).
+    if (has("print") && !offPagePrint) offPagePrint = installPagePrint(doc, api);
     if (kind.kind === "editor") {
       if (!hasFeature(api, "editor")) showError(new Error("This app is read-only"));
       else if (startup.workspace) showEditor(startup.workspace, kind.path);
       else showError(new Error("No folder is open"));
     } else if (startup.workspace) {
-      const last = lastPage(startup.workspace);
+      const last = has("reader") ? lastPage(startup.workspace) : null;
       if (last) showFrame(startup.workspace, last.path, last.anchor);
       else showFrame(startup.workspace, startup.page);
     }
@@ -448,19 +481,21 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       closeSettings();
       return;
     }
-    if ((e.metaKey || e.ctrlKey) && e.shiftKey && !e.altKey && (e.key === "n" || e.key === "N")) {
+    // The shortcuts of features the build leaves out do nothing (keys.ts).
+    const action = shellAction(e, has);
+    if (action === "new-site") {
       e.preventDefault();
       showNewSite();
       return;
     }
-    if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+    if (!action) return;
     const inFrame = layout !== null;
-    if (e.key === "o" || e.key === "O") void openFolder();
-    else if ((e.key === "n" || e.key === "N") && inFrame) showNewPage();
-    else if (e.key === ",") toggleSettings();
-    else if (e.key === "\\" && inFrame) layout!.toggleSidebar();
-    else if (e.key === "[" && inFrame) back();
-    else if (e.key === "]" && inFrame) forward();
+    if (action === "open-folder") void openFolder();
+    else if (action === "new-page" && inFrame) showNewPage();
+    else if (action === "settings") toggleSettings();
+    else if (action === "toggle-sidebar" && inFrame) layout!.toggleSidebar();
+    else if (action === "back" && inFrame) back();
+    else if (action === "forward" && inFrame) forward();
     else return;
     e.preventDefault();
   };
@@ -498,13 +533,13 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   const offDrafts = api.on("page:draft", (d) => { if (d.content === null) drafts.delete(d.path); else drafts.add(d.path); });
   const buildSite = registerBuildSite({
     api, doc,
-    root: () => (kind.kind === "main" ? store.get().workspace?.root ?? "" : ""),
+    root: () => (kind.kind === "main" && has("export") ? store.get().workspace?.root ?? "" : ""),
     name: () => store.get().workspace?.name ?? "",
     onOpenPage: (p) => navigate(p),
     unsaved: () => Array.from(drafts),
   });
-  // Print Page (⌘P, File › Print Page…) in the main and editor windows (ui/print).
-  const offPagePrint = kind.kind === "print" ? () => {} : installPagePrint(doc, api);
+  // Print Page (⌘P, File › Print Page…) in the main and editor windows (ui/print): installed by start(), once the build is known.
+  let offPagePrint: (() => void) | null = null;
 
   // While a folder opens (the Open button, the menu, Open With, the launch folder): a loader with Cancel.
   const opening = createOpening(doc, { onCancel: () => void api.cancelOpen().catch((err) => console.error("zen: cancel failed", err)) });
@@ -531,7 +566,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
       opening.destroy();
       offDrafts();
       buildSite.destroy();
-      offPagePrint();
+      offPagePrint?.();
       stopPreview?.();
       closeFrame();
       root.replaceChildren();
