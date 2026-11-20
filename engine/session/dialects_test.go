@@ -78,7 +78,8 @@ func TestExportUsesDialects(t *testing.T) {
 		t.Errorf("rendered without the folder asking:\n%s", html)
 	}
 	// the build does not have it: ignored with a warning
-	r = runBuild(t, on, t.TempDir(), SiteOptions{Portable: true}, func(e *SiteEnv) { e.Registry = noteRegistry(t) })
+	empty, _ := dialects.NewRegistry()
+	r = runBuild(t, on, t.TempDir(), SiteOptions{Portable: true}, func(e *SiteEnv) { e.Registry, e.Dialects = noteRegistry(t), empty })
 	if html := r.read(t, "index.html"); r.err != nil || strings.Contains(html, `data-zen-plugin="note"`) {
 		t.Errorf("a build without the dialect: %v", r.err)
 	}

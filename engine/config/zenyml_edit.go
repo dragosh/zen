@@ -230,7 +230,7 @@ func editMarkdown(lines []fmLine, top *yaml.Node, want []string, eol string,
 
 // splice replaces lines[from:to] with add.
 func splice(lines []fmLine, from, to int, add []fmLine) []fmLine {
-	out := append([]fmLine(nil), lines[:from]...)
+	out := append(make([]fmLine, 0, len(lines)+len(add)), lines[:from]...) // never nil: nil means no change
 	out = append(out, add...)
 	return append(out, lines[to:]...)
 }

@@ -69,7 +69,7 @@ func WriteSite(env SiteEnv, b SiteOptions, stdout, stderr io.Writer) error {
 	}
 	// A headless session: no events, no watcher, no prompter, so nothing can
 	// ask and the trust file is only read.
-	st := New(Options{GlobalPath: env.GlobalPath, Registry: env.Registry, Layouts: env.Layouts, Version: env.Version})
+	st := New(Options{GlobalPath: env.GlobalPath, Registry: env.Registry, Layouts: env.Layouts, Dialects: env.Dialects, Version: env.Version})
 	defer st.Close()
 	if err := st.Open(root); err != nil {
 		return st.cleanErr(".", err)

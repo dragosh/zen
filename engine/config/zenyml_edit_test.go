@@ -86,6 +86,9 @@ func TestSetDialects(t *testing.T) {
 	if got := set("markdown:\n  dialects: [myst]\n  other: 1\n"); got != "markdown:\n  other: 1\n" {
 		t.Errorf("removed, other kept:\n%s", got)
 	}
+	if got := set("markdown:\n  dialects: [myst]\n"); got != "" {
+		t.Errorf("removed, nothing left: %q", got)
+	}
 	// nothing to remove: unchanged
 	if got := set("version: 1\n"); got != "version: 1\n" {
 		t.Errorf("nothing to remove: %q", got)

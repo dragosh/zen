@@ -121,6 +121,7 @@ type BuildInfo struct {
 	Plugins   []string    `json:"plugins"`
 	Layouts   []string    `json:"layouts"`
 	Templates []string    `json:"templates"`
+	Dialects  []string    `json:"dialects"`
 	Theme     string      `json:"theme"`
 }
 
@@ -134,6 +135,9 @@ type Startup struct {
 	Error     string      `json:"error,omitempty"` // the folder given at launch did not open: why
 	Addons    []AddonInfo `json:"addons,omitempty"`
 	Build     *BuildInfo  `json:"build,omitempty"` // the app's assembly; nil for an embedder that sets none
+	// DialectHint is the id of a markdown dialect the folder looks written for
+	// and has not turned on (Session.DialectHint), or empty.
+	DialectHint string `json:"dialectHint,omitempty"`
 }
 
 // PageChanged is the payload of page:changed.
@@ -163,13 +167,15 @@ type Session struct {
 	buildMu    sync.Mutex
 	building   *runningBuild // the build in progress (buildui.go), guarded by buildMu
 	trust      *extplugins.Trust
-	lbase      *layouts.Registry // built-in layouts
-	lreg       *layouts.Registry // lbase plus the allowed layouts of the open folder (guarded by mu)
-	lay        *layoutState      // guarded by mu
-	site       *layoutSite       // where pages sit in the folder (guarded by mu)
-	ext        *extState         // guarded by mu
-	streams    streams           // running plugin streams (stream.go)
-	reloadMu   sync.Mutex        // serialises loading the external plugins (open, trust changes, plugin edits)
+	lbase      *layouts.Registry  // built-in layouts
+	dbase      *dialects.Registry // markdown dialects the build has
+	hints      hintStore          // dismissed dialect hints (dialects.go)
+	lreg       *layouts.Registry  // lbase plus the allowed layouts of the open folder (guarded by mu)
+	lay        *layoutState       // guarded by mu
+	site       *layoutSite        // where pages sit in the folder (guarded by mu)
+	ext        *extState          // guarded by mu
+	streams    streams            // running plugin streams (stream.go)
+	reloadMu   sync.Mutex         // serialises loading the external plugins (open, trust changes, plugin edits)
 	life       context.Context
 	stop       context.CancelFunc // ends every plugin call (the session closes)
 
@@ -240,9 +246,13 @@ func New(o Options) *Session {
 	if presets == nil {
 		presets = builtins.SiteTemplates()
 	}
+	dbase := o.Dialects
+	if dbase == nil {
+		dbase = builtins.Dialects()
+	}
 	life, stop := context.WithCancel(context.Background())
 	s := &Session{
-		base: reg, reg: reg, lbase: lbase, lreg: lbase,
+		base: reg, reg: reg, lbase: lbase, lreg: lbase, dbase: dbase,
 		globalPath: o.GlobalPath, configDir: configDir,
 		events: o.Events, prompter: o.Prompter,
 		version: version, runtime: o.Runtime, presets: presets, now: time.Now,
@@ -302,7 +312,7 @@ func (s *Session) rebuildLocked() bool {
 		_, opts, _ := global.Plugin(id)
 		return opts
 	})
-	s.r = render.New(s.reg, s.cfg, &slugResolver{ws: s.ws, slugs: s.slugs}).WithLayouts(s.lreg, s.siteOrNil()) // reindex refreshes the slugs
+	s.r = render.New(s.reg, s.cfg, &slugResolver{ws: s.ws, slugs: s.slugs}).WithLayouts(s.lreg, s.siteOrNil()).WithDialects(s.dbase) // reindex refreshes the slugs
 	return s.reindexLocked()
 }
 
@@ -348,7 +358,7 @@ func (s *Session) reindexLocked() bool {
 		s.navWarn[strings.ToLower(p)] = w
 	}
 	s.slugs = slugs
-	s.r = render.New(s.reg, s.cfg, &slugResolver{ws: s.ws, slugs: slugs}).WithLayouts(s.lreg, s.siteOrNil())
+	s.r = render.New(s.reg, s.cfg, &slugResolver{ws: s.ws, slugs: slugs}).WithLayouts(s.lreg, s.siteOrNil()).WithDialects(s.dbase)
 	meta := func(p string) index.Meta {
 		m := metas[p]
 		if m.Parent != "" && !known[strings.ToLower(m.Parent)] {
