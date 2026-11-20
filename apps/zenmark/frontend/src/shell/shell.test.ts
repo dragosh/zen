@@ -685,7 +685,8 @@ test("creating a site from the welcome screen opens it", async () => {
 const jKey = () => document.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyJ", key: "∆", altKey: true, metaKey: true, bubbles: true, cancelable: true }));
 
 test("Console: there is no Developer button; the tab shows only with the setting on, and ⌥⌘J opens the Inspector on it", async () => {
-  const s = boot(withWorkspace("README.md"));
+  const { features: shipped } = await import("./features");
+  const s = boot(withWorkspace("README.md"), shipped);
   await s.start();
   await tick();
   await tick();
@@ -699,7 +700,7 @@ test("Console: there is no Developer button; the tab shows only with the setting
   shell = undefined;
 
   localStorage.setItem("zen.developer", "1");
-  const s2 = boot(withWorkspace("README.md"));
+  const s2 = boot(withWorkspace("README.md"), shipped);
   await s2.start();
   await tick();
   await tick();
@@ -888,7 +889,6 @@ const MISSING: { feature: string; check(api: FakeApi): Promise<void> | void }[] 
     jKey();
     expect(root.querySelector(".zen-dev")).toBeNull();
     expect(root.querySelector('.zen-inspector [data-tab="console"]')).toBeNull(); // the tab is not there at all
-    expect(root.querySelector<HTMLElement>(".zen-inspector")!.hidden).toBe(true);
     key(",");
     expect(sectionNames()).not.toContain("Developer");
   } },

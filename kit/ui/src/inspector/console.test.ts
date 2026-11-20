@@ -4,7 +4,7 @@ import type { BuildInfo, KitHost, LogEntry, Page } from "../host";
 import { installConsoleCapture, type ConsoleCapture } from "../shell/console";
 import { DEV_KEY, setDeveloperEnabled } from "../shell/developer";
 import { BOTTOM_PANEL_HEIGHT, PANEL_COLLAPSED_KEY } from "../panel";
-import { createInspector, INSPECTOR_CONSOLE, INSPECTOR_STATE, INSPECTOR_TOGGLE, OPEN_KEY, TAB_KEY, type Inspector } from "./index";
+import { createInspector, INSPECTOR_CONSOLE, INSPECTOR_STATE, INSPECTOR_TOGGLE, OPEN_KEY, TAB_KEY, type InspectorPanel as Inspector } from "./index";
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
 const settle = async () => { for (let i = 0; i < 4; i++) await tick(); };

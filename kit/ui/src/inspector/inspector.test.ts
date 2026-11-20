@@ -15,6 +15,11 @@ const page = (p: Partial<Page> = {}): Page => ({
 const article = (html = "<h1>Alpha</h1><p>one two three <a href='b.md'>b</a> <a href='https://x.org'>x</a></p><img src='a.png' alt=''>") => {
   const a = document.createElement("article");
   a.innerHTML = html;
+  // loaded images: happy-dom reports every image as finished with no pixels, which the Problems tab would take for a failure
+  for (const img of Array.from(a.querySelectorAll("img"))) {
+    Object.defineProperty(img, "complete", { value: true });
+    Object.defineProperty(img, "naturalWidth", { value: 10 });
+  }
   return a;
 };
 
@@ -134,7 +139,7 @@ test("Esc closes the panel from inside and returns focus to the button; outside 
 });
 
 const filter = (i: Inspector) => i.el.querySelector<HTMLSelectElement>("select.zen-problems-filter")!;
-const tabs = (i: Inspector) => Array.from(i.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+const tabs = (i: Inspector) => Array.from(i.el.querySelectorAll<HTMLButtonElement>('[role="tab"]')).filter((t) => !t.hidden); // the Console tab is hidden while its switch is off
 const key = (el: Element, k: string) => el.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
 
 test("tabs: Page Info and Problems as a tablist with one tabpanel each; Page Info is first and selected", () => {
@@ -142,7 +147,7 @@ test("tabs: Page Info and Problems as a tablist with one tabpanel each; Page Inf
   i.setPage("docs/a.md", page(), article());
   i.open();
   expect(i.el.querySelector('[role="tablist"]')).not.toBeNull();
-  expect(tabs(i).map((t) => t.textContent)).toEqual(["Page Info", "Problems"]);
+  expect(tabs(i).map((t) => t.querySelector(".zen-panel-tab-label")!.textContent)).toEqual(["Page Info", "Problems"]);
   expect(tabs(i).map((t) => t.dataset.tab)).toEqual(["info", "problems"]);
   expect(tabs(i).map((t) => t.getAttribute("aria-selected"))).toEqual(["true", "false"]);
   expect(tabs(i).map((t) => t.tabIndex)).toEqual([0, -1]);

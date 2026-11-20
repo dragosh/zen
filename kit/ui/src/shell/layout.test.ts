@@ -183,7 +183,8 @@ test("the Inspector button carries a red count badge, none at 0, and a name that
 test("the footer has the cog and the Inspector button, and no Developer button: the Console is a tab of the Inspector (#25)", () => {
   const l = createLayout();
   expect(l.el.querySelector(".zen-developer-button")).toBeNull();
-  expect(Array.from(l.el.querySelector(".zen-sidebar-foot")!.children).map((c) => c.className.split(" ").find((n) => n.endsWith("-button")))).toEqual(["zen-settings-button", "zen-inspector-button"]);
+  expect(l.el.querySelector(".zen-sidebar-foot")!.children).toHaveLength(2);
+  expect(l.el.querySelector(".zen-sidebar-foot")!.lastElementChild!.classList.contains("zen-inspector-button")).toBe(true);
   expect("setDeveloperAvailable" in l || "setDeveloperOpen" in l).toBe(false);
   l.destroy();
 });

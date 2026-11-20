@@ -19,12 +19,15 @@ and the content of its body.
 
 1. `createTabbedPanel` builds a panel with a header (tabs on the left, a tools slot and an optional ✕ close button on the right) and one scrolling body per tab.
 2. Tabs follow the ARIA tab pattern: `role=tablist/tab/tabpanel`, linked ids, one tab in the tab order, ←/→ wrapping, Home and End. The chosen tab is remembered under `tabKey` (localStorage); an unknown value means the first tab.
-3. A tab can show a count chip (`setCount(id, n, tone)`): hidden at 0 or null; tone neutral, warning or error (lint colours); the tab's accessible name gets the number ("Linting, 3").
+3. A tab can show a count chip (`setCount(id, n, tone)`): hidden at 0 or null; tone neutral, warning or error (lint colours); the tab's accessible name gets the number ("Problems, 3").
 4. With `resize`, the top edge is a separator: drag it, or ↑/↓ (16 px), Home (min) and End (70 % of the parent). The height is remembered under `resize.key`, never below `min`.
 5. `panelEmpty(title, hint)` is the centred empty state; `panelProps(items)` the label-over-value grid that flows into as many columns as fit (`data-field` on each value, text only).
 6. Storage that throws never breaks the panel: first tab, initial height.
-7. The Inspector and the Developer panel share one height (`BOTTOM_PANEL_HEIGHT`, key `zen.panel.height`, 240 px by default, at least 120): resizing either sets both, and each re-reads it when it opens.
-7b. One bottom panel at a time: the Inspector and the Developer panel close each other (`zen:inspector-close`, `zen:inspector-state`).
+7. The panel's height is `BOTTOM_PANEL_HEIGHT` (key `zen.panel.height`, 240 px by default, at least 120) and is re-read when the panel opens. There is one bottom panel, the Inspector (#25); the Developer panel is gone.
+7b. **Tools per tab:** `toolsFor(id)` is the group of controls (a filter dropdown, actions) the header shows only while that tab is selected, before the chevron and ✕.
+7c. **Hidden tabs:** `setTabVisible(id, false)` takes a tab out of the tab list, the arrow keys and the selection; the user's chosen tab returns when it is visible again. `visibleTabs` lists the rest.
+7d. **Collapse:** a chevron (`.zen-panel-collapse`, `aria-expanded`, "Collapse/Expand Inspector") collapses the panel to its header (bodies and resizer hidden, height cleared) and expands it; choosing a tab expands. Remembered under `collapseKey` (localStorage `zen.panel.collapsed`).
+7e. **Columns:** `panelColumns()` gives `{ el, left, right }`: a main column and a narrower details column (`.zen-panel-cols`), each scrolling on its own; under 700 px of panel width (a container query) they stack and the tab scrolls.
 8. The panel is never printed; transitions are off with reduced motion.
 
 ## Tests
@@ -38,6 +41,7 @@ and the content of its body.
 | 6 | "broken storage: the panel still works…" |
 | 5 | "panelProps…", "panelEmpty…" |
 | 7 | `kit/ui/src/panel/css.test.ts` |
+| 7b–7e | `panel.test.ts`: "each tab has its own tools…", "a tab that is not visible…", "collapse…", "panelColumns…"; `css.test.ts`: "two columns…" |
 
 ## UI
 
@@ -45,5 +49,6 @@ Header 34 px on `--bg-subtle`; tabs are text, the selected one bold with a 2 px 
 
 ## Notes
 
-- **Users:** the Inspector (`kit/ui/src/inspector`, tabs Linting, File, Page; height key `zen.inspector.height`). The Developer panel keeps its own header for now (it has filters and Clear in its head); moving it onto this panel is a follow-up.
+- **Users:** the Inspector (`kit/ui/src/inspector`, tabs Page Info, Problems, Console).
+- Changed by #25
 - **Changelog:** part of the Inspector line under Unreleased.

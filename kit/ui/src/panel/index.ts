@@ -143,7 +143,12 @@ export function createTabbedPanel(o: TabbedPanelOptions): TabbedPanel {
   const ids = o.tabs.map((t) => t.id);
   const visibleIds = () => ids.filter((i) => tabs.get(i)!.visible);
   let selected = ids.includes(o.tabKey ? read(o.tabKey) ?? "" : "") ? read(o.tabKey!)! : ids[0];
+  // The tab the user wants: it comes back when it is visible again, whatever tab stood in for it meanwhile.
+  let wanted = selected;
   let collapsed = false;
+  const resolve = (): void => {
+    selected = tabs.get(wanted)!.visible ? wanted : visibleIds()[0] ?? selected;
+  };
 
   function paint(): void {
     for (const [k, t] of Array.from(tabs)) {
@@ -158,7 +163,7 @@ export function createTabbedPanel(o: TabbedPanelOptions): TabbedPanel {
   function select(id: string, remember = true): void {
     const t = tabs.get(id);
     if (!t || !t.visible) return;
-    selected = id;
+    selected = wanted = id;
     if (remember && o.tabKey) write(o.tabKey, id);
     paint();
   }
@@ -166,7 +171,7 @@ export function createTabbedPanel(o: TabbedPanelOptions): TabbedPanel {
     const t = tabs.get(id);
     if (!t || t.visible === visible) return;
     t.visible = visible;
-    if (!tabs.get(selected)!.visible) selected = visibleIds()[0] ?? selected;
+    resolve();
     paint();
   }
   const onTabKey = (e: KeyboardEvent) => {
@@ -269,7 +274,7 @@ export function createTabbedPanel(o: TabbedPanelOptions): TabbedPanel {
   }
 
   root.append(head, ...Array.from(tabs.values(), (t) => t.body));
-  if (!tabs.get(selected)!.visible) selected = visibleIds()[0] ?? selected;
+  resolve();
   paint();
   setCollapsed(false, false);
   chevron.textContent = "▾";

@@ -11,9 +11,9 @@ test("tokens only: no colour literals, only known variables", () => {
   for (const m of Array.from(body.matchAll(/var\((--[a-z0-9-]+)/g))) expect(known).toContain(m[1]);
 });
 
-test("a bottom panel (ui/panel) under the page, above the Developer panel, never printed", () => {
+test("a bottom panel (ui/panel) under the page, never printed", () => {
   expect(body).toMatch(/\.zen-inspector\s*\{\s*order:\s*1;\s*\}/);
-  expect(body).toMatch(/\.zen-content > \.zen-dev\s*\{\s*order:\s*2/);
+  expect(body).not.toMatch(/\.zen-dev\b/);
   expect(body).not.toMatch(/position:\s*absolute;[^}]*right:\s*0;[^}]*width/);
   expect(body).toMatch(/@media print[\s\S]*\.zen-inspector[\s\S]*display:\s*none/);
 });

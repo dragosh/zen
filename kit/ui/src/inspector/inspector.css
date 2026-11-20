@@ -24,49 +24,44 @@
 }
 .zen-inspector-badge[hidden] { display: none; }
 
-/* The panel itself is ui/panel (panel.css): a flex item of the content column under the main pane,
-   above the Developer panel when both are open. The script puts it before the main pane; `order`
-   moves it below. */
+/* The panel itself is ui/panel (panel.css): a flex item of the content column under the main pane. The script
+   puts it before the main pane; `order` moves it below. A panel that holds only the Console (a build without the
+   inspector feature) is appended after the main pane and stays under Settings too. */
 .zen-inspector { order: 1; }
-.zen-content > .zen-dev { order: 2; }
 .zen-inspector:has(~ .zen-main[hidden]) { display: none; }
 
-/* Linting: the full width of the panel, one row per issue: a severity dot (its word stays for
-   screen readers), the line, the message, and the flagged text in mono on the right. */
-.zen-inspector .zen-lint-list { margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-4)); padding: var(--space-1) 0; }
-.zen-inspector .zen-lint-item {
+/* Problems: one row per problem, a severity dot, its kind, what it is and where. */
+.zen-problem-list { margin: calc(-1 * var(--space-3)) calc(-1 * var(--space-4)); padding: var(--space-1) 0; }
+.zen-problem {
   width: 100%;
-  grid-template-columns: 8px 3.5em minmax(0, 1fr) auto;
+  display: grid;
+  grid-template-columns: 8px 5.5em minmax(0, 1fr) auto;
   gap: 0 var(--space-3);
   align-items: center;
   padding: 6px var(--space-4);
+  border: 0;
   border-radius: 0;
+  background: none;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
   cursor: pointer;
 }
-.zen-inspector .zen-lint-item:hover { background: var(--btn-bg-hover); }
-.zen-inspector .zen-lint-item:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.zen-inspector .zen-lint-severity {
-  grid-column: 1;
-  grid-row: 1;
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: currentColor;
-  font-size: 0;
-  overflow: hidden;
-}
-.zen-inspector .zen-lint-line { grid-column: 2; grid-row: 1; text-align: left; }
-.zen-inspector .zen-lint-message { grid-column: 3; grid-row: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.zen-inspector .zen-lint-match {
-  grid-column: 4;
-  grid-row: 1;
-  max-width: 24ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-family: var(--font-mono);
-}
-.zen-inspector .zen-lint-item + .zen-lint-item, .zen-inspector li + li { border-top: 1px solid var(--rule); }
+.zen-problem + .zen-problem { border-top: 1px solid var(--rule); }
+.zen-problem:hover { background: var(--btn-bg-hover); }
+.zen-problem[aria-selected="true"] { background: var(--btn-bg); box-shadow: inset 2px 0 0 var(--fg); }
+.zen-problem:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.zen-problem-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--fg-muted); }
+.zen-problem[data-severity="error"] .zen-problem-dot { background: var(--lint-error); }
+.zen-problem[data-severity="warning"] .zen-problem-dot { background: var(--lint-warning); }
+.zen-problem[data-severity="suggestion"] .zen-problem-dot { background: var(--lint-suggestion); }
+.zen-problem-kind { color: var(--fg-muted); }
+.zen-problem-label, .zen-problem-where { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.zen-problem-where { max-width: 24ch; color: var(--fg-muted); font-family: var(--font-mono); }
+.zen-problem-details { user-select: text; }
+.zen-problem-details .zen-panel-props { grid-template-columns: 1fr; }
+.zen-problem-details .zen-panel-prop dd { white-space: normal; overflow-wrap: anywhere; }
+.zen-panel-heading { margin: 0 0 var(--space-2); color: var(--fg-muted); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; }
 
 .zen-inspector-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-4); }
 .zen-inspector-actions button { font-size: 12px; padding: 2px var(--space-2); }

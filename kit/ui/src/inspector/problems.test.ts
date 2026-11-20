@@ -19,6 +19,11 @@ function make(addons: readonly AddonInfo[] = [VALE], html = HTML): Inspector {
   made.push(i);
   root = document.createElement("article");
   root.innerHTML = html;
+  // a loaded image: happy-dom reports every image as finished with no pixels
+  for (const img of Array.from(root.querySelectorAll("img"))) {
+    Object.defineProperty(img, "complete", { value: true });
+    Object.defineProperty(img, "naturalWidth", { value: 10, configurable: true });
+  }
   document.body.append(i.el, root);
   i.setPage("a.md", page(), root);
   i.open();
@@ -166,7 +171,7 @@ test("empty state: No problems on this page.", () => {
   const i = make([VALE], "<p>fine</p>");
   i.setIssues([]);
   expect(i.el.querySelector('[data-section="problems"] .zen-panel-empty-title')!.textContent).toBe("No problems on this page.");
-  expect(i.el.querySelector('[data-tab="problems"] .zen-panel-count')!.hidden).toBe(true);
+  expect(i.el.querySelector<HTMLElement>('[data-tab="problems"] .zen-panel-count')!.hidden).toBe(true);
 });
 
 test("problem text is text, never markup", () => {

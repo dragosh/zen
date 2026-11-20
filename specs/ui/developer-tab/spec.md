@@ -17,6 +17,14 @@ setting that is off by default.
 
 ## Behaviour
 
+> **Changed by #25.** There is no separate Developer panel and no Developer button. The log is the **Console** tab of the Inspector ([ui/inspector](../inspector/spec.md), P1 to P8). Items 2 to 4 below are replaced by this block; items 5 to 14 still hold for the log, with the changes listed here.
+
+- The Settings switch is "Show Console in the Inspector" (same key `zen.developer`; the label is Settings' own, #26). With it on and the build's `developer` feature, the Inspector has a Console tab; without either, there is none.
+- ⌥⌘J, and the Develop menu's event, open the Inspector on the Console tab and focus it (⌥⌘J again closes it); with the switch off they do nothing. The height is the Inspector's (`zen.panel.height`); ✕ and Esc close the Inspector.
+- Source tabs become the filter dropdown **All / App / Plugins / Page** (Page was "Console": the page's own JS console, `source: "console"`). The level and text filters stay; **Clear** and **Copy** (was Copy all) are the tab's actions. Two columns: the log on the left, the selected entry in full on the right.
+- A build with only `developer` has an Inspector with the Console tab alone, toggled by ⌥⌘J (the shell mounts it, while the switch is on).
+- Code: `shell/developer.ts` keeps only the setting and `developerKey`; `shell/devpanel.ts` is `createConsoleTab`; `layout.ts` has no Developer button.
+
 1. Settings has a **Developer** section with a checkbox "Show developer tab", off by default. It is remembered on this Mac (`localStorage` key `zen.developer`, like the theme) and followed live by every window.
 2. When on, a **Developer** button (terminal icon, tooltip "Developer ⌥⌘J") sits in the sidebar footer next to the settings cog. When off it is absent and the panel is closed.
 3. ⌥⌘J toggles the panel while the setting is on; it does nothing while it is off.
@@ -108,6 +116,7 @@ Empty: "No log entries yet." Panel header with tabs, filters and buttons; entrie
 - **Out of scope:** persisting logs to disk, the log in built sites, a Network tab.
 - **Integration:** `Logs` added to `serviceMethods` in `apps/zenmark/bindings_test.go`; one call in `shell.ts` mounts the developer controller after the layout; `main.ts` installs console capture.
 - **App Store / sandbox:** none; nothing leaves the process.
+- Changed by #25
 - **Changelog:** Developer tab: a bottom panel (⌥⌘J, Settings › Developer) with the app's log, plugin errors and the console.
 
 ## Prompt
