@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { createTabbedPanel, panelEmpty, panelProps, type TabbedPanelOptions } from "./index";
+import { createTabbedPanel, panelColumns, panelEmpty, panelProps, type TabbedPanelOptions } from "./index";
 
 const TABS = [{ id: "a", label: "Alpha" }, { id: "b", label: "Beta" }, { id: "c", label: "Gamma" }];
 const make = (extra: Partial<TabbedPanelOptions> = {}) => {
@@ -117,4 +117,87 @@ test("panelProps: one label/value pair per item, data-field on the value, text n
 test("panelEmpty: a title and an optional hint", () => {
   expect(panelEmpty("No issues").querySelector(".zen-panel-empty-hint")).toBeNull();
   expect(panelEmpty("No issues", "All good.").textContent).toBe("No issuesAll good.");
+});
+
+test("each tab has its own tools in the header, shown only while it is selected", () => {
+  const p = make();
+  const a = p.toolsFor("a");
+  const b = p.toolsFor("b");
+  a.append(document.createElement("select"));
+  b.append(document.createElement("button"));
+  expect(p.tools.contains(a) && p.tools.contains(b)).toBe(true);
+  expect([a.hidden, b.hidden]).toEqual([false, true]);
+  p.select("b");
+  expect([a.hidden, b.hidden]).toEqual([true, false]);
+});
+
+test("a tab that is not visible is out of the list, the arrow keys and the selection", () => {
+  const p = make({ tabKey: "k" });
+  p.setTabVisible("b", false);
+  expect(p.visibleTabs).toEqual(["a", "c"]);
+  expect(p.isTabVisible("b")).toBe(false);
+  expect(tabs(p)[1].hidden).toBe(true);
+  p.select("b");
+  expect(p.selected).toBe("a"); // refused
+  const list = p.el.querySelector<HTMLElement>('[role="tablist"]')!;
+  list.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+  expect(p.selected).toBe("c");
+  p.setTabVisible("c", false);
+  expect(p.selected).toBe("a"); // the selection moves to a visible tab
+  p.setTabVisible("b", true);
+  expect(tabs(p)[1].hidden).toBe(false);
+});
+
+test("a remembered tab that is not visible falls back to the first visible one", () => {
+  localStorage.setItem("k", "b");
+  const p = createTabbedPanel({ doc: document, label: "Thing", idPrefix: "t", tabs: TABS, tabKey: "k" });
+  p.setTabVisible("b", false);
+  expect(p.selected).toBe("a");
+});
+
+test("collapse: the chevron hides the bodies and the resizer, keeps the header, and is remembered", () => {
+  const p = make({ collapseKey: "c", resize: { key: "h", initial: 200, min: 100 } });
+  const chevron = p.el.querySelector<HTMLButtonElement>(".zen-panel-collapse")!;
+  expect(p.collapsed).toBe(false);
+  expect(chevron.getAttribute("aria-expanded")).toBe("true");
+  expect(p.el.style.height).toBe("200px");
+  chevron.click();
+  expect(p.collapsed).toBe(true);
+  expect(p.el.classList.contains("is-collapsed")).toBe(true);
+  expect(chevron.getAttribute("aria-expanded")).toBe("false");
+  expect(chevron.getAttribute("aria-label")).toBe("Expand Thing");
+  expect(Array.from(p.el.querySelectorAll<HTMLElement>('[role="tabpanel"]')).every((b) => b.hidden)).toBe(true);
+  expect(p.el.querySelector<HTMLElement>(".zen-panel-resizer")!.hidden).toBe(true);
+  expect(p.el.style.height).toBe("");
+  expect(p.el.querySelector('[role="tablist"]')).not.toBeNull();
+  expect(localStorage.getItem("c")).toBe("1");
+  p.destroy();
+  const q = make({ collapseKey: "c", resize: { key: "h", initial: 200, min: 100 } });
+  expect(q.collapsed).toBe(true);
+  q.el.querySelector<HTMLButtonElement>(".zen-panel-collapse")!.click();
+  expect(q.collapsed).toBe(false);
+  expect(q.el.style.height).toBe("200px");
+  expect(localStorage.getItem("c")).toBe("0");
+});
+
+test("choosing a tab while collapsed expands the panel", () => {
+  const p = make();
+  p.setCollapsed(true);
+  tabs(p)[1].click();
+  expect(p.collapsed).toBe(false);
+  expect(p.selected).toBe("b");
+});
+
+test("the collapse chevron sits before the close button, after the tools", () => {
+  const p = make({ onClose: () => {} });
+  const head = p.el.querySelector(".zen-panel-head")!;
+  expect(Array.from(head.children).map((c) => c.className.split(" ")[0])).toEqual(["zen-panel-tabs", "zen-panel-tools", "zen-panel-collapse", "zen-panel-close"]);
+});
+
+test("panelColumns: a main column on the left and a details column on the right", () => {
+  const c = panelColumns();
+  expect(c.el.classList.contains("zen-panel-cols")).toBe(true);
+  expect(Array.from(c.el.children)).toEqual([c.left, c.right]);
+  expect(c.left.classList.contains("zen-panel-col-main")).toBe(true);
+  expect(c.right.classList.contains("zen-panel-col-side")).toBe(true);
 });

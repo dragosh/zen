@@ -4,8 +4,8 @@
 // editor under a small header.
 import type { Api, NavNode, Workspace } from "../api";
 import {
-  applyAppTheme, button, closeWindowKey, createDeveloper, createHistory, createLayout, createOpening, createStore, el, hasFeature, mountPreview, reloadKey, shellAction,
-  type Ctx, type Developer, type Feature, type Layout, type Store,
+  applyAppTheme, button, closeWindowKey, createHistory, createInspector, createLayout, createOpening, createStore, developerEnabled, el, followDeveloper, hasFeature, mountPreview, reloadKey, shellAction,
+  type Ctx, type Feature, type Inspector, type Layout, type Store,
 } from "@zenmd/kit";
 import { BRAND } from "../brand";
 // ?no-inline: a file of the app, not a data: URL (the CSP allows images from 'self' only).
@@ -131,7 +131,9 @@ export function createShell(root: HTMLElement, { api, features, search, random =
 
   let layout: Layout | null = null;
   let homeSettings = false; // Settings shown on the home screen (no folder open)
-  let developer: Developer | null = null;
+  // The Console panel of a build that has `developer` but not `inspector` (the page feature owns the Inspector otherwise).
+  let consolePanel: Inspector | null = null;
+  let stopFollowConsole: (() => void) | null = null;
   let unmountNav: (() => void) | null = null;
   let unmountMain: (() => void) | null = null;
   let mainId: "reader" | null = null;
@@ -212,8 +214,10 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     mainId = null;
     unmountNav?.();
     unmountNav = null;
-    developer?.destroy();
-    developer = null;
+    stopFollowConsole?.();
+    stopFollowConsole = null;
+    consolePanel?.destroy();
+    consolePanel = null;
     settings?.destroy();
     settings = null;
     homeSettings = false;
@@ -317,17 +321,32 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     const path = page || workspace.home;
     if (path && has("reader")) navigate(path, page ? anchor : "");
 
-    layout = createLayout({ onBack: back, onForward: forward, onOpenFolder: () => void openFolder(), onSettings: () => toggleSettings(), onDeveloper: () => developer?.toggle() });
+    layout = createLayout({ onBack: back, onForward: forward, onOpenFolder: () => void openFolder(), onSettings: () => toggleSettings() });
     root.replaceChildren(layout.el);
-    // What the build leaves out leaves no trace: no sidebar without nav, no Inspector or Developer button without theirs.
+    // What the build leaves out leaves no trace: no sidebar without nav, no Inspector button without the inspector feature.
     if (!has("nav")) {
       layout.toggleSidebar();
       layout.el.querySelector('[data-action="toggle-sidebar"]')?.remove();
     }
     if (!has("inspector")) layout.el.querySelector(".zen-inspector-button")?.remove();
-    if (!has("developer")) layout.el.querySelector(".zen-developer-button")?.remove();
-    // The button and ⌥⌘J, while "Show developer tab" is on (ui/developer-tab).
-    developer = has("developer") ? createDeveloper(layout, api, doc) : null;
+    // The Console is a tab of the Inspector, which the page feature owns. A build with `developer` but not `inspector`
+    // has a panel of its own with the Console tab only (⌥⌘J, no button), there while the setting is on (ui/inspector).
+    if (has("developer") && !has("inspector")) {
+      const l = layout;
+      const syncConsole = () => {
+        const want = developerEnabled();
+        if (want && !consolePanel) {
+          consolePanel = createInspector({ doc, host: api, external: true, onSelectIssue: () => {} });
+          l.setBottomPanel(consolePanel.el);
+        } else if (!want && consolePanel) {
+          consolePanel.destroy();
+          consolePanel = null;
+          l.setBottomPanel(null);
+        }
+      };
+      stopFollowConsole = followDeveloper(syncConsole, doc.defaultView ?? window);
+      syncConsole();
+    }
     doc.title = `${workspace.name} — ${BRAND}`;
     unmountNav = feature("nav")?.mount(layout.slots, ctx) ?? null;
     syncMain();

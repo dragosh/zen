@@ -106,10 +106,11 @@ test("issues live in the panel: listed, selected, and cleared on navigation", as
   sessionStorage.setItem(OPEN_KEY, "1");
   mount();
   await settle();
-  const item = panel().querySelector<HTMLButtonElement>(".zen-lint-item")!;
+  const item = panel().querySelector<HTMLButtonElement>('.zen-problem[data-kind="spelling"]')!;
   expect(item.textContent).toContain("teh");
   vi.useFakeTimers();
-  item.click();
+  item.click(); // selects it; Show scrolls to the mark
+  panel().querySelector<HTMLButtonElement>('[data-action="show"]')!.click();
   const m = env.slots.main.querySelector("mark.zen-lint")!;
   expect(spy.mock.contexts[0]).toBe(m);
   expect(m.classList.contains("zen-lint-flash")).toBe(true);
@@ -118,7 +119,7 @@ test("issues live in the panel: listed, selected, and cleared on navigation", as
   api.lintResult = { available: false, alerts: [] };
   env.ctx.navigate("b.md");
   await settle();
-  expect(panel().textContent).toContain("Linting off");
+  expect(panel().textContent).toContain("No problems on this page.");
   expect(states.at(-1)?.count).toBe(0);
 });
 
@@ -138,9 +139,9 @@ test("a page that fails to load hides the inspector; unmount removes everything"
 test("the panel is tabbed and remembers the tab", async () => {
   env.ctx.store.set({ path: "README.md" });
   sessionStorage.setItem(OPEN_KEY, "1");
-  localStorage.setItem(TAB_KEY, "page");
+  localStorage.setItem(TAB_KEY, "problems");
   mount();
   await settle();
   const tabs = Array.from(panel().querySelectorAll('[role="tab"]'));
-  expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual(["false", "false", "true"]);
+  expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual(["false", "true", "false"]); // Page Info, Problems, Console (hidden while its switch is off)
 });

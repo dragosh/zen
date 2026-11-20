@@ -94,8 +94,22 @@ body.zen-panel-resizing { cursor: row-resize; user-select: none; }
 .zen-panel-count[data-tone="error"] { background: var(--lint-error); color: var(--bg); }
 .zen-panel-count[data-tone="warning"] { background: var(--lint-warning); color: var(--bg); }
 
-.zen-panel-tools { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; }
-.zen-panel-close {
+.zen-panel-tab[hidden] { display: none; }
+.zen-panel-tools { display: flex; align-items: center; gap: var(--space-2); margin-left: auto; min-width: 0; }
+/* The controls of the selected tab: a filter dropdown, then its actions. */
+.zen-panel-tools-group { display: flex; align-items: center; gap: var(--space-2); min-width: 0; }
+.zen-panel-tools-group[hidden] { display: none; }
+.zen-panel-tools-group select, .zen-panel-tools-group input[type="search"] {
+  font: inherit;
+  font-size: 12px;
+  background: var(--bg);
+  color: var(--fg);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 2px var(--space-2);
+}
+.zen-panel-tools-group button { padding: 2px var(--space-2); font-size: 12px; }
+.zen-panel-collapse, .zen-panel-close {
   align-self: center;
   width: 24px;
   height: 24px;
@@ -105,12 +119,28 @@ body.zen-panel-resizing { cursor: row-resize; user-select: none; }
   font-size: 11px;
   line-height: 1;
 }
-.zen-panel-close:hover { color: var(--fg); background: var(--btn-bg-hover); }
+.zen-panel-collapse:hover, .zen-panel-close:hover { color: var(--fg); background: var(--btn-bg-hover); }
+
+/* Collapsed: the header only. */
+.zen-panel.is-collapsed { height: auto; }
+.zen-panel.is-collapsed .zen-panel-head { border-bottom: 0; }
 
 /* Bodies: one per tab, scrolling on their own. */
 .zen-panel-body { flex: 1; min-height: 0; overflow: auto; padding: var(--space-3) var(--space-4); outline: none; }
 .zen-panel-body[hidden] { display: none; }
 .zen-panel-body:focus-visible { box-shadow: inset 0 0 0 2px var(--focus); }
+
+/* Two columns: the list or main info on the left, details on the right (narrower). Each scrolls on
+   its own; under about 700 px the panel is one column and the tab scrolls. */
+.zen-panel-body:has(> .zen-panel-cols) { padding: 0; container-type: inline-size; overflow: hidden; }
+.zen-panel-cols { height: 100%; display: grid; grid-template-columns: minmax(0, 1fr) minmax(220px, 36%); }
+.zen-panel-col { min-width: 0; min-height: 0; overflow: auto; padding: var(--space-3) var(--space-4); }
+.zen-panel-col-side { border-left: 1px solid var(--rule); background: var(--bg-subtle); }
+@container (max-width: 700px) {
+  .zen-panel-cols { display: block; overflow: auto; }
+  .zen-panel-col { overflow: visible; }
+  .zen-panel-col-side { border-left: 0; border-top: 1px solid var(--rule); }
+}
 
 .zen-panel-empty {
   height: 100%;
