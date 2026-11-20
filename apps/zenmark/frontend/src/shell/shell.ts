@@ -290,7 +290,8 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     layout.setSettingsOpen(true);
     // The Export button is on while Settings shows Export (the page says when its section changes).
     const view = settings;
-    view.el.addEventListener("zen-settings-section", () => layout?.setActive("export", view.current() === "export"));
+    // One footer button is on (the footer group in layout.ts): Export while Settings shows Export, the cog otherwise.
+    view.el.addEventListener("zen-settings-section", () => layout?.setActive(view.current() === "export" ? "export" : "settings", true));
     syncHistoryButtons();
     settings.show();
   }
@@ -349,6 +350,8 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     layout = createLayout({
       onBack: back, onForward: forward, onOpenFolder: () => void openFolder(), onSettings: () => toggleSettings(),
       onClose: () => void closeFolder(), onExport: () => openExport(),
+      // Another footer button was turned on (the Inspector): Settings closes, so the two never overlap.
+      onCloseView: (v) => { if (v === "settings") closeSettings(); },
     });
     layout.setIdentity(identity(workspace));
     root.replaceChildren(layout.el);

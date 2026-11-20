@@ -1252,13 +1252,37 @@ test("the Export button is on while Settings shows Export, and off when it close
   expect(exp().getAttribute("aria-pressed")).toBe("false");
   exp().click();
   await tick();
+  const cog = () => root.querySelector<HTMLElement>(".zen-settings-button")!;
+  // one footer button is on: Export while Settings shows Export, the cog for any other section
   expect(exp().getAttribute("aria-pressed")).toBe("true");
-  expect(root.querySelector(".zen-settings-button")!.getAttribute("aria-expanded")).toBe("true");
+  expect(cog().getAttribute("aria-expanded")).toBe("false");
   section("appearance").click();
   expect(exp().getAttribute("aria-pressed")).toBe("false");
+  expect(cog().getAttribute("aria-expanded")).toBe("true");
   section("export").click();
   expect(exp().getAttribute("aria-pressed")).toBe("true");
+  expect(cog().getAttribute("aria-expanded")).toBe("false");
   key(",");
   await tick();
   expect(exp().getAttribute("aria-pressed")).toBe("false");
+  expect(cog().getAttribute("aria-expanded")).toBe("false");
+});
+
+test("Settings and the Inspector never show at once: opening one closes the other", async () => {
+  await boot(withWorkspace("README.md")).start();
+  await tick();
+  key(",");
+  await tick();
+  expect(settingsPage()).not.toBeNull();
+  // the Inspector opens (its button, ⌥⌘I): Settings closes
+  document.dispatchEvent(new CustomEvent("zen:inspector-state", { detail: { available: true, open: true, count: 0 } }));
+  await tick();
+  expect(settingsPage()).toBeNull();
+  // Settings opens again: the Inspector is asked to close
+  let closed = 0;
+  document.addEventListener("zen:inspector-close", () => closed++, { once: true });
+  key(",");
+  await tick();
+  expect(settingsPage()).not.toBeNull();
+  expect(closed).toBe(1);
 });

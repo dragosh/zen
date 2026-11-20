@@ -12,6 +12,7 @@ for behaviour. Implemented by the `ui/*` specs.
   already exists for its kind; a new pattern needs a reason in its spec.
   - **Settings:** every section uses the two-column frame. The left column holds the items, one per row, vertically (Theme, Navigation; Zoom, Motion…). The right column holds the selected item's controls, preview, help and actions. A section with nothing to list shows its empty text, or its failure text, in the left column, where the items would be. Nothing that lists items lives in the right column.
   - **Panels:** every Inspector tab uses the panel's two resizable columns and the same padding and header tools.
+  - **Sidebar footer:** its buttons are one group, so at most one is on and two views never overlap. Turning one on closes the view of the one that was on; clicking the one that is on closes its view. Settings and Export share one view and only move the mark. A new footer button joins the group through `addFooterButton` (kit/ui `layout.ts`).
   - **States:** the same `aria-*` state means the same look everywhere. Active, selected, disabled, empty and error each have one style.
   - **Fix the pattern, not the instance.** When feedback hits one place, change the shared component so that every place that uses it changes together, and add a test that holds the rule for all of them.
 - **Black and white.** No hue anywhere in the chrome. Buttons are grayscale.

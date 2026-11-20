@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeEach, expect, test } from "vitest";
-import { INSPECTOR_STATE, INSPECTOR_TOGGLE } from "../inspector/events";
+import { INSPECTOR_CLOSE, INSPECTOR_STATE, INSPECTOR_TOGGLE } from "../inspector/events";
 import { createLayout, navSideRow, setNavSide, SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN, storedNavSide, WIDTH_KEY } from "./layout";
 
 beforeEach(() => localStorage.clear());
@@ -351,17 +351,15 @@ test("active footer buttons", () => {
   expect(settings.getAttribute("aria-expanded")).toBe("false");
   expect(exp.getAttribute("aria-pressed")).toBe("false");
   expect(inspector.getAttribute("aria-expanded")).toBe("false");
-  l.setActive("settings", true);
+  // Export uses aria-pressed, the others aria-expanded; one is on at a time
   l.setActive("export", true);
-  l.setActive("inspector", true);
-  expect(settings.getAttribute("aria-expanded")).toBe("true");
   expect(exp.getAttribute("aria-pressed")).toBe("true");
   expect(exp.hasAttribute("aria-expanded")).toBe(false);
-  expect(inspector.getAttribute("aria-expanded")).toBe("true");
   l.setActive("export", false);
   expect(exp.getAttribute("aria-pressed")).toBe("false");
-  expect(settings.getAttribute("aria-expanded")).toBe("true"); // the others stay
   // setSettingsOpen is the same as setActive("settings")
+  l.setSettingsOpen(true);
+  expect(settings.getAttribute("aria-expanded")).toBe("true");
   l.setSettingsOpen(false);
   expect(settings.getAttribute("aria-expanded")).toBe("false");
   // the Inspector's own event still sets its state
@@ -384,4 +382,47 @@ test("active footer buttons: inverted (the icon in --bg on --fg), in tokens, wit
   expect(all).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
   // hover is lighter than the active state: it only changes the colour
   expect(css).not.toMatch(/\.zen-settings-button:hover[^{]*\{[^}]*background/);
+});
+
+// The footer is one group: at most one button is on, so two views never overlap (Settings and the Inspector),
+// and a future footer button joins the same rule through addFooterButton.
+test("footer buttons: one active at a time; opening one closes the view of the other", () => {
+  const closed: string[] = [];
+  const l = createLayout({ onCloseView: (v) => closed.push(v) });
+  document.body.append(l.el);
+  const btn = (sel: string) => l.el.querySelector<HTMLElement>(sel)!;
+  const on = () => Array.from(l.el.querySelectorAll<HTMLElement>(".zen-sidebar-foot button"))
+    .filter((b) => b.getAttribute("aria-expanded") === "true" || b.getAttribute("aria-pressed") === "true")
+    .map((b) => b.getAttribute("aria-label") ?? b.textContent);
+  let inspectorClosed = 0;
+  document.addEventListener(INSPECTOR_CLOSE, () => inspectorClosed++);
+  // the Inspector opens while Settings shows: Settings closes
+  l.setActive("settings", true);
+  document.dispatchEvent(new CustomEvent(INSPECTOR_STATE, { detail: { available: true, open: true, count: 0 } }));
+  expect(closed).toEqual(["settings"]);
+  expect(btn(".zen-settings-button:not(.zen-inspector-button):not(.zen-export-button)").getAttribute("aria-expanded")).toBe("false");
+  expect(on()).toHaveLength(1);
+  // Settings opens while the Inspector is open: the Inspector is asked to close
+  l.setActive("settings", true);
+  expect(inspectorClosed).toBe(1);
+  // Export and Settings share one view: switching between them moves the mark and closes nothing
+  closed.length = 0;
+  l.setActive("export", true);
+  expect(closed).toEqual([]);
+  expect(btn(".zen-export-button").getAttribute("aria-pressed")).toBe("true");
+  expect(btn(".zen-settings-button:not(.zen-inspector-button):not(.zen-export-button)").getAttribute("aria-expanded")).toBe("false");
+  l.setActive("settings", true);
+  expect(btn(".zen-export-button").getAttribute("aria-pressed")).toBe("false");
+  expect(on()).toHaveLength(1);
+  // a future footer button follows the same rule
+  let mineClosed = 0;
+  const mine = l.addFooterButton({ id: "notes", label: "Notes", title: "Notes", view: "notes", onClick: () => l.setActive("notes", true), close: () => { mineClosed++; } });
+  mine.click();
+  expect(closed).toEqual(["settings"]);
+  expect(mine.getAttribute("aria-expanded")).toBe("true");
+  expect(on()).toHaveLength(1);
+  l.setActive("settings", true);
+  expect(mineClosed).toBe(1);
+  expect(mine.getAttribute("aria-expanded")).toBe("false");
+  l.el.remove();
 });

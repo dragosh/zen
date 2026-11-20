@@ -1,6 +1,6 @@
 // The frame: sidebar (nav) | resize edge | header + main. Owns the sidebar
 // width and visibility; knows nothing about what is mounted in the slots.
-import { INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorIcon, inspectorLabel, type InspectorState } from "../inspector/events";
+import { INSPECTOR_CLOSE, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorIcon, inspectorLabel, type InspectorState } from "../inspector/events";
 import "../nav/panel.css";
 import { button, el, logo } from "./dom";
 import type { Slots } from "./types";
@@ -19,6 +19,24 @@ export type LayoutHandlers = {
   onClose?(): void;
   /** The Export button in the sidebar footer: Settings › Export. */
   onExport?(): void;
+  /**
+   * Another footer button was turned on, so the view this one opened must close ("settings" for Settings and
+   * Export, which share it). The Inspector closes itself through INSPECTOR_CLOSE.
+   */
+  onCloseView?(view: string): void;
+};
+
+/**
+ * A button of the sidebar footer. The footer is one group: at most one button is on, so two views never overlap.
+ * Turning one on (setActive) closes the view of the one that was on, unless both open the same view.
+ */
+export type FooterButton = {
+  id: string; label: string; title: string; icon?: Node;
+  /** The view it opens; buttons that share a view (Settings and Export) switch without closing it. */
+  view: string;
+  onClick(button: HTMLButtonElement): void;
+  /** Closes its view when another button is turned on. */
+  close(): void;
 };
 
 export type NavSide = "left" | "right";
@@ -139,7 +157,9 @@ export type Layout = {
    * Marks a footer button as the open panel: aria-expanded on Settings and the Inspector, aria-pressed on Export
    * (Settings › Export shows). The Inspector also follows the page's INSPECTOR_STATE events.
    */
-  setActive(button: "settings" | "export" | "inspector", on: boolean): void;
+  setActive(button: "settings" | "export" | "inspector" | (string & {}), on: boolean): void;
+  /** Adds a button to the sidebar footer, in the same one-at-a-time group as Settings, Export and the Inspector. */
+  addFooterButton(b: FooterButton): HTMLButtonElement;
   /** Puts a panel at the bottom of the content area, below the page (and Settings); null removes it (a build with `developer` but not `inspector` puts its Console panel here). */
   setBottomPanel(panel: HTMLElement | null): void;
   destroy(): void;
@@ -180,16 +200,36 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
   const onInspector = (e: Event) => {
     const d = (e as CustomEvent<InspectorState>).detail;
     inspector.hidden = !d.available;
-    inspector.setAttribute("aria-expanded", String(d.open));
+    activate("inspector", d.open);
     inspector.setAttribute("aria-label", inspectorLabel(d.count));
     inspectorBadge.hidden = d.count === 0;
     inspectorBadge.textContent = String(d.count);
   };
   doc.addEventListener(INSPECTOR_STATE, onInspector);
+
+  // The footer group: which view each button opens, how it shows that it is on, and how its view closes.
+  type Entry = { el: HTMLButtonElement; attr: "aria-expanded" | "aria-pressed"; view: string; close(): void };
+  const footer = new Map<string, Entry>();
+  const isOn = (e: Entry) => e.el.getAttribute(e.attr) === "true";
+  function activate(id: string, on: boolean): void {
+    const me = footer.get(id);
+    if (!me) return;
+    if (on) {
+      for (const [other, e] of Array.from(footer.entries())) {
+        if (other === id || !isOn(e)) continue;
+        e.el.setAttribute(e.attr, "false");
+        if (e.view !== me.view) e.close();
+      }
+    }
+    me.el.setAttribute(me.attr, String(on));
+  }
   const exportBtn = button("Export", () => handlers.onExport?.(), { className: "ghost zen-settings-button zen-export-button", text: "", title: "Export ⇧⌘B" });
   exportBtn.append(exportIcon(doc));
   exportBtn.setAttribute("aria-pressed", "false");
   foot.append(settings, exportBtn, inspector);
+  footer.set("settings", { el: settings, attr: "aria-expanded", view: "settings", close: () => handlers.onCloseView?.("settings") });
+  footer.set("export", { el: exportBtn, attr: "aria-pressed", view: "settings", close: () => handlers.onCloseView?.("settings") });
+  footer.set("inspector", { el: inspector, attr: "aria-expanded", view: "inspector", close: () => doc.dispatchEvent(new CustomEvent(INSPECTOR_CLOSE)) });
 
   // The header: the folder's logo (an img, never inline SVG: a script in it never runs), its title and ×.
   const head = el("div", "zen-sidebar-head");
@@ -318,8 +358,16 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
       layout.setActive("settings", open);
     },
     setActive(which, on) {
-      if (which === "export") exportBtn.setAttribute("aria-pressed", String(on));
-      else (which === "settings" ? settings : inspector).setAttribute("aria-expanded", String(on));
+      activate(which, on);
+    },
+    addFooterButton(b) {
+      const btn = button(b.label, () => b.onClick(btn), { className: "ghost zen-settings-button", text: b.icon ? "" : b.label, title: b.title });
+      if (b.icon) btn.append(b.icon);
+      btn.dataset.footer = b.id;
+      btn.setAttribute("aria-expanded", "false");
+      foot.append(btn);
+      footer.set(b.id, { el: btn, attr: "aria-expanded", view: b.view, close: b.close });
+      return btn;
     },
     setBottomPanel(panel) {
       bottom?.remove();
