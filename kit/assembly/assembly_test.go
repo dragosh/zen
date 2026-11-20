@@ -16,6 +16,7 @@ func testCatalog() Catalog {
 		Layouts:   []string{"article", "docs", "landing", "course"},
 		Templates: []string{"techdocs", "learning"},
 		Themes:    []string{"default"},
+		Dialects:  []string{"myst"},
 		LayoutNeeds: map[string]Needs{
 			"course": {Plugins: []string{"quiz"}},
 		},
@@ -195,6 +196,9 @@ func TestBuiltinCatalog(t *testing.T) {
 	if !reflect.DeepEqual(c.Templates, []string{"techdocs", "learning", "planner"}) {
 		t.Errorf("templates %v", c.Templates)
 	}
+	if !reflect.DeepEqual(c.Dialects, []string{"myst"}) {
+		t.Errorf("dialects %v", c.Dialects)
+	}
 	if !reflect.DeepEqual(c.Themes, []string{"default"}) || !reflect.DeepEqual(c.Addons, []string{"vale"}) {
 		t.Errorf("themes %v addons %v", c.Themes, c.Addons)
 	}
@@ -306,5 +310,33 @@ func TestFeatures(t *testing.T) {
 	c, _ := BuiltinCatalog()
 	if !reflect.DeepEqual(c.Features, []string{"editor"}) {
 		t.Errorf("builtin features %v", c.Features)
+	}
+}
+
+func TestDialects(t *testing.T) {
+	// A missing key, null and [] mean none, as for plugins.
+	for _, y := range []string{"app: x\n", "app: x\ndialects: []\n", "app: x\ndialects:\n"} {
+		a, err := load(t, y)
+		if err != nil || len(a.Dialects) != 0 {
+			t.Errorf("%q: %+v, %v", y, a.Dialects, err)
+		}
+	}
+	for _, y := range []string{"app: x\ndialects: all\n", "app: x\ndialects: [all]\n", "app: x\ndialects: [myst]\n"} {
+		a, err := load(t, y)
+		if err != nil || !reflect.DeepEqual(a.Dialects, []string{"myst"}) {
+			t.Errorf("%q: %+v, %v", y, a.Dialects, err)
+		}
+	}
+	for _, c := range []struct{ yml, want string }{
+		{"app: x\ndialects: [mkdocs]\n", "unknown dialect \"mkdocs\"; known dialects: myst"},
+		{"app: x\ndialects: [myst, myst]\n", "twice"},
+		{"app: x\ndialects: [all, myst]\n", "all"},
+		{"app: x\ndialects: myst\n", "list"},
+		{"app: x\ndialects: [\"../x\"]\n", "known dialects"},
+		{"app: x\nfoo: 1\n", "dialects"}, // the known keys name it
+	} {
+		if _, err := load(t, c.yml); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%q: %v, want %q", c.yml, err, c.want)
+		}
 	}
 }

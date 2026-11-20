@@ -527,7 +527,7 @@ func TestVersionVerbose(t *testing.T) {
 	}
 
 	SetBuildInfo(func() BuildInfo {
-		return BuildInfo{App: "demo", Features: []string{"editor"}, Plugins: []string{"codeblock", "quiz"}, Layouts: []string{"article", "docs"}, Templates: []string{"learning"}, Theme: "default"}
+		return BuildInfo{App: "demo", Features: []string{"editor"}, Plugins: []string{"codeblock", "quiz"}, Layouts: []string{"article", "docs"}, Templates: []string{"learning"}, Dialects: []string{"myst"}, Theme: "default"}
 	})
 	want := "zenmd " + Version + " (add-ons: vale)\n" +
 		"app: demo\n" +
@@ -536,6 +536,7 @@ func TestVersionVerbose(t *testing.T) {
 		"plugins: codeblock, quiz\n" +
 		"layouts: article, docs\n" +
 		"templates: learning\n" +
+		"dialects: myst\n" +
 		"theme: default\n"
 	if r := run(t, cwd, nil, "version", "--verbose"); r.code != 0 || r.launched || r.stdout != want {
 		t.Errorf("verbose: %d %q\nwant %q", r.code, r.stdout, want)
@@ -550,7 +551,7 @@ func TestVersionVerbose(t *testing.T) {
 	addonList = func() []addons.Addon { return nil }
 	SetBuildInfo(func() BuildInfo { return BuildInfo{App: "tiny", Theme: "default"} })
 	r := run(t, cwd, nil, "version", "--verbose")
-	for _, w := range []string{"features: none\n", "add-ons: none\n", "plugins: none\n", "layouts: none\n", "templates: none\n"} {
+	for _, w := range []string{"features: none\n", "add-ons: none\n", "plugins: none\n", "layouts: none\n", "templates: none\n", "dialects: none\n"} {
 		if !strings.Contains(r.stdout, w) {
 			t.Errorf("missing %q in %q", w, r.stdout)
 		}
