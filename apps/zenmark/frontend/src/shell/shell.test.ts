@@ -899,3 +899,106 @@ test("with every feature the same controls are there", async () => {
   document.dispatchEvent(e);
   expect(e.defaultPrevented).toBe(true);
 });
+
+// Intro screen (zenmark-org/zenmd#23)
+test("welcome: the logo comes first, the rest follows in order (CSS delays)", async () => {
+  await boot(createFakeApi()).start();
+  const view = root.querySelector<HTMLElement>(".zen-welcome")!;
+  const logo = view.querySelector(".zen-welcome-logo")!;
+  expect(logo.classList.contains("zen-welcome-first")).toBe(true);
+  for (const sel of ["h1", ".zen-welcome-tagline", ".zen-welcome-open", ".zen-welcome-menuhint"]) {
+    expect(view.querySelector(sel)!.classList.contains("zen-welcome-later"), sel).toBe(true);
+  }
+  expect(logo.classList.contains("zen-welcome-later")).toBe(false);
+});
+
+test("welcome: the background is one of three images picked by the injected random", async () => {
+  const urls: string[] = [];
+  for (const r of [0, 0.5, 0.99]) {
+    const s = createShell(root, { api: createFakeApi(), features: features(), search: "", random: () => r });
+    shell = s;
+    await s.start();
+    const bg = root.querySelector<HTMLElement>(".zen-welcome .zen-welcome-bg")!;
+    expect(bg).not.toBeNull();
+    expect(bg.getAttribute("aria-hidden")).toBe("true");
+    urls.push(bg.style.backgroundImage);
+    s.destroy();
+  }
+  expect(new Set(urls).size).toBe(3);
+  for (const u of urls) expect(u).toMatch(/intro-[123]/);
+});
+
+test("welcome: it picks again each time the home screen opens", async () => {
+  const picks = [0, 0.99];
+  const s = createShell(root, { api: createFakeApi(), features: features(), search: "", random: () => picks.shift() ?? 0 });
+  shell = s;
+  await s.start();
+  const first = root.querySelector<HTMLElement>(".zen-welcome-bg")!.style.backgroundImage;
+  key(","); // Settings from home, then Back to the home screen
+  button("Back to the home screen")!.click();
+  const second = root.querySelector<HTMLElement>(".zen-welcome-bg")!.style.backgroundImage;
+  expect(second).not.toBe(first);
+});
+
+test("the background belongs to the home screen only", async () => {
+  await boot(withWorkspace()).start();
+  expect(root.querySelector(".zen-welcome-bg")).toBeNull();
+  expect(root.querySelector(".zen-welcome")).toBeNull();
+});
+
+test("home screen: folder-only shortcuts and menu events do nothing", async () => {
+  const api = createFakeApi();
+  const s = boot(api);
+  await s.start();
+  const before = root.innerHTML;
+  const fire = (k: string, extra: KeyboardEventInit = {}) => {
+    const e = new KeyboardEvent("keydown", { key: k, metaKey: true, bubbles: true, cancelable: true, ...extra });
+    document.dispatchEvent(e);
+    return e;
+  };
+  for (const k of ["n", "\\", "[", "]", "f", "g", "p"]) fire(k);
+  fire("f", { altKey: true });
+  fire("i", { altKey: true });
+  fire("b", { shiftKey: true });
+  fire("w", { shiftKey: true });
+  for (const ev of ["menu:new-page", "menu:find", "menu:find-next", "menu:find-previous", "menu:print-page", "menu:build-website", "menu:close-folder"] as const) {
+    api.emit(ev, undefined);
+  }
+  await tick();
+  expect(api.callsTo("printWindow")).toHaveLength(0);
+  expect(api.callsTo("closeFolder")).toHaveLength(0);
+  expect(api.callsTo("openEditor")).toHaveLength(0);
+  expect(document.querySelector(".zen-newpage, .zen-buildsite, .zen-inspector")).toBeNull();
+  expect(root.innerHTML).toBe(before);
+});
+
+test("⌘P on the home screen is swallowed, not printed", async () => {
+  const api = createFakeApi();
+  await boot(api).start();
+  const e = new KeyboardEvent("keydown", { key: "p", metaKey: true, bubbles: true, cancelable: true });
+  document.dispatchEvent(e);
+  await tick();
+  expect(api.callsTo("printWindow")).toHaveLength(0);
+  expect(e.defaultPrevented).toBe(true);
+});
+
+test("app:ready is sent once the first screen is drawn, home or folder", async () => {
+  const home = createFakeApi();
+  await boot(home).start();
+  await tick();
+  expect(home.callsTo("appReady")).toHaveLength(1);
+  shell?.destroy();
+  const folder = withWorkspace();
+  await boot(folder).start();
+  await tick();
+  expect(folder.callsTo("appReady")).toHaveLength(1);
+});
+
+test("app:ready is also sent when startup fails, so the error is seen", async () => {
+  const api = createFakeApi();
+  api.failNext("startup", new Error("boom"));
+  await boot(api).start();
+  await tick();
+  expect(root.querySelector(".zen-error")).not.toBeNull();
+  expect(api.callsTo("appReady")).toHaveLength(1);
+});
