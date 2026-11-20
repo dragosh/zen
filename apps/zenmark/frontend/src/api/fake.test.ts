@@ -332,16 +332,6 @@ test("fake setNavHidden removes the page (and what is under it); revealInFinder 
   expect(api.callsTo("revealInFinder")).toEqual([["guides/install.md"]]);
 });
 
-test("fake delivers menu:about", () => {
-  const api = createFakeApi();
-  let n = 0;
-  const off = api.on("menu:about", () => { n++; });
-  api.emit("menu:about", undefined);
-  off();
-  api.emit("menu:about", undefined);
-  expect(n).toBe(1);
-});
-
 test("the View menu's zoom events reach on() listeners", () => {
   const api = createFakeApi();
   const got: string[] = [];

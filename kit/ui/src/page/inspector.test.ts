@@ -145,3 +145,47 @@ test("the panel is tabbed and remembers the tab", async () => {
   const tabs = Array.from(panel().querySelectorAll('[role="tab"]'));
   expect(tabs.map((t) => t.getAttribute("aria-selected"))).toEqual(["false", "true", "false"]); // Page Info, Problems, Console (hidden while its switch is off)
 });
+
+// ---- ui/inspector-polish: warnings go to Problems
+
+const withWarnings = (warnings: string[]) => {
+  const real = env.api.page;
+  env.api.page = async (p) => ({ ...(await real(p)), warnings });
+};
+const bar = () => env.slots.main.querySelector<HTMLElement>(".zen-page-warnings:not(.zen-dialect-hint)")!;
+const problemRows = () => Array.from(panel().querySelectorAll<HTMLElement>('.zen-problem[data-kind="warning"]')).map((r) => r.textContent);
+
+test("warnings go to Problems: the bar stays empty with the inspector feature, and the count includes them", async () => {
+  withWarnings(['unknown layout "slides"', "dialect myst is not in this build"]);
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await settle();
+  expect(bar().hidden).toBe(true);
+  expect(bar().textContent).toBe("");
+  expect(problemRows()).toHaveLength(2);
+  expect(problemRows()[0]).toContain('unknown layout "slides"');
+  expect(states.at(-1)?.count).toBe(2 + 1); // two warnings and the spelling alert
+});
+
+test("warnings go to Problems: they follow a live reload", async () => {
+  withWarnings(["dialect myst is not in this build"]);
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await settle();
+  expect(problemRows()).toHaveLength(1);
+  withWarnings([]);
+  api.emit("page:changed", { path: "README.md" });
+  await settle();
+  expect(problemRows()).toHaveLength(0);
+});
+
+test("warnings go to Problems: a build without the inspector feature keeps the bar", async () => {
+  const bare = createFakeApi({ sources: { ...SOURCES }, build: { features: ["reader"] } });
+  env = setup(bare);
+  withWarnings(['unknown layout "slides"']);
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await settle();
+  expect(bar().hidden).toBe(false);
+  expect(bar().textContent).toContain('unknown layout "slides"');
+});

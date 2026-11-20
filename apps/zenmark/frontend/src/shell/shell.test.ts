@@ -786,13 +786,9 @@ test("bare shell", async () => {
   key(",");
   expect(sectionNames()).toEqual(["Appearance", "Accessibility"]);
   expect(root.querySelector('[role="radiogroup"][aria-label="Navigation"]')).toBeNull(); // no nav: no side to choose
-  // Zenmark › About lists what the build has, and what it could have, greyed; it works in a bare shell
+  // Zenmark › About is the standard macOS panel: the web page has no About sheet and does not listen for menu:about
   esc();
-  bare.emit("menu:about", undefined);
-  expect(document.querySelector(".zen-about")).not.toBeNull();
-  const missing = Array.from(document.querySelectorAll(".zen-about .zen-build-feature-missing")).map((e) => (e as HTMLElement).dataset.feature);
-  expect(missing).toEqual(["reader", "nav", "find", "editor", "inspector", "print", "export", "newsite", "developer"]);
-  esc();
+  (bare as unknown as { emit(e: string, p: undefined): void }).emit("menu:about", undefined);
   expect(document.querySelector(".zen-about")).toBeNull();
   // shortcuts of missing features do nothing; Open Folder and Settings stay
   esc();
@@ -823,7 +819,7 @@ test("developer alone in a bare shell gives an Inspector with the Console tab on
   await tick();
   const panel = root.querySelector<HTMLElement>(".zen-inspector")!;
   expect(panel.hidden).toBe(false);
-  expect(Array.from(panel.querySelectorAll<HTMLElement>('[role="tab"]')).filter((t) => !t.hidden).map((t) => t.dataset.tab)).toEqual(["console"]);
+  expect(Array.from(panel.querySelectorAll<HTMLElement>('[role="tab"]')).filter((t) => !t.hidden).map((t) => t.dataset.tab)).toEqual(["console", "build"]);
   expect(root.querySelectorAll(".zen-dev-row").length).toBeGreaterThanOrEqual(4);
   mod("i", { altKey: true }); // ⌥⌘I: no Inspector in this build
   expect(panel.querySelector('[data-tab="info"]')).toBeNull();
@@ -1058,31 +1054,15 @@ test("the welcome fade waits until the window is shown (appReady resolves), then
   expect(root.querySelector(".zen-welcome")!.classList.contains("zen-welcome-play")).toBe(true);
 });
 
-// ---- ui/settings-layout: About, Open Console, File › Export › Website…
+// ---- ui/settings-layout: Open Console, File › Export › Website…
 
-test("menu:about opens the About sheet with the version of the build, once; Esc closes it", async () => {
+test("menu:about is gone: no About sheet, in a full build or after destroy", async () => {
   const api = createFakeApi({ startup: { workspace: sampleWorkspace(), page: "README.md", mode: "read" }, build: { version: "1.2.3" } });
   const s = boot(api);
   await s.start();
-  api.emit("menu:about", undefined);
-  api.emit("menu:about", undefined);
-  expect(document.querySelectorAll(".zen-about")).toHaveLength(1);
-  expect(document.querySelector(".zen-about")!.textContent).toContain("Version 1.2.3");
-  esc();
+  (api as unknown as { emit(e: string, p: undefined): void }).emit("menu:about", undefined);
   expect(document.querySelector(".zen-about")).toBeNull();
-  // an unstamped build says dev
-  const dev = createFakeApi({ startup: { workspace: sampleWorkspace(), page: "README.md", mode: "read" } });
-  shell?.destroy();
-  shell = boot(dev);
-  await shell.start();
-  dev.emit("menu:about", undefined);
-  expect(document.querySelector(".zen-about")!.textContent).toContain("Version dev");
-  esc();
-  // destroy drops the listener
-  shell.destroy();
-  shell = undefined;
-  dev.emit("menu:about", undefined);
-  expect(document.querySelector(".zen-about")).toBeNull();
+  expect(document.body.textContent).not.toContain("Version 1.2.3");
 });
 
 test("File › Export › Website… (menu:build-website) opens Settings › Export › Website, with no modal", async () => {

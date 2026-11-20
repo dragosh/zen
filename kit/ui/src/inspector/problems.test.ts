@@ -205,3 +205,81 @@ test("Show scrolls smoothly, and not when Reduce motion is On", () => {
     delete document.documentElement.dataset.reduceMotion;
   }
 });
+
+// ---- ui/inspector-polish: the page's render warnings
+
+const DIALECT = "dialect myst is not in this build";
+const LAYOUT = 'unknown layout "slides"';
+function warned(warnings: string[], opts: { pageWarnings?: boolean; html?: string } = {}): Inspector {
+  const i = createInspector({ doc: document, host: { addons: [VALE] } as never, onSelectIssue: select, pageWarnings: opts.pageWarnings ?? true });
+  made.push(i);
+  const r = document.createElement("article");
+  r.innerHTML = opts.html ?? "<p>fine</p>";
+  document.body.append(i.el, r);
+  i.setPage("a.md", { ...page(), warnings }, r);
+  i.open();
+  i.el.querySelector<HTMLButtonElement>('[data-tab="problems"]')!.click();
+  return i;
+}
+const select1 = (i: Inspector, n = 0) => rows(i)[n].click();
+
+test("page warnings: each is a warning problem under Checks, counted in the chip and the badge, even when it is the only problem", () => {
+  const i = warned([DIALECT, LAYOUT]);
+  expect(kinds(i)).toEqual(["warning", "warning"]);
+  expect(rows(i)[0].dataset.severity).toBe("warning");
+  expect(rows(i)[0].textContent).toContain(DIALECT);
+  expect(i.el.querySelector('[data-tab="problems"] .zen-panel-count')!.textContent).toBe("2");
+  expect(i.button.querySelector(".zen-inspector-badge")!.textContent).toBe("2");
+  expect(i.button.getAttribute("aria-label")).toBe("Inspector, 2 issues");
+  choose(i, "checks");
+  expect(kinds(i)).toEqual(["warning", "warning"]);
+  choose(i, "spelling");
+  expect(rows(i)).toHaveLength(0);
+});
+
+test("page warnings: they come before and count with the other checks and spelling", () => {
+  const i = warned([LAYOUT], { html: "<a data-zen-link='broken'>Gone</a>" });
+  i.setIssues([alert({ line: 3, match: "teh" })]);
+  expect(i.el.querySelector('[data-tab="problems"] .zen-panel-count')!.textContent).toBe("3");
+  expect(kinds(i)).toContain("warning");
+  choose(i, "checks");
+  expect(kinds(i).sort()).toEqual(["link", "warning"]);
+});
+
+test("page warnings: the right column has the message and the Fix help for a dialect and for a layout", () => {
+  const i = warned([DIALECT, LAYOUT, "something else"]);
+  select1(i, 0);
+  expect(detail(i, "message")).toBe(DIALECT);
+  expect(detail(i, "fix")).toBe("Settings › Markdown, or remove it from .zen.yml");
+  select1(i, 1);
+  expect(detail(i, "fix")).toBe("Settings › Layouts, or change layout: in the front matter");
+  select1(i, 2);
+  expect(detail(i, "message")).toBe("something else");
+  expect(detail(i, "fix")).toBeUndefined();
+  expect(i.el.querySelector('.zen-problem-details [data-action="show"]')).toBeNull(); // there is no element to show
+});
+
+test("page warnings: the live reload replaces them, and the selection stays on the same warning", () => {
+  const i = warned([DIALECT, LAYOUT]);
+  select1(i, 1);
+  const r = document.createElement("article");
+  i.setPage("a.md", { ...page(), warnings: [LAYOUT] }, r);
+  expect(kinds(i)).toEqual(["warning"]);
+  expect(detail(i, "message")).toBe(LAYOUT);
+  i.setPage("a.md", { ...page(), warnings: [] }, r);
+  expect(rows(i)).toHaveLength(0);
+  expect(i.el.querySelector('[data-tab="problems"] .zen-panel-count')!.hidden).toBe(true);
+});
+
+test("page warnings: an inspector that is not told to list them (the editor's) does not", () => {
+  const i = warned([DIALECT], { pageWarnings: false });
+  expect(rows(i)).toHaveLength(0);
+});
+
+test("warning text is text", () => {
+  const i = warned(['unknown layout "<img src=x onerror=alert(1)>"']);
+  expect(i.el.querySelector(".zen-problem img")).toBeNull();
+  select1(i);
+  expect(i.el.querySelector(".zen-problem-details img")).toBeNull();
+  expect(detail(i, "message")).toContain("<img src=x");
+});
