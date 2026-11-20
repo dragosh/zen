@@ -118,8 +118,8 @@ func sorted(a []string) []string {
 	return out
 }
 
-// Zenmark lists everything, so the assembly it carries is every built-in.
-func TestZenmarkAssemblyIsEverything(t *testing.T) {
+// The package tests run against a full build (fullbuild_test.go): the assembly it carries is every built-in.
+func TestFullBuildIsEverything(t *testing.T) {
 	cat, _ := assembly.BuiltinCatalog()
 	if assemblyInfo.App != "zenmark" || assemblyInfo.Theme != "default" ||
 		!reflect.DeepEqual(assemblyInfo.Plugins, cat.Plugins) || !reflect.DeepEqual(assemblyInfo.Layouts, cat.Layouts) || !reflect.DeepEqual(assemblyInfo.Templates, cat.Templates) {

@@ -171,7 +171,7 @@ func ExportPDF(e cli.ExportPDF, stdout, stderr io.Writer) error {
 		return err
 	}
 	z, err := newZen(zenOptions{
-		Registry: assemblyPlugins(), GlobalPath: globalConfigPath(), ConfigDir: configDirOf(),
+		Registry: builtinPlugins(), GlobalPath: globalConfigPath(), ConfigDir: configDirOf(),
 		Dir: e.Dir, Mode: "read", Events: discardSink{},
 	})
 	if err != nil {

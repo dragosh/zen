@@ -13,7 +13,7 @@ import (
 // nothing; trust decisions are only read.
 func BuildSite(b cli.Build, stdout, stderr io.Writer) error {
 	globalPath, _ := config.GlobalPath()
-	return session.WriteSite(session.SiteEnv{GlobalPath: globalPath, Registry: assemblyPlugins(), Layouts: assemblyLayouts(cli.Version), Dialects: assemblyDialects(), Version: cli.Version}, siteOptions(b), stdout, stderr)
+	return session.WriteSite(session.SiteEnv{GlobalPath: globalPath, Registry: builtinPlugins(), Layouts: builtinLayouts(cli.Version), Dialects: builtinDialects(), Version: cli.Version}, siteOptions(b), stdout, stderr)
 }
 
 func siteOptions(b cli.Build) session.SiteOptions {

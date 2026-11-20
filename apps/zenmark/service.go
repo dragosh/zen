@@ -80,17 +80,17 @@ func (z *Zen) setLaunchErr(err error) {
 
 func newZen(o zenOptions) (*Zen, error) {
 	if o.Registry == nil {
-		o.Registry = assemblyPlugins()
+		o.Registry = builtinPlugins()
 	}
 	if o.Layouts == nil {
-		o.Layouts = assemblyLayouts(cli.Version)
+		o.Layouts = builtinLayouts(cli.Version)
 	}
 	so := session.Options{
 		GlobalPath: o.GlobalPath,
 		ConfigDir:  o.ConfigDir,
 		Registry:   o.Registry,
 		Layouts:    o.Layouts,
-		Dialects:   assemblyDialects(),
+		Dialects:   builtinDialects(),
 		Events:     o.Events,
 		Presets:    siteBuiltins,
 		Watch:      true,
@@ -125,6 +125,15 @@ func newZen(o zenOptions) (*Zen, error) {
 }
 
 func (z *Zen) close() { z.s.Close() }
+
+// The built-in plugins, layouts and dialects this app includes are the generated
+// assembly's (assembly_gen.go); tests of the package replace them with a full
+// build's (fullbuild_test.go).
+var (
+	builtinPlugins  = assemblyPlugins
+	builtinLayouts  = assemblyLayouts
+	builtinDialects = assemblyDialects
+)
 
 // allFeatures are the features of a full build, in catalog order (a test
 // compares them with kit/assembly's catalog).

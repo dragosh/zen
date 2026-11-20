@@ -12,6 +12,7 @@ func TestMain(m *testing.M) {
 	if len(os.Args) > 1 && os.Args[1] == scriptplugins.HostArg {
 		os.Exit(scriptplugins.HostMain(os.Stdin, os.Stdout, os.Stderr))
 	}
+	useFullBuild() // features: all, whatever apps/zenmark/app-assembly.yml lists today
 	code := m.Run()
 	scriptplugins.Shutdown()
 	os.Exit(code)

@@ -17,8 +17,8 @@ func TestZenmarkHasDialects(t *testing.T) {
 	if !reflect.DeepEqual(assemblyInfo.Dialects, []string{"myst"}) {
 		t.Errorf("assembly dialects %v", assemblyInfo.Dialects)
 	}
-	if got := assemblyDialects().List(); len(got) != 1 || got[0].ID() != "myst" {
-		t.Errorf("assemblyDialects %v", got)
+	if got := builtinDialects().List(); len(got) != 1 || got[0].ID() != "myst" {
+		t.Errorf("builtinDialects %v", got)
 	}
 	if b := buildInfo(); !reflect.DeepEqual(b.Dialects, []string{"myst"}) {
 		t.Errorf("buildInfo %+v", b)

@@ -13,7 +13,7 @@ export function closeWindowKey(e: KeyboardEvent): boolean {
 export type ShellAction = "open-folder" | "settings" | "new-page" | "new-site" | "toggle-sidebar" | "back" | "forward";
 
 /**
- * The shortcut of the window frame: ⌘O, ⌘, ⌘N, ⇧⌘N, ⌘\\ and ⌘[ ⌘]. A shortcut whose feature the build
+ * The shortcut of the window frame: ⌘O, ⌘, ⌘N, ⇧⌘N, ⌘\ and ⌘[ ⌘]. A shortcut whose feature the build
  * does not have gives null (New Page is the editor's, New Site is newsite's, the sidebar is nav's);
  * Open Folder, Settings and Back/Forward are in every build.
  */
