@@ -58,7 +58,7 @@ test("left column: a list of the eight items with a note each, in order; Version
   expect(list(i).getAttribute("role")).toBe("listbox");
   expect(items(i).map((o) => o.dataset.item)).toEqual(["version", "features", "addons", "plugins", "layouts", "templates", "dialects", "theme"]);
   expect(items(i).map((o) => o.querySelector(".zen-build-item-name")!.textContent)).toEqual(["Version", "Features", "Add-ons", "Plugins", "Layouts", "Templates", "Dialects", "Theme"]);
-  expect(items(i).map((o) => o.querySelector(".zen-build-item-note")!.textContent)).toEqual(["1.2.3", "2 of 9", "1", "1", "1", "1", "1", "1"]);
+  expect(items(i).map((o) => o.querySelector(".zen-build-item-note")!.textContent)).toEqual(["1.2.3", "2", "1", "1", "1", "1", "1", "1"]);
   expect(items(i).map((o) => o.getAttribute("aria-selected"))).toEqual(["true", "false", "false", "false", "false", "false", "false", "false"]);
   expect(section(i).querySelector(".zen-panel-col-main [data-feature]")).toBeNull(); // the details are on the right
 });
@@ -79,13 +79,11 @@ test("clicking an item shows its details on the right and marks it selected, as 
   expect(item(i, "features").getAttribute("aria-selected")).toBe("true");
   expect(item(i, "version").getAttribute("aria-selected")).toBe("false");
   const f = right(i);
-  expect(f.querySelectorAll("[data-feature]")).toHaveLength(9);
-  expect(f.querySelector('[data-feature="inspector"]')!.classList.contains("zen-build-feature-missing")).toBe(false);
-  const editor = f.querySelector('[data-feature="editor"]')!;
-  expect(editor.classList.contains("zen-build-feature-missing")).toBe(true);
-  expect(editor.textContent).toContain("not in this build");
+  // only what the build has, like every other item: no list of what it leaves out
   const order = Array.from(f.querySelectorAll<HTMLElement>("[data-feature]")).map((e) => e.dataset.feature);
-  expect(order.slice(0, 3)).toEqual(["reader", "nav", "find"]);
+  expect(order).toEqual(["inspector", "developer"]); // catalog order
+  expect(f.textContent).not.toContain("not in this build");
+  expect(f.querySelector(".zen-build-feature-missing")).toBeNull();
 });
 
 test("the other items list their ids and descriptions", () => {

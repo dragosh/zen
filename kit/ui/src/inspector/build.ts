@@ -20,15 +20,12 @@ function names(ids: readonly string[]): HTMLElement {
   return list;
 }
 
+/** The features the build has, in catalog order: like every other item, only what is there. */
 function features(have: readonly string[]): HTMLElement {
   const list = el("ul", "zen-build-features");
-  for (const id of FEATURE_IDS) {
+  for (const id of FEATURE_IDS.filter((f) => have.includes(f))) {
     const li = el("li", "zen-build-feature", id);
     li.dataset.feature = id;
-    if (!have.includes(id)) {
-      li.classList.add("zen-build-feature-missing");
-      li.append(el("span", "zen-visually-hidden", " (not in this build)"));
-    }
     list.append(li);
   }
   return list;
@@ -51,7 +48,7 @@ export function buildItems(host: Pick<KitHost, "addons" | "build">): BuildItem[]
         return panelProps(rows);
       },
     },
-    { id: "features", name: "Features", note: `${FEATURE_IDS.filter((f) => have.includes(f)).length} of ${FEATURE_IDS.length}`, details: () => features(have) },
+    { id: "features", name: "Features", note: String(FEATURE_IDS.filter((f) => have.includes(f)).length), details: () => features(have) },
     {
       id: "addons", name: "Add-ons", note: String(addons.length),
       details() {
