@@ -282,7 +282,7 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     settings = createSettingsView({
       api, hasWorkspace: () => store.get().workspace !== null,
       build: api, root: () => store.get().workspace?.root ?? "", ...settingsWiring,
-      appearanceExtra: has("nav") ? [navSideRow(doc)] : [], // ui/accessibility adds appearanceExtra
+      appearanceExtra: has("nav") ? [navSideRow(doc)] : [],
     });
     layout.showView(settings.el);
     layout.setSettingsOpen(true);
