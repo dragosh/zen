@@ -40,14 +40,21 @@ type Registry = { set(name: string, h: unknown): unknown; delete(name: string): 
 /** The CSS Custom Highlight API; tests pass a stub. */
 export type HighlightSupport = { registry: Registry; create(ranges: Range[]): unknown };
 
-function detectHighlights(): HighlightSupport | null {
+/** The CSS Custom Highlight API, or null where it is missing; shared by find and the Inspector's problem marks. */
+export function highlightApi(): HighlightSupport | null {
   const css = (globalThis as { CSS?: { highlights?: Registry } }).CSS;
-  const Ctor = (globalThis as { Highlight?: new (...r: Range[]) => { priority: number } }).Highlight;
+  const Ctor = (globalThis as { Highlight?: new (...r: Range[]) => unknown }).Highlight;
   if (!css?.highlights || typeof Ctor !== "function") return null;
+  return { registry: css.highlights, create: (ranges) => new Ctor(...ranges) };
+}
+
+function detectHighlights(): HighlightSupport | null {
+  const api = highlightApi();
+  if (!api) return null;
   return {
-    registry: css.highlights,
+    registry: api.registry,
     create(ranges) {
-      const h = new Ctor(...ranges);
+      const h = api.create(ranges) as { priority: number };
       h.priority = ranges.length === 1 ? 1 : 0; // the current match is drawn over the others
       return h;
     },

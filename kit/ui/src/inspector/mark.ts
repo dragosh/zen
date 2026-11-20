@@ -4,7 +4,7 @@
 // (as find's), so the page's DOM is not changed; a missing image gets an outline through an attribute.
 // Without the Highlight API the element is still scrolled to and focused. Nothing here builds a selector from
 // a problem's text: attribute values and text are compared in JS.
-import type { HighlightSupport } from "../find";
+import { highlightApi } from "../find";
 import type { ProblemTarget } from "./events";
 
 /** The base highlight (the flash) and the prefix of the one that carries the severity's underline colour. */
@@ -13,13 +13,8 @@ export const FLASH_MS = 1200;
 /** The attribute that outlines a missing image (inspector.css). */
 export const IMAGE_ATTR = "data-zen-problem";
 
-/** The CSS Custom Highlight API; read on each call so a page without it (or a test stub) is honoured. */
-function highlights(): HighlightSupport | null {
-  const css = (globalThis as { CSS?: { highlights?: HighlightSupport["registry"] } }).CSS;
-  const Ctor = (globalThis as { Highlight?: new (...r: Range[]) => unknown }).Highlight;
-  if (!css?.highlights || typeof Ctor !== "function") return null;
-  return { registry: css.highlights, create: (ranges) => new Ctor(...ranges) };
-}
+/** The CSS Custom Highlight API (find's helper), read on each call so a page without it (or a test stub) is honoured. */
+const highlights = highlightApi;
 
 const SKIP = new Set(["SCRIPT", "STYLE", "TEMPLATE", "NOSCRIPT", "TEXTAREA"]);
 const text = (e: Element): string => (e.textContent ?? "").replace(/\s+/g, " ").trim();
