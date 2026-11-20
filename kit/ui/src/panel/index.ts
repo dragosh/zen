@@ -1,7 +1,8 @@
-// A tabbed bottom panel (ui/panel): a header with tabs (each with an optional count chip), a slot
-// for the panel's own tools and a close button, one scrolling body per tab, and a drag handle on
-// the top edge that resizes it. The Inspector is built on it; a new tab is one more entry in
-// `tabs` and content in its body. All text goes in through textContent.
+// A tabbed bottom panel (ui/panel): a header with tabs (each with an optional count chip), the
+// current tab's own tools (a filter, actions), a collapse chevron and a close button, one scrolling
+// body per tab, and a drag handle on the top edge that resizes it. The Inspector is built on it; a
+// new tab is one more entry in `tabs` and content in its body. A body can have two columns
+// (panelColumns). All text goes in through textContent.
 import "./panel.css";
 import { button, el } from "../shell/dom";
 
@@ -21,13 +22,25 @@ export type TabbedPanelOptions = {
   onClose?: () => void;
   /** Resizable from its top edge: the height is remembered under `key`. */
   resize?: { key: string; initial: number; min: number };
+  /** localStorage key that remembers whether the panel is collapsed to its header; shows the chevron whatever the key. */
+  collapseKey?: string;
 };
 
 export type TabbedPanel = {
   el: HTMLElement;
   /** The right-hand side of the header, for the panel's own controls. */
   tools: HTMLElement;
+  /** The controls of one tab (a filter, actions): shown in the header only while that tab is selected. */
+  toolsFor(id: string): HTMLElement;
   readonly selected: string;
+  /** A tab that is not visible is out of the tab list, the tab order and the header; the selection moves to the first visible one. */
+  setTabVisible(id: string, visible: boolean): void;
+  isTabVisible(id: string): boolean;
+  /** Visible tab ids in order. */
+  readonly visibleTabs: string[];
+  /** Only the header shows. Remembered under `collapseKey`. */
+  readonly collapsed: boolean;
+  setCollapsed(collapsed: boolean): void;
   body(id: string): HTMLElement;
   select(id: string, remember?: boolean): void;
   /** A count chip on the tab: hidden for null or 0. */
@@ -39,8 +52,11 @@ export type TabbedPanel = {
   destroy(): void;
 };
 
-/** The one height of the bottom panels (the Inspector and the Developer panel): resizing either sets both. */
+/** The height of the bottom panel (the Inspector). */
 export const BOTTOM_PANEL_HEIGHT = { key: "zen.panel.height", initial: 240, min: 120 } as const;
+
+/** localStorage key of the collapsed state. */
+export const PANEL_COLLAPSED_KEY = "zen.panel.collapsed";
 
 /** Share of the parent the panel may take when it is resized. */
 export const PANEL_MAX_SHARE = 0.7;
@@ -59,6 +75,18 @@ export function panelEmpty(title: string, hint = ""): HTMLElement {
   box.append(el("p", "zen-panel-empty-title", title));
   if (hint) box.append(el("p", "zen-panel-empty-hint", hint));
   return box;
+}
+
+/**
+ * The two columns of a tab: the list or main info on the left (`.zen-panel-col-main`), the details on the
+ * right (`.zen-panel-col-side`, narrower). Each scrolls on its own; under about 700 px wide they stack and the tab scrolls.
+ */
+export function panelColumns(): { el: HTMLElement; left: HTMLElement; right: HTMLElement } {
+  const root = el("div", "zen-panel-cols");
+  const left = el("div", "zen-panel-col zen-panel-col-main");
+  const right = el("div", "zen-panel-col zen-panel-col-side");
+  root.append(left, right);
+  return { el: root, left, right };
 }
 
 /** A grid of label/value pairs that flows into as many columns as the width allows. */
@@ -87,9 +115,9 @@ export function createTabbedPanel(o: TabbedPanelOptions): TabbedPanel {
   const tools = el("div", "zen-panel-tools");
   head.append(tablist, tools);
 
-  const tabs = new Map<string, { tab: HTMLButtonElement; count: HTMLElement; body: HTMLElement }>();
+  const tabs = new Map<string, { tab: HTMLButtonElement; count: HTMLElement; body: HTMLElement; tools: HTMLElement; visible: boolean }>();
   for (const { id, label } of o.tabs) {
-    const tab = button("", () => select(id), { className: "zen-panel-tab" });
+    const tab = button("", () => { select(id); setCollapsed(false); }, { className: "zen-panel-tab" });
     tab.setAttribute("role", "tab");
     tab.id = `${o.idPrefix}-tab-${id}`;
     tab.dataset.tab = id;
@@ -105,38 +133,76 @@ export function createTabbedPanel(o: TabbedPanelOptions): TabbedPanel {
     body.setAttribute("aria-labelledby", tab.id);
     body.tabIndex = 0;
     tab.setAttribute("aria-controls", body.id);
+    const group = el("div", "zen-panel-tools-group");
+    group.dataset.tools = id;
+    group.hidden = true;
+    tools.append(group);
     tablist.append(tab);
-    tabs.set(id, { tab, count, body });
+    tabs.set(id, { tab, count, body, tools: group, visible: true });
   }
   const ids = o.tabs.map((t) => t.id);
+  const visibleIds = () => ids.filter((i) => tabs.get(i)!.visible);
   let selected = ids.includes(o.tabKey ? read(o.tabKey) ?? "" : "") ? read(o.tabKey!)! : ids[0];
+  let collapsed = false;
 
-  function select(id: string, remember = true): void {
-    if (!tabs.has(id)) return;
-    selected = id;
-    if (remember && o.tabKey) write(o.tabKey, id);
+  function paint(): void {
     for (const [k, t] of Array.from(tabs)) {
-      t.tab.setAttribute("aria-selected", String(k === id));
-      t.tab.tabIndex = k === id ? 0 : -1;
-      t.body.hidden = k !== id;
+      const on = k === selected && t.visible;
+      t.tab.hidden = !t.visible;
+      t.tab.setAttribute("aria-selected", String(on));
+      t.tab.tabIndex = on ? 0 : -1;
+      t.body.hidden = !on || collapsed;
+      t.tools.hidden = !on;
     }
   }
+  function select(id: string, remember = true): void {
+    const t = tabs.get(id);
+    if (!t || !t.visible) return;
+    selected = id;
+    if (remember && o.tabKey) write(o.tabKey, id);
+    paint();
+  }
+  function setTabVisible(id: string, visible: boolean): void {
+    const t = tabs.get(id);
+    if (!t || t.visible === visible) return;
+    t.visible = visible;
+    if (!tabs.get(selected)!.visible) selected = visibleIds()[0] ?? selected;
+    paint();
+  }
   const onTabKey = (e: KeyboardEvent) => {
-    const i = ids.indexOf(selected);
-    const to = ({ ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: ids.length - 1 } as Record<string, number | undefined>)[e.key];
-    if (to === undefined) return;
+    const vis = visibleIds();
+    const i = vis.indexOf(selected);
+    const to = ({ ArrowRight: i + 1, ArrowLeft: i - 1, Home: 0, End: vis.length - 1 } as Record<string, number | undefined>)[e.key];
+    if (to === undefined || vis.length === 0) return;
     e.preventDefault();
-    const next = ids[(to + ids.length) % ids.length];
+    const next = vis[(to + vis.length) % vis.length];
     select(next);
     tabs.get(next)!.tab.focus();
   };
   tablist.addEventListener("keydown", onTabKey);
 
+  // The chevron collapses the panel to its header and expands it again.
+  const chevron = button("", () => setCollapsed(!collapsed), { className: "zen-panel-collapse ghost" });
+  function setCollapsed(next: boolean, remember = true): void {
+    if (next === collapsed) return;
+    collapsed = next;
+    root.classList.toggle("is-collapsed", collapsed);
+    chevron.textContent = collapsed ? "▴" : "▾";
+    chevron.title = `${collapsed ? "Expand" : "Collapse"} ${o.label}`;
+    chevron.setAttribute("aria-label", chevron.title);
+    chevron.setAttribute("aria-expanded", String(!collapsed));
+    if (resizer) resizer.hidden = collapsed;
+    if (remember && o.collapseKey) write(o.collapseKey, collapsed ? "1" : "0");
+    paint();
+    apply();
+  }
+  tools.after(chevron);
+
   if (o.onClose) {
     const close = button("", () => o.onClose!(), { className: "zen-panel-close ghost", title: `Close ${o.label} (Esc)` });
     close.setAttribute("aria-label", `Close ${o.label}`);
     close.textContent = "✕";
-    tools.after(close);
+    chevron.after(close);
   }
 
   // ---- resizing from the top edge (like the Developer panel)
@@ -148,7 +214,8 @@ export function createTabbedPanel(o: TabbedPanelOptions): TabbedPanel {
   };
   const clamp = (px: number) => Math.round(Math.min(maxHeight(), Math.max(o.resize!.min, px)));
   function apply(): void {
-    root.style.height = `${height}px`;
+    if (!o.resize) return;
+    root.style.height = collapsed ? "" : `${height}px`;
     resizer?.setAttribute("aria-valuenow", String(height));
   }
   function setHeight(px: number): void {
@@ -202,14 +269,27 @@ export function createTabbedPanel(o: TabbedPanelOptions): TabbedPanel {
   }
 
   root.append(head, ...Array.from(tabs.values(), (t) => t.body));
-  select(selected, false);
+  if (!tabs.get(selected)!.visible) selected = visibleIds()[0] ?? selected;
+  paint();
+  setCollapsed(false, false);
+  chevron.textContent = "▾";
+  chevron.title = `Collapse ${o.label}`;
+  chevron.setAttribute("aria-label", chevron.title);
+  chevron.setAttribute("aria-expanded", "true");
+  if (o.collapseKey && read(o.collapseKey) === "1") setCollapsed(true, false);
 
   return {
     el: root,
     tools,
+    toolsFor: (id) => tabs.get(id)!.tools,
     get selected() { return selected; },
     body: (id) => tabs.get(id)!.body,
     select,
+    setTabVisible,
+    isTabVisible: (id) => tabs.get(id)?.visible ?? false,
+    get visibleTabs() { return visibleIds(); },
+    get collapsed() { return collapsed; },
+    setCollapsed,
     setCount(id, n, tone = "neutral") {
       const t = tabs.get(id);
       if (!t) return;

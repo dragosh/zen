@@ -680,25 +680,38 @@ test("creating a site from the welcome screen opens it", async () => {
   expect(s.store.get().workspace?.root).toBe("/sample-docs");
 });
 
-// ---- Developer tab (ui/developer-tab)
+// ---- Console in the Inspector (ui/inspector, ui/developer-tab)
 
-test("Developer: no button by default; with the setting on, the button and the panel show the Go-side log", async () => {
-  const api = withWorkspace("README.md");
-  const s = boot(api);
+const jKey = () => document.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyJ", key: "∆", altKey: true, metaKey: true, bubbles: true, cancelable: true }));
+
+test("Console: there is no Developer button; the tab shows only with the setting on, and ⌥⌘J opens the Inspector on it", async () => {
+  const s = boot(withWorkspace("README.md"));
   await s.start();
-  expect(root.querySelector<HTMLElement>(".zen-developer-button")!.hidden).toBe(true);
+  await tick();
+  await tick();
+  expect(root.querySelector(".zen-developer-button")).toBeNull();
+  expect(root.querySelector(".zen-dev")).toBeNull();
+  const consoleTab = () => root.querySelector<HTMLElement>('.zen-inspector [data-tab="console"]')!;
+  expect(consoleTab().hidden).toBe(true);
+  jKey(); // the setting is off: nothing
+  expect(root.querySelector<HTMLElement>(".zen-inspector")!.hidden).toBe(true);
   s.destroy();
+  shell = undefined;
+
   localStorage.setItem("zen.developer", "1");
   const s2 = boot(withWorkspace("README.md"));
   await s2.start();
-  const btn = root.querySelector<HTMLButtonElement>(".zen-developer-button")!;
-  expect(btn.hidden).toBe(false);
-  btn.click();
   await tick();
-  expect(root.querySelector(".zen-dev")).not.toBeNull();
+  await tick();
+  expect(consoleTab().hidden).toBe(false);
+  jKey();
+  await tick();
+  await tick();
+  expect(root.querySelector<HTMLElement>(".zen-inspector")!.hidden).toBe(false);
+  expect(consoleTab().getAttribute("aria-selected")).toBe("true");
   expect(root.querySelectorAll(".zen-dev-row").length).toBeGreaterThanOrEqual(4); // the fake's Go-side entries
-  document.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyJ", key: "∆", altKey: true, metaKey: true, bubbles: true, cancelable: true }));
-  expect(root.querySelector(".zen-dev")).toBeNull();
+  jKey();
+  expect(root.querySelector<HTMLElement>(".zen-inspector")!.hidden).toBe(true);
 });
 
 test("the theme of the build is on the root element (data-app-theme)", async () => {
@@ -789,19 +802,38 @@ test("bare shell", async () => {
   expect(bare.callsTo("pickFolder")).toHaveLength(1);
 });
 
-test("developer alone in a bare shell gives a working Developer panel", async () => {
+test("developer alone in a bare shell gives an Inspector with the Console tab only, opened by ⌥⌘J", async () => {
   const { features: shipped } = await import("./features");
   localStorage.setItem("zen.developer", "1");
   const s = boot(buildWith(["developer"]), shipped);
   await s.start();
   await tick();
   expect(root.querySelector(".zen-bare")).not.toBeNull();
-  document.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyJ", key: "∆", altKey: true, metaKey: true, bubbles: true, cancelable: true }));
+  expect(root.querySelector(".zen-inspector-button")).toBeNull();
+  expect(root.querySelector(".zen-developer-button")).toBeNull();
+  jKey();
   await tick();
-  expect(root.querySelector(".zen-dev")).not.toBeNull();
+  await tick();
+  const panel = root.querySelector<HTMLElement>(".zen-inspector")!;
+  expect(panel.hidden).toBe(false);
+  expect(Array.from(panel.querySelectorAll<HTMLElement>('[role="tab"]')).filter((t) => !t.hidden).map((t) => t.dataset.tab)).toEqual(["console"]);
   expect(root.querySelectorAll(".zen-dev-row").length).toBeGreaterThanOrEqual(4);
+  mod("i", { altKey: true }); // ⌥⌘I: no Inspector in this build
+  expect(panel.querySelector('[data-tab="info"]')).toBeNull();
   key(",");
   expect(sectionNames()).toEqual(["Appearance", "This build", "Developer"]);
+});
+
+test("the Console follows the setting in a developer-only build: switched off, the panel goes", async () => {
+  const { features: shipped } = await import("./features");
+  localStorage.setItem("zen.developer", "1");
+  const s = boot(buildWith(["developer"]), shipped);
+  await s.start();
+  jKey();
+  expect(root.querySelector(".zen-inspector")).not.toBeNull();
+  localStorage.removeItem("zen.developer");
+  window.dispatchEvent(new CustomEvent("zen:developer"));
+  expect(root.querySelector(".zen-inspector")).toBeNull();
 });
 
 // Each feature a build leaves out has no menu-free trace in the window: no button, section, dialog or shortcut.
@@ -853,8 +885,10 @@ const MISSING: { feature: string; check(api: FakeApi): Promise<void> | void }[] 
   { feature: "developer", check: async () => {
     localStorage.setItem("zen.developer", "1");
     expect(root.querySelector(".zen-developer-button")).toBeNull();
-    document.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyJ", key: "∆", altKey: true, metaKey: true, bubbles: true, cancelable: true }));
+    jKey();
     expect(root.querySelector(".zen-dev")).toBeNull();
+    expect(root.querySelector('.zen-inspector [data-tab="console"]')).toBeNull(); // the tab is not there at all
+    expect(root.querySelector<HTMLElement>(".zen-inspector")!.hidden).toBe(true);
     key(",");
     expect(sectionNames()).not.toContain("Developer");
   } },
@@ -891,7 +925,7 @@ test("with every feature the same controls are there", async () => {
   expect(root.querySelector(".zen-nav-tree")).not.toBeNull();
   expect(root.querySelector('[title="Edit (⌘E)"]')).not.toBeNull();
   expect(root.querySelector(".zen-inspector-button")).not.toBeNull();
-  expect(root.querySelector(".zen-developer-button")).not.toBeNull();
+  expect(root.querySelector(".zen-developer-button")).toBeNull(); // the Console is a tab of the Inspector
   expect(root.querySelector('[data-action="toggle-sidebar"]')).not.toBeNull();
   mod("f");
   expect(document.querySelector(".zen-find")).not.toBeNull();
