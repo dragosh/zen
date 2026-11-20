@@ -10,7 +10,7 @@
 app: zenmark
 features: [reader, nav, inspector, developer]
 addons: []
-plugins: []
+plugins: [codeblock]
 layouts: [article]
 templates: []
 dialects: []
