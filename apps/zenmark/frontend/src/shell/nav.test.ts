@@ -22,9 +22,9 @@ async function boot(page = "README.md", mode: "read" | "edit" = "read") {
 beforeEach(() => { localStorage.clear(); sessionStorage.clear(); root = document.createElement("div"); document.body.append(root); });
 afterEach(() => { shell?.destroy(); root.remove(); });
 
-test("shows the workspace name and tree; first-level nodes start expanded", async () => {
+test("shows the tree, with no second heading; first-level nodes start expanded", async () => {
   await boot();
-  expect(root.querySelector(".zen-nav-ws")!.textContent).toBe("deep");
+  expect(root.querySelector(".zen-nav-ws")).toBeNull();
   expect(visible(nav())).toEqual(["README.md", "guides", "guides/install.md", "guides/adv", "api.md", "api/auth.md"]);
 });
 

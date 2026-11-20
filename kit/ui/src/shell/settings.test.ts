@@ -150,36 +150,61 @@ test("two-column frame: open() selects a section and an item; a section's conten
 
 // ---- 3: appearance
 
-test("appearance preview", async () => {
-  const extra = Object.assign(document.createElement("div"), { className: "extra", textContent: "Navigation" });
+test("appearance items", async () => {
+  const extra = Object.assign(document.createElement("div"), { className: "extra", textContent: "Left / Right" });
+  extra.setAttribute("aria-label", "Navigation");
   const v = frame(appearanceSection(() => document, [extra]));
   await settle();
-  expect(rows(v, "appearance").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["System", "Light", "Dark"]);
+  expect(rows(v, "appearance").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["Theme", "Navigation"]);
   expect(rows(v, "appearance")[0].getAttribute("aria-selected")).toBe("true");
+  expect(detail(v, "appearance").querySelector("h3")!.textContent).toBe("Theme");
   const preview = () => detail(v, "appearance").querySelector<HTMLElement>(".zen-theme-preview")!;
+  const radios = () => Array.from(detail(v, "appearance").querySelectorAll<HTMLElement>('[role="radiogroup"] [role=radio]'));
+  expect(radios().map((r) => r.textContent)).toEqual(["System", "Light", "Dark"]);
+  expect(radios()[0].getAttribute("aria-checked")).toBe("true");
   expect(preview().dataset.theme).toBe("system");
   expect(preview().querySelector("h4, .zen-theme-preview-title")).not.toBeNull();
   expect(preview().querySelector("a")).not.toBeNull();
   expect(preview().querySelector("code")).not.toBeNull();
   expect(preview().querySelector("p")).not.toBeNull();
-  expect(detail(v, "appearance").querySelector(".extra")).not.toBeNull(); // the slot for Navigation (#24)
+  expect(detail(v, "appearance").querySelector(".extra")).toBeNull(); // Navigation is its own item
   // choosing a theme applies it, remembers it, and the preview follows
-  rows(v, "appearance")[2].click();
+  radios()[2].click();
   expect(document.documentElement.dataset.theme).toBe("dark");
   expect(localStorage.getItem(THEME_KEY)).toBe("dark");
   expect(preview().dataset.theme).toBe("dark");
-  expect(detail(v, "appearance").querySelector("h3")!.textContent).toBe("Dark");
-  rows(v, "appearance")[1].focus();
-  key(rows(v, "appearance")[1].parentElement!, "ArrowUp");
+  expect(radios()[2].getAttribute("aria-checked")).toBe("true");
+  // the arrow keys move through the radios
+  radios()[2].focus();
+  key(radios()[2].parentElement!, "ArrowLeft");
+  key(radios()[1].parentElement!, "ArrowLeft");
   expect(storedTheme()).toBe("system");
   expect(document.documentElement.dataset.theme).toBeUndefined();
   expect(preview().dataset.theme).toBe("system");
+  // the second item is the extra row
+  rows(v, "appearance")[1].click();
+  expect(detail(v, "appearance").querySelector("h3")!.textContent).toBe("Navigation");
+  expect(detail(v, "appearance").querySelector(".extra")).toBe(extra);
+  expect(detail(v, "appearance").querySelector(".zen-theme-preview")).toBeNull();
   // showing the page again reads the stored theme (another window changed it)
+  rows(v, "appearance")[0].click();
   localStorage.setItem(THEME_KEY, "light");
   v.show();
   await settle();
-  expect(rows(v, "appearance")[1].getAttribute("aria-selected")).toBe("true");
+  expect(radios()[1].getAttribute("aria-checked")).toBe("true");
   expect(preview().dataset.theme).toBe("light");
+});
+
+test("appearance items: only Theme without extra rows; an unlabelled row is named by its title", async () => {
+  const alone = frame(appearanceSection(() => document));
+  await settle();
+  expect(rows(alone, "appearance").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["Theme"]);
+  document.body.replaceChildren();
+  const titled = document.createElement("div");
+  titled.innerHTML = '<span class="zen-navside-title">Sidebar</span>';
+  const v = frame(appearanceSection(() => document, [titled]));
+  await settle();
+  expect(rows(v, "appearance").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["Theme", "Sidebar"]);
 });
 
 // ---- 8: developer
