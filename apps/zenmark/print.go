@@ -21,6 +21,9 @@ const (
 // PrintPage asks the main window to print the page it shows, through the
 // macOS print panel.
 func (z *Zen) PrintPage() error {
+	if err := requireFeature("print"); err != nil {
+		return err
+	}
 	if z.s.Workspace() == nil {
 		return errNoWorkspace
 	}
@@ -35,12 +38,18 @@ func (z *Zen) PrintPage() error {
 // window.print() does nothing in the macOS web view, so the frontend calls
 // this instead. title becomes the job name (and the suggested PDF file name).
 func (z *Zen) PrintWindow(ctx context.Context, title string) error {
+	if err := requireFeature("print"); err != nil {
+		return err
+	}
 	return desktop.PrintFromContext(ctx, title, Name)
 }
 
 // PrintSite opens the Print Preview window for the whole folder, or focuses
 // the one that is open.
 func (z *Zen) PrintSite() error {
+	if err := requireFeature("print"); err != nil {
+		return err
+	}
 	ws := z.s.Workspace()
 	if ws == nil {
 		return errNoWorkspace

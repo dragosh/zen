@@ -54,7 +54,7 @@ func TestSiteTemplatesService(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(z.close)
-	got := z.SiteTemplates()
+	got, _ := z.SiteTemplates()
 	if len(got) != 3 || got[0].ID != "techdocs" || got[1].ID != "learning" || got[2].ID != "planner" {
 		t.Fatalf("templates: %+v", got)
 	}
@@ -79,13 +79,13 @@ func TestSiteTemplatesService(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(cfg, "templates", "sites", "broken"), 0o755); err != nil {
 		t.Fatal(err)
 	}
-	got = z.SiteTemplates()
+	got, _ = z.SiteTemplates()
 	if got[0].Name != "My planner" || got[len(got)-1].ID != "broken" || got[len(got)-1].Error == "" {
 		t.Errorf("edited: %+v", got)
 	}
 	// No settings folder at all: the presets come straight from zen.
 	z2, _, _, _ := newTestZen(t, "", "", "")
-	if l := z2.SiteTemplates(); len(l) != 3 {
+	if l, _ := z2.SiteTemplates(); len(l) != 3 {
 		t.Errorf("without settings folder: %+v", l)
 	}
 }
@@ -146,7 +146,7 @@ func TestCreateSite(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(zc.close)
-	zc.SiteTemplates()
+	_, _ = zc.SiteTemplates()
 	if _, err := zc.CreateSite("techdocs", filepath.Join(cfg, "templates"), nil); err == nil || !strings.Contains(err.Error(), "templates folder") {
 		t.Errorf("templates folder: %v", err)
 	}

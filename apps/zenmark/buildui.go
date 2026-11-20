@@ -19,6 +19,9 @@ var revealPath = func(p string) error { return desktop.Reveal(p) }
 // chosen folder, "" on cancel. It does not open the folder; the build still
 // checks it like any other output.
 func (z *Zen) PickBuildFolder() (string, error) {
+	if err := requireFeature("export"); err != nil {
+		return "", err
+	}
 	if d, ok := z.dialogs.(*desktop.DialogSet); ok && d.Ready() {
 		return d.PickFolderTitled("Choose Output Folder")
 	}
@@ -31,6 +34,9 @@ func (z *Zen) PickBuildFolder() (string, error) {
 // OpenBuiltSite opens the index.html of the last build of the open folder in
 // the default browser. It opens nothing else.
 func (z *Zen) OpenBuiltSite(out string) error {
+	if err := requireFeature("export"); err != nil {
+		return err
+	}
 	index, err := z.s.BuiltSite(out)
 	if err != nil {
 		return err
@@ -43,6 +49,9 @@ func (z *Zen) OpenBuiltSite(out string) error {
 
 // RevealBuiltSite shows the output folder of the last build in Finder.
 func (z *Zen) RevealBuiltSite(out string) error {
+	if err := requireFeature("export"); err != nil {
+		return err
+	}
 	if _, err := z.s.BuiltSite(out); err != nil {
 		return err
 	}

@@ -54,7 +54,8 @@ func builtinIDs(t *testing.T, z *Zen) (plugins, layouts, templates []string) {
 			layouts = append(layouts, l.ID)
 		}
 	}
-	for _, tpl := range z.SiteTemplates() {
+	tpls, _ := z.SiteTemplates()
+	for _, tpl := range tpls {
 		templates = append(templates, tpl.ID)
 	}
 	return

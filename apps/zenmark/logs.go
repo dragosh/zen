@@ -21,11 +21,14 @@ const (
 
 // Logs returns the log entries after sequence number since, oldest first;
 // Logs(0) is everything kept (the newest desktop.LogCapacity).
-func (z *Zen) Logs(since int) []LogEntry {
-	if z.logs == nil {
-		return []LogEntry{}
+func (z *Zen) Logs(since int) ([]LogEntry, error) {
+	if err := requireFeature("developer"); err != nil {
+		return nil, err
 	}
-	return z.logs.Since(since)
+	if z.logs == nil {
+		return []LogEntry{}, nil
+	}
+	return z.logs.Since(since), nil
 }
 
 // installLogging makes log/slog (and the standard log package) write to

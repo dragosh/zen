@@ -164,6 +164,12 @@ func (h *headlessService) wait(d time.Duration) error {
 // ExportPDF is `zenmd export pdf`: it opens the folder, runs the hidden app and
 // writes e.Out. Errors are one line.
 func ExportPDF(e cli.ExportPDF, stdout, stderr io.Writer) error {
+	if err := requireFeature("export"); err != nil {
+		return err
+	}
+	if err := requireFeature("print"); err != nil {
+		return err
+	}
 	z, err := newZen(zenOptions{
 		Registry: assemblyPlugins(), GlobalPath: globalConfigPath(), ConfigDir: configDirOf(),
 		Dir: e.Dir, Mode: "read", Events: discardSink{},
