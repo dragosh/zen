@@ -1,7 +1,8 @@
 // The frame: sidebar (nav) | resize edge | header + main. Owns the sidebar
 // width and visibility; knows nothing about what is mounted in the slots.
 import { INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorIcon, inspectorLabel, type InspectorState } from "../inspector/events";
-import { button, el } from "./dom";
+import "../nav/panel.css";
+import { button, el, logo } from "./dom";
 import type { Slots } from "./types";
 
 export const SIDEBAR_DEFAULT = 260;
@@ -14,7 +15,59 @@ export type LayoutHandlers = {
   onBack?(): void; onForward?(): void; onOpenFolder?(): void;
   /** The settings cog at the bottom of the sidebar; `anchor` is the cog button. */
   onSettings?(anchor: HTMLButtonElement): void;
+  /** The × in the sidebar header: Close Folder (the shell asks the editor windows first). */
+  onClose?(): void;
+  /** The Export button in the sidebar footer: Settings › Export. */
+  onExport?(): void;
 };
+
+export type NavSide = "left" | "right";
+export const NAV_SIDE_KEY = "zen.navSide";
+
+/** The side the sidebar is on, kept per machine; Left when nothing (valid) is kept. */
+export function storedNavSide(): NavSide {
+  try {
+    return localStorage.getItem(NAV_SIDE_KEY) === "right" ? "right" : "left";
+  } catch {
+    return "left"; // storage unavailable
+  }
+}
+
+/** Puts the sidebar of every frame in `doc` on a side, at once, and keeps the choice. */
+export function setNavSide(side: NavSide, doc: Document = document): void {
+  try {
+    localStorage.setItem(NAV_SIDE_KEY, side);
+  } catch {
+    // not remembered; the side still applies for this session
+  }
+  for (const f of Array.from(doc.querySelectorAll<HTMLElement>(".zen-frame"))) f.dataset.navSide = side;
+}
+
+/** Settings › Appearance › Navigation: a radio group, Left or Right, that sets the side of the sidebar. */
+export function navSideRow(doc: Document = document): HTMLElement {
+  const row = doc.createElement("div");
+  row.className = "zen-settings-row zen-navside";
+  row.setAttribute("role", "radiogroup");
+  row.setAttribute("aria-label", "Navigation");
+  const heading = doc.createElement("span");
+  heading.className = "zen-navside-title";
+  heading.textContent = "Navigation";
+  heading.setAttribute("aria-hidden", "true");
+  row.append(heading);
+  for (const [side, text] of [["left", "Left"], ["right", "Right"]] as const) {
+    const label = doc.createElement("label");
+    label.className = "zen-navside-option";
+    const input = doc.createElement("input");
+    input.type = "radio";
+    input.name = "zen-nav-side";
+    input.value = side;
+    input.checked = storedNavSide() === side;
+    input.addEventListener("change", () => { if (input.checked) setNavSide(side, doc); });
+    label.append(input, doc.createTextNode(text));
+    row.append(label);
+  }
+  return row;
+}
 
 const SVG = "http://www.w3.org/2000/svg";
 /** A gear outline, built with DOM APIs. */
@@ -41,8 +94,33 @@ function cogIcon(doc: Document): SVGSVGElement {
   return svg;
 }
 
+/** A tray with an arrow leaving it, built with DOM APIs. */
+function exportIcon(doc: Document): SVGSVGElement {
+  const svg = doc.createElementNS(SVG, "svg");
+  svg.setAttribute("viewBox", "0 0 24 24");
+  svg.setAttribute("width", "16");
+  svg.setAttribute("height", "16");
+  svg.setAttribute("aria-hidden", "true");
+  svg.setAttribute("class", "zen-icon");
+  const tray = doc.createElementNS(SVG, "path");
+  tray.setAttribute("d", "M5 13v6h14v-6");
+  const arrow = doc.createElementNS(SVG, "path");
+  arrow.setAttribute("d", "M12 15V3M7.5 7.5 12 3l4.5 4.5");
+  for (const n of [tray, arrow]) {
+    n.setAttribute("fill", "none");
+    n.setAttribute("stroke", "currentColor");
+    n.setAttribute("stroke-width", "1.6");
+    n.setAttribute("stroke-linecap", "round");
+    n.setAttribute("stroke-linejoin", "round");
+  }
+  svg.append(tray, arrow);
+  return svg;
+}
+
 export type Layout = {
   el: HTMLElement;
+  /** The folder's logo (an image URL, "" for Zenmark's mark) and title in the sidebar header. */
+  setIdentity(o: { logo: string; title: string }): void;
   slots: Slots;
   toggleSidebar(): void;
   sidebarVisible(): boolean;
@@ -103,7 +181,18 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
     inspectorBadge.textContent = String(d.count);
   };
   doc.addEventListener(INSPECTOR_STATE, onInspector);
-  foot.append(settings, inspector);
+  const exportBtn = button("Export", () => handlers.onExport?.(), { className: "ghost zen-settings-button zen-export-button", text: "", title: "Export ⇧⌘B" });
+  exportBtn.append(exportIcon(doc));
+  foot.append(settings, exportBtn, inspector);
+
+  // The header: the folder's logo (an img, never inline SVG: a script in it never runs), its title and ×.
+  const head = el("div", "zen-sidebar-head");
+  const logoSlot = el("span", "zen-sidebar-logo-slot");
+  const title = el("span", "zen-sidebar-title");
+  const close = button("Close folder", () => handlers.onClose?.(), { className: "ghost zen-sidebar-close", text: "×", title: "Close Folder ⇧⌘W" });
+  head.append(logoSlot, title, close);
+  const showMark = () => logoSlot.replaceChildren(logo("zen-sidebar-mark"));
+  showMark();
 
   const edge = el("div", "zen-resizer");
   edge.setAttribute("role", "separator");
@@ -122,7 +211,7 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
   toggle.setAttribute("aria-controls", nav.id);
   const back = button("Back", () => handlers.onBack?.(), { className: "ghost", text: "‹", title: "Back ⌘[" });
   const forward = button("Forward", () => handlers.onForward?.(), { className: "ghost", text: "›", title: "Forward ⌘]" });
-  nav.append(navBody, foot);
+  nav.append(head, navBody, foot);
   back.disabled = forward.disabled = true;
   controls.append(toggle, back, forward);
 
@@ -132,6 +221,8 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
   const main = el("main", "zen-main");
   content.append(header, main);
   frame.append(nav, edge, content);
+  frame.dataset.navSide = storedNavSide();
+  const right = () => frame.dataset.navSide === "right";
 
   let view: HTMLElement | null = null;
   let bottom: HTMLElement | null = null;
@@ -150,7 +241,8 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
   let dragging = false;
   const onMove = (e: MouseEvent) => {
     if (!dragging) return;
-    width = clamp(e.clientX - frame.getBoundingClientRect().left);
+    const box = frame.getBoundingClientRect();
+    width = clamp(right() ? box.right - e.clientX : e.clientX - box.left);
     apply();
   };
   const onUp = () => {
@@ -166,7 +258,8 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
     frame.classList.add("is-resizing");
   });
   edge.addEventListener("keydown", (e) => {
-    const to = { ArrowLeft: width - KEY_STEP, ArrowRight: width + KEY_STEP, Home: SIDEBAR_MIN, End: SIDEBAR_MAX }[e.key];
+    // With the sidebar on the right, the arrow towards the page widens it.
+    const to = { ArrowLeft: width + (right() ? KEY_STEP : -KEY_STEP), ArrowRight: width + (right() ? -KEY_STEP : KEY_STEP), Home: SIDEBAR_MIN, End: SIDEBAR_MAX }[e.key];
     if (to === undefined) return;
     e.preventDefault();
     layout.setSidebarWidth(to);
@@ -176,6 +269,19 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
 
   const layout: Layout = {
     el: frame,
+    setIdentity(o) {
+      if (o.logo) {
+        const img = el("img", "zen-sidebar-logo");
+        img.alt = "";
+        img.draggable = false;
+        img.setAttribute("src", o.logo);
+        // A logo that cannot load is the mark again.
+        img.addEventListener("error", showMark, { once: true });
+        logoSlot.replaceChildren(img);
+      } else showMark();
+      title.textContent = o.title;
+      title.title = o.title;
+    },
     slots: { nav: navBody, breadcrumb, actions, main },
     toggleSidebar() {
       visible = !visible;

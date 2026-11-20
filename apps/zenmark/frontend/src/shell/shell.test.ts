@@ -1200,6 +1200,7 @@ test("Navigation row in Appearance: Left or Right, applied at once to the sideba
   const frame = () => root.querySelector<HTMLElement>(".zen-frame")!;
   expect(frame().dataset.navSide ?? "left").toBe("left");
   key(",");
+  await tick();
   const row = navRow()!;
   expect(row).not.toBeNull();
   const radios = Array.from(row.querySelectorAll<HTMLInputElement>('input[type="radio"]'));

@@ -72,7 +72,7 @@ func TestWorkspaceTitle(t *testing.T) {
 		want  string
 	}{
 		{"heading of the home page", map[string]string{"README.md": "# My Course\n\ntext\n"}, "My Course"},
-		{"index page", map[string]string{"index.md": "# Welcome\n"}, "Welcome"},
+		{"readme.md in lower case", map[string]string{"readme.md": "# Welcome\n"}, "Welcome"},
 		{"no home page", map[string]string{"a.md": "# A\n", "b.md": "# B\n"}, ""}, // the folder's name, below
 		{"home without a heading", map[string]string{"README.md": "just text\n"}, ""},
 	}

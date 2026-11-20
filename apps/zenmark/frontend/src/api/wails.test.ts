@@ -156,7 +156,11 @@ describe("wails api", () => {
     const api = (await import("./wails")).default;
     results.Startup = { workspace: ws, page: "README.md", mode: "edit" };
     const s = await api.startup();
-    expect(s).toEqual({ workspace: { ...ws, tree: [{ title: "Home", path: "README.md", kind: "page", children: [] }] }, page: "README.md", mode: "edit" });
+    expect(s).toEqual({ workspace: { ...ws, title: "", logo: "", tree: [{ title: "Home", path: "README.md", kind: "page", children: [] }] }, page: "README.md", mode: "edit" });
+
+    // the sidebar header's title and logo pass through (ui/nav-panel)
+    results.Startup = { workspace: { ...ws, title: "My Course", logo: "/_ws/img/logo.svg" }, page: "", mode: "read" };
+    expect((await api.startup()).workspace).toMatchObject({ title: "My Course", logo: "/_ws/img/logo.svg" });
 
     results.Startup = { workspace: null, page: "", mode: "" };
     expect(await api.startup()).toEqual({ workspace: null, page: "", mode: "read" });
@@ -189,6 +193,7 @@ describe("wails api", () => {
     await expect(api.openEditor("a.md")).resolves.toBeUndefined();
 
     expect(calls).toEqual([
+      { name: "Startup", args: [] },
       { name: "Startup", args: [] },
       { name: "Startup", args: [] },
       { name: "PickFolder", args: [] },
