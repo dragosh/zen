@@ -508,9 +508,10 @@ describe("editor: add-ons", () => {
     expect(api.callsTo("lint")).toEqual([]);
     // the syntax highlighting layer stays
     expect(slots.main.querySelector(".zen-lint-mirror")).not.toBeNull();
-    // the Inspector has File and Page only
-    const inspectorTabs = Array.from(document.querySelectorAll<HTMLElement>(".zen-inspector [role=tab]")).map((t) => t.dataset.tab);
-    expect(inspectorTabs).toEqual(["file", "page"]);
+    // the Inspector has Page Info and Problems (no Spelling filter); the Console is hidden while its switch is off
+    const inspectorTabs = Array.from(document.querySelectorAll<HTMLElement>(".zen-inspector [role=tab]")).filter((t) => !t.hidden).map((t) => t.dataset.tab);
+    expect(inspectorTabs).toEqual(["info", "problems"]);
+    expect(Array.from(document.querySelectorAll<HTMLSelectElement>(".zen-inspector .zen-problems-filter option")).map((o) => o.value)).toEqual(["all", "checks"]);
   });
 });
 
