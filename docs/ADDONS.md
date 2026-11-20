@@ -42,6 +42,10 @@ the folder should decide, it is a plugin. A plugin may depend on an add-on
 (a "speak this block" plugin needs the text-to-speech add-on) and must then say
 so and degrade quietly without it.
 
+A fourth kind, the **feature**, is part of the app itself, on by default:
+`features:` in `app-assembly.yml` can leave one out (specs/kit/features). The
+first is `editor`; without it the app is read-only.
+
 ## Add-ons
 
 | Id | Add-on | Status |

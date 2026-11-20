@@ -135,7 +135,7 @@ Settings › This build: sections Add-ons (cards as today), Plugins, Layouts, Te
 
 ## Notes
 
-- **Out of scope:** user-installed plugins and layouts (they keep working as today, per folder and trust); themes other than `default`; a second app (HashDish etc.) — this spec makes it possible, the app is its own spec; choosing the assembly at run time.
+- **Out of scope:** user-installed plugins and layouts (they keep working as today, per folder and trust); themes other than `default`; a second app (HashDish etc.) — this spec makes it possible, the app is its own spec; choosing the assembly at run time. Optional app features (`features:`, the editor first) are in [specs/kit/features](../features/spec.md).
 - **Integration (lead, at merge):** docs/ADDONS.md and docs/BUILD.md: the assembly file; docs/ENGINE.md: the `builtins` helpers and `Startup.Build`; README; user guide golden hash only if the guide mentions it; CHANGELOG `Added: apps/<app>/app-assembly.yml chooses an app's add-ons, built-in plugins, layouts, site templates and theme; Settings › This build shows them.`
 - **App Store / sandbox:** none beyond kit/addons.
 

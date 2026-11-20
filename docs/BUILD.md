@@ -96,6 +96,11 @@ release workflow passes the repository variable `ADDONS`, and when it is unset
 the file decides. `zenmd version` lists the add-ons; `zenmd version --verbose`
 the whole assembly. Settings › This build shows it in the app.
 
+`features:` lists the parts of the app itself that a build keeps (specs/kit/features;
+a missing key means `all`). Today there is one, `editor`: an app built with
+`features: []` is a read-only reader. The session refuses every write to the folder
+and its settings files (`ErrReadOnly`), and the edit actions are not in the UI.
+
 ## Developing
 
 The static runtime is `frontend/src/static/` and its own Vite config

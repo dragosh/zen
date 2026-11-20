@@ -84,7 +84,7 @@ CLI package (a test enforces it).
 |---|---|
 | `Session`: `New`, `Open`, `CancelOpen`, `Close`, `Workspace`, `Home`, `Page`, `Preview`, `Source`, `Save`, `CreatePage`, `Lint` | `session.go`, `opening.go`, `newpage.go`, `lint.go` |
 | `SetLinter(find func() TextLinter)`: the text linter is installed by an add-on (`addons/vale`); without one `Lint` is unavailable and nothing is looked up. `Startup.Addons` (`AddonInfo`) lists the app's add-ons | `lint.go`, `session.go` |
-| `builtins.PluginsFor`, `LayoutsFor`, `SiteTemplatesFor`: the built-ins an app assembly lists (kit/assembly); `requires:` in `template.yml` and `layout.yml` declares what a template or layout needs. `Startup.Build` (`BuildInfo`): the app, add-ons, plugins, layouts, templates and theme. `SiteEnv.Layouts`: the layouts a site build uses | `builtins/builtins.go`, `session.go`, `build.go` |
+| `builtins.PluginsFor`, `LayoutsFor`, `SiteTemplatesFor`: the built-ins an app assembly lists (kit/assembly); `requires:` in `template.yml` and `layout.yml` declares what a template or layout needs. `Startup.Build` (`BuildInfo`): the app, features, add-ons, plugins, layouts, templates and theme. `Options.ReadOnly`: every write to the folder and the settings files returns `ErrReadOnly` (an app without the `editor` feature, kit/features). `SiteEnv.Layouts`: the layouts a site build uses | `builtins/builtins.go`, `session.go`, `build.go` |
 | Plugins and layouts: trust, storage, invoke, stream, cancel | `extplugins.go`, `layouts.go`, `stream.go` |
 | `Handler()`: `/_ws/`, `/_plugins/`, `/_layouts/`, `/_print/`; anything else is 404 | `assets.go`, `print.go` |
 | `Build`, `BuildOptions`, `SaveBuildDefaults`, `BuiltSite`; `WriteSite` is `zenmd build` | `build.go`, `buildui.go` |
