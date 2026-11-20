@@ -100,4 +100,4 @@ func TestPickBuildFolder(t *testing.T) {
 	}
 }
 
-// The dialog can switch drafts off although .zen.yml has build.drafts: true.
+// The dialog can switch drafts off although .zenmd.yml has build.drafts: true.

@@ -211,7 +211,7 @@ test("Create does nothing without a folder; Enter in a field creates", async () 
 
 test("files in the way: the error lists them, the dialog stays open and the folder stays chosen", async () => {
   const api = rig();
-  api.create = () => { throw new Error("files already exist: README.md, .zen.yml"); };
+  api.create = () => { throw new Error("files already exist: README.md, .zenmd.yml"); };
   const o = open(api);
   await settle();
   o.btn("Choose folder…").click();
@@ -219,7 +219,7 @@ test("files in the way: the error lists them, the dialog stays open and the fold
   o.q<HTMLFormElement>("form").requestSubmit();
   await settle();
   const alert = o.q("[role=alert]");
-  expect(alert.textContent).toContain("files already exist: README.md, .zen.yml");
+  expect(alert.textContent).toContain("files already exist: README.md, .zenmd.yml");
   expect(o.onCreated).not.toHaveBeenCalled();
   expect(o.d.el.isConnected).toBe(true);
   expect(o.q(".zen-newsite-path").textContent).toBe("/Users/me/Sites/Acme Docs");

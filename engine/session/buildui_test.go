@@ -111,7 +111,7 @@ func TestBuildOptions(t *testing.T) {
 	// The folder's build: section pre-fills the form.
 	b2 := newBuildZen(t, map[string]string{
 		"README.md": "# Home\n",
-		".zen.yml":  "version: 1\nbuild:\n  out: public\n  portable: false\n  drafts: true\n",
+		".zenmd.yml":  "version: 1\nbuild:\n  out: public\n  portable: false\n  drafts: true\n",
 	})
 	o, err = b2.z.BuildOptions()
 	if err != nil {
@@ -144,7 +144,7 @@ func TestBuildOptions(t *testing.T) {
 	}
 
 	// A wrong build: type is an error with the CLI's text.
-	b3 := newBuildZen(t, map[string]string{"README.md": "# H\n", ".zen.yml": "build: 3\n"})
+	b3 := newBuildZen(t, map[string]string{"README.md": "# H\n", ".zenmd.yml": "build: 3\n"})
 	if _, err := b3.z.BuildOptions(); err == nil || !strings.Contains(err.Error(), "build must be a mapping") {
 		t.Errorf("wrong type: %v", err)
 	}
@@ -296,7 +296,7 @@ func TestBuildErrors(t *testing.T) {
 	}
 
 	// A wrong build: type, with the config's text.
-	b2 := newBuildZen(t, map[string]string{"README.md": "# H\n", ".zen.yml": "build:\n  drafts: 7\n"})
+	b2 := newBuildZen(t, map[string]string{"README.md": "# H\n", ".zenmd.yml": "build:\n  drafts: 7\n"})
 	if _, err := b2.z.BuildWebsite(BuildOptions{Portable: true}); err == nil || !strings.Contains(err.Error(), "build.drafts must be true or false") {
 		t.Errorf("wrong type: %v", err)
 	}
@@ -387,12 +387,12 @@ func TestSameAsCLI(t *testing.T) {
 
 func TestSaveBuildDefaults(t *testing.T) {
 	b := newBuildZen(t, map[string]string{"README.md": "# Home\n"})
-	yml := filepath.Join(b.dir, ".zen.yml")
+	yml := filepath.Join(b.dir, ".zenmd.yml")
 	opt := BuildOptions{Out: filepath.Join(b.dir, "docs-site"), Portable: false, Drafts: true, Clean: true}
 
-	// No .zen.yml: preview first, then create it with version and build:.
+	// No .zenmd.yml: preview first, then create it with version and build:.
 	prev, err := b.z.SaveBuildDefaults(opt, false)
-	if err != nil || !strings.Contains(prev, "Adds to .zen.yml") || !strings.Contains(prev, "docs-site") {
+	if err != nil || !strings.Contains(prev, "Adds to .zenmd.yml") || !strings.Contains(prev, "docs-site") {
 		t.Fatalf("preview: %q, %v", prev, err)
 	}
 	if _, err := os.Stat(yml); err == nil {
@@ -481,7 +481,7 @@ func TestDialogDraftsOverrideConfig(t *testing.T) {
 	dir := tree(t, map[string]string{
 		"README.md": "# Home\n",
 		"wip.md":    "---\ndraft: true\n---\n# WIP\n",
-		".zen.yml":  "version: 1\nbuild:\n  drafts: true\n",
+		".zenmd.yml":  "version: 1\nbuild:\n  drafts: true\n",
 	})
 	out := filepath.Join(t.TempDir(), "site")
 	r := runBuild(t, dir, t.TempDir(), SiteOptions{Out: out, NoDrafts: true})

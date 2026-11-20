@@ -40,8 +40,8 @@ func TestDialectsService(t *testing.T) {
 	if err := z.SetDialect("myst", true); err != nil {
 		t.Fatal(err)
 	}
-	if b, _ := os.ReadFile(filepath.Join(dir, ".zen.yml")); !strings.Contains(string(b), "dialects: [myst]") {
-		t.Errorf(".zen.yml: %q", b)
+	if b, _ := os.ReadFile(filepath.Join(dir, ".zenmd.yml")); !strings.Contains(string(b), "dialects: [myst]") {
+		t.Errorf(".zenmd.yml: %q", b)
 	}
 	if got := z.Startup().DialectHint; got != "" {
 		t.Errorf("hint after turning on: %q", got)

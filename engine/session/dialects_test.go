@@ -60,7 +60,7 @@ func pageHTML(t *testing.T, s *Session, path string) string {
 }
 
 func TestExportUsesDialects(t *testing.T) {
-	on := tree(t, map[string]string{"README.md": mystPage, ".zen.yml": "markdown:\n  dialects: [myst]\n"})
+	on := tree(t, map[string]string{"README.md": mystPage, ".zenmd.yml": "markdown:\n  dialects: [myst]\n"})
 	r := runBuild(t, on, t.TempDir(), SiteOptions{Portable: true}, func(e *SiteEnv) {
 		e.Registry, e.Dialects = noteRegistry(t), builtins.Dialects()
 	})
@@ -87,7 +87,7 @@ func TestExportUsesDialects(t *testing.T) {
 }
 
 func TestSetDialect(t *testing.T) {
-	dir := tree(t, map[string]string{"README.md": mystPage, ".zen.yml": "# mine\nversion: 1\n"})
+	dir := tree(t, map[string]string{"README.md": mystPage, ".zenmd.yml": "# mine\nversion: 1\n"})
 	s := dialectSession(t, dir, t.TempDir(), false, false)
 	if strings.Contains(pageHTML(t, s, "README.md"), `data-zen-plugin="note"`) {
 		t.Fatal("on before it was turned on")
@@ -95,9 +95,9 @@ func TestSetDialect(t *testing.T) {
 	if err := s.SetDialect("myst", true); err != nil {
 		t.Fatal(err)
 	}
-	b, _ := os.ReadFile(filepath.Join(dir, ".zen.yml"))
+	b, _ := os.ReadFile(filepath.Join(dir, ".zenmd.yml"))
 	if !strings.HasPrefix(string(b), "# mine\nversion: 1\n") || !strings.Contains(string(b), "dialects: [myst]") {
-		t.Errorf(".zen.yml:\n%s", b)
+		t.Errorf(".zenmd.yml:\n%s", b)
 	}
 	if !strings.Contains(pageHTML(t, s, "README.md"), `data-zen-plugin="note"`) {
 		t.Error("the page was not re-rendered with the dialect")
@@ -109,13 +109,13 @@ func TestSetDialect(t *testing.T) {
 	if err := s.SetDialect("myst", true); err != nil {
 		t.Fatal(err)
 	}
-	if b2, _ := os.ReadFile(filepath.Join(dir, ".zen.yml")); string(b2) != string(b) {
+	if b2, _ := os.ReadFile(filepath.Join(dir, ".zenmd.yml")); string(b2) != string(b) {
 		t.Errorf("a second SetDialect changed the file:\n%s", b2)
 	}
 	if err := s.SetDialect("myst", false); err != nil {
 		t.Fatal(err)
 	}
-	b, _ = os.ReadFile(filepath.Join(dir, ".zen.yml"))
+	b, _ = os.ReadFile(filepath.Join(dir, ".zenmd.yml"))
 	if string(b) != "# mine\nversion: 1\n" {
 		t.Errorf("after off:\n%s", b)
 	}
@@ -129,13 +129,13 @@ func TestSetDialect(t *testing.T) {
 	if err := s.SetDialect("mkdocs", true); err == nil {
 		t.Error("an unknown dialect was accepted")
 	}
-	// a folder without .zen.yml gets one
+	// a folder without .zenmd.yml gets one
 	dir2 := tree(t, map[string]string{"README.md": mystPage})
 	s2 := dialectSession(t, dir2, t.TempDir(), false, false)
 	if err := s2.SetDialect("myst", true); err != nil {
 		t.Fatal(err)
 	}
-	if b, _ := os.ReadFile(filepath.Join(dir2, ".zen.yml")); string(b) != "markdown:\n  dialects: [myst]\n" {
+	if b, _ := os.ReadFile(filepath.Join(dir2, ".zenmd.yml")); string(b) != "markdown:\n  dialects: [myst]\n" {
 		t.Errorf("created:\n%s", b)
 	}
 	// no folder
@@ -156,8 +156,8 @@ func TestSetDialectReadOnly(t *testing.T) {
 	if after := snapshot(t, dir); len(after) != len(before) {
 		t.Errorf("the folder changed: %v", after)
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".zen.yml")); err == nil {
-		t.Error(".zen.yml was written")
+	if _, err := os.Stat(filepath.Join(dir, ".zenmd.yml")); err == nil {
+		t.Error(".zenmd.yml was written")
 	}
 	// no hint in a read-only app
 	if h := s.DialectHint(); h != "" {
@@ -182,7 +182,7 @@ func TestDialectHint(t *testing.T) {
 		t.Errorf("build without it: %q", h)
 	}
 	// already listed
-	listed := tree(t, map[string]string{"README.md": mystPage, "myst.yml": "", ".zen.yml": "markdown:\n  dialects: [myst]\n"})
+	listed := tree(t, map[string]string{"README.md": mystPage, "myst.yml": "", ".zenmd.yml": "markdown:\n  dialects: [myst]\n"})
 	if h := dialectSession(t, listed, t.TempDir(), false, false).DialectHint(); h != "" {
 		t.Errorf("listed: %q", h)
 	}

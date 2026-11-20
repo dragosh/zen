@@ -106,12 +106,12 @@ func TestNoArgsOpensCwd(t *testing.T) {
 func TestPathArguments(t *testing.T) {
 	h := home(t)
 	ws := filepath.Join(h, "ws")
-	write(t, filepath.Join(ws, ".zen.yml"))
+	write(t, filepath.Join(ws, ".zenmd.yml"))
 	write(t, filepath.Join(ws, "docs", "a.md"))
 
 	// directory, relative to cwd
 	expect(t, run(t, h, nil, "ws"), Launch{Dir: ws, Mode: "read"})
-	// file under a .zen.yml workspace
+	// file under a .zenmd.yml workspace
 	expect(t, run(t, h, nil, "ws/docs/a.md"), Launch{Dir: ws, Page: "docs/a.md", Mode: "read"})
 
 	// .git marker
@@ -129,7 +129,7 @@ func TestPathArguments(t *testing.T) {
 		Launch{Dir: filepath.Join(h, "plain", "sub"), Page: "c.md", Mode: "read"})
 
 	// marker in home itself is never used as root
-	write(t, filepath.Join(h, ".zen.yml"))
+	write(t, filepath.Join(h, ".zenmd.yml"))
 	write(t, filepath.Join(h, "other", "d.md"))
 	expect(t, run(t, h, nil, "other/d.md"),
 		Launch{Dir: filepath.Join(h, "other"), Page: "d.md", Mode: "read"})
@@ -145,7 +145,7 @@ func TestPathArguments(t *testing.T) {
 
 func TestEdit(t *testing.T) {
 	h := home(t)
-	write(t, filepath.Join(h, "ws", ".zen.yml"))
+	write(t, filepath.Join(h, "ws", ".zenmd.yml"))
 	write(t, filepath.Join(h, "ws", "a.md"))
 	ws := filepath.Join(h, "ws")
 
@@ -248,7 +248,7 @@ func TestFinderLaunchShowsWelcome(t *testing.T) {
 func TestBuildCommand(t *testing.T) {
 	h := home(t)
 	ws := filepath.Join(h, "ws")
-	write(t, filepath.Join(ws, ".zen.yml"))
+	write(t, filepath.Join(ws, ".zenmd.yml"))
 	write(t, filepath.Join(ws, "docs", "a.md"))
 	write(t, filepath.Join(h, "plain", "b.md"))
 
@@ -555,6 +555,56 @@ func TestVersionVerbose(t *testing.T) {
 	for _, w := range []string{"features: none\n", "add-ons: none\n", "plugins: none\n", "layouts: none\n", "templates: none\n", "dialects: none\n"} {
 		if !strings.Contains(r.stdout, w) {
 			t.Errorf("missing %q in %q", w, r.stdout)
+		}
+	}
+}
+
+// A folder that still has a .zen.yml gets one line on stderr, once per run; a folder with .zenmd.yml gets none.
+func TestLegacyConfigNotice(t *testing.T) {
+	h := home(t)
+	legacy := filepath.Join(h, "old")
+	write(t, filepath.Join(legacy, ".zen.yml"))
+	write(t, filepath.Join(legacy, "a.md"))
+	fresh := filepath.Join(h, "new")
+	write(t, filepath.Join(fresh, ".zenmd.yml"))
+	write(t, filepath.Join(fresh, "a.md"))
+	both := filepath.Join(h, "both")
+	write(t, filepath.Join(both, ".zen.yml"))
+	write(t, filepath.Join(both, ".zenmd.yml"))
+	write(t, filepath.Join(both, "a.md"))
+
+	const old = "This folder's settings are in .zen.yml; Zenmark now calls the file .zenmd.yml."
+	const bothMsg = ".zen.yml is ignored because .zenmd.yml exists."
+	count := func(r result, line string) int { return strings.Count(r.stderr, line+"\n") }
+
+	r := run(t, h, nil, "old")
+	if !r.launched || count(r, old) != 1 {
+		t.Errorf("open: %+v", r)
+	}
+	r = run(t, legacy, nil, "build")
+	if !r.built || count(r, old) != 1 {
+		t.Errorf("build: %+v", r)
+	}
+	r = run(t, h, nil, "build", "both")
+	if count(r, bothMsg) != 1 || strings.Contains(r.stderr, old) {
+		t.Errorf("both: %+v", r)
+	}
+	for _, args := range [][]string{{"new"}, {"build", "new"}} {
+		if r := run(t, h, nil, args...); strings.Contains(r.stderr, ".zen.yml") {
+			t.Errorf("%v: a notice for a folder with .zenmd.yml: %q", args, r.stderr)
+		}
+	}
+}
+
+func TestRootFindsEitherName(t *testing.T) {
+	h := home(t)
+	for _, name := range []string{".zen.yml", ".zenmd.yml"} {
+		ws := filepath.Join(h, "ws-"+strings.TrimPrefix(name, "."))
+		write(t, filepath.Join(ws, name))
+		write(t, filepath.Join(ws, "docs", "a.md"))
+		r := run(t, h, nil, filepath.Join(ws, "docs", "a.md"))
+		if r.l.Dir != ws {
+			t.Errorf("%s: dir %q, want %q", name, r.l.Dir, ws)
 		}
 	}
 }

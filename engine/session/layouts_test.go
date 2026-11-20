@@ -267,7 +267,7 @@ func TestLayoutEditedAsksAgain(t *testing.T) {
 
 func TestLayoutPatternInFolderConfig(t *testing.T) {
 	files := layoutFiles()
-	files[".zen.yml"] = "version: 1\nlayouts:\n  \"notes/**\": memo\n  \"blog/**\": post\nlayout: docs\n"
+	files[".zenmd.yml"] = "version: 1\nlayouts:\n  \"notes/**\": memo\n  \"blog/**\": post\nlayout: docs\n"
 	files["notes/a.md"] = "# A\n"
 	files["blog/p.md"] = "---\ndate: 2026-11-17\n---\n# P\n"
 	z, _, _ := openWith(t, pluginTree(t, files), t.TempDir(), true)

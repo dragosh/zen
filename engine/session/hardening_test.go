@@ -328,7 +328,7 @@ func TestM6SwitchingOffStopsStreams(t *testing.T) {
 		t.Fatal(err)
 	}
 	<-act.started
-	write(t, dir, ".zen.yml", "plugins:\n  act: false\n", 0o644)
+	write(t, dir, ".zenmd.yml", "plugins:\n  act: false\n", 0o644)
 	z.reloadConfig()
 	es := finish(t, ev, call)
 	if es[len(es)-1].Error != "cancelled" {

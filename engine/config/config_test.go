@@ -94,7 +94,7 @@ func TestLoadTolerant(t *testing.T) {
 	t.Run("invalid global keeps workspace", func(t *testing.T) {
 		dir := t.TempDir()
 		g := write(t, filepath.Join(dir, "g", "config.yml"), "theme: [dark\nplugins: {{{")
-		write(t, filepath.Join(dir, ".zen.yml"), "version: 1\ntheme: light\n")
+		write(t, filepath.Join(dir, ".zenmd.yml"), "version: 1\ntheme: light\n")
 		c := Load(g, dir)
 		if len(c.Warnings()) != 1 || !hasWarning(c.Warnings(), g) {
 			t.Fatalf("warnings = %v, want one naming %s", c.Warnings(), g)
@@ -106,7 +106,7 @@ func TestLoadTolerant(t *testing.T) {
 
 	t.Run("non-map document", func(t *testing.T) {
 		dir := t.TempDir()
-		write(t, filepath.Join(dir, ".zen.yml"), "- a\n- b\n")
+		write(t, filepath.Join(dir, ".zenmd.yml"), "- a\n- b\n")
 		c := Load("", dir)
 		if len(c.Warnings()) != 1 {
 			t.Fatalf("warnings = %v", c.Warnings())
@@ -119,7 +119,7 @@ func TestLoadTolerant(t *testing.T) {
 	t.Run("unreadable file", func(t *testing.T) {
 		dir := t.TempDir()
 		// A directory where the file should be: reading fails, not "missing".
-		if err := os.MkdirAll(filepath.Join(dir, ".zen.yml"), 0o755); err != nil {
+		if err := os.MkdirAll(filepath.Join(dir, ".zenmd.yml"), 0o755); err != nil {
 			t.Fatal(err)
 		}
 		c := Load("", dir)
@@ -131,7 +131,7 @@ func TestLoadTolerant(t *testing.T) {
 	t.Run("future version ignored", func(t *testing.T) {
 		dir := t.TempDir()
 		g := write(t, filepath.Join(dir, "g", "config.yml"), "version: 1\ntheme: dark\nplugins:\n  diagram: true\n")
-		write(t, filepath.Join(dir, ".zen.yml"), "version: 2\ntheme: light\nplugins:\n  diagram: false\n  slides: true\n")
+		write(t, filepath.Join(dir, ".zenmd.yml"), "version: 2\ntheme: light\nplugins:\n  diagram: false\n  slides: true\n")
 		c := Load(g, dir)
 		if len(c.Warnings()) != 1 || !hasWarning(c.Warnings(), "version") {
 			t.Fatalf("warnings = %v", c.Warnings())
@@ -186,7 +186,7 @@ editor:
 
 	t.Run("invalid values warn and are skipped", func(t *testing.T) {
 		dir := t.TempDir()
-		write(t, filepath.Join(dir, ".zen.yml"), "theme: purple\nplugins:\n  highlight: 3\n  diagram: true\n")
+		write(t, filepath.Join(dir, ".zenmd.yml"), "theme: purple\nplugins:\n  highlight: 3\n  diagram: true\n")
 		c := Load("", dir)
 		if !hasWarning(c.Warnings(), "theme") || !hasWarning(c.Warnings(), "highlight") {
 			t.Fatalf("warnings = %v", c.Warnings())
@@ -205,7 +205,7 @@ editor:
 
 	t.Run("plugins not a map", func(t *testing.T) {
 		dir := t.TempDir()
-		write(t, filepath.Join(dir, ".zen.yml"), "plugins: [highlight]\ntheme: light\n")
+		write(t, filepath.Join(dir, ".zenmd.yml"), "plugins: [highlight]\ntheme: light\n")
 		c := Load("", dir)
 		if !hasWarning(c.Warnings(), "plugins") {
 			t.Fatalf("warnings = %v", c.Warnings())
@@ -295,7 +295,7 @@ plugins:
   slides: true
   polls: false
 `)
-	write(t, filepath.Join(dir, ".zen.yml"), `version: 1
+	write(t, filepath.Join(dir, ".zenmd.yml"), `version: 1
 plugins:
   highlight: { style: github }
   diagram: { theme: neutral }
@@ -426,7 +426,7 @@ func TestLayoutDefaults(t *testing.T) {
 	ws := filepath.Join(dir, "ws")
 	os.MkdirAll(ws, 0o755)
 	os.WriteFile(global, []byte("version: 1\nlayout: wide\nlayouts:\n  \"talks/**\": slides\n  \"blog/**\": wide\n"), 0o644)
-	os.WriteFile(filepath.Join(ws, ".zen.yml"), []byte("version: 1\nlayout: docs\nlayouts:\n  \"blog/**\": post\n  \"talks/*.md\": slides\n  \"**/*.md\": article\n"), 0o644)
+	os.WriteFile(filepath.Join(ws, ".zenmd.yml"), []byte("version: 1\nlayout: docs\nlayouts:\n  \"blog/**\": post\n  \"talks/*.md\": slides\n  \"**/*.md\": article\n"), 0o644)
 	c := Load(global, ws)
 	if w := c.Warnings(); len(w) != 0 {
 		t.Fatalf("layout and layouts are known keys: %v", w)
@@ -448,7 +448,7 @@ func TestLayoutDefaults(t *testing.T) {
 		t.Errorf("defaults %+v", d)
 	}
 	// The global default applies when the folder has none.
-	os.WriteFile(filepath.Join(ws, ".zen.yml"), []byte("version: 1\n"), 0o644)
+	os.WriteFile(filepath.Join(ws, ".zenmd.yml"), []byte("version: 1\n"), 0o644)
 	if d := Load(global, ws).ForPage(nil).Layouts(); d.Default != "wide" || len(d.Rules) != 2 {
 		t.Errorf("global only: %+v", d)
 	}
@@ -458,7 +458,7 @@ func TestLayoutDefaultsInvalid(t *testing.T) {
 	dir := t.TempDir()
 	ws := filepath.Join(dir, "ws")
 	os.MkdirAll(ws, 0o755)
-	os.WriteFile(filepath.Join(ws, ".zen.yml"), []byte("version: 1\nlayout: Not A Name\nlayouts:\n  \"a/**\": 3\n  \"b/**\": \"Bad Name\"\n  \"c/**\": ok\n"), 0o644)
+	os.WriteFile(filepath.Join(ws, ".zenmd.yml"), []byte("version: 1\nlayout: Not A Name\nlayouts:\n  \"a/**\": 3\n  \"b/**\": \"Bad Name\"\n  \"c/**\": ok\n"), 0o644)
 	c := Load("", ws)
 	if len(c.Warnings()) != 3 {
 		t.Errorf("warnings %v", c.Warnings())
@@ -467,7 +467,7 @@ func TestLayoutDefaultsInvalid(t *testing.T) {
 	if d.Default != "" || len(d.Rules) != 1 || d.Rules[0].Name != "ok" {
 		t.Errorf("only valid entries kept: %+v", d)
 	}
-	os.WriteFile(filepath.Join(ws, ".zen.yml"), []byte("version: 1\nlayouts: [a, b]\n"), 0o644)
+	os.WriteFile(filepath.Join(ws, ".zenmd.yml"), []byte("version: 1\nlayouts: [a, b]\n"), 0o644)
 	if w := Load("", ws).Warnings(); len(w) != 1 || !strings.Contains(w[0], "layouts") {
 		t.Errorf("layouts must be a mapping: %v", w)
 	}
@@ -485,7 +485,7 @@ func TestMarkdownDialects(t *testing.T) {
 	if got := Default().Dialects(); len(got) != 0 {
 		t.Errorf("default: %v", got)
 	}
-	// the folder's .zen.yml chooses them
+	// the folder's .zenmd.yml chooses them
 	write(filepath.Join(dir, WorkspaceFile), "markdown:\n  dialects: [myst, mkdocs]\n")
 	c := Load("", dir)
 	if got := c.Dialects(); !reflect.DeepEqual(got, []string{"myst", "mkdocs"}) {
@@ -506,7 +506,7 @@ func TestMarkdownDialects(t *testing.T) {
 	if got := c.Dialects(); len(got) != 0 {
 		t.Errorf("global: %v", got)
 	}
-	if w := strings.Join(c.Warnings(), "\n"); !strings.Contains(w, "markdown") || !strings.Contains(w, ".zen.yml") {
+	if w := strings.Join(c.Warnings(), "\n"); !strings.Contains(w, "markdown") || !strings.Contains(w, ".zenmd.yml") {
 		t.Errorf("global warning: %q", w)
 	}
 	// front matter cannot, and says so

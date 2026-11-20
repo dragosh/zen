@@ -86,8 +86,8 @@ func TestReadOnlyStartupEdit(t *testing.T) {
 	if err := z.OpenEditor("guide.md"); !errors.Is(err, session.ErrReadOnly) {
 		t.Errorf("OpenEditor: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(z.s.Workspace().Root, ".zen.yml")); err == nil {
-		t.Error(".zen.yml created")
+	if _, err := os.Stat(filepath.Join(z.s.Workspace().Root, ".zenmd.yml")); err == nil {
+		t.Error(".zenmd.yml created")
 	}
 }
 

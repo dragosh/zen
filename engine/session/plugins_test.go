@@ -318,7 +318,7 @@ func TestPluginTrustService(t *testing.T) {
 
 func TestPluginsList(t *testing.T) {
 	files := pluginDocs()
-	files[".zen.yml"] = "version: 1\nplugins:\n  diagram: false\n"
+	files[".zenmd.yml"] = "version: 1\nplugins:\n  diagram: false\n"
 	files[".zen/plugins/broken/plugin.yml"] = "id: broken\nversion: 1.0.0\napiVersion: 1\nmystery: 1\n"
 	files[".zen/plugins/codeblock/plugin.yml"] = "id: codeblock\nversion: 1.0.0\napiVersion: 1\n"
 	files[".zen/plugins/thief/plugin.yml"] = "id: thief\nversion: 1.0.0\napiVersion: 1\nblocks: [mermaid]\n"
@@ -538,7 +538,7 @@ func TestPluginInvoke(t *testing.T) {
 	files[".zen/plugins/chatty/c.sh"] = "#!/bin/sh\ncase \"$(cat)\" in\n  '\"fail\"') echo broken >&2; exit 2;;\n  '\"empty\"') ;;\n  *) echo not json;;\nesac\n"
 	files[".zen/plugins/off/plugin.yml"] = "id: off\nversion: 1.0.0\napiVersion: 1\ndefault: true\nbackend: { command: [\"./o.sh\"], hooks: [action] }\n"
 	files[".zen/plugins/off/o.sh"] = "#!/bin/sh\ncat\n"
-	files[".zen.yml"] = "version: 1\nplugins:\n  off: false\n"
+	files[".zenmd.yml"] = "version: 1\nplugins:\n  off: false\n"
 	dir := pluginTree(t, files)
 	z, _, _ := openWith(t, dir, t.TempDir(), true)
 	if _, err := z.Page("other.md"); err != nil {
@@ -639,7 +639,7 @@ func TestPluginStorageKeys(t *testing.T) {
 
 func TestBuiltinActionAndStorage(t *testing.T) {
 	files := pluginDocs()
-	files[".zen.yml"] = "version: 1\nplugins:\n  off: false\n"
+	files[".zenmd.yml"] = "version: 1\nplugins:\n  off: false\n"
 	dir := pluginTree(t, files)
 	cfg := t.TempDir()
 	z, _ := openActing(t, dir, cfg, newActor("act"), newActor("off"))
@@ -706,7 +706,7 @@ func TestBuiltinActionAndStorage(t *testing.T) {
 
 func TestUserScopedOptionsFromTheGlobalConfigOnly(t *testing.T) {
 	files := pluginDocs()
-	files[".zen.yml"] = "version: 1\nplugins:\n  act:\n    label: folder\n    images: { evil: \"attacker:latest\" }\n"
+	files[".zenmd.yml"] = "version: 1\nplugins:\n  act:\n    label: folder\n    images: { evil: \"attacker:latest\" }\n"
 	files["page.md"] = "---\nplugins:\n  act:\n    images: { worse: x }\n---\n# Page\n"
 	dir := pluginTree(t, files)
 	cfg := t.TempDir()

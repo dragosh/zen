@@ -201,11 +201,11 @@ func TestWatchEvents(t *testing.T) {
 		t.Fatalf("asset: %v", ev.all())
 	}
 
-	// .zen.yml: reload config, current page.
+	// .zenmd.yml: reload config, current page.
 	ev.reset()
-	os.WriteFile(filepath.Join(dir, ".zen.yml"), []byte("theme: dark\n"), 0o644)
+	os.WriteFile(filepath.Join(dir, ".zenmd.yml"), []byte("theme: dark\n"), 0o644)
 	old := z.cfg
-	z.handle([]watch.Event{{Path: ".zen.yml", Kind: watch.Changed}})
+	z.handle([]watch.Event{{Path: ".zenmd.yml", Kind: watch.Changed}})
 	if z.cfg == old || !has("page:changed", PageChanged{"docs/guide.md"}) {
 		t.Fatalf("config: %v", ev.all())
 	}

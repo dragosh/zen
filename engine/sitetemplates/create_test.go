@@ -103,7 +103,7 @@ func TestIgnoreAndEmptyAsk(t *testing.T) {
 
 func TestCreateClashes(t *testing.T) {
 	dir := t.TempDir()
-	tp := tmpl(t, dir, "demo", basicManifest, map[string]string{"README.md": "# new", "a/one.md": "1", "a/two.md": "2", ".zen.yml": "layout: docs\n"})
+	tp := tmpl(t, dir, "demo", basicManifest, map[string]string{"README.md": "# new", "a/one.md": "1", "a/two.md": "2", ".zenmd.yml": "layout: docs\n"})
 
 	// A new folder, with spaces and unicode, is created (also several levels deep).
 	base := t.TempDir()

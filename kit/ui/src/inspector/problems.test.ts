@@ -250,7 +250,7 @@ test("page warnings: the right column has the message and the Fix help for a dia
   const i = warned([DIALECT, LAYOUT, "something else"]);
   select1(i, 0);
   expect(detail(i, "message")).toBe(DIALECT);
-  expect(detail(i, "fix")).toBe("Settings › Markdown, or remove it from .zen.yml");
+  expect(detail(i, "fix")).toBe("Settings › Markdown, or remove it from .zenmd.yml");
   select1(i, 1);
   expect(detail(i, "fix")).toBe("Settings › Layouts, or change layout: in the front matter");
   select1(i, 2);
@@ -282,4 +282,19 @@ test("warning text is text", () => {
   select1(i);
   expect(i.el.querySelector(".zen-problem-details img")).toBeNull();
   expect(detail(i, "message")).toContain("<img src=x");
+});
+
+test("config notice: the folder's old settings file is a warning with a Fix line, like any page warning", () => {
+  const NOTICE = "This folder's settings are in .zen.yml; Zenmark now calls the file .zenmd.yml.";
+  const i = warned([NOTICE]);
+  expect(kinds(i)).toEqual(["warning"]);
+  select1(i, 0);
+  expect(detail(i, "message")).toBe(NOTICE);
+  expect(detail(i, "fix")).toBe("It is renamed the next time a folder setting is saved, or rename it yourself.");
+  choose(i, "checks");
+  expect(kinds(i)).toEqual(["warning"]);
+  // both files: the message only
+  const j = warned([".zen.yml is ignored because .zenmd.yml exists."]);
+  select1(j, 0);
+  expect(detail(j, "fix")).toBeUndefined();
 });

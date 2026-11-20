@@ -6,5 +6,5 @@ import (
 )
 
 func writeConfig(dir, content string) error {
-	return os.WriteFile(filepath.Join(dir, ".zen.yml"), []byte(content), 0o644)
+	return os.WriteFile(filepath.Join(dir, ".zenmd.yml"), []byte(content), 0o644)
 }

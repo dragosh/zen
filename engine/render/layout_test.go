@@ -112,7 +112,7 @@ func TestTemplateFailureFallsBack(t *testing.T) {
 
 func TestConfigDefaultsAndPatterns(t *testing.T) {
 	dir := t.TempDir()
-	cfgFile := dir + "/.zen.yml"
+	cfgFile := dir + "/.zenmd.yml"
 	if err := writeFile(cfgFile, "version: 1\nlayout: a\nlayouts:\n  \"blog/**\": b\n"); err != nil {
 		t.Fatal(err)
 	}

@@ -16,7 +16,7 @@ import (
 func TestOutsideAssembly(t *testing.T) {
 	dir := t.TempDir()
 	files := map[string]string{
-		".zen.yml":  "version: 1\n",
+		".zenmd.yml":  "version: 1\n",
 		"flow.md":   "---\nplugins:\n  diagram: true\n---\n# Flow\n\n```mermaid\ngraph TD; A-->B\n```\n",
 		"guide.md":  "---\nlayout: docs\n---\n# Guide\n\nText.\n",
 		"README.md": "# Home\n",

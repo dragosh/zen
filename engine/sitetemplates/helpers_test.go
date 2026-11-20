@@ -82,7 +82,7 @@ func builtinsFS(techVersion string) fstest.MapFS {
 		"techdocs/template.yml": {Data: []byte("id: techdocs\nname: Tech docs\nversion: " + techVersion + "\norder: 10\n")},
 		"techdocs/README.md":    {Data: []byte("# {{title}}\n")},
 		"planner/template.yml":  {Data: []byte("id: planner\nname: Planner\nversion: 2.0.0\norder: 30\n")},
-		"planner/.zen.yml":      {Data: []byte("layout: wide\n")},
+		"planner/.zenmd.yml":      {Data: []byte("layout: wide\n")},
 	}
 }
 

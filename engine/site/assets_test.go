@@ -157,3 +157,24 @@ func TestPluginExtraFiles(t *testing.T) {
 		}
 	}
 }
+
+// zenmd export never copies a folder's settings file, under either name.
+func TestSettingsFilesAreNotCopied(t *testing.T) {
+	f := newFake()
+	f.page("README.md", "Home", `<p><img src="/_ws/.zenmd.yml" alt="a"><img src="/_ws/.zen.yml" alt="b"><img src="/_ws/sub/.zenmd.yml" alt="c"></p>`)
+	f.files[".zenmd.yml"] = "SECRET-NEW"
+	f.files[".zen.yml"] = "SECRET-OLD"
+	f.files["sub/.zenmd.yml"] = "SECRET-SUB"
+	out := filepath.Join(t.TempDir(), "out")
+	build(t, f, Options{Out: out})
+	for name := range listing(t, out) {
+		if strings.HasSuffix(name, "zenmd.yml") || strings.HasSuffix(name, "zen.yml") {
+			t.Errorf("copied %s", name)
+		}
+	}
+	for _, p := range f.wsAsked {
+		if strings.HasSuffix(p, "zenmd.yml") || strings.HasSuffix(p, "zen.yml") {
+			t.Errorf("asked for %s", p)
+		}
+	}
+}
