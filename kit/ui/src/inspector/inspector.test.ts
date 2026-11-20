@@ -15,6 +15,11 @@ const page = (p: Partial<Page> = {}): Page => ({
 const article = (html = "<h1>Alpha</h1><p>one two three <a href='b.md'>b</a> <a href='https://x.org'>x</a></p><img src='a.png' alt=''>") => {
   const a = document.createElement("article");
   a.innerHTML = html;
+  // loaded images: happy-dom reports every image as finished with no pixels, which the Problems tab would take for a failure
+  for (const img of Array.from(a.querySelectorAll("img"))) {
+    Object.defineProperty(img, "complete", { value: true });
+    Object.defineProperty(img, "naturalWidth", { value: 10 });
+  }
   return a;
 };
 
@@ -133,26 +138,28 @@ test("Esc closes the panel from inside and returns focus to the button; outside 
   expect(i.isOpen).toBe(true);
 });
 
-const tabs = (i: Inspector) => Array.from(i.el.querySelectorAll<HTMLButtonElement>('[role="tab"]'));
+const filter = (i: Inspector) => i.el.querySelector<HTMLSelectElement>("select.zen-problems-filter")!;
+const tabs = (i: Inspector) => Array.from(i.el.querySelectorAll<HTMLButtonElement>('[role="tab"]')).filter((t) => !t.hidden); // the Console tab is hidden while its switch is off
 const key = (el: Element, k: string) => el.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
 
-test("tabs: Issues, File, Page as a tablist with one tabpanel each; Issues is first and selected", () => {
+test("tabs: Page Info and Problems as a tablist with one tabpanel each; Page Info is first and selected", () => {
   const i = make();
   i.setPage("docs/a.md", page(), article());
   i.open();
   expect(i.el.querySelector('[role="tablist"]')).not.toBeNull();
-  expect(tabs(i).map((t) => t.textContent)).toEqual(["Linting", "File", "Page"]);
-  expect(tabs(i).map((t) => t.getAttribute("aria-selected"))).toEqual(["true", "false", "false"]);
-  expect(tabs(i).map((t) => t.tabIndex)).toEqual([0, -1, -1]);
-  const panels = Array.from(i.el.querySelectorAll<HTMLElement>('[role="tabpanel"]'));
-  expect(panels.map((p) => p.hidden)).toEqual([false, true, true]);
+  expect(tabs(i).map((t) => t.querySelector(".zen-panel-tab-label")!.textContent)).toEqual(["Page Info", "Problems"]);
+  expect(tabs(i).map((t) => t.dataset.tab)).toEqual(["info", "problems"]);
+  expect(tabs(i).map((t) => t.getAttribute("aria-selected"))).toEqual(["true", "false"]);
+  expect(tabs(i).map((t) => t.tabIndex)).toEqual([0, -1]);
+  const panels = Array.from(i.el.querySelectorAll<HTMLElement>('[role="tabpanel"]')).filter((p) => !p.hidden || p.dataset.section !== "console");
+  expect(panels.map((p) => p.hidden)).toEqual([false, true]);
   tabs(i).forEach((t, n) => {
     expect(t.getAttribute("aria-controls")).toBe(panels[n].id);
     expect(panels[n].getAttribute("aria-labelledby")).toBe(t.id);
   });
   tabs(i)[1].click();
   expect(tabs(i)[1].getAttribute("aria-selected")).toBe("true");
-  expect(panels.map((p) => p.hidden)).toEqual([true, false, true]);
+  expect(panels.map((p) => p.hidden)).toEqual([true, false]);
 });
 
 test("tabs: arrow keys move and wrap, Home and End jump, focus follows", () => {
@@ -165,29 +172,32 @@ test("tabs: arrow keys move and wrap, Home and End jump, focus follows", () => {
   expect(sel()).toBe(1);
   expect(document.activeElement).toBe(tabs(i)[1]);
   key(list, "ArrowRight");
-  key(list, "ArrowRight");
   expect(sel()).toBe(0);
   key(list, "ArrowLeft");
-  expect(sel()).toBe(2);
+  expect(sel()).toBe(1);
   key(list, "Home");
   expect(sel()).toBe(0);
   key(list, "End");
-  expect(sel()).toBe(2);
+  expect(sel()).toBe(1);
 });
 
-test("tabs: the last tab is remembered, and an unknown stored value falls back to Issues", () => {
+test("tabs: the last tab is remembered, and an unknown stored value (an old Linting, File or Page) falls back to Page Info", () => {
   let i = make();
   i.setPage("docs/a.md", page(), article());
-  tabs(i)[2].click();
-  expect(localStorage.getItem(TAB_KEY)).toBe("page");
+  tabs(i)[1].click();
+  expect(localStorage.getItem(TAB_KEY)).toBe("problems");
   i.destroy();
   i = make();
   i.setPage("docs/a.md", page(), article());
-  expect(tabs(i).map((t) => t.getAttribute("aria-selected"))).toEqual(["false", "false", "true"]);
+  expect(tabs(i).map((t) => t.getAttribute("aria-selected"))).toEqual(["false", "true"]);
   i.destroy();
-  localStorage.setItem(TAB_KEY, "nope");
-  i = make();
-  expect(tabs(i)[0].getAttribute("aria-selected")).toBe("true");
+  for (const old of ["nope", "issues", "file", "page"]) {
+    localStorage.setItem(TAB_KEY, old);
+    i = make();
+    i.setPage("docs/a.md", page(), article());
+    expect(tabs(i)[0].getAttribute("aria-selected")).toBe("true");
+    i.destroy();
+  }
 });
 
 test("the button is an icon with an accessible name; the badge is red text with the count and absent at 0", () => {
@@ -229,35 +239,21 @@ test("external: no own button; the state goes out as an event and a toggle event
   document.removeEventListener(INSPECTOR_STATE, on);
 });
 
-test("issues: states, list, selection and the badge that stays with the panel closed", () => {
+test("the badge counts the problems and stays with the panel closed", () => {
   const i = make();
-  i.setPage("docs/a.md", page(), article());
+  i.setPage("docs/a.md", page(), article("<p><a data-zen-link='broken'>x</a></p>"));
   const badge = () => i.button.querySelector<HTMLElement>(".zen-inspector-badge")!;
-  i.setIssues("checking");
-  expect(section(i, "issues").textContent).toContain("Checking");
-  i.setIssues(null);
-  expect(section(i, "issues").textContent).toContain("Linting off");
-  expect(badge().hidden).toBe(true);
-  i.setIssues([]);
-  expect(section(i, "issues").textContent).toContain("No issues");
-  expect(badge().hidden).toBe(true);
-
-  const alerts = [alert({ line: 3, match: "teh" }), alert({ line: 7, match: "very", severity: "warning", message: "Avoid very" })];
-  i.setIssues(alerts);
+  expect(badge().textContent).toBe("1"); // the broken link
+  i.setIssues([alert({ line: 3, match: "teh" }), alert({ line: 7, match: "very", severity: "warning" })]);
   expect(i.isOpen).toBe(false);
   expect(badge().hidden).toBe(false);
-  expect(badge().textContent).toBe("2");
-  expect(i.button.getAttribute("aria-label")).toBe("Inspector, 2 issues");
-  i.setIssues([alerts[0]]);
+  expect(badge().textContent).toBe("3");
+  expect(i.button.getAttribute("aria-label")).toBe("Inspector, 3 issues");
+  i.setIssues([]);
   expect(i.button.getAttribute("aria-label")).toBe("Inspector, 1 issue");
-  i.setIssues(alerts);
-
-  i.open();
-  const items = section(i, "issues").querySelectorAll<HTMLButtonElement>(".zen-lint-item");
-  expect(items).toHaveLength(2);
-  expect(items[1].textContent).toContain("Avoid very");
-  items[1].click();
-  expect(select).toHaveBeenCalledWith(alerts[1], 1);
+  i.setPage("docs/a.md", page(), article("<p>fine</p>"));
+  expect(badge().hidden).toBe(true);
+  expect(i.button.getAttribute("aria-label")).toBe("Inspector");
 });
 
 test("file: details, formatted, with full path, and created only when known", async () => {
@@ -289,7 +285,7 @@ test("file: nothing is fetched while closed; opening fetches; a failure says so"
   await settle();
   expect(host.pageInfo).toHaveBeenCalledTimes(1);
   expect(field(i, "size")).toBe("Not available");
-  expect(section(i, "file").querySelector('[data-action="reveal"]')).not.toBeNull();
+  expect(section(i, "info").querySelector('[data-action="reveal"]')).not.toBeNull();
 });
 
 test("file: a stale answer for the previous page is dropped", async () => {
@@ -383,25 +379,17 @@ test("onOpenChange is told when the panel opens or closes, not when nothing chan
   expect(seen).toEqual([true, false]);
 });
 
-test("without the vale add-on there is no Linting tab", async () => {
+test("without the vale add-on the Problems tab has no Spelling filter, and spelling alerts are ignored", async () => {
   const i = make({ ...host, addons: [] });
   i.setPage("docs/a.md", page(), article());
   i.open();
-  const tabs = Array.from(i.el.querySelectorAll<HTMLElement>('[role="tab"]'));
-  expect(tabs.map((t) => t.dataset.tab)).toEqual(["file", "page"]);
-  expect(i.el.querySelector('[data-section="issues"]')).toBeNull();
-  expect(tabs[0].getAttribute("aria-selected")).toBe("true"); // File first
-  // issues arriving anyway (a stale caller) show no badge and no count
+  expect(tabs(i).map((t) => t.dataset.tab)).toEqual(["info", "problems"]);
+  expect(Array.from(filter(i).options).map((o) => o.value)).toEqual(["all", "checks"]);
   i.setIssues([alert({ line: 1, match: "x" })]);
   expect(i.button.querySelector<HTMLElement>(".zen-inspector-badge")!.hidden).toBe(true);
   expect(i.button.getAttribute("aria-label")).toBe("Inspector");
   await settle();
   expect(field(i, "path")).toBe("docs/a.md");
-  // a remembered Linting tab falls back to the first one
-  localStorage.setItem(TAB_KEY, "issues");
-  const j = make({ ...host, addons: undefined });
-  j.setPage("docs/a.md", page(), article());
-  expect(j.el.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')!.dataset.tab).toBe("file");
 });
 
 test("external without vale: the state carries no count", () => {

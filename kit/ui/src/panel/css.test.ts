@@ -14,3 +14,9 @@ test("never printed, and motion respects reduced-motion", () => {
   expect(css).toMatch(/@media print[\s\S]*\.zen-panel[\s\S]*display:\s*none/);
   expect(css).toMatch(/prefers-reduced-motion: reduce/);
 });
+
+test("two columns scroll on their own and stack under 700 px", () => {
+  expect(css).toMatch(/\.zen-panel-col\s*\{[^}]*overflow:\s*auto/);
+  expect(css).toMatch(/@container \(max-width:\s*700px\)/);
+  expect(css).toMatch(/\.zen-panel\.is-collapsed/);
+});

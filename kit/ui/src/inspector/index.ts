@@ -1,31 +1,37 @@
-// ui/inspector: a bottom panel (ui/panel) under the reading view with three tabs,
-// Linting (Vale), File and Page, and the button that toggles it. The Linting tab
-// belongs to the vale add-on (kit/addons): a build without it has File and Page only. The page
-// feature owns one and feeds it after every render; this file knows nothing
-// about loading pages. All text goes in through textContent.
+// ui/inspector: the one bottom panel (ui/panel) under the reading view, with tabs Page Info, Problems and
+// Console, each in two columns (the list or main info on the left, details on the right), and the button
+// that toggles it. Page Info and Problems come with the `inspector` feature, the Console with `developer`
+// (and the Settings switch); the panel exists when the build has either. Spelling problems come from the
+// vale add-on (kit/addons). The page feature owns one and feeds it after every render; this file knows
+// nothing about loading pages. All text goes in through textContent.
 import "./inspector.css";
-import { hasAddon, type Alert, type KitHost, type Page, type PageInfo } from "../host";
-import { issueList } from "../lint";
+import { hasAddon, hasFeature, type Alert, type KitHost, type Page, type PageInfo } from "../host";
+import { installConsoleCapture } from "../shell/console";
 import { copyText } from "../shell/clipboard";
+import { developerEnabled, developerKey, followDeveloper } from "../shell/developer";
+import { createConsoleTab, type ConsoleTab } from "../shell/devpanel";
 import { button, el } from "../shell/dom";
-import { BOTTOM_PANEL_HEIGHT, createTabbedPanel, panelEmpty, panelProps } from "../panel";
-import { INSPECTOR_CLOSE, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorIcon, inspectorLabel, type InspectorState } from "./events";
+import { BOTTOM_PANEL_HEIGHT, createTabbedPanel, PANEL_COLLAPSED_KEY, panelColumns, panelEmpty, panelProps } from "../panel";
+import { INSPECTOR_CLOSE, INSPECTOR_CONSOLE, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorIcon, inspectorLabel, type InspectorState } from "./events";
 import { formatDate, formatSize, readingLabel } from "./format";
+import { brokenLinks, failedAlready, isCheck, missingImage, sameProblem, spellingProblems, type Filter, type Problem } from "./problems";
 import { pageStats, type PageStats } from "./stats";
 
 export { pageStats, type PageStats } from "./stats";
-export { INSPECTOR_CLOSE, INSPECTOR_STATE, INSPECTOR_TOGGLE, type InspectorState } from "./events";
+export { INSPECTOR_CLOSE, INSPECTOR_CONSOLE, INSPECTOR_STATE, INSPECTOR_TOGGLE, type InspectorState } from "./events";
 
 export const OPEN_KEY = "zen.inspector.open";
 /** The last tab, by id. */
 export const TAB_KEY = "zen.inspector.tab";
-/** The panel's height is the one shared with the Developer panel (ui/panel BOTTOM_PANEL_HEIGHT). */
 
 export type InspectorOptions = {
   doc: Document;
-  /** The calls the File section uses (both optional, see KitHost) and the add-ons of the build: the Linting tab needs "vale". */
-  host: Pick<KitHost, "pageInfo" | "revealInFinder" | "addons">;
-  /** A click on an issue in the list. */
+  /**
+   * The calls the Page Info tab uses (both optional, see KitHost), the add-ons of the build (Spelling needs "vale")
+   * and the build's features and log calls (Page Info and Problems need `inspector`, the Console `developer`).
+   */
+  host: Pick<KitHost, "pageInfo" | "revealInFinder" | "addons" | "build" | "logs" | "onLog">;
+  /** Show on a spelling problem: scroll to its mark and select it. */
   onSelectIssue(alert: Alert, index: number): void;
   /** The panel was opened or closed (button, shortcut or API); not called when nothing changes. */
   onOpenChange?(open: boolean): void;
@@ -38,12 +44,12 @@ export type InspectorOptions = {
 };
 
 export type Inspector = {
-  /** The toggle for a toolbar (the editor): the icon with the issue count as a badge. */
+  /** The toggle for a toolbar (the editor): the icon with the problem count as a badge. */
   button: HTMLButtonElement;
   /** The panel; put it in the content area, before the main pane. */
   el: HTMLElement;
   readonly isOpen: boolean;
-  /** There is a page to inspect and the host shows pages now. */
+  /** There is a page to inspect (Page Info, Problems) and the host shows pages now: what the Inspector button needs. */
   readonly available: boolean;
   open(): void;
   close(): void;
@@ -52,9 +58,18 @@ export type Inspector = {
   setPage(path: string | null, page?: Page, root?: ParentNode): void;
   /** false while the main pane shows something else (home, Settings): button and panel hide, nothing is forgotten. */
   setActive(active: boolean): void;
-  /** The Vale alerts: null when linting is off or unavailable, "checking" while a result is on its way. */
+  /** The Vale alerts (the Spelling problems): null when linting is off or unavailable, "checking" while a result is on its way. */
   setIssues(alerts: Alert[] | null | "checking"): void;
   destroy(): void;
+};
+
+/** What createInspector returns: the Inspector with its panel's collapse and the Console. */
+export type InspectorPanel = Inspector & {
+  /** Only the tab bar shows. */
+  readonly collapsed: boolean;
+  setCollapsed(collapsed: boolean): void;
+  /** Opens on the Console tab, expanded, and focuses it; nothing while the Console is not there (no `developer` feature, or the switch is off). */
+  showConsole(): void;
 };
 
 /** ⌥⌘I (⌃⌥I elsewhere), no Shift. The key is read from the physical key: ⌥I types "ˆ" on a Mac keyboard. */
@@ -63,6 +78,7 @@ export function inspectorKey(e: KeyboardEvent): boolean {
 }
 
 const SOURCE_LABEL: Record<string, string> = { builtin: "built-in", folder: "folder", user: "user" };
+const KIND_LABEL: Record<Problem["kind"], string> = { link: "Link", image: "Image", spelling: "Spelling" };
 
 type FileState =
   | { status: "loading" }
@@ -72,7 +88,7 @@ type FileState =
 let seq = 0;
 
 // Open or closed lasts while the app runs (sessionStorage), so every launch starts with the panel
-// closed; the tab is remembered across launches (localStorage).
+// closed; the tab is remembered across launches (localStorage), and so are the height and collapsed state (ui/panel).
 const store = (key: string): Storage => (key === OPEN_KEY ? sessionStorage : localStorage);
 
 function read(key: string): string | null {
@@ -90,22 +106,25 @@ function write(key: string, value: string): void {
   }
 }
 
-export function createInspector(o: InspectorOptions): Inspector {
+export function createInspector(o: InspectorOptions): InspectorPanel {
   const id = ++seq;
-  // The panel is the shared tabbed bottom panel (ui/panel); a later tab (Spelling) is one more entry in
-  // TABS and a render function. Linting comes with the vale add-on.
+  const win = (o.doc.defaultView ?? window) as Window & typeof globalThis;
+  // The panel is the shared tabbed bottom panel (ui/panel). A tab whose feature the build leaves out is not
+  // there at all; one more tab is one more entry in TABS and a render function. Spelling comes with the vale add-on.
   const lintOn = hasAddon(o.host, "vale");
+  const pageTabs = hasFeature(o.host, "inspector");
+  const consoleFeature = hasFeature(o.host, "developer");
   const TABS = [
-    ...(lintOn ? [{ id: "issues", label: "Linting" }] : []),
-    { id: "file", label: "File" },
-    { id: "page", label: "Page" },
+    ...(pageTabs ? [{ id: "info", label: "Page Info" }, { id: "problems", label: "Problems" }] : []),
+    ...(consoleFeature ? [{ id: "console", label: "Console" }] : []),
   ];
   const frame = createTabbedPanel({
     doc: o.doc,
     label: "Inspector",
     idPrefix: `zen-inspector-${id}`,
-    tabs: TABS,
+    tabs: TABS.length ? TABS : [{ id: "info", label: "Page Info" }], // a build with neither feature has no Inspector; this one is never shown
     tabKey: TAB_KEY,
+    collapseKey: PANEL_COLLAPSED_KEY,
     onClose: () => {
       inspector.close();
       (o.external ? o.doc.querySelector<HTMLElement>(".zen-inspector-button") : toggle)?.focus();
@@ -128,7 +147,8 @@ export function createInspector(o: InspectorOptions): Inspector {
   toggle.append(inspectorIcon(o.doc), badge);
   toggle.setAttribute("aria-label", inspectorLabel(0));
 
-  let isOpen = read(OPEN_KEY) === "1";
+  const consoleOn = () => consoleFeature && developerEnabled();
+  let isOpen = read(OPEN_KEY) === "1" && (pageTabs || consoleOn()); // a remembered open panel stays shut when it has no tab to show
   let active = true;
   let path: string | null = null;
   let page: Page | null = null;
@@ -138,42 +158,144 @@ export function createInspector(o: InspectorOptions): Inspector {
   let fileFor = "";
   let copiedTimer: ReturnType<typeof setTimeout> | undefined;
   let count = 0;
+  let filter: Filter = "all";
+  let selected: Problem | null = null;
+  let checkRoot: ParentNode | null = null;
+  let failed = new Set<HTMLImageElement>();
 
-  const issues = { body: lintOn ? frame.body("issues") : null };
-  const fileSection = { body: frame.body("file") };
-  const pageSection = { body: frame.body("page") };
+  // ---- Page Info: the page on the left, the file on the right
+  const info = pageTabs ? panelColumns() : null;
+  if (info) frame.body("info").append(info.el);
+  const pageBody = info?.left ?? el("div");
+  const fileBody = info?.right ?? el("div");
+
+  // ---- Problems: the list on the left, the selected problem on the right
+  const problems = pageTabs ? panelColumns() : null;
+  if (problems) frame.body("problems").append(problems.el);
+  const problemList = problems?.left ?? el("div");
+  const problemDetails = problems?.right ?? el("div");
+  if (problems) {
+    const select = el("select", "zen-problems-filter");
+    select.setAttribute("aria-label", "Show problems");
+    for (const [v, label] of [["all", "All"], ["checks", "Checks"], ...(lintOn ? [["spelling", "Spelling"]] : [])]) {
+      const opt = el("option", "", label);
+      opt.value = v;
+      select.append(opt);
+    }
+    select.addEventListener("change", () => { filter = select.value as Filter; renderProblems(); });
+    frame.toolsFor("problems").append(select);
+  }
+
+  // ---- Console: the log on the left, the entry on the right
+  let consoleTab: ConsoleTab | null = null;
+  let consoleStarted = false;
+  if (consoleFeature) {
+    consoleTab = createConsoleTab({ doc: o.doc, host: o.host, capture: installConsoleCapture(win), tools: frame.toolsFor("console") });
+    frame.body("console").append(consoleTab.el);
+  }
 
   const rows = panelProps;
+  const heading = (t: string) => el("h3", "zen-panel-heading", t);
 
-  function renderIssues(): void {
-    if (!issues.body) return; // no vale add-on: no Linting tab, no count
-    if (alerts === "checking") {
-      issues.body.replaceChildren(panelEmpty("Checking…"));
-    } else if (alerts === null) {
-      issues.body.replaceChildren(panelEmpty("Linting off", "Vale is not available, or the page is empty."));
-    } else if (alerts.length === 0) {
-      issues.body.replaceChildren(panelEmpty("No issues", "Vale found nothing to flag on this page."));
-    } else {
-      issues.body.replaceChildren(issueList(alerts, (a, i) => o.onSelectIssue(a, i)));
+  // ---- problems
+
+  const checks = (): Problem[] => {
+    if (!checkRoot) return [];
+    const imgs = Array.from(checkRoot.querySelectorAll("img")).filter((i) => failed.has(i)).map(missingImage);
+    return [...brokenLinks(checkRoot), ...imgs];
+  };
+  const spelling = (): Problem[] => (lintOn && Array.isArray(alerts) ? spellingProblems(alerts) : []);
+  let all: Problem[] = [];
+
+  function showProblem(p: Problem): void {
+    if (p.alert) {
+      o.onSelectIssue(p.alert, p.index ?? 0);
+      return;
     }
-    count = Array.isArray(alerts) ? alerts.length : 0;
-    const tone = Array.isArray(alerts) && alerts.some((a) => a.severity === "error") ? "error" : Array.isArray(alerts) && alerts.some((a) => a.severity === "warning") ? "warning" : "neutral";
-    frame.setCount("issues", count, tone);
+    const t = p.el;
+    if (!t?.isConnected) return;
+    const reduced = win.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+    t.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
+    if (!t.hasAttribute("tabindex")) t.setAttribute("tabindex", "-1"); // a broken link has no href and an image is not focusable
+    t.focus({ preventScroll: true });
+  }
+
+  function renderProblems(): void {
+    if (!problems) return;
+    all = [...checks(), ...spelling()];
+    if (selected) selected = all.find((p) => sameProblem(p, selected!)) ?? null;
+    const shown = all.filter((p) => filter === "all" || (filter === "checks") === isCheck(p));
+    if (shown.length === 0) {
+      problemList.replaceChildren(alerts === "checking" && filter !== "checks" && lintOn ? panelEmpty("Checking…") : panelEmpty("No problems on this page."));
+    } else {
+      const list = el("div", "zen-problem-list");
+      list.setAttribute("role", "listbox");
+      list.setAttribute("aria-label", "Problems");
+      for (const p of shown) {
+        const r = el("button", "zen-problem");
+        r.type = "button";
+        r.setAttribute("role", "option");
+        r.setAttribute("aria-selected", String(p === selected));
+        r.dataset.kind = p.kind;
+        r.dataset.severity = p.severity;
+        const dot = el("span", "zen-problem-dot");
+        dot.setAttribute("aria-hidden", "true");
+        r.append(dot, el("span", "zen-problem-kind", KIND_LABEL[p.kind]), el("span", "zen-problem-label", p.label), el("span", "zen-problem-where", p.where));
+        r.title = p.message;
+        r.addEventListener("click", () => { selected = p; renderProblems(); });
+        list.append(r);
+      }
+      problemList.replaceChildren(list);
+    }
+    renderProblemDetails();
+    count = all.length;
+    const tone = all.some((p) => p.severity === "error") ? "error" : all.length ? "warning" : "neutral";
+    frame.setCount("problems", count, tone);
     badge.hidden = count === 0;
     badge.textContent = String(count);
     toggle.setAttribute("aria-label", inspectorLabel(count));
     announce();
   }
 
+  function renderProblemDetails(): void {
+    const p = selected;
+    if (!p) {
+      problemDetails.replaceChildren(el("div", "zen-problem-details", "Select a problem"));
+      return;
+    }
+    const box = el("div", "zen-problem-details");
+    box.append(rows([["Message", "message", p.message], ["Where", "where", p.where], ["Rule", "rule", p.rule, true]]));
+    const show = button("Show", () => showProblem(p), { className: "zen-problem-show", title: "Scroll the page to it" });
+    show.dataset.action = "show";
+    const actions = el("div", "zen-inspector-actions");
+    actions.append(show);
+    box.append(actions);
+    problemDetails.replaceChildren(box);
+  }
+
+  // The images of the shown page: one that fails to load is a missing image.
+  const onImageError = (e: Event) => {
+    const t = e.target;
+    if (!(t instanceof win.HTMLImageElement) || failed.has(t)) return;
+    failed.add(t);
+    renderProblems();
+  };
+  function watch(root: ParentNode | null): void {
+    checkRoot?.removeEventListener("error", onImageError, true);
+    checkRoot = root;
+    failed = new Set(root ? Array.from(root.querySelectorAll("img")).filter(failedAlready) : []);
+    root?.addEventListener("error", onImageError, true);
+  }
+
   function announce(): void {
     if (!o.external) return;
-    const detail: InspectorState = { available: active && path !== null, open: isOpen, count };
+    const detail: InspectorState = { available: inspector.available, open: isOpen, count };
     o.doc.dispatchEvent(new CustomEvent(INSPECTOR_STATE, { detail }));
   }
 
   function renderFile(): void {
     if (path === null) {
-      fileSection.body.replaceChildren();
+      fileBody.replaceChildren();
       return;
     }
     const items: [string, string, string, boolean?][] = [["Path", "path", path]];
@@ -187,7 +309,7 @@ export function createInspector(o: InspectorOptions): Inspector {
         items.push(["Size", "size", file?.status === "error" ? "Not available" : "…"]);
       }
     }
-    const nodes: HTMLElement[] = [rows(items)];
+    const nodes: HTMLElement[] = [heading("File"), rows(items)];
     const actions = el("div", "zen-inspector-actions");
     if (file?.status === "ok") {
       const abs = file.info.absPath;
@@ -211,19 +333,19 @@ export function createInspector(o: InspectorOptions): Inspector {
       actions.append(reveal);
     }
     if (actions.childElementCount) nodes.push(actions);
-    fileSection.body.replaceChildren(...nodes);
+    fileBody.replaceChildren(...nodes);
   }
 
   function renderPage(): void {
     if (!page || !stats) {
-      pageSection.body.replaceChildren();
+      pageBody.replaceChildren();
       return;
     }
     const s = stats;
     const layout = page.layout?.name || "article";
     const source = page.layout?.source ? SOURCE_LABEL[page.layout.source] ?? page.layout.source : "";
     const list = (v: string[]) => (v.length ? v.join(", ") : "none");
-    pageSection.body.replaceChildren(rows([
+    pageBody.replaceChildren(heading("Page"), rows([
       ["Title", "title", page.title],
       ["Layout", "layout", source ? `${layout} · ${source}` : layout],
       ["Words", "words", String(s.words)],
@@ -241,7 +363,7 @@ export function createInspector(o: InspectorOptions): Inspector {
   let fetchSeq = 0;
   function fetchFile(): void {
     const mine = ++fetchSeq;
-    if (!isOpen || path === null || typeof o.host.pageInfo !== "function") return;
+    if (!pageTabs || !isOpen || path === null || typeof o.host.pageInfo !== "function") return;
     const asked = path;
     if (fileFor !== asked || !file) {
       file = { status: "loading" };
@@ -265,24 +387,38 @@ export function createInspector(o: InspectorOptions): Inspector {
 
   // ---- visibility
 
+  /** The tabs that are there now: the page's need a page, the Console needs the switch. */
+  function syncTabs(): void {
+    frame.setTabVisible("info", pageTabs && path !== null);
+    frame.setTabVisible("problems", pageTabs && path !== null);
+    frame.setTabVisible("console", consoleOn());
+  }
+
   function sync(): void {
+    syncTabs();
     const has = path !== null;
-    toggle.hidden = !(active && has);
-    panel.hidden = !(isOpen && active && has);
+    toggle.hidden = !(active && pageTabs && has);
+    panel.hidden = !(isOpen && active && frame.visibleTabs.length > 0 && (pageTabs ? has || consoleOn() : consoleOn()));
     toggle.setAttribute("aria-expanded", String(isOpen));
+    if (isOpen && !panel.hidden && consoleOn() && consoleTab && !consoleStarted) {
+      consoleStarted = true;
+      void consoleTab.start();
+    }
     announce();
   }
 
-  const inspector: Inspector = {
+  const inspector: InspectorPanel = {
     button: toggle,
     el: panel,
     get isOpen() { return isOpen; },
-    get available() { return active && path !== null; },
+    get available() { return active && pageTabs && path !== null; },
+    get collapsed() { return frame.collapsed; },
+    setCollapsed: (c) => frame.setCollapsed(c),
     open() {
       if (isOpen) return;
       isOpen = true;
       write(OPEN_KEY, "1");
-      frame.reload(); // the Developer panel may have been resized meanwhile
+      frame.reload(); // the height may have been changed meanwhile
       sync();
       fetchFile();
       o.onOpenChange?.(true);
@@ -299,6 +435,15 @@ export function createInspector(o: InspectorOptions): Inspector {
       if (isOpen) inspector.close();
       else inspector.open();
     },
+    showConsole() {
+      if (!consoleOn() || !active) return;
+      syncTabs();
+      inspector.open();
+      frame.setCollapsed(false);
+      frame.select("console");
+      sync();
+      panel.querySelector<HTMLElement>('[role="tab"][data-tab="console"]')?.focus();
+    },
     setPage(next: string | null, p?: Page, root?: ParentNode) {
       if (next === null || !p || !root) {
         path = null;
@@ -307,16 +452,20 @@ export function createInspector(o: InspectorOptions): Inspector {
         file = null;
         fileFor = "";
         fetchSeq++;
+        watch(null);
         renderFile();
         renderPage();
+        renderProblems();
         sync();
         return;
       }
       path = next;
       page = p;
       stats = pageStats(root, p);
+      watch(root);
       renderFile();
       renderPage();
+      renderProblems();
       sync();
       fetchFile();
     },
@@ -327,7 +476,7 @@ export function createInspector(o: InspectorOptions): Inspector {
     setIssues(next) {
       if (!lintOn) return;
       alerts = next;
-      renderIssues();
+      renderProblems();
     },
     destroy() {
       if (o.external) {
@@ -335,10 +484,15 @@ export function createInspector(o: InspectorOptions): Inspector {
         o.doc.removeEventListener(INSPECTOR_CLOSE, onCloseRequest);
         o.doc.dispatchEvent(new CustomEvent(INSPECTOR_STATE, { detail: { available: false, open: false, count: 0 } satisfies InspectorState }));
       }
+      o.doc.removeEventListener(INSPECTOR_CONSOLE, onConsole);
+      o.doc.removeEventListener("keydown", onDevKey);
+      stopFollow();
+      watch(null);
       fetchSeq++;
       clearTimeout(copiedTimer);
       panel.removeEventListener("keydown", onKey);
       toggle.removeEventListener("click", onToggle);
+      consoleTab?.destroy();
       frame.destroy();
       toggle.remove();
     },
@@ -354,14 +508,29 @@ export function createInspector(o: InspectorOptions): Inspector {
   };
   const onExternal = () => { if (inspector.available) inspector.toggle(); };
   const onCloseRequest = () => inspector.close();
+  // ⌥⌘J and the Develop menu: the Console, with the switch on. With it off they do nothing.
+  const onDevKey = (e: KeyboardEvent) => {
+    if (!developerKey(e) || !consoleOn() || !active) return;
+    e.preventDefault();
+    if (isOpen && !panel.hidden && !frame.collapsed && frame.selected === "console") inspector.close();
+    else inspector.showConsole();
+  };
+  const onConsole = () => inspector.showConsole();
+  // The switch turned off takes the Console tab away; a panel left with no tab closes.
+  const stopFollow = followDeveloper(() => {
+    if (!pageTabs && !consoleOn()) inspector.close();
+    sync();
+  }, win);
   if (o.external) {
     o.doc.addEventListener(INSPECTOR_TOGGLE, onExternal);
     o.doc.addEventListener(INSPECTOR_CLOSE, onCloseRequest);
   }
+  o.doc.addEventListener(INSPECTOR_CONSOLE, onConsole);
+  o.doc.addEventListener("keydown", onDevKey);
   toggle.addEventListener("click", onToggle);
   panel.addEventListener("keydown", onKey);
 
-  renderIssues();
+  renderProblems();
   renderFile();
   renderPage();
   sync();

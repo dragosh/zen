@@ -102,8 +102,9 @@ test("clicking an issue scrolls to its mark and highlights it briefly", async ()
   await settle();
   vi.useFakeTimers();
   document.dispatchEvent(new CustomEvent(INSPECTOR_TOGGLE));
-  const item = document.querySelector<HTMLButtonElement>(".zen-inspector .zen-lint-item")!;
-  item.click();
+  const item = document.querySelector<HTMLButtonElement>('.zen-inspector .zen-problem[data-kind="spelling"]')!;
+  item.click(); // selects it; Show scrolls to the mark
+  document.querySelector<HTMLButtonElement>('.zen-inspector [data-action="show"]')!.click();
   const m = article().querySelector("mark.zen-lint")!;
   expect(spy).toHaveBeenCalled();
   expect(spy.mock.contexts[0]).toBe(m);

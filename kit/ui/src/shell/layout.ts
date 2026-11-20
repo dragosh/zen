@@ -14,8 +14,6 @@ export type LayoutHandlers = {
   onBack?(): void; onForward?(): void; onOpenFolder?(): void;
   /** The settings cog at the bottom of the sidebar; `anchor` is the cog button. */
   onSettings?(anchor: HTMLButtonElement): void;
-  /** The Developer button next to the cog (ui/developer-tab); it shows only while the setting is on. */
-  onDeveloper?(anchor: HTMLButtonElement): void;
 };
 
 const SVG = "http://www.w3.org/2000/svg";
@@ -43,29 +41,6 @@ function cogIcon(doc: Document): SVGSVGElement {
   return svg;
 }
 
-/** A terminal prompt: a window with ">_". */
-function terminalIcon(doc: Document): SVGSVGElement {
-  const svg = doc.createElementNS(SVG, "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("width", "16");
-  svg.setAttribute("height", "16");
-  svg.setAttribute("aria-hidden", "true");
-  svg.setAttribute("class", "zen-icon");
-  const frame = doc.createElementNS(SVG, "rect");
-  for (const [k, v] of Object.entries({ x: "3", y: "4.5", width: "18", height: "15", rx: "2.5" })) frame.setAttribute(k, v);
-  const prompt = doc.createElementNS(SVG, "path");
-  prompt.setAttribute("d", "M7 9.5l3 2.5-3 2.5M12.5 15h4");
-  for (const n of [frame, prompt]) {
-    n.setAttribute("fill", "none");
-    n.setAttribute("stroke", "currentColor");
-    n.setAttribute("stroke-width", "1.6");
-    n.setAttribute("stroke-linejoin", "round");
-    n.setAttribute("stroke-linecap", "round");
-  }
-  svg.append(frame, prompt);
-  return svg;
-}
-
 export type Layout = {
   el: HTMLElement;
   slots: Slots;
@@ -82,11 +57,7 @@ export type Layout = {
   showView(view: HTMLElement | null): void;
   /** Reflects on the cog whether the Settings view is showing. */
   setSettingsOpen(open: boolean): void;
-  /** Shows or hides the Developer button in the footer (the "Show developer tab" setting). */
-  setDeveloperAvailable(on: boolean): void;
-  /** Reflects on the Developer button whether the panel is open. */
-  setDeveloperOpen(open: boolean): void;
-  /** Puts a panel at the bottom of the content area, below the page (and Settings); null removes it. */
+  /** Puts a panel at the bottom of the content area, below the page (and Settings); null removes it (a build with `developer` but not `inspector` puts its Console panel here). */
   setBottomPanel(panel: HTMLElement | null): void;
   destroy(): void;
 };
@@ -113,10 +84,6 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
   const settings = button("Settings", () => handlers.onSettings?.(settings), { className: "ghost zen-settings-button", text: "", title: "Settings ⌘," });
   settings.append(cogIcon(nav.ownerDocument));
   settings.setAttribute("aria-expanded", "false");
-  const developer = button("Developer", () => handlers.onDeveloper?.(developer), { className: "ghost zen-settings-button zen-developer-button", text: "", title: "Developer ⌥⌘J" });
-  developer.append(terminalIcon(nav.ownerDocument));
-  developer.setAttribute("aria-expanded", "false");
-  developer.hidden = true;
   // The Inspector of the page shown (ui/inspector): the page announces itself with INSPECTOR_STATE
   // events on the document, this button asks for a toggle with INSPECTOR_TOGGLE. It shows while a page can be inspected.
   const doc = nav.ownerDocument;
@@ -136,7 +103,7 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
     inspectorBadge.textContent = String(d.count);
   };
   doc.addEventListener(INSPECTOR_STATE, onInspector);
-  foot.append(settings, inspector, developer);
+  foot.append(settings, inspector);
 
   const edge = el("div", "zen-resizer");
   edge.setAttribute("role", "separator");
@@ -237,12 +204,6 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
     },
     setSettingsOpen(open) {
       settings.setAttribute("aria-expanded", String(open));
-    },
-    setDeveloperAvailable(on) {
-      developer.hidden = !on;
-    },
-    setDeveloperOpen(open) {
-      developer.setAttribute("aria-expanded", String(open));
     },
     setBottomPanel(panel) {
       bottom?.remove();

@@ -37,7 +37,7 @@ function key(target: EventTarget, k: string, mods: KeyboardEventInit = {}) {
 const toggle = (s: Setup) => s.slots.actions.querySelector<HTMLButtonElement>(".zen-inspector-toggle");
 const panel = (s: Setup) => document.querySelector<HTMLElement>(".zen-inspector");
 const field = (name: string) => document.querySelector<HTMLElement>(`.zen-inspector [data-field="${name}"]`)?.textContent;
-const issuesBody = () => document.querySelector<HTMLElement>('.zen-inspector [data-section="issues"]')!;
+const issuesBody = () => document.querySelector<HTMLElement>('.zen-inspector [data-section="problems"] .zen-panel-col-main')!; // the Problems list
 const label = (b: Element) => b.textContent;
 const ALERT: Alert = alert({ match: "dabc", line: 1, col: 3, endCol: 6, message: "Weak word" });
 
@@ -66,7 +66,7 @@ describe("editor inspector: button, panel, shortcut", () => {
     s = await setup();
     expect(toggle(s)!.querySelector("svg")).not.toBeNull();
     expect(toggle(s)!.getAttribute("aria-label")).toBe("Inspector");
-    expect(Array.from(panel(s)!.querySelectorAll('[role="tab"]')).map((t) => t.textContent)).toEqual(["Linting", "File", "Page"]);
+    expect(Array.from(panel(s)!.querySelectorAll('[role="tab"]')).filter((t) => !(t as HTMLElement).hidden).map((t) => t.querySelector(".zen-panel-tab-label")!.textContent)).toEqual(["Page Info", "Problems"]);
   });
 
   it("E1: the button toggles the panel and remembers it under the reader's key", async () => {
@@ -111,10 +111,11 @@ describe("editor inspector: issues", () => {
     toggle(s)!.click();
     await wait(50);
     expect(toggle(s)!.querySelector(".zen-inspector-badge")!.textContent).toBe("1");
-    const item = issuesBody().querySelector<HTMLElement>(".zen-lint-item")!;
-    expect(item.textContent).toContain("Weak word");
+    const item = issuesBody().querySelector<HTMLElement>(".zen-problem")!;
+    expect(item.title).toContain("Weak word");
     expect(s.slots.main.querySelector(".zen-lint-console")).not.toBeNull(); // the console stays
-    item.click();
+    item.click(); // selects it; Show selects it in the source
+    document.querySelector<HTMLButtonElement>('.zen-inspector [data-action="show"]')!.click();
     expect(s.ta.selectionStart).toBe(2);
     expect(s.ta.selectionEnd).toBe(6);
   });
@@ -130,7 +131,7 @@ describe("editor inspector: issues", () => {
     api.lintResult = { available: false, alerts: [] };
     release();
     await tick();
-    expect(issuesBody().querySelector(".zen-panel-empty-title")?.textContent).toBe("Linting off");
+    expect(issuesBody().querySelector(".zen-panel-empty-title")?.textContent).toBe("No problems on this page.");
   });
 
   it("E2: typing updates the list after the lint delay", async () => {
@@ -139,7 +140,7 @@ describe("editor inspector: issues", () => {
     s = await setup("README.md", api);
     toggle(s)!.click();
     await wait(30);
-    expect(issuesBody().querySelector(".zen-panel-empty-title")?.textContent).toBe("No issues");
+    expect(issuesBody().querySelector(".zen-panel-empty-title")?.textContent).toBe("No problems on this page.");
     api.lintResult = { available: true, alerts: [ALERT, { ...ALERT, line: 2 }] };
     type(s.ta, "ab cdef\nsecond");
     await wait(750);

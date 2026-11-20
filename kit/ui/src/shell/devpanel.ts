@@ -1,6 +1,8 @@
-// The Developer panel's content (ui/developer-tab): source tabs, level and text filters, Clear,
-// Copy all and the list of entries. Memory is bounded (MAX_ENTRIES). All text through textContent.
+// The Inspector's Console tab (ui/inspector, ui/developer-tab): the log on the left, the selected entry in
+// full on the right (panel columns); the source dropdown, the level and text filters, Clear and Copy
+// go into the header slot the Inspector gives it. Memory is bounded (MAX_ENTRIES). All text through textContent.
 import type { KitHost, LogEntry, LogLevel } from "../host";
+import { panelColumns } from "../panel";
 import { copyText } from "./clipboard";
 import type { ConsoleCapture } from "./console";
 import { button, el } from "./dom";
@@ -10,12 +12,14 @@ const LEVELS: LogLevel[] = ["debug", "info", "warn", "error"];
 const RANK: Record<LogLevel, number> = { debug: 0, info: 1, warn: 2, error: 3 };
 const FOLLOW_SLACK = 24; // px from the bottom that still counts as "at the bottom"
 
-type Tab = "all" | "app" | "plugin" | "console";
-const TABS: { id: Tab; label: string }[] = [
-  { id: "all", label: "All" }, { id: "app", label: "App" }, { id: "plugin", label: "Plugins" }, { id: "console", label: "Console" },
+type Source = "all" | "app" | "plugin" | "console";
+/** "console" is the page's own JS console, so it is called Page here. */
+const SOURCES: { id: Source; label: string }[] = [
+  { id: "all", label: "All" }, { id: "app", label: "App" }, { id: "plugin", label: "Plugins" }, { id: "console", label: "Page" },
 ];
 
-export type DevPanel = {
+export type ConsoleTab = {
+  /** The two columns; put it in the tab's body. */
   el: HTMLElement;
   /** Loads what the Go side has kept and starts following it and the console. */
   start(): Promise<void>;
@@ -25,11 +29,12 @@ export type DevPanel = {
   destroy(): void;
 };
 
-export type DevPanelOptions = {
+export type ConsoleTabOptions = {
   doc: Document;
   host: Pick<KitHost, "logs" | "onLog">;
   capture: ConsoleCapture;
-  onClose(): void;
+  /** Where the filters and actions go (the Inspector's header, for this tab). */
+  tools: HTMLElement;
 };
 
 const pad = (n: number, w = 2) => String(n).padStart(w, "0");
@@ -38,44 +43,29 @@ function clock(t: number): string {
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}.${pad(d.getMilliseconds(), 3)}`;
 }
 
-/** One line for Copy all: ISO time, LEVEL, [source], message. */
+/** One line for Copy: ISO time, LEVEL, [source], message. */
 export function formatEntry(e: LogEntry): string {
   return `${new Date(e.time).toISOString()} ${e.level.toUpperCase()} [${e.source}] ${e.message}`;
 }
 
-export function createDevPanel({ doc, host, capture, onClose }: DevPanelOptions): DevPanel {
-  const root = el("section", "zen-dev-panel");
-  root.setAttribute("aria-label", "Developer");
-  root.tabIndex = -1;
-
+export function createConsoleTab({ doc, host, capture, tools }: ConsoleTabOptions): ConsoleTab {
   const hasGo = typeof host.logs === "function";
-  const tabs = hasGo ? TABS : TABS.filter((t) => t.id === "console");
-  let tab: Tab = tabs[0].id;
+  const sources = hasGo ? SOURCES : SOURCES.filter((s) => s.id === "console");
+  let source: Source = sources[0].id;
   let minLevel: LogLevel = "debug";
   let query = "";
+  let selected: LogEntry | null = null;
 
-  // ---- header
+  // ---- tools: the source dropdown first, then the level and text filters, then Clear and Copy
 
-  const head = el("div", "zen-dev-head");
-  const tablist = el("div", "zen-dev-tabs");
-  tablist.setAttribute("role", "tablist");
-  tablist.setAttribute("aria-label", "Log source");
-  const tabButtons = tabs.map(({ id, label }) => {
-    const b = button(label, () => choose(id), { className: "zen-dev-tab" });
-    b.setAttribute("role", "tab");
-    b.dataset.tab = id;
-    return b;
-  });
-  tablist.append(...tabButtons);
-  tablist.addEventListener("keydown", (e) => {
-    const step = ({ ArrowRight: 1, ArrowLeft: -1 } as Record<string, number>)[e.key];
-    if (step === undefined) return;
-    e.preventDefault();
-    const i = tabs.findIndex((t) => t.id === tab);
-    const next = tabs[(i + step + tabs.length) % tabs.length].id;
-    choose(next);
-    tabButtons.find((b) => b.dataset.tab === next)!.focus();
-  });
+  const sourceFilter = el("select", "zen-console-source");
+  sourceFilter.setAttribute("aria-label", "Source");
+  for (const s of sources) {
+    const o = el("option", "", s.label);
+    o.value = s.id;
+    sourceFilter.append(o);
+  }
+  sourceFilter.addEventListener("change", () => { source = sourceFilter.value as Source; rebuild(); });
 
   const level = el("select", "zen-dev-level-filter");
   level.setAttribute("aria-label", "Minimum level");
@@ -94,33 +84,31 @@ export function createDevPanel({ doc, host, capture, onClose }: DevPanelOptions)
 
   const status = el("span", "zen-dev-status");
   status.setAttribute("role", "status");
-  const clear = button("Clear", () => { entries = []; rebuild(); }, { className: "zen-dev-clear" });
-  const copy = button("Copy all", () => {
+  const clear = button("Clear", () => { entries = []; select(null); rebuild(); }, { className: "zen-dev-clear" });
+  const copy = button("Copy", () => {
     void copyText(doc, visible().map(formatEntry).join("\n")).then((ok) => {
       status.textContent = ok ? "Copied" : "Could not copy";
       doc.defaultView?.setTimeout(() => { status.textContent = ""; }, 1500);
     });
-  }, { className: "zen-dev-copy" });
-  const close = button("Close", () => onClose(), { className: "ghost zen-dev-close", text: "✕", title: "Close (Esc)" });
-  head.append(tablist, level, filter, clear, copy, status, close);
+  }, { className: "zen-dev-copy", title: "Copy the entries shown" });
+  tools.append(sourceFilter, level, filter, clear, copy, status);
 
-  // ---- list
+  // ---- columns: the list, then the details
 
+  const cols = panelColumns();
+  cols.el.classList.add("zen-console");
   const list = el("div", "zen-dev-list");
-  list.setAttribute("role", "log");
+  list.setAttribute("role", "listbox");
+  list.setAttribute("aria-label", "Log");
   list.setAttribute("aria-live", "off"); // a flood must not be announced
   list.tabIndex = 0;
   const jump = button("Jump to latest", () => { follow = true; jump.hidden = true; toBottom(); }, { className: "zen-dev-jump" });
   jump.hidden = true;
   const empty = el("p", "zen-dev-empty", "No log entries yet.");
-
-  root.append(head, list, jump);
-  root.addEventListener("keydown", (e) => {
-    if (e.key !== "Escape") return;
-    e.preventDefault();
-    e.stopPropagation();
-    onClose();
-  });
+  cols.left.classList.add("zen-console-list");
+  cols.left.append(list, jump);
+  const details = el("div", "zen-console-details");
+  cols.right.append(details);
 
   // ---- data
 
@@ -128,15 +116,58 @@ export function createDevPanel({ doc, host, capture, onClose }: DevPanelOptions)
   let lastGo = 0; // the highest Go-side seq shown; the Go side has one counter for app and plugin
 
   const matches = (e: LogEntry): boolean =>
-    (tab === "all" || e.source === tab) && RANK[e.level] >= RANK[minLevel] && (query === "" || e.message.toLowerCase().includes(query));
+    (source === "all" || e.source === source) && RANK[e.level] >= RANK[minLevel] && (query === "" || e.message.toLowerCase().includes(query));
   const visible = (): LogEntry[] => entries.filter(matches);
 
+  const rowOf = new Map<LogEntry, HTMLElement>();
   function row(e: LogEntry): HTMLElement {
     const r = el("div", "zen-dev-row");
+    r.setAttribute("role", "option");
+    r.setAttribute("aria-selected", String(e === selected));
+    r.tabIndex = -1;
     r.dataset.level = e.level;
     r.dataset.source = e.source;
     r.append(el("span", "zen-dev-time", clock(e.time)), el("span", "zen-dev-level", e.level), el("span", "zen-dev-source", e.source), el("span", "zen-dev-msg", e.message));
+    r.addEventListener("click", () => select(e));
+    r.addEventListener("keydown", (k) => {
+      if (k.key === "Enter" || k.key === " ") { k.preventDefault(); select(e); return; }
+      const step = k.key === "ArrowDown" ? 1 : k.key === "ArrowUp" ? -1 : 0;
+      if (!step) return;
+      k.preventDefault();
+      const rows = Array.from(list.querySelectorAll<HTMLElement>(".zen-dev-row"));
+      const next = rows[rows.indexOf(r) + step];
+      if (next) { next.focus(); next.click(); }
+    });
+    rowOf.set(e, r);
     return r;
+  }
+
+  function field(label: string, name: string, value: string, mono = false): HTMLElement {
+    const pair = el("div", "zen-panel-prop");
+    const dd = el(mono ? "pre" : "dd", mono ? "zen-console-message" : "", value);
+    dd.dataset.field = name;
+    pair.append(el("dt", "", label), dd);
+    return pair;
+  }
+  function renderDetails(): void {
+    if (!selected) {
+      details.replaceChildren(el("p", "zen-console-hint", "Select an entry"));
+      return;
+    }
+    const e = selected;
+    const dl = el("dl", "zen-console-fields");
+    dl.append(
+      field("Time", "time", clock(e.time)),
+      field("Source", "source", e.source),
+      field("Level", "level", e.level),
+      field("Message", "message", e.message, true),
+    );
+    details.replaceChildren(dl);
+  }
+  function select(e: LogEntry | null): void {
+    selected = e;
+    for (const [entry, r] of Array.from(rowOf)) r.setAttribute("aria-selected", String(entry === e));
+    renderDetails();
   }
 
   let follow = true;
@@ -154,6 +185,7 @@ export function createDevPanel({ doc, host, capture, onClose }: DevPanelOptions)
   }
 
   function rebuild(): void {
+    rowOf.clear();
     list.replaceChildren(...visible().map(row));
     showEmpty();
     if (follow) toBottom();
@@ -181,22 +213,13 @@ export function createDevPanel({ doc, host, capture, onClose }: DevPanelOptions)
     if (follow) toBottom();
   }
 
-  function choose(id: Tab): void {
-    tab = id;
-    for (const b of tabButtons) {
-      const on = b.dataset.tab === id;
-      b.setAttribute("aria-selected", String(on));
-      b.tabIndex = on ? 0 : -1;
-    }
-    rebuild();
-  }
-
   let offs: (() => void)[] = [];
   let started = false;
 
-  choose(tab);
+  renderDetails();
+  rebuild();
   return {
-    el: root,
+    el: cols.el,
     async start() {
       if (started) return;
       started = true;
@@ -210,18 +233,18 @@ export function createDevPanel({ doc, host, capture, onClose }: DevPanelOptions)
       }
       for (const b of queue) add(b);
       queue = null;
-      const before = capture.entries();
-      add(before);
+      add(capture.entries());
       offs.push(capture.subscribe((e) => add([e])));
       entries.sort((a, b) => a.time - b.time || a.seq - b.seq);
       rebuild();
     },
     count: () => entries.length,
-    focus: () => root.focus(),
+    focus: () => list.focus(),
     destroy() {
       for (const off of offs) off();
       offs = [];
-      root.remove();
+      tools.replaceChildren();
+      cols.el.remove();
     },
   };
 }

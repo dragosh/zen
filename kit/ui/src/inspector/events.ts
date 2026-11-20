@@ -6,8 +6,10 @@
 export const INSPECTOR_STATE = "zen:inspector-state";
 /** button -> inspector. No detail; ignored while no page is inspectable. */
 export const INSPECTOR_TOGGLE = "zen:inspector-toggle";
-/** anyone -> inspector: close the panel (the Developer panel opens; only one bottom panel at a time). */
+/** anyone -> inspector: close the panel. */
 export const INSPECTOR_CLOSE = "zen:inspector-close";
+/** anyone (the Develop menu) -> inspector: open on the Console tab and focus it; ignored while the Console is not there. */
+export const INSPECTOR_CONSOLE = "zen:inspector-console";
 
 export type InspectorState = { available: boolean; open: boolean; count: number };
 

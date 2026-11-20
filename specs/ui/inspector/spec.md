@@ -17,8 +17,23 @@ opens it; the issue count stays visible on that button when the panel is closed.
 
 ## Behaviour
 
-> Since 0.6.0 Vale is the `vale` add-on ([kit/addons](../../kit/addons/spec.md)): an app built without it has no linter and none of this UI.
+> **Changed by #25.** The Inspector is the one bottom panel. Its tabs are **Page Info**, **Problems** and **Console** (below); the File, Page and Linting tabs and the separate Developer panel are gone. Where items 2 to 8 below still say Linting, File or Page, read this block instead.
 
+### The panel (#25)
+
+P1. One panel, the Inspector, exists when the build has `inspector` **or** `developer`. Page Info and Problems come with `inspector`; Console comes with `developer` and needs Settings › Developer › "Show Console in the Inspector" on (key `zen.developer`, unchanged). A tab whose feature is missing is not there at all (no tab, no body). A build with only `developer` has a panel with the Console tab alone; its toggle is ⌥⌘J only (no Inspector button, no ⌥⌘I). The Console tab is hidden while the switch is off, live; the panel closes if that leaves it with no tab. A remembered open panel is not reopened when it has no tab to show.
+P2. The header is the tab bar on the left; on the right the current tab's filter dropdown and actions, a collapse chevron (`.zen-panel-collapse`) and ✕. The panel is resizable from its top edge, scrolls inside each column, and the chevron collapses it to its tab bar and expands it again. Open (sessionStorage `zen.inspector.open`, as before), collapsed (`zen.panel.collapsed`) and height (`zen.panel.height`) are remembered on this machine. The last tab is `zen.inspector.tab` (`info`, `problems` or `console`; anything else, such as an old `issues`, `file` or `page`, means the first).
+P3. Every tab has two columns: the list or main info on the left, details on the right (narrower). Each column scrolls on its own; under about 700 px of panel width they stack and the tab scrolls.
+P4. **Page Info:** left, today's Page facts and statistics; right, today's File details (path, full path, size, dates, Copy path, Reveal in Finder). Data, fetching and states are as items 7 and 8.
+P5. **Problems** (count chip on the tab and on the button; red with spelling errors, amber otherwise). Filter dropdown **All / Checks / Spelling**; without the `vale` add-on there is no Spelling entry. Left: one row per problem (kind, what, where). Right: the selected problem's message, where (line and column, or the element) and rule, and a **Show** action that scrolls the page to it and focuses it (spelling: the host's `onSelectIssue`, as clicking an issue did). Empty: "No problems on this page." ("Checking…" while the first lint is on its way.)
+   - **Checks, broken links:** `a[data-zen-link="broken"]` in the rendered article. This is the mark the renderer writes (`engine/render/nodes.go`) and `page.css` mutes with a dotted underline.
+   - **Checks, missing images:** the renderer does not mark them (a missing file becomes its alt text; a gone `/_ws/` file fails in the webview), so an `<img>` that fires `error` while the page is shown, or that has already finished with width 0 (not SVG), is a missing image. The listener is on the article and moves with every page.
+   - **Spelling:** today's Linting alerts (`setIssues`), only with `vale`.
+P6. **Console:** the Developer panel's log. Filter dropdown **All / App / Plugins / Page** (Page is the page's own JS console), the level filter and the text filter, **Clear** and **Copy**. Left: the log list (follows the newest entry, Jump to latest). Right: the selected entry in full (time, source, level, the whole message, selectable text).
+P7. ⌥⌘J, and the Develop menu's `zen:inspector-console` event, open the Inspector on the Console tab, expanded, and focus it (⌥⌘J again closes it). With the switch off, or without `developer`, they do nothing. The Developer button is gone from the sidebar.
+P8. Kit: `createInspector` returns the panel; `showConsole()`, `collapsed`, `setCollapsed()`; `setIssues` feeds Spelling. A build with `developer` but not `inspector` gets its panel from the shell (`createInspector` with no page, placed with `layout.setBottomPanel`).
+
+Tests: `kit/ui/src/inspector/{inspector,problems,console}.test.ts`, `kit/ui/src/shell/{devpanel,developer,layout}.test.ts`, `kit/ui/src/panel/*.test.ts`, `apps/zenmark/frontend/src/shell/shell.test.ts`.
 
 1. An icon button (`.zen-inspector-button`, title "Inspector ⌥⌘I") sits in the sidebar
    footer right after the Settings cog, same style as its neighbours. It shows while a
@@ -184,6 +199,7 @@ the menu takes it, in release builds the shortcut is free.
 - **Out of scope:** resizing, editing front matter from the panel, a table of contents.
 - **Integration (done by the lead at merge):** `PageInfo` joins `delegating` in `apps/zenmark/thin_test.go` (done here); other branches adding methods to `service.go`, bindings or `fake.ts` merge additively.
 - **App Store / sandbox:** `open -R` goes through `kit/desktop` like the other Finder calls and only receives paths inside the folder the user opened.
+- Changed by #25
 - **Changelog:** Inspector: a side panel with the page's issues, file details and content statistics (⌥⌘I).
 
 ## Prompt

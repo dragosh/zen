@@ -13,7 +13,7 @@ export { closeWindowKey, reloadKey, shellAction, type ShellAction } from "./shel
 export { createLayout, type Layout, type LayoutHandlers } from "./shell/layout";
 export { createOpening, type Opening, type OpeningOptions } from "./shell/opening";
 export { installConsoleCapture, type ConsoleCapture } from "./shell/console";
-export { createDeveloper, developerEnabled, followDeveloper, setDeveloperEnabled, type Developer } from "./shell/developer";
+export { developerEnabled, developerKey, followDeveloper, setDeveloperEnabled } from "./shell/developer";
 export { applyAppTheme, buildSection } from "./shell/addons";
 export { appearanceSection, createSettingsFrame, developerSection, type SettingsSection, type SettingsView } from "./shell/settings";
 export { createStore } from "./shell/store";
@@ -25,4 +25,4 @@ export { editorFeature, CONFIG_PREFIX, isConfigPath } from "./editor";
 export { mountPreview, type PreviewApi, type PreviewOptions } from "./print/preview";
 export { clearMarks, flash, issueList, markText, renderPanel, type LintPanel } from "./lint";
 export { bindFind, createFind, domFinder, findInText, textareaFinder, type Find, type FindApi, type FindEvents, type Finder } from "./find";
-export { createInspector, inspectorKey, pageStats, type Inspector, type InspectorOptions, type PageStats } from "./inspector";
+export { createInspector, INSPECTOR_CONSOLE, inspectorKey, pageStats, type Inspector, type InspectorOptions, type InspectorPanel, type PageStats } from "./inspector";
