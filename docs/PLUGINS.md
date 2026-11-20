@@ -122,6 +122,16 @@ Attributes are `{key=value key2="two words" flag}`; a bare `flag` is `"true"`.
 Names match `[a-z][a-z0-9-]*`. A colon not followed by a registered name is
 left untouched, so normal prose (`note: this`) is never affected.
 
+### Other syntaxes (dialects)
+
+A folder can turn on a **dialect**, another way to write the same containers, in
+`.zen.yml` (`markdown: { dialects: [myst] }`); off by default. With `myst`,
+```` ```{note} Title ```` and `:::{note} Title` mean `:::note{title="Title"}`,
+`:key: value` lines at the top become attributes, and `{code-block} lang` is a
+highlighted code block. A plugin answers to MyST names (`tip`, `important`, …) by
+listing them in `blocks`. An app reads only the dialects in its build
+(`dialects:` in `app-assembly.yml`). See specs/engine/dialects.
+
 ## Enabling, disabling, configuring
 
 Order of precedence, last wins:

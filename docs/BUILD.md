@@ -101,6 +101,9 @@ a missing key means `all`). Today there is one, `editor`: an app built with
 `features: []` is a read-only reader. The session refuses every write to the folder
 and its settings files (`ErrReadOnly`), and the edit actions are not in the UI.
 
+`dialects:` lists the markdown dialects the app can read (specs/engine/dialects;
+missing means none). A folder turns one on in its `.zen.yml`.
+
 ## Developing
 
 The static runtime is `frontend/src/static/` and its own Vite config

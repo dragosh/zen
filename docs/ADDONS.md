@@ -44,7 +44,9 @@ so and degrade quietly without it.
 
 A fourth kind, the **feature**, is part of the app itself, on by default:
 `features:` in `app-assembly.yml` can leave one out (specs/kit/features). The
-first is `editor`; without it the app is read-only.
+first is `editor`; without it the app is read-only. A **dialect** (`dialects:`,
+specs/engine/dialects) is another markdown syntax for the same plugins, such as MyST;
+the build decides which exist, the folder's `.zen.yml` which are on.
 
 ## Add-ons
 

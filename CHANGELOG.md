@@ -7,6 +7,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- Markdown dialects: a folder can turn on MyST syntax (```` ```{note} ```` and `:::{note}` directives) in `.zen.yml`; the app suggests it for MyST projects, and Settings › Markdown switches it (#3).
 - `app-assembly.yml` can leave out features; an app built without the editor is read-only and never changes the folder.
 - `apps/<app>/app-assembly.yml` chooses an app's add-ons, built-in plugins, layouts, site templates and theme, with their dependencies checked at build time; Settings › This build and `zenmd version --verbose` show them. Zenmark's lists everything, so `task package` includes Vale (`ADDONS=` builds without it).
 - Export: File › Export › Website… (⇧⌘B) and PDF… (⇧⌘P), Settings › Export, and `zenmd export site|pdf`; the PDF is saved directly, without the print panel, and `zenmd export pdf` works from the command line (`zenmd build` stays as an alias) (#5).
