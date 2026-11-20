@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { beforeEach, expect, test } from "vitest";
 import { INSPECTOR_STATE, INSPECTOR_TOGGLE } from "../inspector/events";
-import { createLayout, SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN, WIDTH_KEY } from "./layout";
+import { createLayout, navSideRow, setNavSide, SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN, storedNavSide, WIDTH_KEY } from "./layout";
 
 beforeEach(() => localStorage.clear());
 
@@ -136,7 +136,7 @@ test("the Inspector button is an icon button right after the cog in the footer, 
   const foot = l.el.querySelector(".zen-sidebar-foot")!;
   const kids = Array.from(foot.children);
   expect(kids[0].getAttribute("aria-label")).toBe("Settings");
-  expect(kids[1]).toBe(inspectorBtn(l));
+  expect(kids[2]).toBe(inspectorBtn(l)); // Settings, Export, Inspector
   expect(inspectorBtn(l).classList.contains("zen-settings-button")).toBe(true);
   expect(inspectorBtn(l).querySelector("svg")).not.toBeNull();
   expect(inspectorBtn(l).title).toContain("⌥⌘I");
@@ -183,8 +183,155 @@ test("the Inspector button carries a red count badge, none at 0, and a name that
 test("the footer has the cog and the Inspector button, and no Developer button: the Console is a tab of the Inspector (#25)", () => {
   const l = createLayout();
   expect(l.el.querySelector(".zen-developer-button")).toBeNull();
-  expect(l.el.querySelector(".zen-sidebar-foot")!.children).toHaveLength(2);
+  expect(l.el.querySelector(".zen-sidebar-foot")!.children).toHaveLength(3);
   expect(l.el.querySelector(".zen-sidebar-foot")!.lastElementChild!.classList.contains("zen-inspector-button")).toBe(true);
   expect("setDeveloperAvailable" in l || "setDeveloperOpen" in l).toBe(false);
+  l.destroy();
+});
+
+// ---- ui/nav-panel: header, footer and side (#24)
+
+const head = (l: ReturnType<typeof createLayout>) => l.el.querySelector<HTMLElement>(".zen-sidebar-head")!;
+
+test("identity: the header has the logo, the title and a close button, inside the nav landmark, above the body", () => {
+  const l = createLayout();
+  const nav = l.el.querySelector("nav")!;
+  expect(nav.firstElementChild).toBe(head(l));
+  expect(nav.contains(head(l))).toBe(true);
+  // The Zenmark mark until the folder gives a logo; no title yet.
+  expect(head(l).querySelector("svg")).not.toBeNull();
+  expect(head(l).querySelector("img")).toBeNull();
+
+  l.setIdentity({ logo: "/_ws/img/logo.svg", title: "My Course" });
+  const img = head(l).querySelector<HTMLImageElement>("img.zen-sidebar-logo")!;
+  expect(img.getAttribute("src")).toBe("/_ws/img/logo.svg");
+  expect(img.getAttribute("alt")).toBe("");
+  expect(head(l).querySelector("svg")).toBeNull();
+  const title = head(l).querySelector<HTMLElement>(".zen-sidebar-title")!;
+  expect(title.textContent).toBe("My Course");
+  expect(title.title).toBe("My Course");
+
+  // Switching folders replaces both; no logo goes back to the mark.
+  l.setIdentity({ logo: "", title: "Other" });
+  expect(head(l).querySelector("img")).toBeNull();
+  expect(head(l).querySelector("svg")).not.toBeNull();
+  expect(head(l).querySelectorAll(".zen-sidebar-title")).toHaveLength(1);
+  expect(head(l).querySelector(".zen-sidebar-title")!.textContent).toBe("Other");
+  l.destroy();
+});
+
+test("identity: a very long title is one line, cut by CSS, with the full text as its tooltip; markup stays text", () => {
+  const l = createLayout();
+  const long = "A very long title ".repeat(30) + "<b>x</b>";
+  l.setIdentity({ logo: "", title: long });
+  const title = head(l).querySelector<HTMLElement>(".zen-sidebar-title")!;
+  expect(title.title).toBe(long);
+  expect(title.textContent).toBe(long);
+  expect(title.querySelector("b")).toBeNull();
+  l.destroy();
+});
+
+test("logo is an img: a logo that is an SVG with a script is never put inline", () => {
+  const l = createLayout();
+  l.setIdentity({ logo: '/_ws/evil.svg" onerror="alert(1)', title: "t" });
+  expect(head(l).querySelector("script")).toBeNull();
+  const img = head(l).querySelector<HTMLImageElement>("img")!;
+  expect(img.hasAttribute("onerror")).toBe(false);
+  expect(img.getAttribute("src")).toBe('/_ws/evil.svg" onerror="alert(1)');
+  expect(head(l).querySelectorAll("svg")).toHaveLength(0); // no inline svg of the folder
+  l.destroy();
+});
+
+test("the close button is Close folder, with its shortcut in the tooltip, and asks the shell", () => {
+  let closed = 0;
+  const l = createLayout({ onClose: () => { closed++; } });
+  const x = head(l).querySelector<HTMLButtonElement>("button")!;
+  expect(x.getAttribute("aria-label")).toBe("Close folder");
+  expect(x.title).toBe("Close Folder ⇧⌘W");
+  expect(x.classList.contains("ghost")).toBe(true);
+  x.click();
+  expect(closed).toBe(1);
+  l.destroy();
+});
+
+test("footer buttons per feature: Settings, Export, Inspector in that order, icons with tooltips and labels; Export asks the shell", () => {
+  let exported = 0;
+  const l = createLayout({ onExport: () => { exported++; } });
+  const kids = Array.from(l.el.querySelector(".zen-sidebar-foot")!.children) as HTMLButtonElement[];
+  expect(kids.map((b) => b.getAttribute("aria-label"))).toEqual(["Settings", "Export", "Inspector"]);
+  expect(kids[0].title).toBe("Settings ⌘,");
+  expect(kids[1].title).toBe("Export ⇧⌘B");
+  expect(kids[2].title).toContain("⌥⌘I");
+  for (const b of kids) expect(b.querySelector("svg")).not.toBeNull();
+  expect(l.el.querySelector(".zen-developer-button")).toBeNull();
+  kids[1].click();
+  expect(exported).toBe(1);
+  // the separators are the footer's and header's own rules (panel.css); the three parts are in order
+  const nav = l.el.querySelector("nav")!;
+  expect(Array.from(nav.children).map((c) => c.className)).toEqual(["zen-sidebar-head", "zen-sidebar-body", "zen-sidebar-foot"]);
+  l.destroy();
+});
+
+test("nav side: left by default, stored per machine, applied at once and when a layout is made", () => {
+  expect(storedNavSide()).toBe("left");
+  const l = createLayout();
+  document.body.append(l.el);
+  expect(l.el.dataset.navSide ?? "left").toBe("left");
+  setNavSide("right", document);
+  expect(localStorage.getItem("zen.navSide")).toBe("right");
+  expect(storedNavSide()).toBe("right");
+  expect(l.el.dataset.navSide).toBe("right");
+  expect(createLayout().el.dataset.navSide).toBe("right");
+  setNavSide("left", document);
+  expect(l.el.dataset.navSide ?? "left").toBe("left");
+  expect(storedNavSide()).toBe("left");
+  // A bad stored value is the default.
+  localStorage.setItem("zen.navSide", "up");
+  expect(storedNavSide()).toBe("left");
+  l.el.remove();
+  l.destroy();
+});
+
+test("nav side: with Right the resize edge and the arrow keys are mirrored; the toggle works the same", () => {
+  localStorage.setItem("zen.navSide", "right");
+  const l = createLayout();
+  document.body.append(l.el);
+  l.el.getBoundingClientRect = () => ({ left: 0, right: 1000, top: 0, bottom: 600, width: 1000, height: 600, x: 0, y: 0, toJSON() {} }) as DOMRect;
+  const edge = l.el.querySelector<HTMLElement>(".zen-resizer")!;
+  edge.dispatchEvent(new MouseEvent("mousedown", { button: 0, bubbles: true, cancelable: true }));
+  window.dispatchEvent(new MouseEvent("mousemove", { clientX: 700 })); // the sidebar is the part right of the pointer
+  window.dispatchEvent(new MouseEvent("mouseup", { clientX: 700 }));
+  expect(l.sidebarWidth()).toBe(300);
+  l.setSidebarWidth(260);
+  edge.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowLeft", bubbles: true, cancelable: true })); // towards the page = wider
+  expect(l.sidebarWidth()).toBe(276);
+  edge.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight", bubbles: true, cancelable: true }));
+  expect(l.sidebarWidth()).toBe(260);
+  l.toggleSidebar();
+  expect(l.el.querySelector("nav")!.hidden).toBe(true);
+  l.toggleSidebar();
+  expect(l.el.querySelector("nav")!.hidden).toBe(false);
+  l.el.remove();
+  l.destroy();
+});
+
+test("the Navigation row is a labelled radiogroup, Left and Right, that follows and sets the side", () => {
+  const row = navSideRow(document);
+  document.body.append(row);
+  const group = row.getAttribute("role") === "radiogroup" ? row : row.querySelector<HTMLElement>('[role="radiogroup"]')!;
+  expect(group.getAttribute("aria-label") ?? document.getElementById(group.getAttribute("aria-labelledby") ?? "")?.textContent).toBe("Navigation");
+  const radios = Array.from(group.querySelectorAll<HTMLInputElement>('input[type="radio"]'));
+  expect(radios.map((r) => r.parentElement!.textContent)).toEqual(["Left", "Right"]);
+  expect(radios.map((r) => r.checked)).toEqual([true, false]);
+  const l = createLayout();
+  document.body.append(l.el);
+  radios[1].click();
+  expect(storedNavSide()).toBe("right");
+  expect(l.el.dataset.navSide).toBe("right");
+  expect(radios.map((r) => r.checked)).toEqual([false, true]);
+  radios[0].click();
+  expect(storedNavSide()).toBe("left");
+  row.remove();
+  l.el.remove();
   l.destroy();
 });
