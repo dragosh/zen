@@ -140,5 +140,7 @@ keeps reading and follows the unsaved text live.
 
 Landmarks: `nav` (sidebar), `header` (top bar), `main` (page/editor). All
 controls reachable by keyboard with a visible focus ring. Contrast ≥ 7:1 for
-text, ≥ 3:1 for rules that carry meaning. Respects `prefers-reduced-motion`
-and `prefers-color-scheme`.
+text, ≥ 3:1 for rules that carry meaning. Respects `prefers-reduced-motion`,
+`prefers-contrast: more` and `prefers-color-scheme`.
+
+Settings › Accessibility (ui/accessibility, in every build) adds per-machine options for every window: Zoom (75–200%, also View › Zoom In/Out/Actual Size, ⌘+ ⌘− ⌘0), Reduce motion and Increase contrast (System or On), and, with the reader, the page's text size, font, line spacing, line width and link underlines. They are attributes on `<html>` (`data-reduce-motion`, `data-contrast`, `data-link-underline`) and the variables `--zen-text-size`, `--zen-text-font`, `--zen-line-height` and `--zen-measure`, in the app's `shell.css` only: built sites, print and PDF keep the document's own look.

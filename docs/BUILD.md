@@ -114,7 +114,7 @@ item, shortcut, button or Settings section, and its service methods refuse
 | `developer` | the Developer panel, Settings › Developer | – |
 
 Plugins, layouts, dialects and the `vale` add-on need `reader`. `features: []` is a
-bare shell: the window, home, Open/Close Folder and Settings. Zenmark is being
+bare shell: the window, home, Open/Close Folder and Settings (Appearance, Accessibility), View › Zoom and About. Zenmark is being
 rebuilt from a starting shell (`reader, nav, inspector, developer`) one roadmap
 step at a time (GitHub Project "Zenmark roadmap").
 
