@@ -8,6 +8,7 @@
 //	plugins: all
 //	layouts: [article, docs, course]
 //	templates: [learning]
+//	dialects: [myst]
 //	theme: default
 //
 // Load reads and checks the file against a Catalog of what exists (BuiltinCatalog
@@ -28,9 +29,9 @@ import (
 
 // Assembly is one app's make-up. Lists are in the order the app shows them.
 type Assembly struct {
-	App                                           string
-	Features, Addons, Plugins, Layouts, Templates []string
-	Theme                                         string
+	App                                                     string
+	Features, Addons, Plugins, Layouts, Templates, Dialects []string // Dialects: the markdown dialects (engine/dialects); a missing key means none
+	Theme                                                   string
 }
 
 // Needs is what a layout or a template requires of the assembly.
@@ -40,6 +41,7 @@ type Needs struct{ Layouts, Plugins []string }
 // what the layouts and templates require.
 type Catalog struct {
 	Features, Addons, Plugins, Layouts, Templates, Themes []string
+	Dialects                                              []string // the markdown dialects that exist
 	LayoutNeeds, TemplateNeeds                            map[string]Needs
 	// FeatureNeeds says which features a feature requires (none yet; Check reads it).
 	FeatureNeeds map[string][]string
@@ -88,7 +90,7 @@ func parse(data []byte, cat Catalog) (Assembly, error) {
 		return a, fmt.Errorf("assembly is not valid YAML: %s", strings.TrimPrefix(err.Error(), "yaml: "))
 	}
 	if len(doc.Content) == 0 || doc.Content[0].Kind != yaml.MappingNode {
-		return a, errors.New("assembly must be a mapping with keys app, features, addons, plugins, layouts, templates and theme")
+		return a, errors.New("assembly must be a mapping with keys app, features, addons, plugins, layouts, templates, dialects and theme")
 	}
 	m := doc.Content[0]
 	a.Features = slices.Clone(cat.Features) // a missing features key means all, so an old file never makes an app read-only
@@ -115,8 +117,10 @@ func parse(data []byte, cat Catalog) (Assembly, error) {
 			a.Layouts, err = list(k, v, cat.Layouts)
 		case "templates":
 			a.Templates, err = list(k, v, cat.Templates)
+		case "dialects":
+			a.Dialects, err = list(k, v, cat.Dialects)
 		default:
-			err = fmt.Errorf("unknown key %q; known keys: app, features, addons, plugins, layouts, templates, theme", k)
+			err = fmt.Errorf("unknown key %q; known keys: app, features, addons, plugins, layouts, templates, dialects, theme", k)
 		}
 		if err != nil {
 			return Assembly{}, err
@@ -172,6 +176,7 @@ var kinds = []struct{ key, one, many string }{
 	{"plugins", "plugin", "plugins"},
 	{"layouts", "layout", "layouts"},
 	{"templates", "template", "templates"},
+	{"dialects", "dialect", "dialects"},
 }
 
 // Check verifies ids (known to the catalog, none twice), the theme and the
@@ -182,8 +187,8 @@ func Check(a Assembly, cat Catalog) error {
 	if !ValidID(a.App) {
 		return fmt.Errorf("app %q must be an id such as zenmark (lower case letters, digits and -)", a.App)
 	}
-	lists := [][]string{a.Features, a.Addons, a.Plugins, a.Layouts, a.Templates}
-	known := [][]string{cat.Features, cat.Addons, cat.Plugins, cat.Layouts, cat.Templates}
+	lists := [][]string{a.Features, a.Addons, a.Plugins, a.Layouts, a.Templates, a.Dialects}
+	known := [][]string{cat.Features, cat.Addons, cat.Plugins, cat.Layouts, cat.Templates, cat.Dialects}
 	for i, k := range kinds {
 		seen := map[string]bool{}
 		for _, id := range lists[i] {
