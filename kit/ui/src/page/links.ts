@@ -1,4 +1,5 @@
 // Every click on an anchor in the page is intercepted: the webview never navigates.
+import { hasFeature } from "../host";
 import type { Ctx } from "../shell/types";
 
 const SCHEME = /^[a-z][a-z0-9+.-]*:/i;
@@ -10,6 +11,7 @@ export function handleLinkClick(e: MouseEvent, ctx: Ctx): void {
   e.preventDefault();
   // Layout chrome (e.g. the docs layout's "Edit this page") asks for an action.
   if (a.getAttribute("data-zen-action") === "edit") {
+    if (!hasFeature(ctx.api, "editor")) return; // a read-only app has nothing to edit with
     const { path } = ctx.store.get();
     if (path) void ctx.api.openEditor(path).catch((err) => console.error(`zen: could not edit ${path}`, err));
     return;

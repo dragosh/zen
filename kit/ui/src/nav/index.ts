@@ -1,5 +1,5 @@
 // The nav feature: sidebar tree in the `nav` slot, breadcrumb in `breadcrumb`.
-import type { NavNode, Workspace } from "../host";
+import { hasFeature, type NavNode, type Workspace } from "../host";
 import { copyText } from "../shell/clipboard";
 import { el, logo } from "../shell/dom";
 import type { AppState, Feature } from "../shell/types";
@@ -68,10 +68,12 @@ export const navFeature: Feature = {
     const fail = (err: unknown) => say(err instanceof Error ? err.message : String(err), true);
 
     const api = ctx.api;
+    // Without the editor feature (a read-only app) the sidebar only reads: no editing items, no reordering.
+    const editable = hasFeature(api, "editor");
     const titleOf = (path: string) => findNode(ctx.store.get().workspace?.tree ?? [], path)?.title ?? path;
 
     const reorder = (parent: string, order: string[], moved: string) => {
-      if (!api.reorderNav) return;
+      if (!editable || !api.reorderNav) return;
       pendingFocus = moved;
       clearTimeout(focusTimer);
       focusTimer = setTimeout(() => { pendingFocus = ""; }, 3000);
@@ -94,12 +96,12 @@ export const navFeature: Feature = {
         tree: workspace.tree,
         current,
         open: (p) => ctx.navigate(p),
-        editor: api.openEditor ? (p) => { api.openEditor(p).catch(fail); } : undefined,
-        newPage: ctx.newPage ? (folder) => ctx.newPage!(folder) : undefined,
-        move: api.reorderNav ? move : undefined,
+        editor: editable && api.openEditor ? (p) => { api.openEditor(p).catch(fail); } : undefined,
+        newPage: editable && ctx.newPage ? (folder) => ctx.newPage!(folder) : undefined,
+        move: editable && api.reorderNav ? move : undefined,
         copy: (text) => { void copyText(doc, text).then((ok) => (ok ? say("Copied") : say("Could not copy", true))); },
         reveal: api.revealInFinder ? (p) => { api.revealInFinder!(p).catch(fail); } : undefined,
-        hide: api.setNavHidden ? (n) => hide(n) : undefined,
+        hide: editable && api.setNavHidden ? (n) => hide(n) : undefined,
       };
       const entries = menuEntries(node, env);
       if (!entries.length) return;
@@ -131,8 +133,8 @@ export const navFeature: Feature = {
           drawTree();
         },
         onContextMenu: showMenu,
-        onMove: api.reorderNav ? move : undefined,
-        onReorder: api.reorderNav ? reorder : undefined,
+        onMove: editable && api.reorderNav ? move : undefined,
+        onReorder: editable && api.reorderNav ? reorder : undefined,
       });
       if (pendingFocus && focusPath(treeHost, pendingFocus)) pendingFocus = "";
     };

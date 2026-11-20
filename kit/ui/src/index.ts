@@ -2,7 +2,7 @@
 // theme and keys, the opening loader, the sidebar, the page view, the editor, the lint UI, the print
 // preview and the Settings frame. It imports @zenmd/runtime and its own files only
 // (kit/ui/test/boundary.test.ts); an app gives it a KitHost.
-export { hasAddon } from "./host";
+export { hasAddon, hasFeature } from "./host";
 export type {
   AddonInfo, Alert, BuildInfo, Crumb, Draft, KitHost, LayoutSource, LintResult, LogEntry, LogLevel, NavNode, OpenProgress, Page, PageInfo, PageLayoutRef, PluginStreamEvent, Workspace,
 } from "./host";

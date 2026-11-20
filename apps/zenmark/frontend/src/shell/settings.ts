@@ -2,7 +2,7 @@
 // zen's sections: Configuration files (the two config files open in zen's own editor window),
 // Plugins (shell/pluginhelp.ts), Layouts, Export (the website and the PDF) and This build (kit/addons, kit/assembly,
 // read-only). All text through textContent.
-import { appearanceSection, button, buildSection, createSettingsFrame, developerSection, el, type SettingsSection, type SettingsView } from "@zenmd/kit";
+import { appearanceSection, button, buildSection, createSettingsFrame, developerSection, el, hasFeature, type SettingsSection, type SettingsView } from "@zenmd/kit";
 import type { Api } from "../api";
 import { createWebsiteSection, type BuildApi } from "./buildsite";
 import { createLayoutsSection } from "./layouthelp";
@@ -103,7 +103,8 @@ export function createSettingsView(opts: {
 
   frame = createSettingsFrame([
     appearanceSection(doc),
-    files,
+    // Nothing opens the config files in an app without the editor: the section is not there.
+    ...(hasFeature(api, "editor") ? [files] : []),
     { id: "plugins", label: "Plugins", el: plugins.el, show: () => void plugins.refresh(), destroy: () => plugins.destroy() },
     { id: "layouts", label: "Layouts", el: layouts.el, show: () => void layouts.refresh(), destroy: () => layouts.destroy() },
     { id: "export", label: "Export", el: exportEl, show: () => { void website.refresh(); showPdf(); } },

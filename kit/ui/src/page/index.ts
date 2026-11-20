@@ -1,6 +1,6 @@
 // The reader: loads Page for store.path, mounts its HTML and wires links,
 // anchors, plugin assets, live reload, warnings, errors and the Edit action.
-import { hasAddon, type Alert, type Page } from "../host";
+import { hasAddon, hasFeature, type Alert, type Page } from "../host";
 import { createInspector, inspectorKey } from "../inspector";
 import { bindFind, createFind, domFinder } from "../find";
 import { flash, markText } from "../lint";
@@ -54,6 +54,14 @@ function findAnchor(root: HTMLElement, id: string): HTMLElement | null {
   return Array.from(root.querySelectorAll<HTMLElement>("[id]")).find((n) => n.id === id) ?? null;
 }
 
+/** A layout's "Edit this page" links (data-zen-action="edit") are removed from view in an app without the editor. */
+function hideEditLinks(root: HTMLElement): void {
+  for (const a of Array.from(root.querySelectorAll<HTMLElement>('[data-zen-action="edit"]'))) {
+    a.hidden = true;
+    a.style.display = "none"; // a layout's own display rule must not bring it back
+  }
+}
+
 export const pageFeature: Feature = {
   id: "page",
   mount(slots, ctx: Ctx) {
@@ -102,7 +110,9 @@ export const pageFeature: Feature = {
         flash(m);
       },
     });
-    slots.actions.append(edit);
+    // Without the editor feature (a read-only app) there is no Edit button, no ⌘E and no edit links.
+    const editable = hasFeature(ctx.api, "editor");
+    if (editable) slots.actions.append(edit);
     // The panel sits beside the main pane, before it (inspector.css makes room for it).
     main.before(inspector.el);
 
@@ -157,6 +167,7 @@ export const pageFeature: Feature = {
       plugins.unmountAll();
       rendered = { path: page.path, title: page.title };
       mountPage(article, page);
+      if (!editable) hideEditLinks(article);
       void plugins.mountAll(article, page.assets);
       find.refresh();
     }
@@ -256,7 +267,7 @@ export const pageFeature: Feature = {
     const zoom = installImageZoom(article); // a click on an image shows it large (ui/image-zoom)
 
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "e") {
+      if (editable && (e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === "e") {
         e.preventDefault();
         openEditor();
       }

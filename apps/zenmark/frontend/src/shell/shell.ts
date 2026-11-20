@@ -4,7 +4,7 @@
 // editor under a small header.
 import type { Api, NavNode, Workspace } from "../api";
 import {
-  applyAppTheme, button, closeWindowKey, createDeveloper, createHistory, createLayout, createOpening, createStore, el, mountPreview, reloadKey,
+  applyAppTheme, button, closeWindowKey, createDeveloper, createHistory, createLayout, createOpening, createStore, el, hasFeature, mountPreview, reloadKey,
   type Ctx, type Developer, type Feature, type Layout, type Store,
 } from "@zenmd/kit";
 import { BRAND } from "../brand";
@@ -96,7 +96,8 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   const kind = windowKind(search ?? doc.defaultView?.location.search ?? "");
   const store = createStore();
   const history = createHistory();
-  const feature = (id: Feature["id"]) => features.find((f) => f.id === id);
+  // An app without the editor feature (kit/features) has no editor: not in the main window, and an editor window is refused.
+  const feature = (id: Feature["id"]) => (id === "editor" && !hasFeature(api, "editor") ? undefined : features.find((f) => f.id === id));
 
   let layout: Layout | null = null;
   let homeSettings = false; // Settings shown on the home screen (no folder open)
@@ -108,7 +109,12 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   let unsubscribeStore: (() => void) | null = null;
   let destroyed = false;
 
-  const ctx: Ctx = { api, store, navigate, brand: BRAND, newPage: (folder) => showNewPage(folder) };
+  // Read-only apps have no New Page: the sidebar menu's New Page Here… is left out, and so are the menu event and ⌘N.
+  // The build is known only once startup has answered, so newPage is looked up when the menu asks.
+  const ctx: Ctx = {
+    api, store, navigate, brand: BRAND,
+    get newPage() { return hasFeature(api, "editor") ? (folder: string) => showNewPage(folder) : undefined; },
+  };
 
   function navigate(path: string, anchor = ""): void {
     closeSettings(); // choosing a page leaves Settings
@@ -174,7 +180,7 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
   let newPage: NewPageDialog | null = null;
   /** File › New Page… (⌘N): ask for a name and layout, then open the new page in the editor. */
   function showNewPage(inFolder?: string): void {
-    if (kind.kind !== "main" || !layout || newPage) return;
+    if (kind.kind !== "main" || !layout || newPage || !hasFeature(api, "editor")) return;
     const path = store.get().path;
     const folder = inFolder ?? (path.includes("/") ? path.slice(0, path.lastIndexOf("/") + 1) : "");
     newPage = openNewPage({
@@ -398,7 +404,8 @@ export function createShell(root: HTMLElement, { api, features, search }: ShellO
     if (destroyed) return;
     applyAppTheme(doc, api.build);
     if (kind.kind === "editor") {
-      if (startup.workspace) showEditor(startup.workspace, kind.path);
+      if (!hasFeature(api, "editor")) showError(new Error("This app is read-only"));
+      else if (startup.workspace) showEditor(startup.workspace, kind.path);
       else showError(new Error("No folder is open"));
     } else if (startup.workspace) {
       const last = lastPage(startup.workspace);

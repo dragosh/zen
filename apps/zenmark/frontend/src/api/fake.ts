@@ -66,7 +66,7 @@ const SAMPLE_TEMPLATES: SiteTemplate[] = [
 
 /** What Zenmark is built from (apps/zenmark/app-assembly.yml). */
 export const ZENMARK_BUILD: BuildInfo = {
-  app: "zenmark", addons: [],
+  app: "zenmark", features: ["editor"], addons: [],
   plugins: ["codeblock", "diagram", "check", "quiz", "sandbox"],
   layouts: ["article", "docs", "post", "landing", "wide", "handout", "slides", "course"],
   templates: ["techdocs", "learning", "planner"],

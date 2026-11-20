@@ -123,7 +123,7 @@ function buildInfo(v: unknown, addons: AddonInfo[]): BuildInfo | undefined {
   if (!b || typeof b !== "object" || typeof b.app !== "string") return undefined;
   const own = addonInfos(b.addons);
   return {
-    app: b.app, addons: own.length ? own : addons,
+    app: b.app, features: Array.isArray(b.features) ? idList(b.features) : ["editor"], addons: own.length ? own : addons,
     plugins: idList(b.plugins), layouts: idList(b.layouts), templates: idList(b.templates),
     theme: typeof b.theme === "string" ? b.theme : "default",
   };

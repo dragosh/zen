@@ -4,12 +4,14 @@
 // (createWebsiteSection). All text through textContent.
 import "./buildsite.css";
 import type { BuildOptions, BuildProgress, BuildResult } from "../api";
-import { button, el } from "@zenmd/kit";
+import { button, el, hasFeature, type BuildInfo } from "@zenmd/kit";
 
 export type { BuildOptions, BuildProgress, BuildResult, BuildWarning } from "../api";
 
 /** The services behind the dialog (apps/zenmark/buildui.go); `on` is the event side of the api. */
 export interface BuildApi {
+  /** The assembly of the build; without the editor feature there is no Save as folder defaults. Absent: everything. */
+  build?: BuildInfo;
   buildOptions(): Promise<BuildOptions>;
   buildWebsite(o: BuildOptions): Promise<BuildResult>;
   cancelBuild(): Promise<void>;
@@ -156,7 +158,8 @@ export function openBuildSite(opts: BuildSiteOptions): BuildSiteDialog {
   const build = el("button", "primary", "Export");
   build.type = "submit";
   const spacer = el("span", "zen-buildsite-spacer");
-  footer.append(saveLink, spacer, cancel, build);
+  // A read-only app never writes into the folder (.zen.yml): no Save as folder defaults.
+  footer.append(...(hasFeature(api, "editor") ? [saveLink] : []), spacer, cancel, build);
 
   form.append(title, options, ...(pages.length > 0 ? [note] : []), progress, preview, result, error, status, footer);
   backdrop.append(form);
