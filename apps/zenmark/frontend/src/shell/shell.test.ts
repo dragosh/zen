@@ -984,7 +984,8 @@ test("⌘P on the home screen is swallowed, not printed", async () => {
 
 test("app:ready is sent once the first screen is drawn, home or folder", async () => {
   const home = createFakeApi();
-  await boot(home).start();
+  shell = createShell(root, { api: home, features: features(), search: "", assetWaitMs: 0 }); // happy-dom never loads images
+  await shell.start();
   await tick();
   expect(home.callsTo("appReady")).toHaveLength(1);
   shell?.destroy();

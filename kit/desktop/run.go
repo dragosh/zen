@@ -91,6 +91,9 @@ func Run(o Options) error {
 		Width:  1100, // the size it returns to when un-maximised
 		Height: 720,
 		URL:    "/",
+		// Hidden until the frontend drew its first screen (eventAppReady), so
+		// the launch shows no blank or half-drawn window.
+		Hidden: true,
 		// Element full screen, for the slides layout's full page (F).
 		Mac: application.MacWindow{
 			WebviewPreferences: application.MacWebviewPreferences{FullscreenEnabled: application.Enabled},
@@ -106,20 +109,39 @@ func Run(o Options) error {
 		o.OnCreated(a, win)
 	}
 
+	ready := newReadyGate()
+	a.Event.On(eventAppReady, func(*application.CustomEvent) { ready.Ready() })
+
 	a.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
-		// Fill the screen's usable area (not macOS full-screen mode). Done
-		// here because macOS ignores maximising a window that is not shown
-		// yet (StartState: WindowStateMaximised had no effect).
+		// Fill the screen's usable area (not macOS full-screen mode).
+		// macOS ignores maximising a window that is not shown yet
+		// (StartState: WindowStateMaximised had no effect), and showing first and
+		// maximising after would let the user watch the window grow. So the hidden
+		// window is first given the work area's frame, then shown (already full
+		// size), then maximised so that it is a maximised window for the OS (the
+		// green button, un-maximise). If setting the frame already made it count
+		// as maximised there is nothing left to do and no event follows.
 		// Editor windows are sized from the main window (90%), so the startup
 		// editor waits until maximising has finished (it is asynchronous), or
 		// one second at most.
 		maximised := make(chan struct{})
 		var once sync.Once
-		win.OnWindowEvent(events.Common.WindowMaximise, func(*application.WindowEvent) {
-			once.Do(func() { close(maximised) })
-		})
-		win.Maximise()
+		done := func() { once.Do(func() { close(maximised) }) }
+		win.OnWindowEvent(events.Common.WindowMaximise, func(*application.WindowEvent) { done() })
+		if s := a.Screen.GetPrimary(); s != nil {
+			win.SetBounds(s.WorkArea)
+		}
 		go func() {
+			// Shown when the frontend is ready, or after showTimeout, so that it
+			// never stays hidden (and its error screen is seen).
+			showWhenReady(ready, time.After(showTimeout), func() {
+				win.Show()
+				if win.IsMaximised() {
+					done()
+				} else {
+					win.Maximise()
+				}
+			})
 			select {
 			case <-maximised:
 			case <-time.After(time.Second):

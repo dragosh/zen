@@ -416,9 +416,9 @@ h4.zen-plugin-help-title { font-size: 14px; }
 }
 
 /* Welcome: logo, Open a folder, Start from a template (core/init). */
-.zen-welcome { position: relative; overflow: auto; justify-content: flex-start; gap: 0; padding: var(--space-6) var(--space-4); }
+.zen-welcome { position: relative; isolation: isolate; overflow: auto; justify-content: flex-start; gap: 0; padding: var(--space-6) var(--space-4); }
 /* auto margins centre the content when it is short and let it scroll when it is tall */
-.zen-welcome > :first-child, .zen-welcome > .zen-welcome-menuhint + * { margin-top: auto; }
+.zen-welcome-logo { margin-top: auto; }
 .zen-welcome > :last-child { margin-bottom: auto; }
 .zen-welcome-logo { width: 112px; height: 112px; margin-bottom: var(--space-4); user-select: none; }
 .zen-welcome h1 { margin: 0; letter-spacing: 0.01em; }
@@ -448,6 +448,16 @@ h4.zen-plugin-help-title { font-size: 14px; }
 }
 .zen-welcome .zen-welcome-menuhint { position: absolute; top: var(--space-3); left: var(--space-4); margin: 0; color: var(--fg-muted); font: 12px/1.4 var(--font-ui); }
 @media (prefers-reduced-motion: reduce) { .zen-welcome-card { transition: none; } }
+
+/* One of three pictures behind the home screen, under a scrim of the page colour so the text reads in light and dark. */
+.zen-welcome-bg { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
+.zen-welcome-bg::after { content: ""; position: absolute; inset: 0; background: color-mix(in srgb, var(--bg) 82%, transparent); }
+
+/* The logo fades in first, the rest follows. */
+@keyframes zen-welcome-fade { from { opacity: 0; } to { opacity: 1; } }
+.zen-welcome-first { animation: zen-welcome-fade 0.8s ease-out both; }
+.zen-welcome-later { animation: zen-welcome-fade 0.7s ease-out 0.6s both; }
+@media (prefers-reduced-motion: reduce) { .zen-welcome-first, .zen-welcome-later { animation: none; } }
 
 /* New Site dialog (core/init); the frame matches New Page. */
 .zen-newsite-backdrop {

@@ -3,7 +3,7 @@
 import { FEATURE_IDS, type LogEntry } from "@zenmd/kit";
 import type { AddonInfo, Api, BuildInfo, BuildProgress, Crumb, DialectInfo, Draft, SiteTemplate, LayoutInfo, LintResult, NavNode, OpenProgress, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
 
-type Method = "startup" | "pickFolder" | "cancelOpen" | "closeFolder"
+type Method = "startup" | "appReady" | "pickFolder" | "cancelOpen" | "closeFolder"
   | "siteTemplates" | "pickSiteFolder" | "createSite" | "revealTemplates" | "templatesDir"
   | "buildOptions" | "buildWebsite" | "cancelBuild" | "saveBuildDefaults" | "pickBuildFolder" | "openBuiltSite" | "revealBuiltSite"
   | "printPage" | "printSite" | "printWindow" | "exportPdf" | "revealExport" | "printReady" | "printFailed" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "pageInfo" | "revealInFinder" | "openConfig" | "createPage"
@@ -305,6 +305,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
       if (api.pick) { base = api.pick; tree = copyTree(base.tree); }
       return api.pick;
     }),
+    appReady: () => call("appReady", [], () => undefined),
     cancelOpen: () => call("cancelOpen", [], () => undefined),
     closeFolder: () => call("closeFolder", [], () => { startup.workspace = null; startup.page = ""; return true; }),
     siteTemplates: () => call("siteTemplates", [], () => (options.templates ?? SAMPLE_TEMPLATES).map((t) => ({ ...t, ask: t.ask.map((a) => ({ ...a })) }))),

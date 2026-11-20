@@ -217,6 +217,9 @@ const api: Api = {
   async pickFolder() {
     return workspace((await call(Zen.PickFolder())) as Raw);
   },
+  async appReady() {
+    await Events.Emit("app:ready", null);
+  },
   async cancelOpen() {
     await call(Zen.CancelOpen());
   },
