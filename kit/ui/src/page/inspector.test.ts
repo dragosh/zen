@@ -3,6 +3,7 @@ import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { createFakeApi, type FakeApi } from "../../../../apps/zenmark/frontend/src/api/fake";
 import { alert } from "../lint/test-util";
 import { INSPECTOR_STATE, INSPECTOR_TOGGLE, OPEN_KEY, TAB_KEY } from "../inspector";
+import { INSPECTOR_MARK, type ProblemTarget } from "../inspector/events";
 import { pageFeature } from "./index";
 import { setup, tick, type Env } from "./helpers.test-util";
 
@@ -108,13 +109,9 @@ test("issues live in the panel: listed, selected, and cleared on navigation", as
   await settle();
   const item = panel().querySelector<HTMLButtonElement>('.zen-problem[data-kind="spelling"]')!;
   expect(item.textContent).toContain("teh");
-  vi.useFakeTimers();
-  item.click(); // selects it; Show scrolls to the mark
-  panel().querySelector<HTMLButtonElement>('[data-action="show"]')!.click();
+  item.click(); // one click selects it and scrolls to its mark
   const m = env.slots.main.querySelector("mark.zen-lint")!;
   expect(spy.mock.contexts[0]).toBe(m);
-  expect(m.classList.contains("zen-lint-flash")).toBe(true);
-  vi.useRealTimers();
 
   api.lintResult = { available: false, alerts: [] };
   env.ctx.navigate("b.md");
@@ -188,4 +185,147 @@ test("warnings go to Problems: a build without the inspector feature keeps the b
   await settle();
   expect(bar().hidden).toBe(false);
   expect(bar().textContent).toContain('unknown layout "slides"');
+});
+
+// ---- ui/inspector-details: a problem is marked in the page
+
+let registry: Map<string, { ranges: Range[] }>;
+let scrolled: { el: unknown; opts: unknown }[] = [];
+const stubHighlights = () => {
+  registry = new Map();
+  vi.stubGlobal("CSS", { highlights: registry });
+  vi.stubGlobal("Highlight", class { ranges: Range[]; priority = 0; constructor(...r: Range[]) { this.ranges = r; } });
+};
+const article = () => document.querySelector<HTMLElement>("article.zen-page")!;
+const mark = (t: Partial<ProblemTarget> & Pick<ProblemTarget, "kind">) =>
+  document.dispatchEvent(new CustomEvent(INSPECTOR_MARK, { detail: { severity: "warning", ...t } }));
+const marked = (name: string) => registry.get(name)?.ranges.map((r) => r.toString());
+async function shown(): Promise<void> {
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await settle();
+  article().insertAdjacentHTML("beforeend", "<p>See <a data-zen-link='broken' href='gone.md'>Gone page</a> and <a data-zen-link='broken' href='gone.md'>Gone page</a> <img src='/_ws/m.png' alt='M'></p>");
+  scrolled = [];
+  (window.HTMLElement.prototype as unknown as { scrollIntoView: unknown }).scrollIntoView = function (this: unknown, opts: unknown) { scrolled.push({ el: this, opts }); };
+}
+beforeEach(() => stubHighlights());
+afterEach(() => vi.unstubAllGlobals());
+
+test("problem marks: a broken link marks its text with the Vale colour of its severity and scrolls to it", async () => {
+  await shown();
+  mark({ kind: "link", href: "gone.md", text: "Gone page" });
+  expect(marked("zen-problem")).toEqual(["Gone page"]);
+  expect(marked("zen-problem-warning")).toEqual(["Gone page"]);
+  expect(scrolled).toHaveLength(1);
+  expect(scrolled[0].el).toBe(article().querySelector("a[data-zen-link=broken]"));
+  expect(scrolled[0].opts).toMatchObject({ behavior: "smooth", block: "center" });
+  expect(article().querySelector("mark.zen-problem")).toBeNull(); // the DOM is not changed
+});
+
+test("problem marks: the second of two equal links is found by its offset", async () => {
+  await shown();
+  mark({ kind: "link", href: "gone.md", text: "Gone page", offset: 1 });
+  expect(scrolled[0].el).toBe(article().querySelectorAll("a[data-zen-link=broken]")[1]);
+});
+
+test("problem marks: a missing image gets the outline, not a text range", async () => {
+  await shown();
+  mark({ kind: "image", src: "/_ws/m.png", text: "M" });
+  const img = article().querySelector("img")!;
+  expect(img.getAttribute("data-zen-problem")).toBe("warning");
+  expect(registry.size).toBe(0);
+  expect(scrolled[0].el).toBe(img);
+  mark({ kind: "image", src: "/_ws/other.png" }); // another problem: the first outline is gone
+  expect(img.hasAttribute("data-zen-problem")).toBe(false);
+});
+
+test("problem marks: a spelling problem marks the word from the Vale mark, in its colour", async () => {
+  await shown();
+  mark({ kind: "spelling", severity: "error", text: "teh", offset: 0, length: 3 });
+  expect(marked("zen-problem")).toEqual(["teh"]);
+  expect(marked("zen-problem-error")).toEqual(["teh"]);
+  expect(scrolled).toHaveLength(1);
+});
+
+test("problem marks: a spelling problem with no Vale mark falls back to the first matching text", async () => {
+  await shown();
+  mark({ kind: "spelling", severity: "suggestion", text: "Some", offset: 99, length: 4 });
+  expect(marked("zen-problem-suggestion")).toEqual(["Some"]);
+});
+
+test("problem marks: only one at a time; null, a page warning and an unknown target clear it", async () => {
+  await shown();
+  mark({ kind: "link", href: "gone.md", text: "Gone page" });
+  mark({ kind: "spelling", severity: "error", text: "teh", offset: 0 });
+  expect(Array.from(registry.keys()).sort()).toEqual(["zen-problem", "zen-problem-error"]);
+  document.dispatchEvent(new CustomEvent(INSPECTOR_MARK, { detail: null }));
+  expect(registry.size).toBe(0);
+  mark({ kind: "link", href: "gone.md", text: "Gone page" });
+  mark({ kind: "warning" });
+  expect(registry.size).toBe(0);
+  mark({ kind: "link", href: "gone.md", text: "Gone page" });
+  mark({ kind: "link", href: "nothing.md", text: "Nope" });
+  expect(registry.size).toBe(0);
+  expect(scrolled).toHaveLength(4); // the warning and the unknown link scrolled nowhere
+});
+
+test("problem marks: the page changing clears it", async () => {
+  await shown();
+  mark({ kind: "link", href: "gone.md", text: "Gone page" });
+  env.ctx.store.set({ path: "b.md" });
+  await settle();
+  expect(registry.size).toBe(0);
+});
+
+test("problem marks: the Inspector closing clears it", async () => {
+  await shown();
+  toggleEvent();
+  mark({ kind: "link", href: "gone.md", text: "Gone page" });
+  expect(registry.size).toBeGreaterThan(0);
+  toggleEvent();
+  expect(registry.size).toBe(0);
+});
+
+test("problem marks: the background flash fades, and stays still when Reduce motion is on", async () => {
+  await shown();
+  vi.useFakeTimers();
+  mark({ kind: "link", href: "gone.md", text: "Gone page" });
+  expect(registry.has("zen-problem")).toBe(true);
+  vi.advanceTimersByTime(1500);
+  expect(registry.has("zen-problem")).toBe(false);
+  expect(registry.has("zen-problem-warning")).toBe(true); // the underline stays
+  document.documentElement.dataset.reduceMotion = "on";
+  try {
+    mark({ kind: "link", href: "gone.md", text: "Gone page" });
+    expect(scrolled.at(-1)!.opts).toMatchObject({ behavior: "auto" });
+    vi.advanceTimersByTime(1500);
+    expect(registry.has("zen-problem")).toBe(true);
+  } finally {
+    delete document.documentElement.dataset.reduceMotion;
+  }
+});
+
+test("problem marks: without the Highlight API the element is still scrolled to and focused", async () => {
+  vi.unstubAllGlobals();
+  vi.stubGlobal("CSS", {});
+  await shown();
+  mark({ kind: "link", href: "gone.md", text: "Gone page" });
+  const a = article().querySelector("a[data-zen-link=broken]")!;
+  expect(scrolled[0].el).toBe(a);
+  expect(document.activeElement).toBe(a);
+});
+
+test("problem marks: a hostile href or text is compared, never turned into a selector", async () => {
+  await shown();
+  expect(() => mark({ kind: "link", href: `"]'),x[y='`, text: "\\" })).not.toThrow();
+  expect(registry.size).toBe(0);
+});
+
+test("problem marks: choosing a problem in the Inspector marks it in the page", async () => {
+  await shown();
+  toggleEvent();
+  panel().querySelector<HTMLButtonElement>('[data-tab="problems"]')!.click();
+  const row = Array.from(panel().querySelectorAll<HTMLElement>(".zen-problem")).find((r) => r.dataset.kind === "spelling")!;
+  row.click();
+  expect(marked("zen-problem")).toEqual(["teh"]);
 });

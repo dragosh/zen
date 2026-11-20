@@ -94,23 +94,18 @@ test("a late result for the previous page is dropped", async () => {
   expect(article().querySelector("h1")!.textContent).toBe("B");
 });
 
-test("clicking an issue scrolls to its mark and highlights it briefly", async () => {
+test("clicking an issue scrolls to its mark", async () => {
   const spy = vi.fn();
   (window.HTMLElement.prototype as unknown as { scrollIntoView: unknown }).scrollIntoView = spy;
   env.ctx.store.set({ path: "README.md" });
   mount();
   await settle();
-  vi.useFakeTimers();
   document.dispatchEvent(new CustomEvent(INSPECTOR_TOGGLE));
   const item = document.querySelector<HTMLButtonElement>('.zen-inspector .zen-problem[data-kind="spelling"]')!;
-  item.click(); // selects it; Show scrolls to the mark
-  document.querySelector<HTMLButtonElement>('.zen-inspector [data-action="show"]')!.click();
+  item.click(); // one click selects it and scrolls to its mark (ui/inspector-details)
   const m = article().querySelector("mark.zen-lint")!;
   expect(spy).toHaveBeenCalled();
   expect(spy.mock.contexts[0]).toBe(m);
-  expect(m.classList.contains("zen-lint-flash")).toBe(true);
-  vi.advanceTimersByTime(2000);
-  expect(m.classList.contains("zen-lint-flash")).toBe(false);
 });
 
 test("unmount tells the sidebar button the inspector is gone", async () => {

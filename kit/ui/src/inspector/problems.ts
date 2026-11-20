@@ -8,6 +8,7 @@
 // one that has already finished with no pixels.
 import type { Alert } from "../host";
 import { severityOf } from "../lint";
+import type { ProblemTarget } from "./events";
 
 export type ProblemKind = "link" | "image" | "spelling" | "warning";
 export type ProblemSeverity = "error" | "warning" | "suggestion";
@@ -92,4 +93,27 @@ export function sameProblem(a: Problem, b: Problem): boolean {
   if (a.alert && b.alert) return a.alert.line === b.alert.line && a.alert.col === b.alert.col && a.alert.check === b.alert.check;
   if (a.el && b.el && a.el === b.el) return true;
   return a.rule === b.rule && a.label === b.label;
+}
+
+/**
+ * What the page needs to find a problem again (INSPECTOR_MARK): values only, compared in JS by the page.
+ * `offset` tells equal links or images apart (the nth with the same href or src); for spelling it is the alert's index.
+ */
+export function problemTarget(p: Problem, root: ParentNode | null): ProblemTarget {
+  const base = { kind: p.kind, severity: p.severity };
+  if (p.kind === "spelling" && p.alert) return { ...base, text: p.alert.match, offset: p.index ?? 0, length: Array.from(p.alert.match).length };
+  const el = p.el;
+  if (!el || !root) return base;
+  if (p.kind === "link") {
+    const href = el.getAttribute("href") ?? "";
+    const label = text(el);
+    const same = Array.from(root.querySelectorAll<HTMLElement>("a")).filter((a) => a.getAttribute("data-zen-link") === "broken" && (a.getAttribute("href") ?? "") === href && text(a) === label);
+    return { ...base, href, text: label, offset: Math.max(0, same.indexOf(el)) };
+  }
+  if (p.kind === "image") {
+    const src = el.getAttribute("src") ?? "";
+    const same = Array.from(root.querySelectorAll<HTMLElement>("img")).filter((i) => (i.getAttribute("src") ?? "") === src);
+    return { ...base, src, text: (el.getAttribute("alt") ?? "").trim(), offset: Math.max(0, same.indexOf(el)) };
+  }
+  return base;
 }

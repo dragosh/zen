@@ -114,8 +114,7 @@ describe("editor inspector: issues", () => {
     const item = issuesBody().querySelector<HTMLElement>(".zen-problem")!;
     expect(item.title).toContain("Weak word");
     expect(s.slots.main.querySelector(".zen-lint-console")).not.toBeNull(); // the console stays
-    item.click(); // selects it; Show selects it in the source
-    document.querySelector<HTMLButtonElement>('.zen-inspector [data-action="show"]')!.click();
+    item.click(); // one click selects it and shows it: the source selects the word
     expect(s.ta.selectionStart).toBe(2);
     expect(s.ta.selectionEnd).toBe(6);
   });

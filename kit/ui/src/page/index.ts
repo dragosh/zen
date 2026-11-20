@@ -1,9 +1,10 @@
 // The reader: loads Page for store.path, mounts its HTML and wires links,
 // anchors, plugin assets, live reload, warnings, errors and the Edit action.
-import { hasAddon, hasFeature, type Alert, type Page } from "../host";
-import { createInspector, inspectorKey, type Inspector } from "../inspector";
+import { hasAddon, hasFeature, type Page } from "../host";
+import { createInspector, inspectorKey, INSPECTOR_MARK, type Inspector, type ProblemTarget } from "../inspector";
+import { createProblemMark } from "../inspector/mark";
 import { bindFind, createFind, domFinder } from "../find";
-import { flash, markText } from "../lint";
+import { markText } from "../lint";
 import { installRuntime } from "@zenmd/runtime/plugins";
 import { installImageZoom } from "@zenmd/runtime/zoom/zoom";
 import { button, el } from "../shell/dom";
@@ -156,13 +157,11 @@ export const pageFeature: Feature = {
     const inspectorOn = hasFeature(ctx.api, "inspector");
     const inspector: Inspector = !inspectorOn ? inertInspector(doc) : createInspector({
       doc, host: ctx.api, external: true, pageWarnings: true,
-      onSelectIssue(_alert: Alert, i: number) {
-        const m = lintMarks[i];
-        if (!m?.isConnected) return;
-        m.scrollIntoView({ behavior: reducedMotion() ? "auto" : "smooth", block: "center" });
-        flash(m);
-      },
     });
+    // A problem chosen in the Inspector (INSPECTOR_MARK): scrolled to and marked in the article, one at a time.
+    const problemMark = createProblemMark({ root: () => (article.hidden ? null : article), marks: () => lintMarks, reduced: reducedMotion });
+    const onMark = (e: Event) => problemMark.show((e as CustomEvent<ProblemTarget | null>).detail ?? null);
+    doc.addEventListener(INSPECTOR_MARK, onMark);
     // The render warnings of the page are Problems in the Inspector; the bar above the page is for a build without it, so none is lost.
     const showWarnings = (list: readonly string[]): void => {
       const shown = inspectorOn ? [] : list;
@@ -224,6 +223,7 @@ export const pageFeature: Feature = {
     const offFind = bindFind(doc, ctx.api, find, { active: () => hasFeature(ctx.api, "find") && ctx.store.get().mode === "read" && shownPath !== null });
     function render(page: Page): void {
       plugins.unmountAll();
+      problemMark.clear(); // the mark was on the page that is being replaced
       rendered = { path: page.path, title: page.title };
       mountPage(article, page);
       if (!editable) hideEditLinks(article);
@@ -390,6 +390,8 @@ export const pageFeature: Feature = {
       offChanged();
       offDraft();
       doc.removeEventListener("keydown", onKey);
+      doc.removeEventListener(INSPECTOR_MARK, onMark);
+      problemMark.destroy();
       progress.remove();
       warnings.remove();
       hint.remove();
