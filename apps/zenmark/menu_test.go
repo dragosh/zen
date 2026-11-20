@@ -314,8 +314,8 @@ func TestExportSubmenu(t *testing.T) {
 
 // Without the editor File has no New Page…: the item is left out, not disabled.
 func TestMenuWithoutEditor(t *testing.T) {
-	with := rows(menuSpecFor(false, true))
-	without := rows(menuSpecFor(false, false))
+	with := rows(menuSpecFor(false, allFeatures))
+	without := rows(menuSpecFor(false, without("editor")))
 	if !slices.Contains(with, "New Page… [CmdOrCtrl+N]") {
 		t.Fatal("the editor menu lost New Page…")
 	}
@@ -340,5 +340,106 @@ func TestMenuWithoutEditor(t *testing.T) {
 	st.setFolderOpen(true)
 	if len(on) != 2 || on[1] != true {
 		t.Errorf("state calls %v", on)
+	}
+}
+
+// Each missing feature leaves its menu items out (not greyed), and no gap behind it.
+func TestMenuPerFeature(t *testing.T) {
+	all := rows(menuSpecFor(true, allFeatures))
+	cases := []struct {
+		feature string
+		gone    []string // rows (prefix) that must not be there without the feature
+	}{
+		{"reader", nil}, // nothing of its own in the menu bar
+		{"nav", nil},
+		{"find", []string{"> Find", "  Find…", "  Find Next", "  Find Previous"}},
+		{"editor", []string{"New Page…"}},
+		{"inspector", nil},
+		{"print", []string{"Print Page…", "  PDF…"}},
+		{"export", []string{"> Export", "  Website…", "  PDF…"}},
+		{"newsite", []string{"New Site from Template…"}},
+		{"developer", []string{"# Develop", "Reload", "Toggle DevTools"}},
+	}
+	for _, c := range cases {
+		t.Run(c.feature, func(t *testing.T) {
+			spec := menuSpecFor(true, without(c.feature))
+			got := rows(spec)
+			for _, g := range c.gone {
+				for _, l := range got {
+					if strings.HasPrefix(l, g) {
+						t.Errorf("without %s the menu still has %q", c.feature, l)
+					}
+				}
+				if !slices.ContainsFunc(all, func(l string) bool { return strings.HasPrefix(l, g) }) {
+					t.Errorf("with all features the menu lacks %q", g)
+				}
+			}
+			if len(c.gone) == 0 && !slices.Equal(got, all) {
+				t.Errorf("without %s the menu changes:\n%v", c.feature, got)
+			}
+			noGaps(t, spec)
+		})
+	}
+	// PDF… needs print as well as export: Website… stays without print.
+	got := rows(menuSpecFor(false, without("print")))
+	if !slices.Contains(got, "  Website… [CmdOrCtrl+Shift+B]") || slices.ContainsFunc(got, func(l string) bool { return strings.Contains(l, "PDF…") }) {
+		t.Errorf("without print:\n%v", got)
+	}
+	// Develop is a dev-build menu and a feature.
+	if slices.Contains(rows(menuSpecFor(false, allFeatures)), "# Develop") {
+		t.Error("production build has Develop")
+	}
+}
+
+// noGaps fails on a leading, trailing or doubled separator, or an empty submenu.
+func noGaps(t *testing.T, bar []menuItem) {
+	t.Helper()
+	var check func(path string, items []menuItem)
+	check = func(path string, items []menuItem) {
+		for i, it := range items {
+			if it.Separator && (i == 0 || i == len(items)-1 || items[i-1].Separator) {
+				t.Errorf("%s: separator at %d of %d", path, i, len(items))
+			}
+			if !it.Separator && it.Role == "" && it.Children != nil && len(it.Children) == 0 {
+				t.Errorf("%s: empty submenu %s", path, it.Label)
+			}
+			check(path+" > "+it.Label, it.Children)
+		}
+	}
+	check("", bar)
+}
+
+// The bare shell's menus: App, File with Open and Close, Edit without Find, Window.
+func TestMenuBareShell(t *testing.T) {
+	spec := menuSpecFor(true, nil)
+	eq(t, rows(spec), []string{
+		"# Zenmark",
+		"About Zenmark",
+		"Settings… [CmdOrCtrl+,]",
+		"-",
+		"Hide Zenmark [CmdOrCtrl+H]",
+		"Hide Others [CmdOrCtrl+OptionOrAlt+H]",
+		"Show All",
+		"-",
+		"Quit Zenmark [CmdOrCtrl+Q]",
+		"# File",
+		"Open Folder… [CmdOrCtrl+O]",
+		"Close Folder [CmdOrCtrl+Shift+W]",
+		"# Edit",
+		"Undo [CmdOrCtrl+Z]",
+		"Redo [CmdOrCtrl+Shift+Z]",
+		"-",
+		"Cut [CmdOrCtrl+X]",
+		"Copy [CmdOrCtrl+C]",
+		"Paste [CmdOrCtrl+V]",
+		"Select All [CmdOrCtrl+A]",
+		"# Window",
+		"Minimise [CmdOrCtrl+M]",
+		"Zoom",
+	})
+	noGaps(t, spec)
+	// Developer alone brings the Develop menu in a dev build.
+	if !slices.Contains(rows(menuSpecFor(true, []string{"developer"})), "# Develop") {
+		t.Error("developer lacks the Develop menu")
 	}
 }
