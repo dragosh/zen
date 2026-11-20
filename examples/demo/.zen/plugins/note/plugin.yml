@@ -4,7 +4,7 @@ apiVersion: 1
 description: Callout boxes
 default: true
 
-blocks: [note, warning]
+blocks: [note, warning, important, attention, hint]
 
 help:
   summary: Callout boxes. A note block draws a note, a warning block a warning; title sets the heading (the default is Note or Warning). The body is plain text turned into HTML by note.sh.

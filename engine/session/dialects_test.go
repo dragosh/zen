@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -225,5 +226,37 @@ func TestDialectHint(t *testing.T) {
 	ro := dialectSession(t, tree(t, myst), cfg, true, false)
 	if err := ro.DismissDialectHint("myst"); err != nil {
 		t.Errorf("read-only dismiss: %v", err)
+	}
+}
+
+// The demo's user guide page on dialects renders with the plugins the folder
+// ships: the MyST fences become the same blocks as :::.
+func TestDemoDialectsPage(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	demo := filepath.Join(filepath.Dir(file), "..", "..", "examples", "demo")
+	z, err := newZen(zenOptions{Registry: builtins.Plugins(), ConfigDir: t.TempDir(), Dir: demo, Events: &sink{}, Dialogs: &fakeDialogs{Allow: true}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(z.close)
+	pg, err := z.Page("plugins/dialects.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(pg.Warnings) != 0 {
+		t.Errorf("warnings: %v", pg.Warnings)
+	}
+	for _, want := range []string{
+		`data-zen-plugin="note" data-zen-name="note"`, `<strong>Remember</strong>`,
+		`data-zen-plugin="note" data-zen-name="important"`, `<strong>Back up first</strong>`,
+		`data-zen-plugin="callout" data-zen-name="tip"`, `class="chroma"`,
+	} {
+		if !strings.Contains(pg.HTML, want) {
+			t.Errorf("missing %q in\n%s", want, pg.HTML)
+		}
+	}
+	// the examples in code fences are still code
+	if !strings.Contains(pg.HTML, "```{note} Remember") && !strings.Contains(pg.HTML, "{note} Remember") {
+		t.Errorf("the code samples are gone:\n%s", pg.HTML)
 	}
 }

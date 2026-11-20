@@ -26,7 +26,8 @@ plugins:
   lint: false                   # false turns it off
 ```
 
-How plugins are written into markdown: [plugin syntax](directives.md).
+How plugins are written into markdown: [plugin syntax](directives.md). A folder
+written for MyST or Jupyter Book can use [its own syntax](dialects.md) too.
 
 A plugin is a part of a page. The look of a whole page, such as slides or a
 blog post, is a [layout](../layouts/index.md).
