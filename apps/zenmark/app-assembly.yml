@@ -8,4 +8,5 @@ addons: []
 plugins: all
 layouts: all
 templates: all
+dialects: all
 theme: default

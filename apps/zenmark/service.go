@@ -90,6 +90,7 @@ func newZen(o zenOptions) (*Zen, error) {
 		ConfigDir:  o.ConfigDir,
 		Registry:   o.Registry,
 		Layouts:    o.Layouts,
+		Dialects:   assemblyDialects(),
 		Events:     o.Events,
 		Presets:    siteBuiltins,
 		Watch:      true,
@@ -156,6 +157,7 @@ func (z *Zen) Startup() Startup {
 	st := z.startup()
 	st.Addons = addonInfos()
 	st.Build = buildInfo()
+	st.DialectHint = z.s.DialectHint()
 	return st
 }
 
