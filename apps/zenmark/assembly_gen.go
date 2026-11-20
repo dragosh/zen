@@ -47,6 +47,7 @@ func assemblyTemplates() fs.FS {
 // Settings. The add-ons are the ones linked in (build tags), added at run time.
 var assemblyInfo = session.BuildInfo{
 	App:       "zenmark",
+	Features:  []string{"editor"},
 	Plugins:   []string{"codeblock", "diagram", "check", "quiz", "sandbox"},
 	Layouts:   []string{"article", "docs", "post", "landing", "wide", "handout", "slides", "course"},
 	Templates: []string{"techdocs", "learning", "planner"},

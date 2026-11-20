@@ -2,7 +2,7 @@
 // (it is chosen when the app is built, in apps/<app>/app-assembly.yml). Names and ids come
 // from the Go side and reach the page as text only.
 import "./addons.css";
-import type { BuildInfo, KitHost } from "../host";
+import { hasFeature, type BuildInfo, type KitHost } from "../host";
 import { el } from "./dom";
 import type { SettingsSection } from "./settings";
 
@@ -42,6 +42,8 @@ export function buildSection(host: Pick<KitHost, "addons" | "build">): SettingsS
     const groups = [group("addons", "Add-ons", ...cards)];
     const b = host.build;
     if (b) {
+      // Features come first: the pieces of the app itself, before the add-ons it can take.
+      groups.unshift(group("features", "Features", names(b.features), ...(hasFeature(host, "editor") ? [] : [el("p", "zen-build-list", "Read-only (no editor)")])));
       groups.push(
         group("plugins", "Plugins", names(b.plugins)),
         group("layouts", "Layouts", names(b.layouts)),

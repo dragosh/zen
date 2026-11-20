@@ -10,6 +10,9 @@ import (
 	enginetemplates "github.com/zenmark-org/zenmd/engine/sitetemplates"
 )
 
+// knownFeatures are the optional pieces of the app itself (specs/kit/features).
+var knownFeatures = []string{"editor"}
+
 // knownAddons are the add-ons that exist: the folders under addons/ (a test
 // compares them, and the Taskfile's ADDONS_KNOWN, with this list).
 var knownAddons = []string{"vale"}
@@ -19,6 +22,8 @@ var knownAddons = []string{"vale"}
 // and templates declare they need.
 func BuiltinCatalog() (Catalog, error) {
 	c := Catalog{
+		Features:      append([]string(nil), knownFeatures...),
+		FeatureNeeds:  map[string][]string{},
 		Addons:        append([]string(nil), knownAddons...),
 		Plugins:       append([]string(nil), builtins.PluginIDs...),
 		Layouts:       append([]string(nil), layouts.IDs...),

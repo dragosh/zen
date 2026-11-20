@@ -2,11 +2,12 @@ package app
 
 import (
 	"os"
+	"slices"
 	"strings"
 	"testing"
 
-	"github.com/zenmark-org/zenmd/kit/desktop"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/zenmark-org/zenmd/kit/desktop"
 )
 
 // rows lists a menu bar as "Menu" headers followed by their items.
@@ -308,5 +309,36 @@ func TestExportSubmenu(t *testing.T) {
 	act.forLabel(labelExportPDF)()
 	if strings.Join(calls, ",") != "build,print-site" || EventBuildWebsite != "menu:build-website" {
 		t.Errorf("actions %v, event %q", calls, EventBuildWebsite)
+	}
+}
+
+// Without the editor File has no New Page…: the item is left out, not disabled.
+func TestMenuWithoutEditor(t *testing.T) {
+	with := rows(menuSpecFor(false, true))
+	without := rows(menuSpecFor(false, false))
+	if !slices.Contains(with, "New Page… [CmdOrCtrl+N]") {
+		t.Fatal("the editor menu lost New Page…")
+	}
+	for _, l := range without {
+		if strings.HasPrefix(l, "New Page") {
+			t.Errorf("read-only menu has %q", l)
+		}
+	}
+	var want []string
+	for _, l := range with {
+		if !strings.HasPrefix(l, "New Page") {
+			want = append(want, l)
+		}
+	}
+	eq(t, without, want)
+	// menuSpec is the editor menu.
+	eq(t, rows(menuSpec(false)), with)
+	// The menu state copes with the absent item: it only knows the ones added.
+	st := newMenuState(false)
+	var on []bool
+	st.add(func(e bool) { on = append(on, e) })
+	st.setFolderOpen(true)
+	if len(on) != 2 || on[1] != true {
+		t.Errorf("state calls %v", on)
 	}
 }

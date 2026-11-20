@@ -110,11 +110,12 @@ type AddonInfo struct {
 	Summary string `json:"summary"`
 }
 
-// BuildInfo is what an app's build is made of (kit/assembly): its add-ons,
+// BuildInfo is what an app's build is made of (kit/assembly): its features, add-ons,
 // built-in plugins, layouts, site templates and theme. Settings › This build
 // and `zenmd version --verbose` show it.
 type BuildInfo struct {
 	App       string      `json:"app"`
+	Features  []string    `json:"features"`
 	Addons    []AddonInfo `json:"addons"`
 	Plugins   []string    `json:"plugins"`
 	Layouts   []string    `json:"layouts"`
@@ -150,6 +151,7 @@ type Session struct {
 	base       *plugins.Registry // built-in plugins
 	reg        *plugins.Registry // base plus the allowed plugins of the open folder (guarded by mu)
 	globalPath string
+	readOnly   bool   // Options.ReadOnly: writes return ErrReadOnly
 	configDir  string // settings folder: user plugins, trust, plugin data; "" for none
 	events     Events
 	prompter   Prompter
@@ -207,6 +209,7 @@ type Options struct {
 	Runtime    fs.FS             // the browser runtime (zen.js, zen.css) for Build and Print; nil = the embedded runtime package
 	Presets    fs.FS             // the built-in site templates; nil = the default set
 	Watch      bool              // live reload: watch the open folder
+	ReadOnly   bool              // refuse every write to the folder and the settings files (ErrReadOnly); reading and exporting still work
 	Version    string            // asset versioning of the built-ins; "" = "dev"
 }
 
@@ -242,7 +245,7 @@ func New(o Options) *Session {
 		events: o.Events, prompter: o.Prompter,
 		version: version, runtime: o.Runtime, presets: presets, now: time.Now,
 		trust: extplugins.LoadTrust(""), life: life, stop: stop,
-		noWatch: !o.Watch,
+		noWatch: !o.Watch, readOnly: o.ReadOnly,
 	}
 	if configDir != "" {
 		s.trust = extplugins.LoadTrust(filepath.Join(configDir, "trusted-plugins.yml"))
@@ -590,6 +593,9 @@ func (s *Session) Preview(path, content string) (Page, error) {
 
 // Save writes a page.
 func (s *Session) Save(path, content string) error {
+	if err := s.writable(); err != nil {
+		return err
+	}
 	if which, ok := configWhich(path); ok {
 		return s.saveConfig(which, content)
 	}

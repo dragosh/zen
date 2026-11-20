@@ -339,3 +339,17 @@ test("the dialog is Export Website", async () => {
   expect(Array.from(d.el.querySelectorAll("button")).some((b) => b.textContent === "Build")).toBe(false);
   expect(document.activeElement).toBe(btn("Export"));
 });
+
+test("read-only: no save defaults", async () => {
+  const build = { app: "x", features: [] as string[], addons: [], plugins: [], layouts: [], templates: [], theme: "default" };
+  const { f, btn, d } = open({ build });
+  await settle();
+  expect(Array.from(d.el.querySelectorAll("button")).some((b) => b.textContent === "Save as folder defaults")).toBe(false);
+  expect(btn("Export")).toBeDefined();
+  expect(f.to("saveBuildDefaults")).toHaveLength(0);
+  d.close();
+  // with the editor (or no build info) the link is there
+  const full = open({ build: { ...build, features: ["editor"] } });
+  expect(full.btn("Save as folder defaults")).toBeDefined();
+  full.d.close();
+});

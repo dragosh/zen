@@ -356,6 +356,9 @@ func (s *Session) CancelBuild() {
 // and other keys stay, and writes the file atomically. It returns the same
 // text either way.
 func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (string, error) {
+	if err := s.writable(); err != nil {
+		return "", err
+	}
 	root, err := s.buildFolder()
 	if err != nil {
 		return "", err

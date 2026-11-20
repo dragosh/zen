@@ -37,11 +37,16 @@ export type { PluginStreamEvent };
 export type AddonInfo = { id: string; name: string; summary: string };
 
 /** What an app is built from (kit/assembly): shown in Settings › This build; `theme` becomes `data-app-theme` on the root element. */
-export type BuildInfo = { app: string; addons: AddonInfo[]; plugins: string[]; layouts: string[]; templates: string[]; theme: string };
+export type BuildInfo = { app: string; features: string[]; addons: AddonInfo[]; plugins: string[]; layouts: string[]; templates: string[]; theme: string };
 
 /** Whether the app was built with the add-on (`hasAddon(host, "vale")`): false when the host lists none. */
 export function hasAddon(host: Pick<KitHost, "addons">, id: string): boolean {
   return host.addons?.some((a) => a.id === id) ?? false;
+}
+
+/** Whether the app has the feature (`hasFeature(host, "editor")`): true when the host does not say (no build info), so the default is everything. */
+export function hasFeature(host: Pick<KitHost, "build">, id: string): boolean {
+  return host.build ? host.build.features.includes(id) : true;
 }
 
 export type LogLevel = "debug" | "info" | "warn" | "error";

@@ -18,6 +18,9 @@ var openFile = func(path string) error {
 // folder's .zen.yml ("workspace") in zen's own editor window, creating it
 // from a commented template first when it does not exist.
 func (z *Zen) OpenConfig(which string) error {
+	if z.ro {
+		return session.ErrReadOnly
+	}
 	path, err := z.s.EnsureConfig(which)
 	if err != nil {
 		return err

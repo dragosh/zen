@@ -76,6 +76,9 @@ func (s *Session) EnsureConfig(which string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	if _, serr := os.Stat(path); serr != nil && s.readOnly { // it would be created
+		return "", ErrReadOnly
+	}
 	if err := ensureFile(path, template); err != nil {
 		return "", errors.New("could not create " + filepath.Base(path) + ": " + unwrapAll(err).Error())
 	}

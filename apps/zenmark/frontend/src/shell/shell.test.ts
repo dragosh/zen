@@ -383,6 +383,20 @@ test("File › New Page (menu or ⌘N) asks, creates, shows and opens the editor
   expect(dialog()).toBeNull();
 });
 
+test("read-only: no new page", async () => {
+  const api = createFakeApi({
+    startup: { workspace: sampleWorkspace(), page: "guides/install.md", mode: "read" }, build: { features: [] },
+  });
+  let newPageOffered: boolean | undefined;
+  const probe: Feature = { id: "nav", mount(_s: Slots, ctx: Ctx) { newPageOffered = !!ctx.newPage; return () => {}; } };
+  const s = boot(api, [probe, recorder("page"), recorder("editor")]);
+  await s.start();
+  expect(newPageOffered).toBe(false); // the sidebar menu has no New Page Here…
+  api.emit("menu:new-page", undefined);
+  key("n");
+  expect(document.querySelector(".zen-newpage-backdrop")).toBeNull();
+});
+
 test("no New Page dialog on the welcome screen", async () => {
   const api = createFakeApi();
   const s = boot(api);

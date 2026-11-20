@@ -1,6 +1,8 @@
 package app
 
 import (
+	"slices"
+
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
 
@@ -73,7 +75,11 @@ var sep = menuItem{Separator: true}
 
 // menuSpec is the whole menu bar: Zen, File, Edit, Window, and in dev builds
 // Develop. Production builds have no Reload, DevTools, View, Services or Speech.
-func menuSpec(dev bool) []menuItem {
+func menuSpec(dev bool) []menuItem { return menuSpecFor(dev, true) }
+
+// menuSpecFor is menuSpec for an app with or without the editor feature: without
+// it File has no New Page… (the item is left out, not greyed).
+func menuSpecFor(dev, editor bool) []menuItem {
 	bar := []menuItem{
 		{Label: Name, Children: []menuItem{
 			{Label: "About " + Name, Role: "About"},
@@ -120,6 +126,11 @@ func menuSpec(dev bool) []menuItem {
 			{Label: "Toggle DevTools", Accel: "CmdOrCtrl+OptionOrAlt+I", Role: "OpenDevTools"},
 		}})
 	}
+	if !editor {
+		for i := range bar {
+			bar[i].Children = slices.DeleteFunc(bar[i].Children, func(it menuItem) bool { return it.Label == labelNewPage })
+		}
+	}
 	return append(bar, menuItem{Label: "Window", Children: []menuItem{
 		{Label: "Minimise", Accel: "CmdOrCtrl+M", Role: "Minimise"},
 		{Label: "Zoom", Role: "Zoom"},
@@ -141,7 +152,7 @@ var roleByName = map[string]application.Role{
 // default is (the Wails app name is the lowercase binary name).
 func buildMenu(a *application.App, act menuActions, st *menuState, dev bool) *application.Menu {
 	menu := a.Menu.New()
-	for _, top := range menuSpec(dev) {
+	for _, top := range menuSpecFor(dev, !readOnlyBuild()) {
 		fillMenu(menu.AddSubmenu(top.Label), top.Children, act, st)
 	}
 	return menu

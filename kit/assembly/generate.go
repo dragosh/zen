@@ -29,7 +29,7 @@ func Generate(a Assembly, pkg string) ([]byte, error) {
 	if !ValidID(pkg) && pkg != "main" {
 		return nil, fmt.Errorf("package name %q is not valid", pkg)
 	}
-	for _, kind := range [][]string{{a.App}, {a.Theme}, a.Plugins, a.Layouts, a.Templates} {
+	for _, kind := range [][]string{{a.App}, {a.Theme}, a.Features, a.Plugins, a.Layouts, a.Templates} {
 		for _, id := range kind {
 			if !ValidID(id) {
 				return nil, fmt.Errorf("id %q is not valid (want lower case letters, digits and -)", id)
@@ -93,8 +93,8 @@ func Generate(a Assembly, pkg string) ([]byte, error) {
 	fmt.Fprintf(&b, "func assemblyTemplates() fs.FS {\n\tf, err := sitetemplates.Sub(%s)\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\treturn f\n}\n\n", listArgs(a.Templates))
 
 	b.WriteString("// assemblyInfo is what the app's build is made of, for the version line and\n// Settings. The add-ons are the ones linked in (build tags), added at run time.\n")
-	fmt.Fprintf(&b, "var assemblyInfo = session.BuildInfo{\n\tApp:       %q,\n\tPlugins:   %s,\n\tLayouts:   %s,\n\tTemplates: %s,\n\tTheme:     %q,\n}\n",
-		a.App, stringSlice(a.Plugins), stringSlice(withFallback(a.Layouts)), stringSlice(a.Templates), a.Theme)
+	fmt.Fprintf(&b, "var assemblyInfo = session.BuildInfo{\n\tApp:       %q,\n\tFeatures:  %s,\n\tPlugins:   %s,\n\tLayouts:   %s,\n\tTemplates: %s,\n\tTheme:     %q,\n}\n",
+		a.App, stringSlice(a.Features), stringSlice(a.Plugins), stringSlice(withFallback(a.Layouts)), stringSlice(a.Templates), a.Theme)
 
 	out, err := format.Source(b.Bytes())
 	if err != nil {

@@ -10,6 +10,7 @@ import (
 
 func testCatalog() Catalog {
 	return Catalog{
+		Features:  []string{"editor"},
 		Addons:    []string{"vale"},
 		Plugins:   []string{"codeblock", "diagram", "check", "quiz", "sandbox"},
 		Layouts:   []string{"article", "docs", "landing", "course"},
@@ -50,7 +51,7 @@ theme: default
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Assembly{App: "demo", Addons: []string{"vale"}, Plugins: []string{"codeblock", "quiz", "check"},
+	want := Assembly{App: "demo", Features: []string{"editor"}, Addons: []string{"vale"}, Plugins: []string{"codeblock", "quiz", "check"},
 		Layouts: []string{"article", "docs", "landing", "course"}, Templates: []string{"learning"}, Theme: "default"}
 	if !reflect.DeepEqual(a, want) {
 		t.Errorf("got %+v\nwant %+v", a, want)
@@ -259,4 +260,51 @@ func sameSet(a, b []string) bool {
 		}
 	}
 	return true
+}
+
+func TestFeatures(t *testing.T) {
+	// A missing key means all, unlike the other lists.
+	a, err := load(t, "app: x\n")
+	if err != nil || !reflect.DeepEqual(a.Features, []string{"editor"}) {
+		t.Errorf("missing: %+v, %v", a.Features, err)
+	}
+	// [] and null mean none.
+	for _, y := range []string{"app: x\nfeatures: []\n", "app: x\nfeatures:\n"} {
+		a, err = load(t, y)
+		if err != nil || len(a.Features) != 0 {
+			t.Errorf("%q: %+v, %v", y, a.Features, err)
+		}
+	}
+	for _, y := range []string{"app: x\nfeatures: all\n", "app: x\nfeatures: [all]\n", "app: x\nfeatures: [editor]\n"} {
+		a, err = load(t, y)
+		if err != nil || !reflect.DeepEqual(a.Features, []string{"editor"}) {
+			t.Errorf("%q: %+v, %v", y, a.Features, err)
+		}
+	}
+	for _, c := range []struct{ yml, want string }{
+		{"app: x\nfeatures: [nope]\n", "known features: editor"},
+		{"app: x\nfeatures: [editor, editor]\n", "twice"},
+		{"app: x\nfeatures: [all, editor]\n", "all"},
+		{"app: x\nfeatures: editor\n", "list"},
+		{"app: x\nfeatures: [\"../x\"]\n", "known features"},
+	} {
+		if _, err := load(t, c.yml); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%q: %v, want %q", c.yml, err, c.want)
+		}
+	}
+	// FeatureNeeds are read by Check.
+	cat := testCatalog()
+	cat.Features = []string{"editor", "newsite"}
+	cat.FeatureNeeds = map[string][]string{"newsite": {"editor"}}
+	if err := Check(Assembly{App: "x", Features: []string{"newsite"}, Theme: "default"}, cat); err == nil || !strings.Contains(err.Error(), "feature newsite needs feature editor") {
+		t.Errorf("needs: %v", err)
+	}
+	if err := Check(Assembly{App: "x", Features: []string{"editor", "newsite"}, Theme: "default"}, cat); err != nil {
+		t.Error(err)
+	}
+	// The built-in catalog knows the editor, and Zenmark's file passes.
+	c, _ := BuiltinCatalog()
+	if !reflect.DeepEqual(c.Features, []string{"editor"}) {
+		t.Errorf("builtin features %v", c.Features)
+	}
 }

@@ -39,6 +39,9 @@ func siblingsOf(nodes []NavNode, path, parent string) (list []NavNode, owner str
 // edits are prepared before the first write, and a failing write puts the
 // earlier files back. The tree is rebuilt at once and workspace:changed sent.
 func (s *Session) ReorderNav(parent string, paths []string) error {
+	if err := s.writable(); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	ws, err := s.reorderLocked(parent, paths)
 	s.mu.Unlock()
@@ -130,6 +133,9 @@ func (s *Session) writeNavLocked(edits []navEdit) (*Workspace, error) {
 // hidden false removes the key, and rebuilds the tree. The page may be one the
 // sidebar does not show (hidden), so it can be shown again.
 func (s *Session) SetNavHidden(path string, hidden bool) error {
+	if err := s.writable(); err != nil {
+		return err
+	}
 	s.mu.Lock()
 	ws, err := s.hideLocked(path, hidden)
 	s.mu.Unlock()
