@@ -4,11 +4,16 @@ import (
 	"errors"
 	"path"
 	"strings"
+
+	"github.com/zenmark-org/zenmd/engine/session"
 )
 
 // OpenEditor opens the page in its own editor window, or focuses the one
 // already open for it.
 func (z *Zen) OpenEditor(p string) error {
+	if z.ro {
+		return session.ErrReadOnly
+	}
 	if p == "" || p != path.Clean(p) || path.IsAbs(p) || strings.HasPrefix(p, "../") {
 		return errors.New(p + ": not a page in this folder")
 	}
@@ -45,7 +50,7 @@ func (z *Zen) pageTitle(p string) string {
 // openStartupEditor opens the editor window `zenmd edit <path>` asked for; the
 // main window itself always starts in read mode.
 func (z *Zen) openStartupEditor(mode string) error {
-	if mode != "edit" {
+	if mode != "edit" || z.ro { // a read-only app opens the page in the reader
 		return nil
 	}
 	p := z.Startup().Page

@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"slices"
 	"strings"
 	"sync"
 
@@ -35,6 +36,9 @@ type zenOptions struct {
 	Logs       *desktop.LogRing // the Developer panel's log, nil for none
 	Dialogs    Dialogs
 	Open       func(url string) error
+	// ReadOnly makes the app read-only even when its assembly has the editor (tests); an app
+	// built without the editor feature is always read-only.
+	ReadOnly bool
 	// DeferOpen leaves Dir to the first Startup call (or OpenInitial), so the
 	// window can show progress while a big folder opens.
 	DeferOpen bool
@@ -54,6 +58,7 @@ type Zen struct {
 	logs    *desktop.LogRing // nil without the Developer panel's log (tests, headless)
 	menu    *menuState       // enabled state of the folder-only menu items; nil headless
 	export  exportState      // the last PDF export (exportpdf.go)
+	ro      bool             // read-only: no editor windows, no config files (kit/features)
 
 	initialDir  string // opened by openInitial when DeferOpen
 	initialOnce sync.Once
@@ -89,12 +94,14 @@ func newZen(o zenOptions) (*Zen, error) {
 		Presets:    siteBuiltins,
 		Watch:      true,
 		Version:    cli.Version,
+		ReadOnly:   o.ReadOnly || readOnlyBuild(),
 	}
 	if o.Dialogs != nil {
 		so.Prompter = o.Dialogs
 	}
 	z := &Zen{
 		s:       session.New(so),
+		ro:      so.ReadOnly,
 		events:  o.Events,
 		page:    o.Page,
 		mode:    o.Mode,
@@ -117,6 +124,10 @@ func newZen(o zenOptions) (*Zen, error) {
 }
 
 func (z *Zen) close() { z.s.Close() }
+
+// readOnlyBuild reports whether this build leaves out the editor feature
+// (app-assembly.yml): the app is then a reader and never changes the folder.
+func readOnlyBuild() bool { return !slices.Contains(assemblyInfo.Features, "editor") }
 
 // middleware serves the session's routes (the open folder's files, plugin
 // and layout assets, the print document) and sends everything else to next

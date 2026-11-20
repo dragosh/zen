@@ -34,6 +34,6 @@ func buildInfo() *BuildInfo {
 func init() {
 	cli.SetBuildInfo(func() cli.BuildInfo {
 		b := assemblyInfo
-		return cli.BuildInfo{App: b.App, Plugins: b.Plugins, Layouts: b.Layouts, Templates: b.Templates, Theme: b.Theme}
+		return cli.BuildInfo{App: b.App, Features: b.Features, Plugins: b.Plugins, Layouts: b.Layouts, Templates: b.Templates, Theme: b.Theme}
 	})
 }

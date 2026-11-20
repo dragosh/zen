@@ -64,9 +64,9 @@ func VersionLine() string {
 // BuildInfo is what an app's build is made of besides its add-ons (the
 // assembly, kit/assembly); `zenmd version --verbose` prints it.
 type BuildInfo struct {
-	App                         string
-	Plugins, Layouts, Templates []string
-	Theme                       string
+	App                                   string
+	Features, Plugins, Layouts, Templates []string
+	Theme                                 string
 }
 
 var buildInfo func() BuildInfo
@@ -76,7 +76,7 @@ var buildInfo func() BuildInfo
 func SetBuildInfo(f func() BuildInfo) { buildInfo = f }
 
 // VerboseVersion is the version line followed by the assembly, one line each:
-// app, add-ons, plugins, layouts, templates and theme.
+// app, features, add-ons, plugins, layouts, templates and theme.
 func VerboseVersion() string {
 	out := VersionLine() + "\n"
 	if buildInfo == nil {
@@ -94,6 +94,7 @@ func VerboseVersion() string {
 		return strings.Join(ids, ", ")
 	}
 	return out + "app: " + b.App + "\n" +
+		"features: " + list(b.Features) + "\n" +
 		"add-ons: " + list(addonIDs) + "\n" +
 		"plugins: " + list(b.Plugins) + "\n" +
 		"layouts: " + list(b.Layouts) + "\n" +
