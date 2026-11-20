@@ -74,7 +74,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 28 | [ui/shell-polish](ui/shell-polish/spec.md) | sidebar and Settings after testing: one heading, active footer buttons, Appearance and Markdown as item lists; `kit/ui/src/nav`, `settings.ts`, `layout.ts`, `shell.css` | ui/nav-panel, ui/settings-layout, ui/accessibility | done |
 | 29 | [engine/config-name](engine/config-name/spec.md) | the folder settings file becomes `.zenmd.yml`; `.zen.yml` is still read, shown under Problems and renamed on the first folder-settings write; templates, demo and docs follow | core/config, engine/session, ui/settings-layout | done |
 | 30 | [ui/inspector-details](ui/inspector-details/spec.md) | a problem's click jumps to it and marks it like a Vale mark, details on the right; the Build tab as a list with details; `kit/ui/src/{inspector,panel}`, `page/index.ts` | ui/inspector-polish, ui/lint, ui/find | done |
-| 30 | [app/logging](app/logging/spec.md) | the Console tells the app's story at debug/info/warn/error, folder-relative paths only, rate-limited debug, Info+ by default; `kit/desktop`, logging in `engine/session`, `apps/zenmark` | ui/developer-tab, #25 | in progress |
+| 30 | [app/logging](app/logging/spec.md) | the Console tells the app's story at debug/info/warn/error, folder-relative paths only, rate-limited debug, Info+ by default; `kit/desktop`, logging in `engine/session`, `apps/zenmark` | ui/developer-tab, #25 | done |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 
