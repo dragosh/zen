@@ -17,6 +17,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 - Find in page: ⌘F (Edit › Find) opens a find bar in the reader and the editor with a match count, next/previous (⌘G, ⇧⌘G) and a match-case toggle (#4).
 
 ### Changed
+- The folder settings file is now `.zenmd.yml`. A `.zen.yml` is still read, shown under Problems, and renamed the first time a folder setting is saved.
 - The sidebar shows the folder's name once and marks the open panel's button; Settings › Appearance lists Theme and Navigation, and Settings › Markdown lists Dialects, like the other sections.
 - The Inspector's columns can be resized and have the same padding in every tab; page warnings (an unknown layout, a dialect not in the build) are listed under Problems; what the build contains is the Inspector's Build tab, and Zenmark › About is the standard macOS panel again.
 - The sidebar has a header with the folder's logo (`.zen.yml` `logo:`), its title and a close button, and a footer with Settings, Export and Inspector; Settings › Appearance › Navigation puts it on the left or the right (#24).

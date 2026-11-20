@@ -72,7 +72,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 27 | [ui/accessibility](ui/accessibility/spec.md) | Settings › Accessibility: whole-window zoom (View › Zoom, ⌘+ ⌘− ⌘0), the reader's text size, font, line spacing, line width and link underlines, Reduce motion and Increase contrast; `kit/ui/src/shell/a11y.ts`, settings, reading variables in `runtime/src/css`, the View menu | ui/settings-layout, #25 | done |
 | 28 | [ui/inspector-polish](ui/inspector-polish/spec.md) | Inspector after testing: resizable columns, one padding, page warnings under Problems, a Build tab; About back to the macOS panel; `kit/ui/src/{panel,inspector}`, `page/index.ts`, `menu.go`, `app.go`, `shell.ts` | #25, ui/settings-layout | done |
 | 28 | [ui/shell-polish](ui/shell-polish/spec.md) | sidebar and Settings after testing: one heading, active footer buttons, Appearance and Markdown as item lists; `kit/ui/src/nav`, `settings.ts`, `layout.ts`, `shell.css` | ui/nav-panel, ui/settings-layout, ui/accessibility | done |
-| 29 | [engine/config-name](engine/config-name/spec.md) | the folder settings file becomes `.zenmd.yml`; `.zen.yml` is still read, shown under Problems and renamed on the first folder-settings write; templates, demo and docs follow | core/config, engine/session, ui/settings-layout | in progress |
+| 29 | [engine/config-name](engine/config-name/spec.md) | the folder settings file becomes `.zenmd.yml`; `.zen.yml` is still read, shown under Problems and renamed on the first folder-settings write; templates, demo and docs follow | core/config, engine/session, ui/settings-layout | done |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 
