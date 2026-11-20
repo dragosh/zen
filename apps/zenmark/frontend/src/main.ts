@@ -32,9 +32,6 @@ function zoom(dir: -1 | 0 | 1, from: "key" | "menu"): void {
   last = { dir, at: now, from };
   stepZoom(dir, setZoom);
 }
-for (const [event, dir] of [["menu:zoom-in", 1], ["menu:zoom-out", -1], ["menu:zoom-reset", 0]] as const) {
-  quiet(() => Events.On(event, () => { if (document.hasFocus()) zoom(dir, "menu"); }));
-}
 document.addEventListener("keydown", (e) => {
   const dir = zoomKey(e);
   if (dir === null) return;
@@ -42,7 +39,12 @@ document.addEventListener("keydown", (e) => {
   zoom(dir, "key");
 });
 void getApi().then(
-  (api) => createShell(document.getElementById("app")!, { api, features }).start(),
+  (api) => {
+    for (const [event, dir] of [["menu:zoom-in", 1], ["menu:zoom-out", -1], ["menu:zoom-reset", 0]] as const) {
+      api.on(event, () => { if (document.hasFocus()) zoom(dir, "menu"); });
+    }
+    return createShell(document.getElementById("app")!, { api, features }).start();
+  },
   (err) => {
     // Inside the app there is no fallback (zenmark-org/zenmd#1): say what went wrong.
     console.error("zen: could not reach the app", err);

@@ -571,3 +571,33 @@ func TestZoomMenuEnds(t *testing.T) {
 		}
 	}
 }
+
+// Every accelerator of the menu is one Wails parses (a bad one is only logged at run time and the key does nothing).
+// View's Zoom In is "CmdOrCtrl+Plus": the Wails parser reads "plus" as the key "+" (⌘+), and "CmdOrCtrl+-" as ⌘−.
+func TestMenuAcceleratorsParse(t *testing.T) {
+	for _, top := range menuSpec(true) {
+		for _, it := range append(append([]menuItem{}, top.Children...), childrenOf(top.Children)...) {
+			if it.Accel == "" {
+				continue
+			}
+			got := application.NewMenuItem(it.Label).SetAccelerator(it.Accel).GetAccelerator()
+			if got == "" {
+				t.Errorf("%s: accelerator %q is not valid for Wails", it.Label, it.Accel)
+			}
+		}
+	}
+	for accel, key := range map[string]string{"CmdOrCtrl+Plus": "+", "CmdOrCtrl+-": "-", "CmdOrCtrl+0": "0"} {
+		got := application.NewMenuItem("x").SetAccelerator(accel).GetAccelerator()
+		if !strings.HasSuffix(got, "+"+key) {
+			t.Errorf("%s parses to %q, want the key %q", accel, got, key)
+		}
+	}
+}
+
+func childrenOf(items []menuItem) []menuItem {
+	var out []menuItem
+	for _, it := range items {
+		out = append(out, it.Children...)
+	}
+	return out
+}

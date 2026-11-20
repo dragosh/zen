@@ -2,7 +2,7 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { A11Y_DEFAULTS, applyAccessibility, followAccessibility, resetAccessibility, setAccessibility, storedAccessibility, ZOOM_STEPS, zoomStep } from "./a11y";
+import { A11Y_DEFAULTS, applyAccessibility, reducedMotion, followAccessibility, resetAccessibility, setAccessibility, storedAccessibility, ZOOM_STEPS, zoomStep } from "./a11y";
 
 const root = document.documentElement;
 const A11Y_KEYS = () => Object.keys(localStorage).filter((k) => k.startsWith("zen.a11y."));
@@ -190,7 +190,7 @@ const read = (rel: string) => readFileSync(resolve(import.meta.dirname, "../../.
 const OWNED_CSS = [
   "runtime/src/css/base.css", "runtime/src/css/page.css",
   "kit/ui/src/styles/shell.css", "kit/ui/src/panel/panel.css", "kit/ui/src/print/preview.css", "kit/ui/src/find/find.css",
-  "kit/ui/src/nav/nav.css", "kit/ui/src/inspector/inspector.css", "kit/ui/src/shell/settings.css",
+  "kit/ui/src/nav/nav.css", "kit/ui/src/nav/panel.css", "kit/ui/src/inspector/inspector.css", "kit/ui/src/shell/settings.css",
 ];
 
 // The runtime's own stylesheets (base.css, page.css) are embedded in every built site, and a site, print and PDF must stay
@@ -248,4 +248,14 @@ test("the runtime stylesheets, which built sites and print use, are untouched; t
   const h1 = parse(shell, /^@media screen$/).find((r) => r.selectors[0].endsWith(" h1"));
   expect(h1?.decls).toMatch(/font-size: 1\.9764\d*em/);
   expect(2.1 * 16 / 17).toBeCloseTo(1.97647, 4);
+});
+
+test("reducedMotion: the option or the system", () => {
+  expect(reducedMotion(document)).toBe(false);
+  setAccessibility({ reduceMotion: "on" }, document);
+  expect(reducedMotion(document)).toBe(true);
+  resetAccessibility(document);
+  vi.stubGlobal("matchMedia", (q: string) => ({ matches: q.includes("prefers-reduced-motion") }));
+  window.matchMedia = (globalThis as unknown as { matchMedia: typeof window.matchMedia }).matchMedia;
+  expect(reducedMotion(document)).toBe(true);
 });

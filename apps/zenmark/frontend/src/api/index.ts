@@ -189,6 +189,8 @@ export interface Api extends KitHost {
   on(event: "menu:print-page", fn: () => void): () => void;
   /** Edit › Find… (⌘F), Find Next (⌘G), Find Previous (⇧⌘G): sent to every window, the one in front acts (ui/find). */
   on(event: "menu:find" | "menu:find-next" | "menu:find-previous", fn: () => void): () => void;
+  /** View › Actual Size, Zoom In, Zoom Out (⌘0, ⌘+, ⌘−): sent to every window, the one in front steps the zoom (ui/accessibility). */
+  on(event: "menu:zoom-in" | "menu:zoom-out" | "menu:zoom-reset", fn: () => void): () => void;
 }
 
 /**

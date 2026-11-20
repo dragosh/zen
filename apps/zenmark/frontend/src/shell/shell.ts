@@ -8,6 +8,7 @@ import {
   type Ctx, type Feature, type Inspector, type Layout, type Store,
 } from "@zenmd/kit";
 import { navSideRow } from "@zenmd/kit/shell/layout";
+import { applyAccessibility, storedAccessibility } from "@zenmd/kit/shell/a11y";
 import { BRAND } from "../brand";
 // ?no-inline: a file of the app, not a data: URL (the CSP allows images from 'self' only).
 import logoUrl from "../assets/logo.svg?no-inline";
@@ -125,6 +126,7 @@ const message = (err: unknown) => (err instanceof Error ? err.message : String(e
 
 export function createShell(root: HTMLElement, { api, features, search, random = Math.random, assetWaitMs = 1000 }: ShellOptions): Shell {
   const doc = root.ownerDocument;
+  applyAccessibility(storedAccessibility(), doc); // the options are on <html> before anything is rendered (ui/accessibility)
   const kind = windowKind(search ?? doc.defaultView?.location.search ?? "");
   const store = createStore();
   const history = createHistory();

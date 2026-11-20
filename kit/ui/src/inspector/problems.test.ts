@@ -188,3 +188,20 @@ test("a selected problem that goes away leaves the details empty", () => {
   i.setIssues([]);
   expect(i.el.querySelector(".zen-problem-details")!.textContent).toContain("Select a problem");
 });
+
+// ui/accessibility 11: Reduce motion = On reaches the JS scroll too, not only the CSS.
+test("Show scrolls smoothly, and not when Reduce motion is On", () => {
+  const spy = vi.fn();
+  (window.HTMLElement.prototype as unknown as { scrollIntoView: unknown }).scrollIntoView = spy;
+  const i = make();
+  rows(i)[0].click();
+  i.el.querySelector<HTMLButtonElement>('[data-action="show"]')!.click();
+  expect(spy.mock.calls.at(-1)![0]).toMatchObject({ behavior: "smooth" });
+  document.documentElement.dataset.reduceMotion = "on";
+  try {
+    i.el.querySelector<HTMLButtonElement>('[data-action="show"]')!.click();
+    expect(spy.mock.calls.at(-1)![0]).toMatchObject({ behavior: "auto" });
+  } finally {
+    delete document.documentElement.dataset.reduceMotion;
+  }
+});

@@ -414,7 +414,7 @@ const api: Api = {
       if (list.length) fn(list);
     });
   },
-  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "layouts:changed" | "menu:new-page" | "menu:settings" | "menu:about" | "menu:close-folder" | "workspace:opening" | "menu:new-site" | "menu:build-website" | "build:progress" | "menu:print-page" | "menu:find" | "menu:find-next" | "menu:find-previous", fn: (p: any) => void): () => void {
+  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "layouts:changed" | "menu:new-page" | "menu:settings" | "menu:about" | "menu:close-folder" | "workspace:opening" | "menu:new-site" | "menu:build-website" | "build:progress" | "menu:print-page" | "menu:find" | "menu:find-next" | "menu:find-previous" | "menu:zoom-in" | "menu:zoom-out" | "menu:zoom-reset", fn: (p: any) => void): () => void {
     if (event === "menu:new-page") return Events.On("menu:new-page", () => fn(undefined));
     if (event === "menu:settings") return Events.On("menu:settings", () => fn(undefined));
     if (event === "menu:about") return Events.On("menu:about", () => fn(undefined));
@@ -423,6 +423,7 @@ const api: Api = {
     if (event === "menu:build-website") return Events.On("menu:build-website", () => fn(undefined));
     if (event === "menu:print-page") return Events.On("menu:print-page", () => fn(undefined));
     if (event === "menu:find" || event === "menu:find-next" || event === "menu:find-previous") return Events.On(event, () => fn(undefined));
+    if (event === "menu:zoom-in" || event === "menu:zoom-out" || event === "menu:zoom-reset") return Events.On(event, () => fn(undefined));
     if (event === "build:progress") {
       return Events.On("build:progress", (e: { data: unknown }) => {
         const d = payload(e.data) as { done?: unknown; total?: unknown } | null;

@@ -383,3 +383,24 @@ test("without the find feature ⌘F is not taken", async () => {
   expect(e.defaultPrevented).toBe(false);
   expect(document.querySelector("[role=search]")).toBeNull();
 });
+
+// ui/accessibility 11: Reduce motion = On reaches the JS scroll too, not only the CSS.
+test("a same-page anchor scrolls smoothly, and not when Reduce motion is On", async () => {
+  const spy = vi.fn();
+  (window.HTMLElement.prototype as unknown as { scrollIntoView: unknown }).scrollIntoView = spy;
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await tick();
+  env.ctx.navigate("b.md");
+  await tick();
+  article().innerHTML = `<h2 id="x">X</h2><h2 id="y">Y</h2>`;
+  env.ctx.navigate("b.md", "x");
+  expect(spy.mock.calls.at(-1)![0]).toMatchObject({ behavior: "smooth" });
+  document.documentElement.dataset.reduceMotion = "on";
+  try {
+    env.ctx.navigate("b.md", "y");
+    expect(spy.mock.calls.at(-1)![0]).toMatchObject({ behavior: "auto" });
+  } finally {
+    delete document.documentElement.dataset.reduceMotion;
+  }
+});

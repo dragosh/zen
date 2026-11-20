@@ -72,10 +72,14 @@ person, not the folder, so they are kept per machine and apply to every window.
 - **`kit/ui/src/shell/settings.ts`**:
   - `accessibilitySection(doc, { reader, setZoom })`;
   - it uses the existing `zen-settings-segment` radio groups and a stepper (role `spinbutton`).
-- **`runtime/src/css/tokens.css`**: the four reading variables, with today's values as defaults. `page.css` uses them (`font: var(--zen-text-size)/var(--zen-line-height) var(--zen-text-font)`, `max-width: var(--zen-measure)`). Built sites and print get the defaults, so their output is unchanged byte for byte. The print stylesheet and the print preview reset the variables.
-- **Reduce motion:** each `@media (prefers-reduced-motion: reduce) { … }` block gets the same rules for `:root[data-reduce-motion="on"]`, written once per file as a shared selector list. No new animation.
-- **Contrast:** `tokens.css` has the `prefers-contrast: more` and `[data-contrast="more"]` overrides for both themes.
-- **Menu:** `apps/zenmark/menu.go` gets a View menu. Its items send `menu:zoom-in`, `menu:zoom-out` and `menu:zoom-reset`. The shell steps the zoom and saves it, so the menu and the keys share one code path. `keys.ts` handles ⌘= / ⌘+ / ⌘− / ⌘0 when the menu does not (the editor window, tests).
+- **CSS: `kit/ui/src/styles/shell.css`** (the app's own stylesheet; not `runtime/src/css`, whose `tokens.css`, `page.css` and `base.css` are embedded in every built site):
+  - **Built sites, print and PDF are unaffected by design.** `runtime/src/css/*` is not touched, so `_zen/zen.css` and the engine goldens stay byte for byte.
+  - The four reading variables are defined on `:root` with today's values. On screen only, `:root .zen-page:not([data-layout]):not(.zen-print-doc)` reads them (`font: var(--zen-text-size) / var(--zen-line-height) var(--zen-text-font)`, `max-width: var(--zen-measure)`). Layout pages, the print document and the print preview keep their own look.
+  - **Headings follow Text size:** in the page's stylesheet they are `rem`, so `shell.css` overrides them in `em` of the default 17 px (h1 1.97647em, h2 1.31765em, …): the same sizes at 17 px, and scaled with the text size otherwise.
+  - **Underline links:** `:root[data-link-underline="on"] .zen-page:not(.zen-print-doc) a`, on screen only.
+  - **Reduce motion:** each `@media (prefers-reduced-motion: reduce)` block gets the same rules for `:root[data-reduce-motion="on"]`, in the same file for the kit's stylesheets (`panel`, `print/preview`, `find`, `nav`, `settings`, `shell`) and in `shell.css` for the runtime's `base.css` and `page.css` blocks. `find.css` animates only for `no-preference`, so it gets `:root[data-reduce-motion="on"] .zen-find { animation: none; }`. JS that checks the media query (`page/index.ts`, `inspector/index.ts`) uses `reducedMotion(doc)` from `a11y.ts`, which also honours the attribute.
+  - **Contrast:** the `prefers-contrast: more` and `[data-contrast="more"]` overrides (`--fg-muted: var(--fg)`, `--rule` #888888 light and #7c7c7c dark, 3 px focus rings) are in `shell.css`, for both themes. Built sites do not follow `prefers-contrast`.
+- **Menu:** `apps/zenmark/menu.go` gets a View menu. Its items send `menu:zoom-in`, `menu:zoom-out` and `menu:zoom-reset`. The shell steps the zoom and saves it, so the menu and the keys share one code path. `keys.ts` (`zoomKey`) handles ⌘= / ⌘+ / ⌘− / ⌘0 when the menu does not. Zoom In's accelerator is `CmdOrCtrl+Plus` (Wails reads `plus` as the key `+`; ⌘= is the page's key handler). The window tells Go the zoom (`app:zoom`) so the menu items are disabled at 75% and 200%.
 - **Wiring:**
   - `apps/zenmark/frontend/src/main.ts` calls `followAccessibility` next to `followTheme`, before the shell mounts.
   - Settings adds the section after Appearance.
@@ -109,7 +113,7 @@ export function zoomStep(current: number, dir: 1 | -1 | 0): number; // 0 = Actua
 export function accessibilitySection(doc: () => Document, o: { reader: boolean; setZoom?: (z: number) => void }): SettingsSection;
 ```
 
-Events (Go → frontend): `menu:zoom-in`, `menu:zoom-out` and `menu:zoom-reset`, added to `Api.on` in `apps/zenmark/frontend/src/api/{index,wails,fake}.ts`.
+Events (Go → frontend): `menu:zoom-in`, `menu:zoom-out` and `menu:zoom-reset`, in `Api.on` (`api/{index,wails,fake}.ts`); `main.ts` listens with `api.on`. Frontend → Go: `app:zoom` (the factor).
 
 ## Tests
 
@@ -119,10 +123,10 @@ Events (Go → frontend): `menu:zoom-in`, `menu:zoom-out` and `menu:zoom-reset`,
 | 2 | Applies at once, stored, synced by the storage event, Reset | `kit/ui/src/shell/a11y.test.ts: "stores, applies and follows other windows"`, `"reset"` |
 | 3–4 | Zoom steps, the ends, the View menu items and keys | `a11y.test.ts: "zoomStep"`; `kit/ui/src/shell/keys.test.ts: "zoom keys"`; `apps/zenmark/menu_test.go: TestViewMenu` (the items, the shortcuts, and that the bare shell has it) |
 | 5–9 | The reading variables and the underline attribute are set | `a11y.test.ts: "reading options set the variables"` |
-| 10 | Print and built sites unchanged | `runtime` test: the print and static CSS reset or omit the variables; `engine/site` golden build output unchanged (existing goldens pass) |
+| 10 | Print and built sites unchanged | `a11y.test.ts: "the runtime stylesheets … are untouched"` (`runtime/src/css/*` has none of the new variables or attributes, and the page reads them in `shell.css` on screen only); `engine/session` `TestDemoBuildUnchanged` (golden build output unchanged) |
 | 11 | Reduce motion On matches every reduced-motion block | `a11y.test.ts: "every reduced-motion rule also matches data-reduce-motion"` (reads the owned CSS files and checks each `@media (prefers-reduced-motion` block has the `[data-reduce-motion="on"]` twin) |
-| 12 | Contrast overrides in both themes | `kit/ui/src/shell/tokens.test.ts: "increase contrast"` (muted = fg; rule contrast ≥ 3:1) |
-| 13 | Applied before first paint | `apps/zenmark/frontend/src/shell/shell.test.ts: "accessibility applied before mount"` |
+| 12 | Contrast overrides in both themes | `kit/ui/src/shell/tokens.test.ts: "increase contrast"` (reads `shell.css`: muted = fg; rule contrast ≥ 3:1; 3 px focus rings) |
+| 13 | Applied before first paint | `apps/zenmark/frontend/src/shell/shell.test.ts: "accessibility applied before mount"` (a feature's mount sees the attributes on `<html>`; `createShell` applies them first, and `main.ts` does it even earlier, before the api answers) |
 | 14 | Invalid stored values fall back; storage missing | `a11y.test.ts: "invalid values"`, `"no storage"` |
 
 Edge cases:

@@ -1224,3 +1224,28 @@ test("Navigation row: not on the home screen, where there is no sidebar", async 
   expect(root.querySelector(".zen-home-settings")).not.toBeNull();
   expect(navRow()).toBeNull();
 });
+
+// ui/accessibility 13: the options are on <html> before the shell's first render, so no window shows the defaults first.
+test("accessibility applied before mount", async () => {
+  localStorage.setItem("zen.a11y.contrast", "more");
+  localStorage.setItem("zen.a11y.reduceMotion", "on");
+  localStorage.setItem("zen.a11y.textSize", "22");
+  const root$ = document.documentElement;
+  delete root$.dataset.contrast;
+  delete root$.dataset.reduceMotion;
+  root$.style.removeProperty("--zen-text-size");
+  const seen: string[] = [];
+  const probe: Feature = {
+    id: "reader",
+    mount() { seen.push(`${root$.dataset.contrast}/${root$.dataset.reduceMotion}/${root$.style.getPropertyValue("--zen-text-size")}`); return () => {}; },
+  };
+  const s = boot(withWorkspace("README.md"), [probe]);
+  // before start(): createShell itself has applied them
+  expect(root$.dataset.contrast).toBe("more");
+  await s.start();
+  expect(seen.length).toBeGreaterThan(0);
+  expect(seen[0]).toBe("more/on/22px");
+  delete root$.dataset.contrast;
+  delete root$.dataset.reduceMotion;
+  root$.style.removeProperty("--zen-text-size");
+});
