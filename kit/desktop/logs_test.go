@@ -187,3 +187,71 @@ func TestStreamStops(t *testing.T) {
 		t.Errorf("%d events after stop", n)
 	}
 }
+
+func TestLogAppWritesAppEntries(t *testing.T) {
+	ring := NewLogRing(10)
+	prev := slog.Default()
+	slog.SetDefault(slog.New(NewLogHandler(ring, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	LogApp(slog.LevelInfo, "started", "version", "1.2")
+	LogApp(slog.LevelWarn, "careful")
+	LogApp(slog.LevelError, "broke", "method", "Page")
+	LogApp(slog.LevelDebug, "detail")
+	got := ring.Since(0)
+	want := []LogEntry{
+		{Level: "info", Source: "app", Message: "started version=1.2"},
+		{Level: "warn", Source: "app", Message: "careful"},
+		{Level: "error", Source: "app", Message: "broke method=Page"},
+		{Level: "debug", Source: "app", Message: "detail"},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("entries = %+v", got)
+	}
+	for i, w := range want {
+		if got[i].Level != w.Level || got[i].Source != w.Source || got[i].Message != w.Message {
+			t.Errorf("entry %d = %+v, want %+v", i, got[i], w)
+		}
+	}
+	if got[0].Seq != 1 {
+		t.Errorf("the first line has seq %d", got[0].Seq)
+	}
+}
+
+// Debug entries are limited per kind to 20 a second, then one "… N more" entry.
+func TestDebugRateLimit(t *testing.T) {
+	ring := NewLogRing(500)
+	log := slog.New(NewLogHandler(ring, nil))
+	for i := 0; i < 100; i++ {
+		log.Debug("file event", "n", i)
+	}
+	log.Debug("page rendered", "path", "a.md") // another kind has its own budget
+	log.Info("info is never limited")
+	for i := 0; i < 50; i++ {
+		log.Info("info", "n", i)
+	}
+	count := func(prefix string) (n int) {
+		for _, e := range ring.Since(0) {
+			if strings.HasPrefix(e.Message, prefix) {
+				n++
+			}
+		}
+		return
+	}
+	if n := count("file event"); n != 20 {
+		t.Errorf("%d debug entries of one kind in a second, want 20", n)
+	}
+	if count("page rendered") != 1 || count("info") != 51 {
+		t.Errorf("other kinds were limited: %+v", ring.Since(0))
+	}
+	waitFor(t, func() bool { return count("… 80 more") == 1 })
+	var more LogEntry
+	for _, e := range ring.Since(0) {
+		if strings.HasPrefix(e.Message, "… 80 more") {
+			more = e
+		}
+	}
+	if more.Level != "debug" {
+		t.Errorf("the summary is %+v", more)
+	}
+}
