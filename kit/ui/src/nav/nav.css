@@ -1,19 +1,4 @@
 /* ui/navigation: sidebar tree and breadcrumb. Tokens only. */
-.zen-nav-ws {
-  height: 44px;
-  flex: none;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  padding: 0 14px;
-  font-weight: 600;
-  border-bottom: 1px solid var(--rule);
-  white-space: nowrap;
-  overflow: hidden;
-}
-.zen-nav-ws-name { overflow: hidden; text-overflow: ellipsis; }
-.zen-nav-logo { width: 18px; height: 18px; flex: none; }
-
 .zen-nav-tree { flex: 1; min-height: 0; overflow: auto; padding: var(--space-2); font-family: var(--font-ui); position: relative; }
 .zen-nav-list, .zen-nav-group { list-style: none; margin: 0; padding: 0; }
 .zen-nav-item[aria-expanded="false"] > .zen-nav-group { display: none; }

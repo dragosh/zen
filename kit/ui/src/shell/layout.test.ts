@@ -1,4 +1,6 @@
 // @vitest-environment happy-dom
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { beforeEach, expect, test } from "vitest";
 import { INSPECTOR_STATE, INSPECTOR_TOGGLE } from "../inspector/events";
 import { createLayout, navSideRow, setNavSide, SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN, storedNavSide, WIDTH_KEY } from "./layout";
@@ -334,4 +336,54 @@ test("the Navigation row is a labelled radiogroup, Left and Right, that follows 
   row.remove();
   l.el.remove();
   l.destroy();
+});
+
+const foot = (l: ReturnType<typeof createLayout>) => ({
+  settings: l.el.querySelector<HTMLButtonElement>(".zen-sidebar-foot .zen-settings-button")!,
+  exp: l.el.querySelector<HTMLButtonElement>(".zen-export-button")!,
+  inspector: inspectorBtn(l),
+});
+
+test("active footer buttons", () => {
+  const l = createLayout();
+  const { settings, exp, inspector } = foot(l);
+  // none is active at first
+  expect(settings.getAttribute("aria-expanded")).toBe("false");
+  expect(exp.getAttribute("aria-pressed")).toBe("false");
+  expect(inspector.getAttribute("aria-expanded")).toBe("false");
+  l.setActive("settings", true);
+  l.setActive("export", true);
+  l.setActive("inspector", true);
+  expect(settings.getAttribute("aria-expanded")).toBe("true");
+  expect(exp.getAttribute("aria-pressed")).toBe("true");
+  expect(exp.hasAttribute("aria-expanded")).toBe(false);
+  expect(inspector.getAttribute("aria-expanded")).toBe("true");
+  l.setActive("export", false);
+  expect(exp.getAttribute("aria-pressed")).toBe("false");
+  expect(settings.getAttribute("aria-expanded")).toBe("true"); // the others stay
+  // setSettingsOpen is the same as setActive("settings")
+  l.setSettingsOpen(false);
+  expect(settings.getAttribute("aria-expanded")).toBe("false");
+  // the Inspector's own event still sets its state
+  state(true, false, 0);
+  expect(inspector.getAttribute("aria-expanded")).toBe("false");
+  state(true, true, 0);
+  expect(inspector.getAttribute("aria-expanded")).toBe("true");
+});
+
+test("active footer buttons: the CSS rule, in tokens, mirrored with the sidebar", () => {
+  const css = readFileSync(resolve(__dirname, "../styles/shell.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const rules = Array.from(css.matchAll(/([^{}]+)\{([^{}]*)\}/g)).filter((m) => /\.zen-settings-button[^,{]*(aria-pressed|aria-expanded)="true"/.test(m[1]));
+  expect(rules.length).toBeGreaterThan(0);
+  const all = rules.map((m) => m[1] + "{" + m[2]).join("\n");
+  expect(all).toContain('[aria-pressed="true"]');
+  expect(all).toContain('[aria-expanded="true"]');
+  expect(all).toMatch(/background:\s*var\(--btn-bg\)/);
+  expect(all).toMatch(/color:\s*var\(--fg\)/);
+  expect(all).toMatch(/box-shadow:\s*inset\s+-?2px\s+0\s+0\s+var\(--fg\)/);
+  expect(all).not.toMatch(/#[0-9a-f]{3,8}\b|rgba?\(/i);
+  // the bar is on the content side: it flips when the sidebar is on the right
+  expect(css).toMatch(/data-nav-side="right"[^{]*\.zen-settings-button/);
+  // hover is lighter than the active state: it only changes the colour
+  expect(css).not.toMatch(/\.zen-settings-button:hover[^{]*\{[^}]*background/);
 });

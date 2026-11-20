@@ -133,8 +133,13 @@ export type Layout = {
    * breadcrumb and actions are hidden, not unmounted. null brings the pane back.
    */
   showView(view: HTMLElement | null): void;
-  /** Reflects on the cog whether the Settings view is showing. */
+  /** Reflects on the cog whether the Settings view is showing (the same as setActive("settings", open)). */
   setSettingsOpen(open: boolean): void;
+  /**
+   * Marks a footer button as the open panel: aria-expanded on Settings and the Inspector, aria-pressed on Export
+   * (Settings › Export shows). The Inspector also follows the page's INSPECTOR_STATE events.
+   */
+  setActive(button: "settings" | "export" | "inspector", on: boolean): void;
   /** Puts a panel at the bottom of the content area, below the page (and Settings); null removes it (a build with `developer` but not `inspector` puts its Console panel here). */
   setBottomPanel(panel: HTMLElement | null): void;
   destroy(): void;
@@ -183,6 +188,7 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
   doc.addEventListener(INSPECTOR_STATE, onInspector);
   const exportBtn = button("Export", () => handlers.onExport?.(), { className: "ghost zen-settings-button zen-export-button", text: "", title: "Export ⇧⌘B" });
   exportBtn.append(exportIcon(doc));
+  exportBtn.setAttribute("aria-pressed", "false");
   foot.append(settings, exportBtn, inspector);
 
   // The header: the folder's logo (an img, never inline SVG: a script in it never runs), its title and ×.
@@ -309,7 +315,11 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
       main.hidden = actions.hidden = breadcrumb.hidden = next !== null;
     },
     setSettingsOpen(open) {
-      settings.setAttribute("aria-expanded", String(open));
+      layout.setActive("settings", open);
+    },
+    setActive(which, on) {
+      if (which === "export") exportBtn.setAttribute("aria-pressed", String(on));
+      else (which === "settings" ? settings : inspector).setAttribute("aria-expanded", String(on));
     },
     setBottomPanel(panel) {
       bottom?.remove();

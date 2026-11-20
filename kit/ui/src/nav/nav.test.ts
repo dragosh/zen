@@ -1,6 +1,8 @@
 // @vitest-environment happy-dom
 // The sidebar of a read-only app (kit/features): no editing items, no reordering.
 import { afterEach, beforeEach, expect, test } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { createFakeApi, type FakeApi } from "../../../../apps/zenmark/frontend/src/api/fake";
 import type { NavNode, Workspace } from "../host";
 import { createStore } from "../shell/store";
@@ -55,4 +57,17 @@ test("with the editor the menu has every item", () => {
   const nav = mount(api);
   row(nav, "guides/beta.md").dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: 30, clientY: 40 }));
   expect(labels()).toEqual(["Open", "Open in Editor", "New Page Here…", "Move Up", "Move Down", "Copy Path", "Copy Link", "Reveal in Finder", "Hide from Sidebar"]);
+});
+
+test("one heading", () => {
+  const api = createFakeApi();
+  const nav = mount(api);
+  // the sidebar header (layout) is the only heading: the old folder row is gone, and so is its CSS
+  expect(nav.querySelector(".zen-nav-ws, .zen-nav-ws-name")).toBeNull();
+  expect(nav.textContent).not.toContain("docs");
+  expect(readFileSync(resolve(__dirname, "nav.css"), "utf8")).not.toContain("zen-nav-ws");
+  // the status under the tree is still there, below the tree
+  const status = nav.querySelector<HTMLElement>(".zen-nav-status")!;
+  expect(status.getAttribute("role")).toBe("status");
+  expect(nav.querySelector(".zen-nav-tree")!.nextElementSibling).toBe(status);
 });

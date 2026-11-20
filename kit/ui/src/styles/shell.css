@@ -94,7 +94,17 @@
   justify-content: center;
   color: var(--fg-muted);
 }
-.zen-settings-button:hover, .zen-settings-button[aria-expanded="true"] { color: var(--fg); }
+.zen-settings-button:hover { color: var(--fg); }
+/* The button of the panel or view that is open: a filled background, the icon in full strength and a 2px bar on the
+   side next to the content (mirrored when the sidebar is on the right). Hover only changes the colour, so it stays lighter. */
+.zen-settings-button[aria-expanded="true"], .zen-settings-button[aria-pressed="true"] {
+  background: var(--btn-bg);
+  color: var(--fg);
+  box-shadow: inset -2px 0 0 var(--fg);
+}
+.zen-frame[data-nav-side="right"] .zen-settings-button[aria-expanded="true"], .zen-frame[data-nav-side="right"] .zen-settings-button[aria-pressed="true"] {
+  box-shadow: inset 2px 0 0 var(--fg);
+}
 .zen-settings-button { position: relative; }
 .zen-icon { display: block; }
 

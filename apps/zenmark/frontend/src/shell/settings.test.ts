@@ -121,17 +121,45 @@ test("every section is two columns, and the arrows of the section list move thro
 
 // ---- appearance
 
-test("appearance: the theme is the list, and the old theme tests still hold", async () => {
-  const { s } = setup();
+test("appearance items", async () => {
+  const nav = Object.assign(document.createElement("div"), { className: "my-nav-row", textContent: "Left / Right" });
+  nav.setAttribute("aria-label", "Navigation");
+  const { s } = setup({ view: { appearanceExtra: [nav] } });
   await settle();
-  expect(rows(s, "appearance").map((r) => r.dataset.item)).toEqual(["system", "light", "dark"]);
-  row(s, "appearance", "dark").click();
+  // Theme, then Navigation, vertically, like Accessibility
+  expect(rows(s, "appearance").map((r) => r.dataset.item)).toEqual(["theme", "extra-0"]);
+  expect(rows(s, "appearance").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["Theme", "Navigation"]);
+  expect(row(s, "appearance", "theme").getAttribute("aria-selected")).toBe("true");
+  // the theme radios and the preview are in the right column, and the theme applies at once
+  const radios = () => Array.from(detail(s, "appearance").querySelectorAll<HTMLElement>('[role="radiogroup"][aria-label="Theme"] [role=radio]'));
+  expect(radios().map((r) => r.textContent)).toEqual(["System", "Light", "Dark"]);
+  const preview = () => detail(s, "appearance").querySelector<HTMLElement>(".zen-theme-preview")!;
+  expect(preview().dataset.theme).toBe("system");
+  expect(detail(s, "appearance").querySelector(".my-nav-row")).toBeNull();
+  radios()[2].click();
   expect(document.documentElement.dataset.theme).toBe("dark");
   expect(storedTheme()).toBe("dark");
+  expect(preview().dataset.theme).toBe("dark");
+  expect(radios()[2].getAttribute("aria-checked")).toBe("true");
+  // Navigation shows its row, without the theme's controls
+  row(s, "appearance", "extra-0").click();
+  expect(detail(s, "appearance").querySelector("h3")!.textContent).toBe("Navigation");
+  expect(detail(s, "appearance").querySelector(".my-nav-row")).toBe(nav);
+  expect(detail(s, "appearance").querySelector(".zen-theme-preview")).toBeNull();
+  // another window changed the theme: showing the page again reads it
+  row(s, "appearance", "theme").click();
   localStorage.removeItem(THEME_KEY);
   s.show();
   await settle();
-  expect(row(s, "appearance", "system").getAttribute("aria-selected")).toBe("true");
+  expect(preview().dataset.theme).toBe("system");
+  expect(radios()[0].getAttribute("aria-checked")).toBe("true");
+});
+
+test("appearance items: without nav there is only Theme", async () => {
+  const { s } = setup({ view: { appearanceExtra: [] } });
+  await settle();
+  expect(rows(s, "appearance").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["Theme"]);
+  expect(detail(s, "appearance").querySelector(".zen-theme-preview")).not.toBeNull();
 });
 
 // ---- 4: configuration
@@ -216,24 +244,33 @@ test("configuration preview is text", async () => {
 test("markdown section", async () => {
   const { api, s } = setup({ dialects: [{ ...MYST_DIALECT }, { id: "x", name: "<b>X</b>", summary: "<i>s</i>", on: true }] });
   await go(s, "markdown");
-  expect(rows(s, "markdown").map((r) => [r.dataset.item, r.querySelector(".zen-settings-item-note")!.textContent])).toEqual([["myst", "Off"], ["x", "On"]]);
-  const box = () => detail(s, "markdown").querySelector<HTMLInputElement>('input[type="checkbox"]')!;
-  expect(detail(s, "markdown").querySelector("h3")!.textContent).toBe("MyST");
+  // one item, Dialects, selected by default; the dialects are in the right column
+  expect(rows(s, "markdown").map((r) => [r.dataset.item, r.querySelector(".zen-settings-item-label")!.textContent])).toEqual([["dialects", "Dialects"]]);
+  expect(row(s, "markdown", "dialects").getAttribute("aria-selected")).toBe("true");
+  expect(detail(s, "markdown").querySelector("h3")!.textContent).toBe("Dialects");
+  expect(detail(s, "markdown").textContent).not.toContain("CommonMark");
+  const entries = () => Array.from(detail(s, "markdown").querySelectorAll<HTMLElement>(".zen-dialect-entry"));
+  expect(entries().map((e) => e.dataset.dialect)).toEqual(["myst", "x"]);
+  const box = (id = "myst") => detail(s, "markdown").querySelector<HTMLInputElement>(`input[type="checkbox"][data-dialect="${id}"]`)!;
   expect(box().checked).toBe(false);
   expect(box().disabled).toBe(false);
+  expect(box("x").checked).toBe(true);
+  // the first is selected: its summary, syntax sample and rendered preview show; the other one's do not
+  const pick = (id: string) => detail(s, "markdown").querySelector<HTMLButtonElement>(`.zen-dialect-entry[data-dialect="${id}"] .zen-dialect-pick`)!;
+  expect(pick("myst").getAttribute("aria-expanded")).toBe("true");
+  expect(pick("x").getAttribute("aria-expanded")).toBe("false");
   expect(detail(s, "markdown").textContent).toContain(MYST_DIALECT.summary);
-  // the syntax sample, and its rendered preview through api.preview
   const sample = detail(s, "markdown").querySelector("pre")!;
   expect(sample.textContent).toContain("{note}");
   expect(api.callsTo("preview")).toHaveLength(1);
   expect(api.callsTo("preview")[0][1]).toBe(sample.textContent);
   expect(detail(s, "markdown").querySelector(".zen-page")).not.toBeNull();
-  // turning it on writes the folder and the list shows it
+  // turning it on writes the folder and the state shows
   box().click();
   await settle();
   expect(api.callsTo("setDialect")).toEqual([["myst", true]]);
-  expect(row(s, "markdown", "myst").querySelector(".zen-settings-item-note")!.textContent).toBe("On");
   expect(box().checked).toBe(true);
+  expect(pick("myst").getAttribute("aria-expanded")).toBe("true"); // the selection stays
   // a refused change puts the box back and says why
   api.failNext("setDialect", new Error("could not save .zen.yml"));
   box().click();
@@ -241,9 +278,11 @@ test("markdown section", async () => {
   expect(box().checked).toBe(true);
   expect(detail(s, "markdown").querySelector("[role=status]")!.textContent).toContain("could not save .zen.yml");
   // names and summaries are text
-  row(s, "markdown", "x").click();
+  pick("x").click();
   await settle();
-  expect(detail(s, "markdown").querySelector("h3")!.textContent).toBe("<b>X</b>");
+  expect(pick("x").textContent).toBe("<b>X</b>");
+  expect(pick("x").getAttribute("aria-expanded")).toBe("true");
+  expect(pick("myst").getAttribute("aria-expanded")).toBe("false");
   expect(panel(s, "markdown").querySelector("b, i")).toBeNull();
   expect(detail(s, "markdown").querySelector("pre")).toBeNull(); // no sample for a dialect that does not give one
 });
@@ -257,10 +296,12 @@ test("markdown section: no folder or a read-only app disables the switch; no dia
   await go(ro.s, "markdown");
   expect(detail(ro.s, "markdown").querySelector<HTMLInputElement>("input")!.disabled).toBe(true);
   expect(detail(ro.s, "markdown").textContent).toContain("read-only");
+  // no dialects: still the Dialects item, with one short line and no CommonMark sentence
   const empty = setup({ dialects: [] });
   await go(empty.s, "markdown");
-  expect(rows(empty.s, "markdown")).toHaveLength(0);
-  expect(detail(empty.s, "markdown").textContent).toBe("This build reads CommonMark and GFM only.");
+  expect(rows(empty.s, "markdown").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["Dialects"]);
+  expect(detail(empty.s, "markdown").textContent).toBe("DialectsNo dialects in this build.");
+  expect(detail(empty.s, "markdown").textContent).not.toContain("CommonMark");
 });
 
 test("markdown section: switching folders refreshes the dialect states", async () => {
@@ -272,7 +313,7 @@ test("markdown section: switching folders refreshes the dialect states", async (
   s.show();
   await settle();
   expect(api.callsTo("dialects").length).toBeGreaterThan(before);
-  expect(row(s, "markdown", "myst").querySelector(".zen-settings-item-note")!.textContent).toBe("On");
+  expect(detail(s, "markdown").querySelector<HTMLInputElement>('input[data-dialect="myst"]')!.checked).toBe(true);
 });
 
 // ---- 6: plugin, layout and template lists
@@ -825,12 +866,3 @@ describe("Accessibility section", () => {
   });
 });
 
-test("appearanceExtra: the extra rows show in Appearance", async () => {
-  const extra = Object.assign(document.createElement("div"), { className: "my-extra-row", textContent: "Left / Right" });
-  const { s } = setup({ view: { appearanceExtra: [extra] } });
-  await settle();
-  expect(detail(s, "appearance").querySelector(".my-extra-row")).toBe(extra);
-  expect(detail(s, "appearance").querySelector(".zen-theme-preview")).not.toBeNull();
-  // the preview is before the extra row
-  expect(detail(s, "appearance").querySelector(".zen-theme-preview")!.compareDocumentPosition(extra) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-});
