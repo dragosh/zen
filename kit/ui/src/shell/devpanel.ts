@@ -2,7 +2,7 @@
 // full on the right (panel columns); the source dropdown, the level and text filters, Clear and Copy
 // go into the header slot the Inspector gives it. Memory is bounded (MAX_ENTRIES). All text through textContent.
 import type { KitHost, LogEntry, LogLevel } from "../host";
-import { panelColumns } from "../panel";
+import { panelColumns, panelEmpty } from "../panel";
 import { copyText } from "./clipboard";
 import type { ConsoleCapture } from "./console";
 import { button, el } from "./dom";
@@ -104,7 +104,9 @@ export function createConsoleTab({ doc, host, capture, tools }: ConsoleTabOption
   list.tabIndex = 0;
   const jump = button("Jump to latest", () => { follow = true; jump.hidden = true; toBottom(); }, { className: "zen-dev-jump" });
   jump.hidden = true;
-  const empty = el("p", "zen-dev-empty", "No log entries yet.");
+  // The panel's own empty state, padded like every tab (docs/UI.md, UI consistency).
+  const empty = panelEmpty("No log entries yet.");
+  empty.classList.add("zen-dev-empty");
   cols.left.classList.add("zen-console-list");
   cols.left.append(list, jump);
   const details = el("div", "zen-console-details");
@@ -151,7 +153,9 @@ export function createConsoleTab({ doc, host, capture, tools }: ConsoleTabOption
   }
   function renderDetails(): void {
     if (!selected) {
-      details.replaceChildren(el("p", "zen-console-hint", "Select an entry"));
+      const hint = panelEmpty("Select an entry");
+      hint.classList.add("zen-console-hint");
+      details.replaceChildren(hint);
       return;
     }
     const e = selected;

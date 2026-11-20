@@ -489,7 +489,6 @@ h4.zen-plugin-help-title { font-size: 14px; }
 .zen-dev-row[data-level="warn"] .zen-dev-level, .zen-dev-row[data-level="warn"] .zen-dev-msg { color: var(--lint-warning, #b8860b); }
 .zen-dev-row[data-level="error"] .zen-dev-level, .zen-dev-row[data-level="error"] .zen-dev-msg { color: var(--lint-error, #d1242f); }
 .zen-dev-row[data-level="debug"] .zen-dev-msg { color: var(--fg-muted); }
-.zen-dev-empty, .zen-console-hint { margin: 0; padding: var(--space-4) var(--space-3); color: var(--fg-muted); font-family: var(--font-ui); }
 .zen-dev-jump { position: absolute; right: var(--space-3); bottom: var(--space-3); font-size: 12px; box-shadow: 0 0 0 1px var(--rule); }
 .zen-dev-jump[hidden] { display: none; }
 

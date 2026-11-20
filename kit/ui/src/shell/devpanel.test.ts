@@ -58,6 +58,13 @@ test("empty state", async () => {
   expect(panel.el.querySelector(".zen-dev-empty")).toBeNull();
 });
 
+// UI consistency (docs/UI.md): the Console's empty states are the panel's, padded like every other tab.
+test("the Console's empty states are the shared panel empty state, with no padding of their own", async () => {
+  await open();
+  expect(panel.el.querySelector(".zen-dev-empty")!.classList.contains("zen-panel-empty")).toBe(true);
+  expect(panel.el.querySelector(".zen-console-hint")!.classList.contains("zen-panel-empty")).toBe(true);
+});
+
 test("the source dropdown filters: All, App, Plugins, Page (the page's own console)", async () => {
   await open([entry("info", "app", "a1"), entry("warn", "plugin", "p1")]);
   console.log("c1");

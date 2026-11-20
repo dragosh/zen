@@ -93,15 +93,17 @@ export function createSettingsView(opts: {
   }
   const config: SettingsSection = { id: "config", label: "Configuration", items: configItems, render: renderConfig };
 
-  // ---- Markdown: the dialects of the build, each on or off for this folder (saved in the folder's .zen.yml)
+  // ---- Markdown: the syntaxes are the items, like Plugins and Layouts (docs/UI.md, UI consistency).
+  // CommonMark and GFM come first and are always on; each dialect of the build is on or off for this folder
+  // (saved in its .zen.yml). The right column has the selected one's switch, summary, sample and preview.
 
   let dialects: DialectInfo[] = [];
   let dialectFailure = "";
-  /** The dialect whose summary, sample and preview show; kept while the list is drawn again. */
-  let pickedDialect = "";
+  /** The selected item, kept while the list is read again (after a switch). */
+  let pickedSyntax = "";
+  const BASE_SYNTAX = "commonmark";
   const markdown: SettingsSection = {
     id: "markdown", label: "Markdown",
-    // One item, Dialects, in every build; what the build has is in its right column.
     items: async () => {
       dialectFailure = "";
       try {
@@ -109,88 +111,62 @@ export function createSettingsView(opts: {
       } catch (err) {
         dialects = [];
         dialectFailure = `Could not read the markdown syntaxes: ${message(err)}`;
+        return []; // the failure stands in the left column (empty)
       }
-      return [{ id: "dialects", label: "Dialects" }];
+      return [
+        { id: BASE_SYNTAX, label: "CommonMark and GFM", note: "Always on" },
+        ...dialects.map((d) => ({ id: d.id, label: d.name, note: d.on ? "On" : "Off" })),
+      ];
     },
-    render(_item, right) {
-      // CommonMark and GFM: what every folder reads, listed first and always on.
-      const baseEntry = (): HTMLElement => {
-        const entry = el("div", "zen-dialect-entry");
-        entry.dataset.dialect = "commonmark";
-        const head = el("div", "zen-dialect");
-        const box = el("input");
-        box.type = "checkbox";
-        box.checked = true;
-        box.disabled = true;
-        box.setAttribute("aria-label", "CommonMark and GFM, always on");
-        head.append(box, el("span", "zen-dialect-pick", "CommonMark and GFM"), el("span", "zen-settings-item-note", "Always on"));
-        entry.append(head);
-        return entry;
-      };
-      if (!dialects.length) {
-        right.append(el("div", "zen-dialect-list"));
-        right.lastElementChild!.append(baseEntry());
-        if (dialectFailure) right.append(el("p", "zen-settings-hint", dialectFailure));
+    empty: () => dialectFailure,
+    current: () => pickedSyntax || undefined,
+    onPick: (it) => { pickedSyntax = it.id; },
+    render(item, right) {
+      if (item.id === BASE_SYNTAX) {
+        right.append(
+          el("p", "zen-addon-summary", "Every folder reads CommonMark and GitHub Flavored Markdown: tables, task lists, strikethrough, autolinks and footnotes."),
+          el("p", "zen-settings-hint", "Always on; the dialects below add other syntaxes for the same plugins."),
+        );
         return;
       }
+      const d = dialects.find((x) => x.id === item.id);
+      if (!d) return;
       let gone = false;
       const open = opts.hasWorkspace();
       const editable = hasFeature(api, "editor");
       const reason = !open ? "Open a folder to choose its markdown syntaxes." : !editable ? "This app is read-only, so the folder's settings cannot be changed." : "";
-      if (!dialects.some((x) => x.id === pickedDialect)) pickedDialect = dialects[0].id;
       const status = el("p", "zen-settings-status");
       status.setAttribute("role", "status");
-      const list = el("div", "zen-dialect-list");
-      const draw = () => {
-        list.replaceChildren(baseEntry());
-        for (const d of dialects) {
-          const selected = d.id === pickedDialect;
-          const entry = el("div", "zen-dialect-entry");
-          entry.dataset.dialect = d.id;
-          const head = el("div", "zen-dialect");
-          const box = el("input");
-          box.type = "checkbox";
-          box.dataset.dialect = d.id;
-          box.checked = d.on;
-          box.disabled = reason !== "";
-          box.setAttribute("aria-label", `Use ${d.name} in this folder`);
-          box.addEventListener("change", () => {
-            const want = box.checked;
-            status.textContent = "";
-            api.setDialect(d.id, want).then(() => { if (!gone) reloadSettings(box); }, (err) => {
-              box.checked = !want;
-              status.textContent = `Could not save ${d.name}: ${message(err)}`;
-            });
-          });
-          const pick = el("button", "zen-dialect-pick", d.name);
-          pick.type = "button";
-          pick.setAttribute("aria-expanded", String(selected));
-          pick.addEventListener("click", () => { pickedDialect = d.id; draw(); });
-          head.append(box, pick, el("span", "zen-settings-item-note", d.on ? "On" : "Off"));
-          entry.append(head);
-          if (selected) entry.append(dialectDetail(d));
-          list.append(entry);
-        }
-      };
-      const dialectDetail = (d: DialectInfo): HTMLElement => {
-        const box = el("div", "zen-dialect-detail");
-        box.append(el("p", "zen-addon-summary zen-dialect-summary", d.summary));
-        if (reason) box.append(el("p", "zen-settings-hint", reason));
-        else box.append(el("p", "zen-settings-hint", "Saved in this folder's .zen.yml, so the folder renders the same everywhere."));
-        const sample = DIALECT_SAMPLES[d.id];
-        if (sample) {
-          box.append(el("h4", "zen-plugin-section", "Syntax"), Object.assign(el("pre", "zen-settings-file-preview"), { textContent: sample }), el("h4", "zen-plugin-section", "Rendered"));
-          const shown = el("div", "zen-page zen-dialect-preview");
-          box.append(shown);
-          if (!d.on) box.append(el("p", "zen-settings-hint", "Turn it on to see the syntax rendered in this folder."));
-          api.preview("zen-dialect-sample.md", sample).then((page) => {
-            if (!gone && shown.isConnected) mountPage(shown, page);
-          }).catch(() => { /* the sample stays without a preview */ });
-        }
-        return box;
-      };
-      draw();
-      right.append(list, status);
+      const label = el("label", "zen-settings-check");
+      const box = el("input");
+      box.type = "checkbox";
+      box.dataset.dialect = d.id;
+      box.checked = d.on;
+      box.disabled = reason !== "";
+      box.addEventListener("change", () => {
+        const want = box.checked;
+        status.textContent = "";
+        api.setDialect(d.id, want).then(() => { if (!gone) reloadSettings(box); }, (err) => {
+          box.checked = !want;
+          status.textContent = `Could not save ${d.name}: ${message(err)}`;
+        });
+      });
+      label.append(box, document.createTextNode(` Use ${d.name} in this folder`));
+      right.append(
+        label, status,
+        el("p", "zen-addon-summary zen-dialect-summary", d.summary),
+        el("p", "zen-settings-hint", reason || "Saved in this folder's .zen.yml, so the folder renders the same everywhere."),
+      );
+      const sample = DIALECT_SAMPLES[d.id];
+      if (sample) {
+        right.append(el("h4", "zen-plugin-section", "Syntax"), Object.assign(el("pre", "zen-settings-file-preview"), { textContent: sample }), el("h4", "zen-plugin-section", "Rendered"));
+        const shown = el("div", "zen-page zen-dialect-preview");
+        right.append(shown);
+        if (!d.on) right.append(el("p", "zen-settings-hint", "Turn it on to see the syntax rendered in this folder."));
+        api.preview("zen-dialect-sample.md", sample).then((page) => {
+          if (!gone && shown.isConnected) mountPage(shown, page);
+        }).catch(() => { /* the sample stays without a preview */ });
+      }
       return () => { gone = true; };
     },
   };

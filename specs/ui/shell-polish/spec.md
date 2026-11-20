@@ -30,6 +30,12 @@ Markdown use the same list on the left as every other section.
 
    The CommonMark/GFM sentence is removed.
 
+5. **Changed after testing (UI consistency, docs/UI.md):**
+   - **Markdown:** the syntaxes are the items, like Plugins and Layouts: **CommonMark and GFM** (Always on) first, then each dialect with On/Off. The right column has the selected one's switch, summary, sample and preview. A failure to read them stands in the left column.
+   - **Every section:** the empty text is in the left column.
+   - **Navigation:** it is also in Settings on the home screen.
+   - **Console:** its empty states are the panel's own.
+
 ## Architecture
 
 - **`kit/ui/src/nav/index.ts`:** drop the `zen-nav-ws` header and its CSS. Move any status it carried (search for its uses) under the tree.

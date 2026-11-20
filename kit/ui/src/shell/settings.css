@@ -60,9 +60,3 @@
 :root[data-reduce-motion="on"] .zen-settings-item { transition: none; }
 .zen-settings-detail .zen-navside-title { display: none; } /* the item is already the title */
 /* Markdown › Dialects: each dialect with its switch; the chosen one opens its summary, sample and preview. */
-.zen-dialect-entry { padding: var(--space-2) 0; border-bottom: 1px solid var(--rule); }
-.zen-dialect { display: flex; align-items: center; gap: var(--space-2); }
-.zen-dialect-pick { flex: 1; text-align: left; background: none; border: 0; color: var(--fg); font: inherit; cursor: pointer; padding: 2px 0; }
-.zen-dialect-pick[aria-expanded="true"] { font-weight: 600; }
-.zen-dialect-pick:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.zen-dialect-detail { margin-top: var(--space-2); }

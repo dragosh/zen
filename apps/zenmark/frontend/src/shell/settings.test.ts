@@ -244,77 +244,72 @@ test("configuration preview is text", async () => {
 
 // ---- 5: markdown
 
-test("markdown section", async () => {
+test("markdown section: the syntaxes are the items, like Plugins and Layouts; the selected one's switch, summary and sample are on the right", async () => {
   const { api, s } = setup({ dialects: [{ ...MYST_DIALECT }, { id: "x", name: "<b>X</b>", summary: "<i>s</i>", on: true }] });
   await go(s, "markdown");
-  // one item, Dialects, selected by default; the dialects are in the right column
-  expect(rows(s, "markdown").map((r) => [r.dataset.item, r.querySelector(".zen-settings-item-label")!.textContent])).toEqual([["dialects", "Dialects"]]);
-  expect(row(s, "markdown", "dialects").getAttribute("aria-selected")).toBe("true");
-  expect(detail(s, "markdown").querySelector("h3")!.textContent).toBe("Dialects");
-  const entries = () => Array.from(detail(s, "markdown").querySelectorAll<HTMLElement>(".zen-dialect-entry[data-dialect]:not([data-dialect=commonmark])"));
-  expect(entries().map((e) => e.dataset.dialect)).toEqual(["myst", "x"]);
-  const box = (id = "myst") => detail(s, "markdown").querySelector<HTMLInputElement>(`input[type="checkbox"][data-dialect="${id}"]`)!;
-  expect(box().checked).toBe(false);
-  expect(box().disabled).toBe(false);
-  expect(box("x").checked).toBe(true);
-  // the first is selected: its summary, syntax sample and rendered preview show; the other one's do not
-  const pick = (id: string) => detail(s, "markdown").querySelector<HTMLButtonElement>(`.zen-dialect-entry[data-dialect="${id}"] .zen-dialect-pick`)!;
-  expect(pick("myst").getAttribute("aria-expanded")).toBe("true");
-  expect(pick("x").getAttribute("aria-expanded")).toBe("false");
+  // the left column: CommonMark and GFM first, always on, then the build's dialects with their state
+  expect(rows(s, "markdown").map((r) => [r.dataset.item, r.querySelector(".zen-settings-item-label")!.textContent, r.querySelector(".zen-settings-item-note")?.textContent])).toEqual([
+    ["commonmark", "CommonMark and GFM", "Always on"], ["myst", "MyST", "Off"], ["x", "<b>X</b>", "On"],
+  ]);
+  expect(row(s, "markdown", "commonmark").getAttribute("aria-selected")).toBe("true"); // selected by default
+  expect(detail(s, "markdown").querySelector("h3")!.textContent).toBe("CommonMark and GFM");
+  expect(detail(s, "markdown").textContent).toContain("tables");
+  expect(detail(s, "markdown").querySelector("input")).toBeNull(); // nothing to switch: always on
+  // nothing that lists items is in the right column
+  expect(detail(s, "markdown").querySelector(".zen-dialect-list, .zen-dialect-entry")).toBeNull();
+  // a dialect: its switch, summary, sample and preview
+  row(s, "markdown", "myst").click();
+  await settle();
+  expect(detail(s, "markdown").querySelector("h3")!.textContent).toBe("MyST");
+  const box = () => detail(s, "markdown").querySelector<HTMLInputElement>('input[type="checkbox"][data-dialect]')!;
+  expect([box().checked, box().disabled]).toEqual([false, false]);
   expect(detail(s, "markdown").textContent).toContain(MYST_DIALECT.summary);
   const sample = detail(s, "markdown").querySelector("pre")!;
   expect(sample.textContent).toContain("{note}");
-  expect(api.callsTo("preview")).toHaveLength(1);
-  expect(api.callsTo("preview")[0][1]).toBe(sample.textContent);
+  expect(api.callsTo("preview").at(-1)![1]).toBe(sample.textContent);
   expect(detail(s, "markdown").querySelector(".zen-page")).not.toBeNull();
-  // turning it on writes the folder and the state shows
+  // turning it on writes the folder; the list's note follows and the selection stays
   box().click();
   await settle();
   expect(api.callsTo("setDialect")).toEqual([["myst", true]]);
   expect(box().checked).toBe(true);
-  expect(pick("myst").getAttribute("aria-expanded")).toBe("true"); // the selection stays
+  expect(row(s, "markdown", "myst").getAttribute("aria-selected")).toBe("true");
+  expect(row(s, "markdown", "myst").querySelector(".zen-settings-item-note")!.textContent).toBe("On");
   // a refused change puts the box back and says why
   api.failNext("setDialect", new Error("could not save .zen.yml"));
   box().click();
   await settle();
   expect(box().checked).toBe(true);
   expect(detail(s, "markdown").querySelector("[role=status]")!.textContent).toContain("could not save .zen.yml");
-  // names and summaries are text
-  pick("x").click();
+  // names and summaries are text; a dialect without a sample shows none
+  row(s, "markdown", "x").click();
   await settle();
-  expect(pick("x").textContent).toBe("<b>X</b>");
-  expect(pick("x").getAttribute("aria-expanded")).toBe("true");
-  expect(pick("myst").getAttribute("aria-expanded")).toBe("false");
   expect(panel(s, "markdown").querySelector("b, i")).toBeNull();
-  expect(detail(s, "markdown").querySelector("pre")).toBeNull(); // no sample for a dialect that does not give one
+  expect(detail(s, "markdown").querySelector("pre")).toBeNull();
 });
 
-test("markdown section: no folder or a read-only app disables the switch; no dialects says so", async () => {
+test("markdown section: no folder or a read-only app disables the switch; no dialects leaves CommonMark and GFM; a failure is in the left column", async () => {
   const none = setup({ hasWorkspace: false });
   await go(none.s, "markdown");
-  expect(detail(none.s, "markdown").querySelector<HTMLInputElement>('input[data-dialect="myst"]')!.disabled).toBe(true);
+  row(none.s, "markdown", "myst").click();
+  await settle();
+  expect(detail(none.s, "markdown").querySelector<HTMLInputElement>("input[data-dialect]")!.disabled).toBe(true);
   expect(detail(none.s, "markdown").textContent).toContain("Open a folder");
   const ro = setup({ features: ZENMARK_BUILD.features.filter((f) => f !== "editor") });
   await go(ro.s, "markdown");
-  expect(detail(ro.s, "markdown").querySelector<HTMLInputElement>('input[data-dialect="myst"]')!.disabled).toBe(true);
+  row(ro.s, "markdown", "myst").click();
+  await settle();
+  expect(detail(ro.s, "markdown").querySelector<HTMLInputElement>("input[data-dialect]")!.disabled).toBe(true);
   expect(detail(ro.s, "markdown").textContent).toContain("read-only");
-  // no dialects: still the Dialects item, with CommonMark and GFM, always on
   const empty = setup({ dialects: [] });
   await go(empty.s, "markdown");
-  expect(rows(empty.s, "markdown").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["Dialects"]);
-  const base = detail(empty.s, "markdown").querySelector<HTMLElement>('[data-dialect="commonmark"]')!;
-  expect(base.textContent).toContain("CommonMark and GFM");
-  expect(base.textContent).toContain("Always on");
-  const box = base.querySelector<HTMLInputElement>("input")!;
-  expect([box.checked, box.disabled]).toEqual([true, true]);
-  expect(detail(empty.s, "markdown").textContent).not.toContain("No dialects");
-});
-
-test("markdown section: CommonMark and GFM come first, always on, then the build's dialects", async () => {
-  const { s } = setup();
-  await go(s, "markdown");
-  const entries = Array.from(detail(s, "markdown").querySelectorAll<HTMLElement>(".zen-dialect-entry")).map((e) => e.dataset.dialect);
-  expect(entries).toEqual(["commonmark", "myst"]);
+  expect(rows(empty.s, "markdown").map((r) => r.dataset.item)).toEqual(["commonmark"]);
+  expect(panel(empty.s, "markdown").textContent).not.toContain("No dialects");
+  const failing = setup();
+  failing.api.failNext("dialects", new Error("<i>down</i>"));
+  await go(failing.s, "markdown");
+  expect(leftCol(failing.s, "markdown").textContent).toContain("Could not read the markdown syntaxes: <i>down</i>");
+  expect(leftCol(failing.s, "markdown").querySelector("i")).toBeNull();
 });
 
 test("markdown section: switching folders refreshes the dialect states", async () => {
@@ -326,6 +321,9 @@ test("markdown section: switching folders refreshes the dialect states", async (
   s.show();
   await settle();
   expect(api.callsTo("dialects").length).toBeGreaterThan(before);
+  expect(row(s, "markdown", "myst").querySelector(".zen-settings-item-note")!.textContent).toBe("On");
+  row(s, "markdown", "myst").click();
+  await settle();
   expect(detail(s, "markdown").querySelector<HTMLInputElement>('input[data-dialect="myst"]')!.checked).toBe(true);
 });
 
