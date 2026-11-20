@@ -131,7 +131,7 @@ func TestMenuRolesAndCustomItems(t *testing.T) {
 		}
 	}
 	for label, role := range map[string]string{
-		"About Zenmark": "About", "Hide Zenmark": "Hide", "Hide Others": "HideOthers", "Show All": "UnHide", "Quit Zenmark": "Quit",
+		"About Zenmark": "", "Hide Zenmark": "Hide", "Hide Others": "HideOthers", "Show All": "UnHide", "Quit Zenmark": "Quit",
 		"Undo": "Undo", "Redo": "Redo", "Cut": "Cut", "Copy": "Copy", "Paste": "Paste", "Select All": "SelectAll",
 		"Minimise": "Minimise", "Zoom": "Zoom",
 		"Settings…": "", "New Page…": "", "Open Folder…": "", "Close Folder": "",
@@ -194,6 +194,47 @@ func TestMenuSettings(t *testing.T) {
 	newPageAction(shownWindow{&log}, recSink{&log})()
 	if got := strings.Join(log, ","); got != "show,focus,emit menu:new-page" {
 		t.Fatalf("new page action: %s", got)
+	}
+}
+
+// Zenmark > About Zenmark opens the About sheet in the main window (ui/settings-layout): a custom
+// item that sends menu:about, not the standard macOS panel.
+func TestAboutMenu(t *testing.T) {
+	if EventAbout != "menu:about" {
+		t.Fatalf("EventAbout = %q", EventAbout)
+	}
+	var about *menuItem
+	for _, top := range menuSpec(false) {
+		for i, it := range top.Children {
+			if it.Label == "About Zenmark" {
+				about = &top.Children[i]
+			}
+		}
+	}
+	if about == nil {
+		t.Fatal("no About Zenmark item")
+	}
+	if about.Role != "" || about.Event != "menu:about" {
+		t.Errorf("About item %+v: want a custom item that sends menu:about", *about)
+	}
+	// It is in the bare shell too.
+	if !slices.Contains(rows(menuSpecFor(false, nil)), "About Zenmark") {
+		t.Error("the bare shell has no About")
+	}
+	var calls []string
+	act := menuActions{About: func() { calls = append(calls, "about") }}
+	f := act.forLabel(labelAbout)
+	if f == nil {
+		t.Fatal("no action for About")
+	}
+	f()
+	if strings.Join(calls, ",") != "about" {
+		t.Errorf("calls %v", calls)
+	}
+	var log []string
+	showAndEmit(shownWindow{&log}, recSink{&log}, EventAbout)()
+	if got := strings.Join(log, ","); got != "show,focus,emit menu:about" {
+		t.Errorf("about action: %s", got)
 	}
 }
 

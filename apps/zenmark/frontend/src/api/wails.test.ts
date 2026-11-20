@@ -221,6 +221,16 @@ describe("wails api", () => {
     expect(got).toEqual([[], "a.md", "b.md"]);
   });
 
+  it("menu:about (Zenmark > About Zenmark) is delivered without a payload and unsubscribes", async () => {
+    const api = (await import("./wails")).default;
+    let n = 0;
+    const off = api.on("menu:about", () => { n++; });
+    fire("menu:about");
+    off();
+    fire("menu:about");
+    expect(n).toBe(1);
+  });
+
   it("answers app:before-close: closes when nothing objects", async () => {
     await import("./wails");
     fire("app:before-close");
