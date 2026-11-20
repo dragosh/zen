@@ -81,11 +81,13 @@ export function createSettingsView(opts: {
       if (gone) return;
       const exists = text !== "";
       pre.textContent = exists ? text : `${name} does not exist yet.`;
+      // Opening and creating need the editor; showing the file in Finder needs nav (its service).
+      const editor = hasFeature(api, "editor");
       actions.replaceChildren(
-        exists
-          ? button("Open in Editor", () => run(() => api.openConfig(which), `${name} opened in the editor.`, `Could not open ${name}`))
-          : button("Create", () => run(() => api.openConfig(which), `${name} created and opened in the editor.`, `Could not create ${name}`)),
-        ...(exists ? [button("Reveal in Finder", () => run(() => api.revealInFinder(`zen:config/${which}`), "", `Could not show ${name}`))] : []),
+        ...(!editor ? [] : exists
+          ? [button("Open in Editor", () => run(() => api.openConfig(which), `${name} opened in the editor.`, `Could not open ${name}`))]
+          : [button("Create", () => run(() => api.openConfig(which), `${name} created and opened in the editor.`, `Could not create ${name}`))]),
+        ...(exists && hasFeature(api, "nav") ? [button("Reveal in Finder", () => run(() => api.revealInFinder(`zen:config/${which}`), "", `Could not show ${name}`))] : []),
       );
     }
     void load();
@@ -175,7 +177,7 @@ export function createSettingsView(opts: {
 
   const plugins = createPluginsSection({ api });
   const layouts = createLayoutsSection({ api });
-  const templates = createTemplatesSection({ api });
+  const templates = createTemplatesSection({ api, newsite: hasFeature(api, "newsite") });
 
   // ---- Export: the website (its form, in place) and the PDF (the preview, and the last file)
 
@@ -222,16 +224,19 @@ export function createSettingsView(opts: {
     appearanceSection(doc, opts.appearanceExtra),
     // Accessibility is in every build; its Reading item is the reader's.
     accessibilitySection(doc, { reader: hasFeature(api, "reader"), setZoom: opts.setZoom }),
-    // Nothing opens the config files in an app without the editor: the section is not there.
-    ...(hasFeature(api, "editor") ? [config] : []),
-    // The sections of a feature the build leaves out are not there at all (kit/shell-features): Markdown, Layouts
-    // and Plugins belong to the reader, Templates to newsite, Export to export, Developer to developer.
-    ...(hasFeature(api, "reader") ? [
-      markdown,
-      { id: "layouts", label: "Layouts", ...layouts },
-      { id: "plugins", label: "Plugins", ...plugins },
+    // The config files are shown with the reader (it reads them) or the editor (it opens them).
+    ...(hasFeature(api, "reader") || hasFeature(api, "editor") ? [config] : []),
+    // The sections of a feature the build leaves out are not there at all (kit/shell-features): Markdown, Templates,
+    // Layouts and Plugins belong to the reader (Templates also to newsite, and lists none without it), Export to
+    // export, Developer to developer.
+    ...(hasFeature(api, "reader") || hasFeature(api, "newsite") ? [
+      ...(hasFeature(api, "reader") ? [markdown] : []),
+      { id: "templates", label: "Templates", ...templates },
+      ...(hasFeature(api, "reader") ? [
+        { id: "layouts", label: "Layouts", ...layouts },
+        { id: "plugins", label: "Plugins", ...plugins },
+      ] : []),
     ] : []),
-    ...(hasFeature(api, "newsite") ? [{ id: "templates", label: "Templates", ...templates }] : []),
     ...(hasFeature(api, "export") ? [exportSection] : []),
     ...(hasFeature(api, "developer") ? [developerSection({ openConsole: opts.openConsole })] : []),
   ]);

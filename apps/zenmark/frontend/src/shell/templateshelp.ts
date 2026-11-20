@@ -13,12 +13,15 @@ export type TemplatesSection = {
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
-export function createTemplatesSection(opts: { api: Api }): TemplatesSection {
+export function createTemplatesSection(opts: { api: Api; newsite?: boolean }): TemplatesSection {
   const { api } = opts;
+  const inBuild = opts.newsite ?? true;
   let templates: SiteTemplate[] = [];
   let failure = "";
 
   async function items(): Promise<SettingsItem[]> {
+    // Without New Site the build has no templates; the service would refuse, so it is not asked.
+    if (!inBuild) return [];
     try {
       templates = await api.siteTemplates();
       failure = "";
@@ -61,5 +64,5 @@ export function createTemplatesSection(opts: { api: Api }): TemplatesSection {
     return () => {};
   }
 
-  return { items, render, empty: () => failure || "No templates.", destroy() {} };
+  return { items, render, empty: () => failure || (inBuild ? "No templates." : "No templates in this build."), destroy() {} };
 }

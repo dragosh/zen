@@ -35,6 +35,9 @@ Markdown use the same list on the left as every other section.
    - **Every section:** the empty text is in the left column.
    - **Navigation:** it is also in Settings on the home screen.
    - **Console:** its empty states are the panel's own.
+   - **Templates:** it sits right below Markdown, in every build with the reader. Without `newsite` it lists none ("No templates in this build.") and asks Go nothing.
+   - **Configuration:** it is in every build with the reader or the editor. Open in Editor and Create need the editor, and Reveal in Finder needs `nav`.
+   - **Footer buttons:** the active one is inverted (`--fg` background, icon in `--bg`), with no side bar.
 
 ## Architecture
 

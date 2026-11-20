@@ -94,18 +94,26 @@ test("section list per build", () => {
     s.destroy();
     return n;
   };
-  expect(list()).toEqual(["Appearance", "Accessibility", "Configuration", "Markdown", "Layouts", "Plugins", "Templates", "Export", "Developer"]); // the full build; no This build
+  expect(list()).toEqual(["Appearance", "Accessibility", "Configuration", "Markdown", "Templates", "Layouts", "Plugins", "Export", "Developer"]); // the full build; no This build
   // the starting shell
-  expect(list(["reader", "nav", "inspector", "developer"])).toEqual(["Appearance", "Accessibility", "Markdown", "Layouts", "Plugins", "Developer"]);
+  expect(list(["reader", "nav", "inspector", "developer"])).toEqual(["Appearance", "Accessibility", "Configuration", "Markdown", "Templates", "Layouts", "Plugins", "Developer"]);
   // the bare shell
   expect(list([])).toEqual(["Appearance", "Accessibility"]);
   // a feature brings its section
-  expect(list(["reader", "editor"])).toEqual(["Appearance", "Accessibility", "Configuration", "Markdown", "Layouts", "Plugins"]);
+  expect(list(["reader", "editor"])).toEqual(["Appearance", "Accessibility", "Configuration", "Markdown", "Templates", "Layouts", "Plugins"]);
   expect(list(["newsite"])).toEqual(["Appearance", "Accessibility", "Templates"]);
   expect(list(["export"])).toEqual(["Appearance", "Accessibility", "Export"]);
   expect(list(["developer"])).toEqual(["Appearance", "Accessibility", "Developer"]);
   expect(list(["editor"])).toEqual(["Appearance", "Accessibility", "Configuration"]);
-  expect(list(["reader"])).toEqual(["Appearance", "Accessibility", "Markdown", "Layouts", "Plugins"]);
+  expect(list(["reader"])).toEqual(["Appearance", "Accessibility", "Configuration", "Markdown", "Templates", "Layouts", "Plugins"]);
+});
+
+test("templates: below Markdown in every build with the reader; without New Site it lists none and asks nothing", async () => {
+  const { api, s } = setup({ features: ["reader", "nav", "inspector", "developer"] });
+  await go(s, "templates");
+  expect(api.callsTo("siteTemplates")).toHaveLength(0);
+  expect(leftCol(s, "templates").textContent).toBe("No templates in this build.");
+  expect(detail(s, "templates").textContent).toBe("");
 });
 
 test("every section is two columns, and the arrows of the section list move through the sections", async () => {
@@ -231,6 +239,18 @@ test("configuration section: switching folders refreshes Local", async () => {
   s.show();
   await settle();
   expect(row(s, "config", "workspace").getAttribute("aria-disabled")).toBeNull();
+});
+
+test("configuration: in every build with the reader; without the editor it only shows the files (and Reveal with nav)", async () => {
+  const { s } = setup({ features: ["reader", "nav", "inspector", "developer"], sources: { "zen:config/global": "theme: dark\n" } });
+  await go(s, "config");
+  expect(detail(s, "config").querySelector("pre")!.textContent).toBe("theme: dark\n");
+  const labels = () => Array.from(detail(s, "config").querySelectorAll("button")).map((b) => b.textContent);
+  expect(labels()).toEqual(["Reveal in Finder"]); // no Open in Editor or Create without the editor
+  const bare = setup({ features: ["reader"], sources: {} });
+  await go(bare.s, "config");
+  expect(Array.from(detail(bare.s, "config").querySelectorAll("button"))).toHaveLength(0);
+  expect(detail(bare.s, "config").textContent).toContain("does not exist yet");
 });
 
 test("configuration preview is text", async () => {
