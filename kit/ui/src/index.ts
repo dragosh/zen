@@ -9,7 +9,7 @@ export type {
 export { button, el, logo } from "./shell/dom";
 export { copyText } from "./shell/clipboard";
 export { createHistory, type Entry, type History } from "./shell/history";
-export { closeWindowKey, reloadKey } from "./shell/keys";
+export { closeWindowKey, reloadKey, shellAction, type ShellAction } from "./shell/keys";
 export { createLayout, type Layout, type LayoutHandlers } from "./shell/layout";
 export { createOpening, type Opening, type OpeningOptions } from "./shell/opening";
 export { installConsoleCapture, type ConsoleCapture } from "./shell/console";
@@ -18,7 +18,7 @@ export { applyAppTheme, buildSection } from "./shell/addons";
 export { appearanceSection, createSettingsFrame, developerSection, type SettingsSection, type SettingsView } from "./shell/settings";
 export { createStore } from "./shell/store";
 export { applyTheme, followTheme, setTheme, storedTheme, THEME_KEY, type Theme } from "./shell/theme";
-export type { AppState, Ctx, Feature, Slots, Store } from "./shell/types";
+export { FEATURE_IDS, type AppState, type Ctx, type Feature, type FeatureId, type Slots, type Store } from "./shell/types";
 export { navFeature } from "./nav";
 export { handleLinkClick, mountPage, pageFeature, pageHooks } from "./page";
 export { editorFeature, CONFIG_PREFIX, isConfigPath } from "./editor";

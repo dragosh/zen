@@ -31,7 +31,7 @@ type Options struct {
 
 // Run starts the GUI and blocks until the application exits.
 func Run(opts Options) error {
-	reg := assemblyPlugins()
+	reg := builtinPlugins()
 	globalPath, _ := config.GlobalPath()
 	configDir := ""
 	if globalPath != "" {

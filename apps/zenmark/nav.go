@@ -10,14 +10,27 @@ var revealFile = func(abs string) error { return desktop.OpenFile("-R", abs) }
 
 // ReorderNav puts the pages under parent in the order of paths and saves it in
 // their frontmatter (nav.order).
-func (z *Zen) ReorderNav(parent string, paths []string) error { return z.s.ReorderNav(parent, paths) }
+func (z *Zen) ReorderNav(parent string, paths []string) error {
+	if err := requireFeature("nav"); err != nil {
+		return err
+	}
+	return z.s.ReorderNav(parent, paths)
+}
 
 // SetNavHidden hides a page from the sidebar (nav.hidden: true), or shows it again.
-func (z *Zen) SetNavHidden(path string, hidden bool) error { return z.s.SetNavHidden(path, hidden) }
+func (z *Zen) SetNavHidden(path string, hidden bool) error {
+	if err := requireFeature("nav"); err != nil {
+		return err
+	}
+	return z.s.SetNavHidden(path, hidden)
+}
 
 // RevealInFinder shows a page or folder of the open folder in Finder; anything
 // outside the folder is refused.
 func (z *Zen) RevealInFinder(path string) error {
+	if err := requireFeature("nav"); err != nil {
+		return err
+	}
 	abs, err := z.s.AbsPath(path)
 	if err != nil {
 		return err

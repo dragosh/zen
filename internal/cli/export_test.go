@@ -179,3 +179,52 @@ func TestPDFNameSanitised(t *testing.T) {
 		t.Errorf("DefaultPDFOut(/) = %q", got)
 	}
 }
+
+// The CLI follows the build: export site needs the export feature, export pdf
+// needs export and print; without them it says so and exits 2 (kit/shell-features 9).
+func TestExportNeedsFeature(t *testing.T) {
+	h, _ := pdfSetup(t)
+	t.Cleanup(func() { buildInfo = nil })
+	with := func(features ...string) {
+		SetBuildInfo(func() BuildInfo { return BuildInfo{App: "demo", Features: features, Theme: "default"} })
+	}
+	for _, c := range []struct {
+		features []string
+		args     []string
+		missing  string // "" = allowed
+	}{
+		{nil, []string{"export", "site"}, "export"},
+		{nil, []string{"build"}, "export"}, // build is export site
+		{nil, []string{"export", "pdf", "My Docs"}, "export"},
+		{[]string{"reader", "print"}, []string{"export", "site"}, "export"},
+		{[]string{"reader", "export"}, []string{"export", "pdf", "My Docs"}, "print"},
+		{[]string{"reader", "print"}, []string{"export", "pdf", "My Docs"}, "export"},
+		{[]string{"reader", "export"}, []string{"export", "site"}, ""},
+		{[]string{"reader", "export"}, []string{"build"}, ""},
+		{[]string{"reader", "print", "export"}, []string{"export", "pdf", "My Docs"}, ""},
+	} {
+		with(c.features...)
+		r := run(t, h, nil, c.args...)
+		if c.missing == "" {
+			if r.code != 0 || !(r.built || r.pdfd) {
+				t.Errorf("%v with %v: %+v", c.args, c.features, r)
+			}
+			continue
+		}
+		if r.code != 2 || r.built || r.pdfd || r.launched || r.stdout != "" || !strings.Contains(r.stderr, "this app is built without "+c.missing) {
+			t.Errorf("%v with %v: %+v", c.args, c.features, r)
+		}
+	}
+	// A build that does not say what it is made of allows everything, and other commands are untouched.
+	buildInfo = nil
+	if r := run(t, h, nil, "export", "site"); r.code != 0 || !r.built {
+		t.Errorf("no build info: %+v", r)
+	}
+	with()
+	if r := run(t, h, nil, "version"); r.code != 0 {
+		t.Errorf("version in a bare build: %+v", r)
+	}
+	if r := run(t, h, nil, "My Docs"); r.code != 0 || !r.launched {
+		t.Errorf("opening a folder in a bare build: %+v", r)
+	}
+}

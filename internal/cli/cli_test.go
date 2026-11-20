@@ -521,6 +521,7 @@ func TestVersionVerbose(t *testing.T) {
 	cwd := t.TempDir()
 
 	// Without an app that says what it is made of, only the version line.
+	t.Cleanup(func() { buildInfo = nil })
 	buildInfo = nil
 	if r := run(t, cwd, nil, "version", "--verbose"); r.code != 0 || r.stdout != "zenmd "+Version+" (add-ons: vale)\n" {
 		t.Errorf("no assembly: %d %q", r.code, r.stdout)

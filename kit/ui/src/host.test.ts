@@ -1,5 +1,6 @@
 import { expect, test } from "vitest";
 import { hasAddon, hasFeature, type BuildInfo } from "./host";
+import { FEATURE_IDS } from "./shell/types";
 
 test("hasAddon: by id, false without a list", () => {
   const vale = { id: "vale", name: "Vale linting", summary: "s" };
@@ -17,4 +18,8 @@ test("hasFeature: by id; true when the host does not say (no build info)", () =>
   expect(hasFeature({ build: build(["editor"]) }, "newsite")).toBe(false);
   expect(hasFeature({}, "editor")).toBe(true);
   expect(hasFeature({ build: undefined }, "editor")).toBe(true);
+});
+
+test("the feature ids are the catalog's, in order", () => {
+  expect([...FEATURE_IDS]).toEqual(["reader", "nav", "find", "editor", "inspector", "print", "export", "newsite", "developer"]);
 });

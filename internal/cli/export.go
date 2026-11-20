@@ -6,6 +6,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 	"unicode"
 )
@@ -41,6 +42,24 @@ func PDFName(name string) string {
 // DefaultPDFOut is where the PDF of dir goes without -o: inside it, named after it.
 func DefaultPDFOut(dir string) string { return filepath.Join(dir, PDFName(filepath.Base(dir))) }
 
+// needBuilt checks that the build has the features (kit/shell-features): an
+// app made without export has no `zenmd export site`, and one without export or
+// print has no `zenmd export pdf`. It prints the refusal and returns exit code 2.
+// A build that does not say what it is made of has everything.
+func needBuilt(stderr io.Writer, ids ...string) (code int, ok bool) {
+	if buildInfo == nil {
+		return 0, true
+	}
+	have := buildInfo().Features
+	for _, id := range ids {
+		if !slices.Contains(have, id) {
+			fmt.Fprintf(stderr, "zenmd: this app is built without %s\n", id)
+			return 2, false
+		}
+	}
+	return 0, true
+}
+
 // runExport parses the arguments after `zenmd export`: the target is site or pdf.
 func runExport(args []string, cwd string, stdout, stderr io.Writer, build Builder, pdf PDFExporter) int {
 	if len(args) == 0 {
@@ -51,8 +70,14 @@ func runExport(args []string, cwd string, stdout, stderr io.Writer, build Builde
 		fmt.Fprint(stdout, usage)
 		return 0
 	case "site":
+		if code, ok := needBuilt(stderr, "export"); !ok {
+			return code
+		}
 		return runBuild(args[1:], cwd, stdout, stderr, build)
 	case "pdf":
+		if code, ok := needBuilt(stderr, "export", "print"); !ok {
+			return code
+		}
 		return runExportPDF(args[1:], cwd, stdout, stderr, pdf)
 	}
 	return fail(stderr, usageError("unknown export target "+args[0]+"; try: zenmd export site, zenmd export pdf"))

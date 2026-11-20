@@ -4,19 +4,28 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
 
+var testFeatures = []string{"reader", "nav", "find", "editor", "inspector", "print", "export", "newsite", "developer"}
+
+var testFeatureNeeds = map[string][]string{
+	"nav": {"reader"}, "find": {"reader"}, "editor": {"reader"}, "inspector": {"reader"}, "print": {"reader"}, "export": {"reader"},
+}
+
 func testCatalog() Catalog {
 	return Catalog{
-		Features:  []string{"editor"},
-		Addons:    []string{"vale"},
-		Plugins:   []string{"codeblock", "diagram", "check", "quiz", "sandbox"},
-		Layouts:   []string{"article", "docs", "landing", "course"},
-		Templates: []string{"techdocs", "learning"},
-		Themes:    []string{"default"},
-		Dialects:  []string{"myst"},
+		Features:     testFeatures,
+		FeatureNeeds: testFeatureNeeds,
+		AddonNeeds:   map[string][]string{"vale": {"reader"}},
+		Addons:       []string{"vale"},
+		Plugins:      []string{"codeblock", "diagram", "check", "quiz", "sandbox"},
+		Layouts:      []string{"article", "docs", "landing", "course"},
+		Templates:    []string{"techdocs", "learning"},
+		Themes:       []string{"default"},
+		Dialects:     []string{"myst"},
 		LayoutNeeds: map[string]Needs{
 			"course": {Plugins: []string{"quiz"}},
 		},
@@ -52,7 +61,7 @@ theme: default
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Assembly{App: "demo", Features: []string{"editor"}, Addons: []string{"vale"}, Plugins: []string{"codeblock", "quiz", "check"},
+	want := Assembly{App: "demo", Features: testFeatures, Addons: []string{"vale"}, Plugins: []string{"codeblock", "quiz", "check"},
 		Layouts: []string{"article", "docs", "landing", "course"}, Templates: []string{"learning"}, Theme: "default"}
 	if !reflect.DeepEqual(a, want) {
 		t.Errorf("got %+v\nwant %+v", a, want)
@@ -149,7 +158,7 @@ func TestDependencies(t *testing.T) {
 	// and listing it is allowed.
 	cat := testCatalog()
 	cat.TemplateNeeds["techdocs"] = Needs{Layouts: []string{"article", "docs", "landing"}, Plugins: []string{"codeblock"}}
-	a := Assembly{App: "x", Plugins: []string{"codeblock"}, Layouts: []string{"docs", "landing"}, Templates: []string{"techdocs"}, Theme: "default"}
+	a := Assembly{App: "x", Features: []string{"reader"}, Plugins: []string{"codeblock"}, Layouts: []string{"docs", "landing"}, Templates: []string{"techdocs"}, Theme: "default"}
 	if err := Check(a, cat); err != nil {
 		t.Errorf("article is implied: %v", err)
 	}
@@ -267,27 +276,36 @@ func sameSet(a, b []string) bool {
 }
 
 func TestFeatures(t *testing.T) {
-	// A missing key means all, unlike the other lists.
+	// A missing key means all, unlike the other lists; newsite joins only when
+	// there is a template to start from.
+	noNewsite := slices.DeleteFunc(slices.Clone(testFeatures), func(f string) bool { return f == "newsite" })
 	a, err := load(t, "app: x\n")
-	if err != nil || !reflect.DeepEqual(a.Features, []string{"editor"}) {
+	if err != nil || !reflect.DeepEqual(a.Features, noNewsite) {
 		t.Errorf("missing: %+v, %v", a.Features, err)
 	}
-	// [] and null mean none.
+	a, err = load(t, "app: x\nlayouts: [docs, landing]\ntemplates: [techdocs]\nplugins: [codeblock]\n")
+	if err != nil || !reflect.DeepEqual(a.Features, testFeatures) {
+		t.Errorf("missing, with templates: %+v, %v", a.Features, err)
+	}
+	// [] and null mean none: the bare shell.
 	for _, y := range []string{"app: x\nfeatures: []\n", "app: x\nfeatures:\n"} {
 		a, err = load(t, y)
 		if err != nil || len(a.Features) != 0 {
 			t.Errorf("%q: %+v, %v", y, a.Features, err)
 		}
 	}
-	for _, y := range []string{"app: x\nfeatures: all\n", "app: x\nfeatures: [all]\n", "app: x\nfeatures: [editor]\n"} {
+	for _, y := range []string{"app: x\nfeatures: all\n", "app: x\nfeatures: [all]\n"} {
 		a, err = load(t, y)
-		if err != nil || !reflect.DeepEqual(a.Features, []string{"editor"}) {
+		if err != nil || !reflect.DeepEqual(a.Features, noNewsite) {
 			t.Errorf("%q: %+v, %v", y, a.Features, err)
 		}
 	}
+	if a, err = load(t, "app: x\nfeatures: [reader, editor]\n"); err != nil || !reflect.DeepEqual(a.Features, []string{"reader", "editor"}) {
+		t.Errorf("list: %+v, %v", a.Features, err)
+	}
 	for _, c := range []struct{ yml, want string }{
-		{"app: x\nfeatures: [nope]\n", "known features: editor"},
-		{"app: x\nfeatures: [editor, editor]\n", "twice"},
+		{"app: x\nfeatures: [nope]\n", "known features: reader, nav, find, editor, inspector, print, export, newsite, developer"},
+		{"app: x\nfeatures: [reader, reader]\n", "twice"},
 		{"app: x\nfeatures: [all, editor]\n", "all"},
 		{"app: x\nfeatures: editor\n", "list"},
 		{"app: x\nfeatures: [\"../x\"]\n", "known features"},
@@ -296,20 +314,85 @@ func TestFeatures(t *testing.T) {
 			t.Errorf("%q: %v, want %q", c.yml, err, c.want)
 		}
 	}
-	// FeatureNeeds are read by Check.
-	cat := testCatalog()
-	cat.Features = []string{"editor", "newsite"}
-	cat.FeatureNeeds = map[string][]string{"newsite": {"editor"}}
-	if err := Check(Assembly{App: "x", Features: []string{"newsite"}, Theme: "default"}, cat); err == nil || !strings.Contains(err.Error(), "feature newsite needs feature editor") {
-		t.Errorf("needs: %v", err)
-	}
-	if err := Check(Assembly{App: "x", Features: []string{"editor", "newsite"}, Theme: "default"}, cat); err != nil {
-		t.Error(err)
-	}
-	// The built-in catalog knows the editor, and Zenmark's file passes.
+	// The built-in catalog lists the features in order, with their needs.
 	c, _ := BuiltinCatalog()
-	if !reflect.DeepEqual(c.Features, []string{"editor"}) {
+	if !reflect.DeepEqual(c.Features, testFeatures) {
 		t.Errorf("builtin features %v", c.Features)
+	}
+	if !reflect.DeepEqual(c.FeatureNeeds, testFeatureNeeds) {
+		t.Errorf("builtin feature needs %v", c.FeatureNeeds)
+	}
+}
+
+func TestFeatureNeeds(t *testing.T) {
+	// Each feature that needs another fails alone, naming both.
+	for _, f := range []string{"nav", "find", "editor", "inspector", "print", "export"} {
+		err := Check(Assembly{App: "x", Features: []string{f}, Theme: "default"}, testCatalog())
+		if want := "feature " + f + " needs feature reader"; err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("%s alone: %v, want %q", f, err, want)
+		}
+		if err := Check(Assembly{App: "x", Features: []string{"reader", f}, Theme: "default"}, testCatalog()); err != nil {
+			t.Errorf("reader and %s: %v", f, err)
+		}
+	}
+	// reader and developer need nothing.
+	for _, f := range []string{"reader", "developer"} {
+		if err := Check(Assembly{App: "x", Features: []string{f}, Theme: "default"}, testCatalog()); err != nil {
+			t.Errorf("%s alone: %v", f, err)
+		}
+	}
+	// newsite needs a template.
+	err := Check(Assembly{App: "x", Features: []string{"newsite"}, Theme: "default"}, testCatalog())
+	if err == nil || !strings.Contains(err.Error(), "feature newsite needs at least one template") {
+		t.Errorf("newsite without templates: %v", err)
+	}
+	ok := Assembly{App: "x", Features: []string{"newsite"}, Layouts: []string{"docs", "landing"}, Plugins: []string{"codeblock"}, Templates: []string{"techdocs"}, Theme: "default"}
+	// (templates also need reader for their plugins and layouts)
+	if err := Check(ok, testCatalog()); err == nil || !strings.Contains(err.Error(), "need feature reader") {
+		t.Errorf("newsite with templates but no reader: %v", err)
+	}
+	ok.Features = []string{"reader", "newsite"}
+	if err := Check(ok, testCatalog()); err != nil {
+		t.Errorf("newsite with a template: %v", err)
+	}
+	// Plugins, layouts and dialects are only useful with the reader.
+	for _, c := range []struct {
+		a    Assembly
+		want string
+	}{
+		{Assembly{Plugins: []string{"codeblock"}}, "plugins need feature reader"},
+		{Assembly{Layouts: []string{"article"}}, "layouts need feature reader"},
+		{Assembly{Dialects: []string{"myst"}}, "dialects need feature reader"},
+	} {
+		c.a.App, c.a.Features, c.a.Theme = "x", []string{"developer"}, "default"
+		if err := Check(c.a, testCatalog()); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%+v: %v, want %q", c.a, err, c.want)
+		}
+		c.a.Features = []string{"reader"}
+		if err := Check(c.a, testCatalog()); err != nil {
+			t.Errorf("%+v with reader: %v", c.a, err)
+		}
+	}
+	// Through a file, and all problems are reported together.
+	_, err = load(t, "app: x\nfeatures: [find, print]\nplugins: [codeblock]\n")
+	for _, want := range []string{"feature find needs feature reader", "feature print needs feature reader", "plugins need feature reader"} {
+		if err == nil || !strings.Contains(err.Error(), want) {
+			t.Errorf("file: %v, want %q", err, want)
+		}
+	}
+}
+
+func TestAddonNeeds(t *testing.T) {
+	err := Check(Assembly{App: "x", Features: []string{"developer"}, Addons: []string{"vale"}, Theme: "default"}, testCatalog())
+	if err == nil || !strings.Contains(err.Error(), "add-on vale needs feature reader") {
+		t.Errorf("vale without reader: %v", err)
+	}
+	if err := Check(Assembly{App: "x", Features: []string{"reader"}, Addons: []string{"vale"}, Theme: "default"}, testCatalog()); err != nil {
+		t.Errorf("vale with reader (no inspector needed): %v", err)
+	}
+	c, _ := BuiltinCatalog()
+	if !reflect.DeepEqual(c.AddonNeeds, map[string][]string{"vale": {"reader"}}) {
+		t.Errorf("builtin add-on needs %v", c.AddonNeeds)
 	}
 }
 

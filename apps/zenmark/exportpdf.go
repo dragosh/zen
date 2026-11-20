@@ -72,6 +72,12 @@ const lastPDFFolderFile = "export-pdf-folder"
 // open folder's print document there as a PDF, without the print panel. title
 // is only the job's name. It returns the file, "" when the panel was cancelled.
 func (z *Zen) ExportPDF(ctx context.Context, title string) (string, error) {
+	if err := requireFeature("export"); err != nil {
+		return "", err
+	}
+	if err := requireFeature("print"); err != nil {
+		return "", err
+	}
 	ws := z.s.Workspace()
 	if ws == nil {
 		return "", errNoWorkspace
@@ -103,6 +109,12 @@ func (z *Zen) ExportPDF(ctx context.Context, title string) (string, error) {
 
 // RevealExport shows the file the last export wrote in Finder. It takes no path.
 func (z *Zen) RevealExport() error {
+	if err := requireFeature("export"); err != nil {
+		return err
+	}
+	if err := requireFeature("print"); err != nil {
+		return err
+	}
 	p := z.export.get()
 	if p == "" {
 		return errors.New("nothing has been exported yet")

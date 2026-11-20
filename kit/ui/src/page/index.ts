@@ -1,7 +1,7 @@
 // The reader: loads Page for store.path, mounts its HTML and wires links,
 // anchors, plugin assets, live reload, warnings, errors and the Edit action.
 import { hasAddon, hasFeature, type Alert, type Page } from "../host";
-import { createInspector, inspectorKey } from "../inspector";
+import { createInspector, inspectorKey, type Inspector } from "../inspector";
 import { bindFind, createFind, domFinder } from "../find";
 import { flash, markText } from "../lint";
 import { installRuntime } from "@zenmd/runtime/plugins";
@@ -62,8 +62,18 @@ function hideEditLinks(root: HTMLElement): void {
   }
 }
 
+/** The Inspector of a build without the inspector feature: nothing to show, nothing to ask for. */
+function inertInspector(doc: Document): Inspector {
+  const noop = () => {};
+  return {
+    button: doc.createElement("button"), el: doc.createElement("div"),
+    isOpen: false, available: false,
+    open: noop, close: noop, toggle: noop, setPage: noop, setActive: noop, setIssues: noop, destroy: noop,
+  };
+}
+
 export const pageFeature: Feature = {
-  id: "page",
+  id: "reader",
   mount(slots, ctx: Ctx) {
     const doc = slots.main.ownerDocument;
     const main = slots.main;
@@ -140,7 +150,9 @@ export const pageFeature: Feature = {
     // Only in builds with the vale add-on (kit/addons).
     const lintOn = hasAddon(ctx.api, "vale");
     let lintMarks: (HTMLElement | null)[] = [];
-    const inspector = createInspector({
+    // Without the inspector feature there is no panel, no button state and no page info call: the page talks to a stand-in.
+    const inspectorOn = hasFeature(ctx.api, "inspector");
+    const inspector: Inspector = !inspectorOn ? inertInspector(doc) : createInspector({
       doc, host: ctx.api, external: true,
       onSelectIssue(_alert: Alert, i: number) {
         const m = lintMarks[i];
@@ -153,7 +165,7 @@ export const pageFeature: Feature = {
     const editable = hasFeature(ctx.api, "editor");
     if (editable) slots.actions.append(edit);
     // The panel sits beside the main pane, before it (inspector.css makes room for it).
-    main.before(inspector.el);
+    if (inspectorOn) main.before(inspector.el);
 
     // External plugins (ui/plugins): their handlers mount on the wrappers of
     // every render and are cleaned up before the next one replaces the article.
@@ -201,7 +213,7 @@ export const pageFeature: Feature = {
         },
       }),
     });
-    const offFind = bindFind(doc, ctx.api, find, { active: () => ctx.store.get().mode === "read" && shownPath !== null });
+    const offFind = bindFind(doc, ctx.api, find, { active: () => hasFeature(ctx.api, "find") && ctx.store.get().mode === "read" && shownPath !== null });
     function render(page: Page): void {
       plugins.unmountAll();
       rendered = { path: page.path, title: page.title };

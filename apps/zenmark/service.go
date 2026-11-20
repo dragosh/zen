@@ -80,17 +80,17 @@ func (z *Zen) setLaunchErr(err error) {
 
 func newZen(o zenOptions) (*Zen, error) {
 	if o.Registry == nil {
-		o.Registry = assemblyPlugins()
+		o.Registry = builtinPlugins()
 	}
 	if o.Layouts == nil {
-		o.Layouts = assemblyLayouts(cli.Version)
+		o.Layouts = builtinLayouts(cli.Version)
 	}
 	so := session.Options{
 		GlobalPath: o.GlobalPath,
 		ConfigDir:  o.ConfigDir,
 		Registry:   o.Registry,
 		Layouts:    o.Layouts,
-		Dialects:   assemblyDialects(),
+		Dialects:   builtinDialects(),
 		Events:     o.Events,
 		Presets:    siteBuiltins,
 		Watch:      true,
@@ -125,6 +125,40 @@ func newZen(o zenOptions) (*Zen, error) {
 }
 
 func (z *Zen) close() { z.s.Close() }
+
+// The built-in plugins, layouts and dialects this app includes are the generated
+// assembly's (assembly_gen.go); tests of the package replace them with a full
+// build's (fullbuild_test.go).
+var (
+	builtinPlugins  = assemblyPlugins
+	builtinLayouts  = assemblyLayouts
+	builtinDialects = assemblyDialects
+)
+
+// allFeatures are the features of a full build, in catalog order (a test
+// compares them with kit/assembly's catalog).
+var allFeatures = []string{"reader", "nav", "find", "editor", "inspector", "print", "export", "newsite", "developer"}
+
+// featureMissing is the error of a binding whose feature this build leaves out.
+type featureMissing struct{ id string }
+
+func (e featureMissing) Error() string { return "this app is built without " + e.id }
+
+// ErrFeatureMissing is the error a service method returns when the app is
+// built without the feature: "this app is built without <id>".
+func ErrFeatureMissing(id string) error { return featureMissing{id} }
+
+// hasFeature reports whether this build has the feature (app-assembly.yml).
+func hasFeature(id string) bool { return slices.Contains(assemblyInfo.Features, id) }
+
+// requireFeature is the check at the top of every service method that belongs
+// to a feature: a page script cannot call what the build does not have.
+func requireFeature(id string) error {
+	if !hasFeature(id) {
+		return ErrFeatureMissing(id)
+	}
+	return nil
+}
 
 // readOnlyBuild reports whether this build leaves out the editor feature
 // (app-assembly.yml): the app is then a reader and never changes the folder.
@@ -257,23 +291,48 @@ func (z *Zen) OpenExternal(rawURL string) bool {
 func (z *Zen) CancelOpen() { z.s.CancelOpen() }
 
 // Page renders a workspace page.
-func (z *Zen) Page(path string) (Page, error) { return z.s.Page(path) }
+func (z *Zen) Page(path string) (Page, error) {
+	if err := requireFeature("reader"); err != nil {
+		return Page{}, err
+	}
+	return z.s.Page(path)
+}
 
 // PageInfo returns the size, times and location of a page's file (the Inspector).
-func (z *Zen) PageInfo(path string) (PageInfo, error) { return z.s.PageInfo(path) }
+func (z *Zen) PageInfo(path string) (PageInfo, error) {
+	if err := requireFeature("inspector"); err != nil {
+		return PageInfo{}, err
+	}
+	return z.s.PageInfo(path)
+}
 
 // Source returns the markdown of a page, or of a settings file.
-func (z *Zen) Source(path string) (string, error) { return z.s.Source(path) }
+func (z *Zen) Source(path string) (string, error) {
+	if err := requireFeature("reader"); err != nil {
+		return "", err
+	}
+	return z.s.Source(path)
+}
 
 // Preview renders unsaved text as if it were path.
-func (z *Zen) Preview(path, content string) (Page, error) { return z.s.Preview(path, content) }
+func (z *Zen) Preview(path, content string) (Page, error) {
+	if err := requireFeature("reader"); err != nil {
+		return Page{}, err
+	}
+	return z.s.Preview(path, content)
+}
 
 // Save writes a page, or a settings file.
 func (z *Zen) Save(path, content string) error { return z.s.Save(path, content) }
 
 // Lint returns Vale's alerts for a page: content, or the file on disk when
 // content is "". Unavailable without vale or with `lint: false`.
-func (z *Zen) Lint(path, content string) (LintResult, error) { return z.s.Lint(path, content) }
+func (z *Zen) Lint(path, content string) (LintResult, error) {
+	if err := requireFeature("reader"); err != nil {
+		return LintResult{}, err
+	}
+	return z.s.Lint(path, content)
+}
 
 // CreatePage creates a markdown page from the template of layout and returns
 // its workspace path; an existing file is never overwritten.
@@ -302,11 +361,17 @@ func (z *Zen) PluginStorageKeys(id, prefix string) ([]string, error) {
 
 // PluginInvoke runs a plugin's action hook with a JSON payload.
 func (z *Zen) PluginInvoke(id, page, payload string) (string, error) {
+	if err := requireFeature("reader"); err != nil {
+		return "", err
+	}
 	return z.s.PluginInvoke(id, page, payload)
 }
 
 // PluginStream starts a plugin's stream hook and returns the id of the call.
 func (z *Zen) PluginStream(id, page, payload string) (string, error) {
+	if err := requireFeature("reader"); err != nil {
+		return "", err
+	}
 	return z.s.PluginStream(id, page, payload)
 }
 
@@ -335,11 +400,21 @@ func (z *Zen) LayoutStorageKeys(id, prefix string) ([]string, error) {
 }
 
 // BuildOptions returns the form's starting values for the open folder.
-func (z *Zen) BuildOptions() (BuildOptions, error) { return z.s.BuildOptions() }
+func (z *Zen) BuildOptions() (BuildOptions, error) {
+	if err := requireFeature("export"); err != nil {
+		return BuildOptions{}, err
+	}
+	return z.s.BuildOptions()
+}
 
 // BuildWebsite builds the open folder like `zenmd build`; build:progress events
 // report each page.
-func (z *Zen) BuildWebsite(o BuildOptions) (BuildResult, error) { return z.s.BuildWebsite(o) }
+func (z *Zen) BuildWebsite(o BuildOptions) (BuildResult, error) {
+	if err := requireFeature("export"); err != nil {
+		return BuildResult{}, err
+	}
+	return z.s.BuildWebsite(o)
+}
 
 // CancelBuild stops the running build after the current page.
 func (z *Zen) CancelBuild() { z.s.CancelBuild() }
@@ -347,5 +422,8 @@ func (z *Zen) CancelBuild() { z.s.CancelBuild() }
 // SaveBuildDefaults writes the options into the build: section of the
 // folder's .zen.yml; without confirm it only returns the preview text.
 func (z *Zen) SaveBuildDefaults(o BuildOptions, confirm bool) (string, error) {
+	if err := requireFeature("export"); err != nil {
+		return "", err
+	}
 	return z.s.SaveBuildDefaults(o, confirm)
 }

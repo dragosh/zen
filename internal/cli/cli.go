@@ -219,6 +219,9 @@ func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher, b
 			fmt.Fprintln(stdout, VersionLine())
 			return 0
 		case flags && first && arg == "build":
+			if code, ok := needBuilt(stderr, "export"); !ok { // build is export site
+				return code
+			}
 			return runBuild(args[i+1:], cwd, stdout, stderr, build)
 		case flags && first && arg == "export":
 			return runExport(args[i+1:], cwd, stdout, stderr, build, pdf)

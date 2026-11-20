@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { LayoutInfo, PluginInfo } from "../api";
-import { createFakeApi } from "../api/fake";
+import { createFakeApi, ZENMARK_BUILD } from "../api/fake";
 import { rememberBuild, type BuildApi } from "./buildsite";
 import { createSettingsView, type SettingsView } from "./settings";
 import { followTheme, storedTheme, THEME_KEY } from "@zenmd/kit";
@@ -732,7 +732,7 @@ test("This build section", async () => {
   // the build has no add-ons: the sections after it still list what it is made of
   let api = createFakeApi({
     addons: [],
-    build: { app: "demo", features: ["editor"], plugins: ["codeblock", "quiz"], layouts: ["article", "docs"], templates: ["learning"], dialects: ["myst"], theme: "default" },
+    build: { app: "demo", features: ["reader", "editor", "developer"], plugins: ["codeblock", "quiz"], layouts: ["article", "docs"], templates: ["learning"], dialects: ["myst"], theme: "default" },
   });
   let s = createSettingsView({ api, hasWorkspace: () => true });
   document.body.append(s.el);
@@ -742,7 +742,14 @@ test("This build section", async () => {
   const group = (id: string) => panel(s, "build").querySelector<HTMLElement>(`[data-group="${id}"]`)!;
   const heads = Array.from(panel(s, "build").querySelectorAll(".zen-build-group h3")).map((h) => h.textContent);
   expect(heads).toEqual(["Features", "Add-ons", "Plugins", "Layouts", "Templates", "Dialects", "Theme"]);
-  expect(group("features").querySelector(".zen-build-list")!.textContent).toBe("editor");
+  // the features in catalog order; the ones the build lacks are greyed and say so to screen readers
+  const featureItems = Array.from(group("features").querySelectorAll<HTMLElement>("li"));
+  expect(featureItems.map((li) => li.dataset.feature)).toEqual(["reader", "nav", "find", "editor", "inspector", "print", "export", "newsite", "developer"]);
+  expect(featureItems.filter((li) => li.classList.contains("zen-build-feature-missing")).map((li) => li.dataset.feature)).toEqual(["nav", "find", "inspector", "print", "export", "newsite"]);
+  expect(featureItems[0].textContent).toBe("reader");
+  expect(featureItems[1].textContent).toBe("nav (not in this build)");
+  expect(featureItems[1].querySelector(".zen-visually-hidden")!.textContent).toBe(" (not in this build)");
+  expect(featureItems[0].querySelector(".zen-visually-hidden")).toBeNull();
   expect(group("addons").textContent).toContain("This build has no add-ons.");
   expect(group("addons").querySelector(".zen-addon")).toBeNull();
   expect(group("plugins").querySelector(".zen-build-list")!.textContent).toBe("codeblock, quiz");
@@ -790,7 +797,7 @@ test("the default fake build has the vale add-on", () => {
 });
 
 test("read-only settings", () => {
-  const api = createFakeApi({ addons: [], build: { app: "hashdish", features: [], plugins: [], layouts: ["article"], templates: [] } });
+  const api = createFakeApi({ addons: [], build: { app: "hashdish", features: ZENMARK_BUILD.features.filter((f) => f !== "editor"), plugins: [], layouts: ["article"], templates: [] } });
   const s = createSettingsView({ api, hasWorkspace: () => true });
   document.body.append(s.el);
   s.show();
@@ -803,6 +810,7 @@ test("read-only settings", () => {
   const features = panel(s, "build").querySelector<HTMLElement>('[data-group="features"]')!;
   expect(features.textContent).toContain("Read-only (no editor)");
   expect(Array.from(panel(s, "build").querySelectorAll(".zen-build-group h3"))[0].textContent).toBe("Features");
+  expect(features.querySelector('li[data-feature="editor"]')!.classList.contains("zen-build-feature-missing")).toBe(true);
   // Export still has its website and PDF parts
   expect(panel(s, "export").textContent).toContain("Website");
   s.destroy();
@@ -855,7 +863,7 @@ test("Markdown section", async () => {
   none.destroy();
 
   // a read-only app: disabled, with the reason
-  const ro = createSettingsView({ api: createFakeApi({ build: { features: [] } }), hasWorkspace: () => true });
+  const ro = createSettingsView({ api: createFakeApi({ build: { features: ZENMARK_BUILD.features.filter((f) => f !== "editor") } }), hasWorkspace: () => true });
   document.body.append(ro.el);
   ro.show();
   await tick();
@@ -875,3 +883,35 @@ test("Markdown section", async () => {
 });
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
+
+// kit/shell-features: Settings builds its sections from the build.
+test("Settings sections follow the features of the build", () => {
+  const names = (features: string[]) => {
+    const s = createSettingsView({ api: createFakeApi({ build: { features } }), hasWorkspace: () => true });
+    document.body.append(s.el);
+    s.show();
+    const out = Array.from(s.el.querySelectorAll(".zen-settings-section")).map((b) => b.textContent);
+    s.destroy();
+    return out;
+  };
+  expect(names([])).toEqual(["Appearance", "This build"]);
+  expect(names(["developer"])).toEqual(["Appearance", "This build", "Developer"]);
+  expect(names(["reader"])).toEqual(["Appearance", "Plugins", "Layouts", "Markdown", "This build"]);
+  expect(names(["reader", "editor"])).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Markdown", "This build"]);
+  expect(names(["reader", "export", "print"])).toEqual(["Appearance", "Plugins", "Layouts", "Markdown", "Export", "This build"]);
+  expect(names(ZENMARK_BUILD.features)).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Markdown", "Export", "This build", "Developer"]);
+});
+
+test("Export has the PDF part only with print", () => {
+  const exportText = (features: string[]) => {
+    const s = createSettingsView({ api: createFakeApi({ build: { features } }), hasWorkspace: () => true });
+    document.body.append(s.el);
+    s.show();
+    const t = panel(s, "export").textContent ?? "";
+    s.destroy();
+    return t;
+  };
+  expect(exportText(["reader", "export"])).toContain("Website");
+  expect(exportText(["reader", "export"])).not.toContain("PDF");
+  expect(exportText(["reader", "export", "print"])).toContain("PDF");
+});

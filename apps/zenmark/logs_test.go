@@ -10,16 +10,16 @@ import (
 
 func TestLogsReadsTheRing(t *testing.T) {
 	z, _, _, _ := newTestZen(t, tree(t, docs), "", "read")
-	if got := z.Logs(0); got == nil || len(got) != 0 {
+	if got, _ := z.Logs(0); got == nil || len(got) != 0 {
 		t.Fatalf("without a ring Logs = %#v, want an empty list (JSON [])", got)
 	}
 	z.logs = desktop.NewLogRing(5)
 	z.logs.Add("warn", "plugin", "one")
 	z.logs.Add("info", "app", "two")
-	if got := z.Logs(0); len(got) != 2 || got[0].Message != "one" {
+	if got, _ := z.Logs(0); len(got) != 2 || got[0].Message != "one" {
 		t.Errorf("Logs(0) = %+v", got)
 	}
-	if got := z.Logs(1); len(got) != 1 || got[0].Seq != 2 {
+	if got, _ := z.Logs(1); len(got) != 1 || got[0].Seq != 2 {
 		t.Errorf("Logs(1) = %+v", got)
 	}
 }

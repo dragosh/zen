@@ -31,7 +31,7 @@ const order = () => visible(nav()).filter((x) => x !== "README.md");
 async function boot(page = "README.md", mutate?: (a: FakeApi) => void) {
   api = createFakeApi({ startup: { workspace: ws(), page, mode: "read" }, sources: { "README.md": "# Home", "guides/alpha.md": "# Alpha", "guides/beta.md": "# Beta", "gamma.md": "# Gamma" } });
   mutate?.(api);
-  shell = createShell(root, { api, features: [navFeature, stub("page"), stub("editor")] });
+  shell = createShell(root, { api, features: [navFeature, stub("reader"), stub("editor")] });
   await shell.start();
   await tick();
 }

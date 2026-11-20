@@ -55,14 +55,38 @@ func TestAppIsThin(t *testing.T) {
 			t.Errorf("Zen.%s is missing", name)
 			continue
 		}
-		if len(fd.Body.List) != 1 {
-			t.Errorf("Zen.%s has %d statements, want one delegation to the session", name, len(fd.Body.List))
+		// A leading `if err := requireFeature(...); err != nil { return ... }` is the
+		// feature gate (kit/shell-features) and does not count.
+		body := fd.Body.List
+		for len(body) > 1 && isFeatureGate(body[0]) {
+			body = body[1:]
+		}
+		if len(body) != 1 {
+			t.Errorf("Zen.%s has %d statements, want one delegation to the session", name, len(body))
 			continue
 		}
-		if !callsSession(fd.Body.List[0]) {
+		if !callsSession(body[0]) {
 			t.Errorf("Zen.%s does not delegate to z.s", name)
 		}
 	}
+}
+
+// isFeatureGate reports whether stmt is `if err := requireFeature(...); err != nil {...}`.
+func isFeatureGate(stmt ast.Stmt) bool {
+	ifs, ok := stmt.(*ast.IfStmt)
+	if !ok {
+		return false
+	}
+	as, ok := ifs.Init.(*ast.AssignStmt)
+	if !ok || len(as.Rhs) != 1 {
+		return false
+	}
+	call, ok := as.Rhs[0].(*ast.CallExpr)
+	if !ok {
+		return false
+	}
+	id, ok := call.Fun.(*ast.Ident)
+	return ok && id.Name == "requireFeature"
 }
 
 // callsSession reports whether stmt is `return z.s.X(...)` or `z.s.X(...)`.
@@ -70,7 +94,13 @@ func callsSession(stmt ast.Stmt) bool {
 	var e ast.Expr
 	switch s := stmt.(type) {
 	case *ast.ReturnStmt:
-		if len(s.Results) != 1 {
+		// `return z.s.X(...)`, or `return z.s.X(...), nil` for a gated method
+		// that also returns the feature's error.
+		if len(s.Results) == 2 {
+			if id, ok := s.Results[1].(*ast.Ident); !ok || id.Name != "nil" {
+				return false
+			}
+		} else if len(s.Results) != 1 {
 			return false
 		}
 		e = s.Results[0]

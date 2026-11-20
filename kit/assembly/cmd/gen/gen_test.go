@@ -167,11 +167,18 @@ func TestFeaturesGenerated(t *testing.T) {
 		src, _ := os.ReadFile(filepath.Join(dir, "assembly_gen.go"))
 		return string(src)
 	}
-	if got := read("app: demo\nfeatures: all\n"); !strings.Contains(got, `Features:  []string{"editor"}`) {
-		t.Errorf("features all:\n%s", got)
+	const noNewsite = `Features:  []string{"reader", "nav", "find", "editor", "inspector", "print", "export", "developer"}`
+	if got := read("app: demo\nfeatures: all\n"); !strings.Contains(got, noNewsite) {
+		t.Errorf("features all (no templates, so no newsite):\n%s", got)
 	}
-	if got := read("app: demo\n"); !strings.Contains(got, `Features:  []string{"editor"}`) {
+	if got := read("app: demo\n"); !strings.Contains(got, noNewsite) {
 		t.Errorf("missing features means all:\n%s", got)
+	}
+	if got := read("app: demo\ntemplates: all\nlayouts: all\nplugins: all\n"); !strings.Contains(got, `"export", "newsite", "developer"}`) {
+		t.Errorf("features all with templates:\n%s", got)
+	}
+	if got := read("app: demo\nfeatures: [reader, nav]\n"); !strings.Contains(got, `Features:  []string{"reader", "nav"}`) {
+		t.Errorf("features list:\n%s", got)
 	}
 	if got := read("app: demo\nfeatures: []\n"); !strings.Contains(got, `Features:  []string{}`) {
 		t.Errorf("features none:\n%s", got)

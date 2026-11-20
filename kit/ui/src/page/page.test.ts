@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { createFakeApi } from "../../../../apps/zenmark/frontend/src/api/fake";
+import { createFakeApi, ZENMARK_BUILD } from "../../../../apps/zenmark/frontend/src/api/fake";
 import type { Page } from "../host";
 import { pageFeature } from "./index";
 import { setup, tick, type Env } from "./helpers.test-util";
@@ -26,7 +26,7 @@ const btn = (root: HTMLElement, label: string) =>
   Array.from(root.querySelectorAll("button")).find((b) => b.textContent?.includes(label)) as HTMLButtonElement;
 
 test("loads, mounts, sets title and stores the page", async () => {
-  expect(pageFeature.id).toBe("page");
+  expect(pageFeature.id).toBe("reader");
   env.ctx.store.set({ path: "README.md" });
   mount();
   await tick();
@@ -340,4 +340,46 @@ test("dialect hint", async () => {
   mount();
   await tick();
   expect(hint() === null || hint()!.hidden).toBe(true);
+});
+
+// kit/shell-features: the Inspector and find belong to features; the reader works without them.
+test("without the inspector feature: no panel, no ⌥⌘I, no page info calls", async () => {
+  const features = ZENMARK_BUILD.features.filter((f) => f !== "inspector");
+  env = setup(createFakeApi({ sources: { ...SOURCES }, build: { features } }));
+  const states: unknown[] = [];
+  document.addEventListener("zen:inspector-state", (e) => states.push((e as CustomEvent).detail));
+  sessionStorage.setItem("zen.inspector.open", "1");
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await tick();
+  expect(article().querySelector("h1")?.textContent).toBe("Sample docs");
+  expect(document.querySelector(".zen-inspector")).toBeNull();
+  expect(states.every((d) => (d as { available: boolean }).available === false)).toBe(true);
+  const e = new KeyboardEvent("keydown", { code: "KeyI", key: "i", metaKey: true, altKey: true, cancelable: true, bubbles: true });
+  document.dispatchEvent(e);
+  expect(e.defaultPrevented).toBe(false);
+  expect(env.api.callsTo("pageInfo")).toHaveLength(0);
+  sessionStorage.clear();
+});
+
+test("with the inspector feature the panel is there", async () => {
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await tick();
+  expect(document.querySelector(".zen-inspector, .zen-bottom-panel, [aria-label=Inspector]") ?? env.slots.main.previousElementSibling).not.toBeNull();
+  const e = new KeyboardEvent("keydown", { code: "KeyI", key: "i", metaKey: true, altKey: true, cancelable: true, bubbles: true });
+  document.dispatchEvent(e);
+  expect(e.defaultPrevented).toBe(true);
+});
+
+test("without the find feature ⌘F is not taken", async () => {
+  const features = ZENMARK_BUILD.features.filter((f) => f !== "find");
+  env = setup(createFakeApi({ sources: { ...SOURCES }, build: { features } }));
+  env.ctx.store.set({ path: "README.md" });
+  mount();
+  await tick();
+  const e = new KeyboardEvent("keydown", { key: "f", metaKey: true, cancelable: true, bubbles: true });
+  document.dispatchEvent(e);
+  expect(e.defaultPrevented).toBe(false);
+  expect(document.querySelector("[role=search]")).toBeNull();
 });

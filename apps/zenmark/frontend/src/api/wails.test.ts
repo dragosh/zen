@@ -117,6 +117,14 @@ describe("wails api", () => {
     expect(api.build).toBeUndefined();
   });
 
+  it("a build that does not list its features has them all; an empty list is the bare shell", async () => {
+    const api = (await import("./wails")).default;
+    results.Startup = { workspace: null, page: "", mode: "read", build: { app: "old", plugins: [], layouts: [], templates: [], theme: "default" } };
+    expect((await api.startup()).build?.features).toEqual(["reader", "nav", "find", "editor", "inspector", "print", "export", "newsite", "developer"]);
+    results.Startup = { workspace: null, page: "", mode: "read", build: { app: "bare", features: [], plugins: [], layouts: [], templates: [], theme: "default" } };
+    expect((await api.startup()).build?.features).toEqual([]);
+  });
+
   it("maps the dialect calls and keeps only well-formed dialects", async () => {
     const api = (await import("./wails")).default;
     results.Dialects = [{ id: "myst", name: "MyST", summary: "s", on: true, extra: 1 }, { id: 3 }, null, { id: "x", name: "X", summary: "y" }];

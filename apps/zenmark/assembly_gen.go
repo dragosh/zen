@@ -5,13 +5,7 @@ package app
 import (
 	"io/fs"
 
-	"github.com/zenmark-org/zenmd/builtins/dialects/myst"
 	"github.com/zenmark-org/zenmd/builtins/layouts"
-	"github.com/zenmark-org/zenmd/builtins/plugins/check"
-	"github.com/zenmark-org/zenmd/builtins/plugins/codeblock"
-	"github.com/zenmark-org/zenmd/builtins/plugins/diagram"
-	"github.com/zenmark-org/zenmd/builtins/plugins/quiz"
-	"github.com/zenmark-org/zenmd/builtins/plugins/sandbox"
 	"github.com/zenmark-org/zenmd/builtins/sitetemplates"
 	"github.com/zenmark-org/zenmd/engine/dialects"
 	enginelayouts "github.com/zenmark-org/zenmd/engine/layouts"
@@ -22,7 +16,7 @@ import (
 // assemblyPlugins is the registry of the built-in plugins this app includes.
 func assemblyPlugins() *plugins.Registry {
 	r := plugins.NewRegistry()
-	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New(), check.New(), quiz.New(), sandbox.New()} {
+	for _, p := range []plugins.Plugin{} {
 		if err := r.Register(p); err != nil {
 			panic(err)
 		}
@@ -33,12 +27,12 @@ func assemblyPlugins() *plugins.Registry {
 // assemblyLayouts is the registry of the built-in layouts this app includes
 // (article, the fallback, is always there).
 func assemblyLayouts(version string) *enginelayouts.Registry {
-	return layouts.Registry(version, "article", "docs", "post", "landing", "wide", "handout", "slides", "course")
+	return layouts.Registry(version, "article")
 }
 
 // assemblyTemplates holds the built-in site templates this app includes.
 func assemblyTemplates() fs.FS {
-	f, err := sitetemplates.Sub("techdocs", "learning", "planner")
+	f, err := sitetemplates.Sub()
 	if err != nil {
 		panic(err)
 	}
@@ -47,7 +41,7 @@ func assemblyTemplates() fs.FS {
 
 // assemblyDialects is the registry of the markdown dialects this app includes.
 func assemblyDialects() *dialects.Registry {
-	r, err := dialects.NewRegistry(myst.New())
+	r, err := dialects.NewRegistry()
 	if err != nil {
 		panic(err)
 	}
@@ -58,10 +52,10 @@ func assemblyDialects() *dialects.Registry {
 // Settings. The add-ons are the ones linked in (build tags), added at run time.
 var assemblyInfo = session.BuildInfo{
 	App:       "zenmark",
-	Features:  []string{"editor"},
-	Plugins:   []string{"codeblock", "diagram", "check", "quiz", "sandbox"},
-	Layouts:   []string{"article", "docs", "post", "landing", "wide", "handout", "slides", "course"},
-	Templates: []string{"techdocs", "learning", "planner"},
-	Dialects:  []string{"myst"},
+	Features:  []string{"reader", "nav", "inspector", "developer"},
+	Plugins:   []string{},
+	Layouts:   []string{"article"},
+	Templates: []string{},
+	Dialects:  []string{},
 	Theme:     "default",
 }

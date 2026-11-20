@@ -28,7 +28,12 @@ var revealInFinder = func(dir string) error { return desktop.Reveal(dir) }
 
 // SiteTemplates lists the site templates for the New Site dialog and the
 // welcome screen, installing the built-in presets on first use.
-func (z *Zen) SiteTemplates() []SiteTemplate { return z.s.Templates().List() }
+func (z *Zen) SiteTemplates() ([]SiteTemplate, error) {
+	if err := requireFeature("newsite"); err != nil {
+		return nil, err
+	}
+	return z.s.Templates().List(), nil
+}
 
 // siteFolderPicker is the native folder panel with New Folder, for the New
 // Site dialog; it opens nothing and closes no editors.
@@ -37,6 +42,9 @@ type siteFolderPicker interface{ PickSiteFolder() (string, error) }
 // PickSiteFolder shows the folder panel (New Folder enabled) and returns the
 // chosen folder, "" on cancel.
 func (z *Zen) PickSiteFolder() (string, error) {
+	if err := requireFeature("newsite"); err != nil {
+		return "", err
+	}
 	if p, ok := z.dialogs.(siteFolderPicker); ok {
 		return p.PickSiteFolder()
 	}
@@ -51,6 +59,9 @@ func (z *Zen) PickSiteFolder() (string, error) {
 // are closed first (each asks about unsaved changes), and the result is what
 // the frontend shows.
 func (z *Zen) CreateSite(id, dir string, values map[string]string) (Startup, error) {
+	if err := requireFeature("newsite"); err != nil {
+		return Startup{}, err
+	}
 	plan, err := z.s.Templates().Plan(id, dir)
 	if err != nil {
 		return Startup{}, err
@@ -74,11 +85,19 @@ func (z *Zen) CreateSite(id, dir string, values map[string]string) (Startup, err
 
 // TemplatesDir is the templates folder (templates.dir in config.yml, or the
 // default next to it), "" when there is none.
-func (z *Zen) TemplatesDir() string { return z.s.Templates().Dir() }
+func (z *Zen) TemplatesDir() (string, error) {
+	if err := requireFeature("newsite"); err != nil {
+		return "", err
+	}
+	return z.s.Templates().Dir(), nil
+}
 
 // RevealTemplates shows the templates folder in Finder, creating it (with the
 // built-in presets) when it is not there yet.
 func (z *Zen) RevealTemplates() error {
+	if err := requireFeature("newsite"); err != nil {
+		return err
+	}
 	dir := z.s.Templates().Dir()
 	if dir == "" {
 		return errors.New("there is no templates folder")

@@ -4,6 +4,7 @@
 import "./addons.css";
 import { hasFeature, type BuildInfo, type KitHost } from "../host";
 import { el } from "./dom";
+import { FEATURE_IDS } from "./types";
 import type { SettingsSection } from "./settings";
 
 /** Puts the build's theme on the root element as `data-app-theme` (`default` needs no CSS); no build leaves it alone. */
@@ -20,6 +21,24 @@ function group(id: string, title: string, ...body: HTMLElement[]): HTMLElement {
 
 function names(ids: readonly string[]): HTMLElement {
   return el("p", "zen-build-list", ids.length ? ids.join(", ") : "none");
+}
+
+/**
+ * Every feature of the catalog in its order: the ones this build has as plain names, the missing ones
+ * greyed and marked "not in this build" for screen readers, so a bare build shows what it could have.
+ */
+function featureList(have: readonly string[]): HTMLElement {
+  const list = el("ul", "zen-build-features");
+  for (const id of FEATURE_IDS) {
+    const li = el("li", "zen-build-feature", id);
+    li.dataset.feature = id;
+    if (!have.includes(id)) {
+      li.classList.add("zen-build-feature-missing");
+      li.append(el("span", "zen-visually-hidden", " (not in this build)"));
+    }
+    list.append(li);
+  }
+  return list;
 }
 
 /**
@@ -43,7 +62,7 @@ export function buildSection(host: Pick<KitHost, "addons" | "build">): SettingsS
     const b = host.build;
     if (b) {
       // Features come first: the pieces of the app itself, before the add-ons it can take.
-      groups.unshift(group("features", "Features", names(b.features), ...(hasFeature(host, "editor") ? [] : [el("p", "zen-build-list", "Read-only (no editor)")])));
+      groups.unshift(group("features", "Features", featureList(b.features), ...(hasFeature(host, "editor") ? [] : [el("p", "zen-build-list", "Read-only (no editor)")])));
       groups.push(
         group("plugins", "Plugins", names(b.plugins)),
         group("layouts", "Layouts", names(b.layouts)),

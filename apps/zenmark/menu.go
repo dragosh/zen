@@ -73,13 +73,62 @@ const (
 
 var sep = menuItem{Separator: true}
 
-// menuSpec is the whole menu bar: Zen, File, Edit, Window, and in dev builds
-// Develop. Production builds have no Reload, DevTools, View, Services or Speech.
-func menuSpec(dev bool) []menuItem { return menuSpecFor(dev, true) }
+// menuSpec is the whole menu bar of a full build: Zen, File, Edit, Window, and in
+// dev builds Develop. Production builds have no Reload, DevTools, View, Services
+// or Speech.
+func menuSpec(dev bool) []menuItem { return menuSpecFor(dev, allFeatures) }
 
-// menuSpecFor is menuSpec for an app with or without the editor feature: without
-// it File has no New Page… (the item is left out, not greyed).
-func menuSpecFor(dev, editor bool) []menuItem {
+// menuSpecFor is menuSpec for a build with these features (kit/shell-features).
+// An item of a feature the build leaves out is not there at all, not greyed, and
+// no separator is left behind. The bare shell keeps the App menu, File with Open
+// Folder and Close Folder, Edit without Find, and Window.
+func menuSpecFor(dev bool, features []string) []menuItem {
+	has := func(id string) bool { return slices.Contains(features, id) }
+	// when keeps the items only if cond holds.
+	when := func(cond bool, items ...menuItem) []menuItem {
+		if cond {
+			return items
+		}
+		return nil
+	}
+	cat := func(lists ...[]menuItem) []menuItem {
+		var out []menuItem
+		for _, l := range lists {
+			out = append(out, l...)
+		}
+		return out
+	}
+	file := cat(
+		when(has("newsite"), menuItem{Label: labelNewSite, Accel: "CmdOrCtrl+Shift+N"}, sep),
+		when(has("editor"), menuItem{Label: labelNewPage, Accel: "CmdOrCtrl+N"}),
+		[]menuItem{
+			{Label: labelOpenFolder, Accel: "CmdOrCtrl+O"},
+			{Label: labelCloseFolder, Accel: "CmdOrCtrl+Shift+W"},
+			sep,
+		},
+		when(has("print"), menuItem{Label: labelPrintPage, Accel: "CmdOrCtrl+P"}),
+		when(has("export"), menuItem{Label: labelExport, Children: cat(
+			[]menuItem{{Label: labelExportWebsite, Accel: "CmdOrCtrl+Shift+B"}},
+			when(has("print"), menuItem{Label: labelExportPDF, Accel: "CmdOrCtrl+Shift+P"}), // the PDF is the print document
+		)}),
+	)
+	edit := cat(
+		[]menuItem{
+			{Label: "Undo", Accel: "CmdOrCtrl+Z", Role: "Undo"},
+			{Label: "Redo", Accel: "CmdOrCtrl+Shift+Z", Role: "Redo"},
+			sep,
+			{Label: "Cut", Accel: "CmdOrCtrl+X", Role: "Cut"},
+			{Label: "Copy", Accel: "CmdOrCtrl+C", Role: "Copy"},
+			{Label: "Paste", Accel: "CmdOrCtrl+V", Role: "Paste"},
+			{Label: "Select All", Accel: "CmdOrCtrl+A", Role: "SelectAll"},
+			sep,
+		},
+		when(has("find"), menuItem{Label: "Find", Children: []menuItem{
+			{Label: labelFind, Accel: "CmdOrCtrl+F"},
+			{Label: labelFindNext, Accel: "CmdOrCtrl+G"},
+			{Label: labelFindPrevious, Accel: "CmdOrCtrl+Shift+G"},
+		}}),
+	)
 	bar := []menuItem{
 		{Label: Name, Children: []menuItem{
 			{Label: "About " + Name, Role: "About"},
@@ -91,50 +140,39 @@ func menuSpecFor(dev, editor bool) []menuItem {
 			sep,
 			{Label: "Quit " + Name, Accel: "CmdOrCtrl+Q", Role: "Quit"},
 		}},
-		{Label: "File", Children: []menuItem{
-			{Label: labelNewSite, Accel: "CmdOrCtrl+Shift+N"},
-			sep,
-			{Label: labelNewPage, Accel: "CmdOrCtrl+N"},
-			{Label: labelOpenFolder, Accel: "CmdOrCtrl+O"},
-			{Label: labelCloseFolder, Accel: "CmdOrCtrl+Shift+W"},
-			sep,
-			{Label: labelPrintPage, Accel: "CmdOrCtrl+P"},
-			{Label: labelExport, Children: []menuItem{
-				{Label: labelExportWebsite, Accel: "CmdOrCtrl+Shift+B"},
-				{Label: labelExportPDF, Accel: "CmdOrCtrl+Shift+P"},
-			}},
-		}},
-		{Label: "Edit", Children: []menuItem{
-			{Label: "Undo", Accel: "CmdOrCtrl+Z", Role: "Undo"},
-			{Label: "Redo", Accel: "CmdOrCtrl+Shift+Z", Role: "Redo"},
-			sep,
-			{Label: "Cut", Accel: "CmdOrCtrl+X", Role: "Cut"},
-			{Label: "Copy", Accel: "CmdOrCtrl+C", Role: "Copy"},
-			{Label: "Paste", Accel: "CmdOrCtrl+V", Role: "Paste"},
-			{Label: "Select All", Accel: "CmdOrCtrl+A", Role: "SelectAll"},
-			sep,
-			{Label: "Find", Children: []menuItem{
-				{Label: labelFind, Accel: "CmdOrCtrl+F"},
-				{Label: labelFindNext, Accel: "CmdOrCtrl+G"},
-				{Label: labelFindPrevious, Accel: "CmdOrCtrl+Shift+G"},
-			}},
-		}},
+		{Label: "File", Children: file},
+		{Label: "Edit", Children: edit},
 	}
-	if dev {
+	if dev && has("developer") {
 		bar = append(bar, menuItem{Label: "Develop", Children: []menuItem{
 			{Label: "Reload", Accel: "CmdOrCtrl+R", Role: "Reload"},
 			{Label: "Toggle DevTools", Accel: "CmdOrCtrl+OptionOrAlt+I", Role: "OpenDevTools"},
 		}})
 	}
-	if !editor {
-		for i := range bar {
-			bar[i].Children = slices.DeleteFunc(bar[i].Children, func(it menuItem) bool { return it.Label == labelNewPage })
-		}
-	}
-	return append(bar, menuItem{Label: "Window", Children: []menuItem{
+	bar = append(bar, menuItem{Label: "Window", Children: []menuItem{
 		{Label: "Minimise", Accel: "CmdOrCtrl+M", Role: "Minimise"},
 		{Label: "Zoom", Role: "Zoom"},
 	}})
+	for i := range bar {
+		bar[i].Children = tidySeparators(bar[i].Children)
+	}
+	return bar
+}
+
+// tidySeparators drops leading, trailing and doubled separators, so a menu whose
+// items were left out has no gap.
+func tidySeparators(items []menuItem) []menuItem {
+	var out []menuItem
+	for _, it := range items {
+		if it.Separator && (len(out) == 0 || out[len(out)-1].Separator) {
+			continue
+		}
+		out = append(out, it)
+	}
+	if n := len(out); n > 0 && out[n-1].Separator {
+		out = out[:n-1]
+	}
+	return out
 }
 
 var roleByName = map[string]application.Role{
@@ -152,7 +190,7 @@ var roleByName = map[string]application.Role{
 // default is (the Wails app name is the lowercase binary name).
 func buildMenu(a *application.App, act menuActions, st *menuState, dev bool) *application.Menu {
 	menu := a.Menu.New()
-	for _, top := range menuSpecFor(dev, !readOnlyBuild()) {
+	for _, top := range menuSpecFor(dev, assemblyInfo.Features) {
 		fillMenu(menu.AddSubmenu(top.Label), top.Children, act, st)
 	}
 	return menu

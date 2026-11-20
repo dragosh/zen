@@ -1,6 +1,6 @@
 // In-memory Api for development in a browser and for tests: a three-page
 // sample workspace, emit() to simulate Go events, and a record of every call.
-import type { LogEntry } from "@zenmd/kit";
+import { FEATURE_IDS, type LogEntry } from "@zenmd/kit";
 import type { AddonInfo, Api, BuildInfo, BuildProgress, Crumb, DialectInfo, Draft, SiteTemplate, LayoutInfo, LintResult, NavNode, OpenProgress, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
 
 type Method = "startup" | "pickFolder" | "cancelOpen" | "closeFolder"
@@ -70,7 +70,7 @@ const SAMPLE_TEMPLATES: SiteTemplate[] = [
 
 /** What Zenmark is built from (apps/zenmark/app-assembly.yml). */
 export const ZENMARK_BUILD: BuildInfo = {
-  app: "zenmark", features: ["editor"], addons: [],
+  app: "zenmark", features: [...FEATURE_IDS], addons: [],
   plugins: ["codeblock", "diagram", "check", "quiz", "sandbox"],
   layouts: ["article", "docs", "post", "landing", "wide", "handout", "slides", "course"],
   templates: ["techdocs", "learning", "planner"],
