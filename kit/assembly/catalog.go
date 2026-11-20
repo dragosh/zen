@@ -28,6 +28,7 @@ func BuiltinCatalog() (Catalog, error) {
 		Plugins:       append([]string(nil), builtins.PluginIDs...),
 		Layouts:       append([]string(nil), layouts.IDs...),
 		Templates:     append([]string(nil), sitetemplates.IDs...),
+		Dialects:      append([]string(nil), builtins.DialectIDs...),
 		Themes:        []string{DefaultTheme},
 		LayoutNeeds:   map[string]Needs{},
 		TemplateNeeds: map[string]Needs{},

@@ -20,6 +20,11 @@ var pluginPackages = map[string]string{
 	"sandbox":   "builtins/plugins/sandbox",
 }
 
+// dialectPackages maps a built-in dialect id to its package.
+var dialectPackages = map[string]string{
+	"myst": "builtins/dialects/myst",
+}
+
 // Generate returns the Go file (assembly_gen.go, in the given package) for an
 // assembly: the plugins it registers, the layouts and templates it selects and
 // its BuildInfo. The assembly must be checked (Load or Check): every id that
@@ -29,7 +34,7 @@ func Generate(a Assembly, pkg string) ([]byte, error) {
 	if !ValidID(pkg) && pkg != "main" {
 		return nil, fmt.Errorf("package name %q is not valid", pkg)
 	}
-	for _, kind := range [][]string{{a.App}, {a.Theme}, a.Features, a.Plugins, a.Layouts, a.Templates} {
+	for _, kind := range [][]string{{a.App}, {a.Theme}, a.Features, a.Plugins, a.Layouts, a.Templates, a.Dialects} {
 		for _, id := range kind {
 			if !ValidID(id) {
 				return nil, fmt.Errorf("id %q is not valid (want lower case letters, digits and -)", id)
@@ -42,7 +47,14 @@ func Generate(a Assembly, pkg string) ([]byte, error) {
 		}
 	}
 
+	for _, id := range a.Dialects {
+		if _, ok := dialectPackages[id]; !ok {
+			return nil, fmt.Errorf("unknown dialect %q", id)
+		}
+	}
+
 	imports := []string{
+		modulePath + "/engine/dialects",
 		modulePath + "/builtins/layouts",
 		modulePath + "/builtins/sitetemplates",
 		modulePath + "/engine/plugins",
@@ -51,6 +63,9 @@ func Generate(a Assembly, pkg string) ([]byte, error) {
 	}
 	for _, id := range a.Plugins {
 		imports = append(imports, modulePath+"/"+pluginPackages[id])
+	}
+	for _, id := range a.Dialects {
+		imports = append(imports, modulePath+"/"+dialectPackages[id])
 	}
 	slices.SortFunc(imports, func(x, y string) int { return strings.Compare(importPath(x), importPath(y)) })
 	imports = append([]string{`"io/fs"`, ""}, imports...) // the standard library first, in a group of its own
@@ -92,9 +107,19 @@ func Generate(a Assembly, pkg string) ([]byte, error) {
 	b.WriteString("// assemblyTemplates holds the built-in site templates this app includes.\n")
 	fmt.Fprintf(&b, "func assemblyTemplates() fs.FS {\n\tf, err := sitetemplates.Sub(%s)\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\treturn f\n}\n\n", listArgs(a.Templates))
 
+	b.WriteString("// assemblyDialects is the registry of the markdown dialects this app includes.\n")
+	b.WriteString("func assemblyDialects() *dialects.Registry {\n\tr, err := dialects.NewRegistry(")
+	for i, id := range a.Dialects {
+		if i > 0 {
+			b.WriteString(", ")
+		}
+		b.WriteString(id + ".New()")
+	}
+	b.WriteString(")\n\tif err != nil {\n\t\tpanic(err)\n\t}\n\treturn r\n}\n\n")
+
 	b.WriteString("// assemblyInfo is what the app's build is made of, for the version line and\n// Settings. The add-ons are the ones linked in (build tags), added at run time.\n")
-	fmt.Fprintf(&b, "var assemblyInfo = session.BuildInfo{\n\tApp:       %q,\n\tFeatures:  %s,\n\tPlugins:   %s,\n\tLayouts:   %s,\n\tTemplates: %s,\n\tTheme:     %q,\n}\n",
-		a.App, stringSlice(a.Features), stringSlice(a.Plugins), stringSlice(withFallback(a.Layouts)), stringSlice(a.Templates), a.Theme)
+	fmt.Fprintf(&b, "var assemblyInfo = session.BuildInfo{\n\tApp:       %q,\n\tFeatures:  %s,\n\tPlugins:   %s,\n\tLayouts:   %s,\n\tTemplates: %s,\n\tDialects:  %s,\n\tTheme:     %q,\n}\n",
+		a.App, stringSlice(a.Features), stringSlice(a.Plugins), stringSlice(withFallback(a.Layouts)), stringSlice(a.Templates), stringSlice(a.Dialects), a.Theme)
 
 	out, err := format.Source(b.Bytes())
 	if err != nil {

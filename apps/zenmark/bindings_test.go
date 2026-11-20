@@ -10,12 +10,12 @@ import (
 // bindings (frontend/bindings/.../zen.ts). Names and JSON payloads are a
 // contract: moving the engine out of this package must not change them.
 var serviceMethods = []string{
-	"BuildOptions", "BuildWebsite", "CancelBuild", "CancelOpen", "CloseFolder", "CreatePage", "CreateSite", "ExportPDF",
+	"BuildOptions", "BuildWebsite", "CancelBuild", "CancelOpen", "CloseFolder", "CreatePage", "CreateSite", "DialectHint", "Dialects", "DismissDialectHint", "ExportPDF",
 	"LayoutStorageGet", "LayoutStorageKeys", "LayoutStorageSet", "LayoutTrust", "Layouts", "Lint", "Logs",
 	"OpenBuiltSite", "OpenConfig", "OpenEditor", "OpenExternal", "Page", "PageInfo", "PickBuildFolder",
 	"PickFolder", "PickSiteFolder", "PluginCancel", "PluginInvoke", "PluginStorageGet",
 	"PluginStorageKeys", "PluginStorageSet", "PluginStream", "PluginTrust", "Plugins", "Preview",
-	"PrintPage", "PrintSite", "PrintWindow", "ReorderNav", "RevealBuiltSite", "RevealExport", "RevealInFinder", "RevealTemplates", "Save", "SaveBuildDefaults",
+	"PrintPage", "PrintSite", "PrintWindow", "ReorderNav", "RevealBuiltSite", "RevealExport", "RevealInFinder", "RevealTemplates", "Save", "SaveBuildDefaults", "SetDialect",
 	"SetNavHidden", "SiteTemplates", "Source", "Startup", "TemplatesDir",
 }
 

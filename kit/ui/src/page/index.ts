@@ -79,6 +79,45 @@ export const pageFeature: Feature = {
     const warningText = el("div", "zen-page-warnings-text");
     warnings.append(warningText, button("Dismiss warnings", () => { warnings.hidden = true; }, { className: "ghost", text: "×" }));
 
+    // A folder written for another markdown syntax (a MyST project): one quiet line above the page
+    // offers to turn the dialect on (engine/dialects). Not in a read-only app.
+    const hint = el("div", "zen-page-warnings zen-dialect-hint");
+    hint.hidden = true;
+    hint.setAttribute("role", "status");
+    const hintText = el("div", "zen-page-warnings-text");
+    let hintId = "";
+    let hintName = "";
+    const hideHint = () => { hint.hidden = true; hintId = ""; };
+    const turnOn = button("Turn on", () => {
+      const id = hintId;
+      if (!id || !ctx.api.setDialect) return;
+      ctx.api.setDialect(id, true).then(hideHint, (err) => { hintText.textContent = `Could not turn on ${hintName}: ${message(err)}`; });
+    }, { className: "ghost", text: "Turn on" });
+    const notNow = button("Not now", () => dismissHint(), { className: "ghost", text: "Not now" });
+    hint.append(hintText, turnOn, notNow);
+    function dismissHint(): void {
+      const id = hintId;
+      hideHint();
+      if (id) ctx.api.dismissDialectHint?.(id).catch((err) => console.warn("zen: could not remember the dismissal", err));
+    }
+    async function showDialectHint(): Promise<void> {
+      const api = ctx.api;
+      if (!hasFeature(api, "editor") || !api.dialectHint || !api.dialects || !api.setDialect) return;
+      try {
+        const id = await api.dialectHint();
+        if (!id || gone) return;
+        const d = (await api.dialects()).find((x) => x.id === id);
+        if (!d || d.on || gone) return;
+        hintId = id;
+        hintName = d.name;
+        hintText.textContent = `This folder looks like a ${d.name} project. Turn on ${d.name} syntax?`;
+        hint.hidden = false;
+      } catch (err) {
+        console.warn("zen: could not check for markdown dialects", err);
+      }
+    }
+    let gone = false;
+
     const error = el("div", "zen-page-error");
     error.hidden = true;
     error.setAttribute("role", "alert");
@@ -86,7 +125,7 @@ export const pageFeature: Feature = {
     error.append(errorText, button("Retry", () => void load(false), { className: "primary" }));
 
     const article = el("article", "zen-page");
-    main.append(progress, warnings, error, article);
+    main.append(progress, warnings, hint, error, article);
 
     /** Edit opens the page in its own editor window (ui/editor-window). */
     const openEditor = () => {
@@ -275,6 +314,7 @@ export const pageFeature: Feature = {
         e.preventDefault();
         inspector.toggle();
       }
+      if (e.key === "Escape" && !hint.hidden && !e.defaultPrevented) dismissHint();
       // ⌘P is handled by the print flow (print/page.ts, installed by the shell).
     };
     doc.addEventListener("keydown", onKey);
@@ -317,8 +357,10 @@ export const pageFeature: Feature = {
       else void showDraft(path, content);
     });
     onState();
+    void showDialectHint();
 
     return () => {
+      gone = true;
       seq++;
       zoom.destroy();
       offFind();
@@ -332,6 +374,7 @@ export const pageFeature: Feature = {
       doc.removeEventListener("keydown", onKey);
       progress.remove();
       warnings.remove();
+      hint.remove();
       error.remove();
       article.remove();
       edit.remove();

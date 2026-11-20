@@ -44,6 +44,10 @@ vi.mock("../../bindings/github.com/zenmark-org/zenmd/apps/zenmark/index.js", () 
     LayoutStorageSet: binding("LayoutStorageSet"),
     LayoutStorageKeys: binding("LayoutStorageKeys"),
     Logs: binding("Logs"),
+    Dialects: binding("Dialects"),
+    SetDialect: binding("SetDialect"),
+    DialectHint: binding("DialectHint"),
+    DismissDialectHint: binding("DismissDialectHint"),
   },
 }));
 
@@ -102,15 +106,34 @@ describe("wails api", () => {
     results.Startup = {
       workspace: null, page: "", mode: "read",
       addons: [{ id: "vale", name: "Vale linting", summary: "s" }],
-      build: { app: "zenmark", features: ["editor", 4], addons: [{ id: "vale", name: "Vale linting", summary: "s" }], plugins: ["codeblock", 3, null, "quiz"], layouts: ["article"], templates: null, theme: "default", extra: 1 },
+      build: { app: "zenmark", features: ["editor", 4], addons: [{ id: "vale", name: "Vale linting", summary: "s" }], plugins: ["codeblock", 3, null, "quiz"], layouts: ["article"], templates: null, dialects: ["myst", 2], theme: "default", extra: 1 },
     };
     const s = await api.startup();
-    const want = { app: "zenmark", features: ["editor"], addons: [{ id: "vale", name: "Vale linting", summary: "s" }], plugins: ["codeblock", "quiz"], layouts: ["article"], templates: [], theme: "default" };
+    const want = { app: "zenmark", features: ["editor"], addons: [{ id: "vale", name: "Vale linting", summary: "s" }], plugins: ["codeblock", "quiz"], layouts: ["article"], templates: [], dialects: ["myst"], theme: "default" };
     expect(s.build).toEqual(want);
     expect(api.build).toEqual(want);
     results.Startup = { workspace: null, page: "", mode: "read" };
     expect((await api.startup()).build).toBeUndefined();
     expect(api.build).toBeUndefined();
+  });
+
+  it("maps the dialect calls and keeps only well-formed dialects", async () => {
+    const api = (await import("./wails")).default;
+    results.Dialects = [{ id: "myst", name: "MyST", summary: "s", on: true, extra: 1 }, { id: 3 }, null, { id: "x", name: "X", summary: "y" }];
+    expect(await api.dialects()).toEqual([{ id: "myst", name: "MyST", summary: "s", on: true }, { id: "x", name: "X", summary: "y", on: false }]);
+    results.Dialects = null;
+    expect(await api.dialects()).toEqual([]);
+    await api.setDialect("myst", true);
+    await api.dismissDialectHint("myst");
+    results.DialectHint = "myst";
+    expect(await api.dialectHint()).toBe("myst");
+    results.DialectHint = undefined;
+    expect(await api.dialectHint()).toBe("");
+    expect(calls.filter((c) => c.name !== "Dialects" && c.name !== "DialectHint")).toEqual([
+      { name: "SetDialect", args: ["myst", true] }, { name: "DismissDialectHint", args: ["myst"] },
+    ]);
+    results.SetDialect = new Error("this app is read-only");
+    await expect(api.setDialect("myst", true)).rejects.toThrow("read-only");
   });
 
   it("is the default export and maps every call", async () => {

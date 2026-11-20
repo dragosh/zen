@@ -5,6 +5,7 @@ package app
 import (
 	"io/fs"
 
+	"github.com/zenmark-org/zenmd/builtins/dialects/myst"
 	"github.com/zenmark-org/zenmd/builtins/layouts"
 	"github.com/zenmark-org/zenmd/builtins/plugins/check"
 	"github.com/zenmark-org/zenmd/builtins/plugins/codeblock"
@@ -12,6 +13,7 @@ import (
 	"github.com/zenmark-org/zenmd/builtins/plugins/quiz"
 	"github.com/zenmark-org/zenmd/builtins/plugins/sandbox"
 	"github.com/zenmark-org/zenmd/builtins/sitetemplates"
+	"github.com/zenmark-org/zenmd/engine/dialects"
 	enginelayouts "github.com/zenmark-org/zenmd/engine/layouts"
 	"github.com/zenmark-org/zenmd/engine/plugins"
 	"github.com/zenmark-org/zenmd/engine/session"
@@ -43,6 +45,15 @@ func assemblyTemplates() fs.FS {
 	return f
 }
 
+// assemblyDialects is the registry of the markdown dialects this app includes.
+func assemblyDialects() *dialects.Registry {
+	r, err := dialects.NewRegistry(myst.New())
+	if err != nil {
+		panic(err)
+	}
+	return r
+}
+
 // assemblyInfo is what the app's build is made of, for the version line and
 // Settings. The add-ons are the ones linked in (build tags), added at run time.
 var assemblyInfo = session.BuildInfo{
@@ -51,5 +62,6 @@ var assemblyInfo = session.BuildInfo{
 	Plugins:   []string{"codeblock", "diagram", "check", "quiz", "sandbox"},
 	Layouts:   []string{"article", "docs", "post", "landing", "wide", "handout", "slides", "course"},
 	Templates: []string{"techdocs", "learning", "planner"},
+	Dialects:  []string{"myst"},
 	Theme:     "default",
 }

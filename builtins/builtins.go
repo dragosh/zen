@@ -20,6 +20,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/zenmark-org/zenmd/builtins/dialects/myst"
 	"github.com/zenmark-org/zenmd/builtins/layouts"
 	"github.com/zenmark-org/zenmd/builtins/plugins/check"
 	"github.com/zenmark-org/zenmd/builtins/plugins/codeblock"
@@ -27,6 +28,7 @@ import (
 	"github.com/zenmark-org/zenmd/builtins/plugins/quiz"
 	"github.com/zenmark-org/zenmd/builtins/plugins/sandbox"
 	"github.com/zenmark-org/zenmd/builtins/sitetemplates"
+	"github.com/zenmark-org/zenmd/engine/dialects"
 	enginelayouts "github.com/zenmark-org/zenmd/engine/layouts"
 	"github.com/zenmark-org/zenmd/engine/plugins"
 )
@@ -128,4 +130,38 @@ func LayoutsFor(version string, ids []string) (*enginelayouts.Registry, error) {
 // template, in the order given. An empty list gives an empty file system.
 func SiteTemplatesFor(ids []string) (fs.FS, error) {
 	return sitetemplates.Sub(ids...)
+}
+
+// DialectIDs lists the built-in markdown dialects in the order Dialects
+// registers them.
+var DialectIDs = []string{"myst"}
+
+func newDialect(id string) dialects.Dialect {
+	if id == "myst" {
+		return myst.New()
+	}
+	return nil
+}
+
+// Dialects returns a registry with every built-in markdown dialect (myst).
+func Dialects() *dialects.Registry {
+	r, err := DialectsFor(DialectIDs)
+	if err != nil {
+		panic(err) // the built-ins are fixed
+	}
+	return r
+}
+
+// DialectsFor returns a registry with only the built-in dialects named, in the
+// order given (an empty list gives an empty registry). An unknown or repeated
+// id is an error that lists the known ids.
+func DialectsFor(ids []string) (*dialects.Registry, error) {
+	if err := checkIDs("dialect", ids, DialectIDs); err != nil {
+		return nil, err
+	}
+	ds := make([]dialects.Dialect, 0, len(ids))
+	for _, id := range ids {
+		ds = append(ds, newDialect(id))
+	}
+	return dialects.NewRegistry(ds...)
 }

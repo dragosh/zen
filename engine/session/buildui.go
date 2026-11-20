@@ -284,7 +284,7 @@ func (s *Session) Build(ctx context.Context, o BuildOptions, progress func(done,
 	s.writeBuildFile(root, buildFile{BuildOptions: o, Last: prev.Last})
 
 	var pi *progressInput
-	env := SiteEnv{GlobalPath: s.globalPath, Runtime: s.runtime, Registry: s.base, Layouts: s.lbase, Version: s.version, Wrap: func(in site.Input) site.Input {
+	env := SiteEnv{GlobalPath: s.globalPath, Runtime: s.runtime, Registry: s.base, Layouts: s.lbase, Dialects: s.dbase, Version: s.version, Wrap: func(in site.Input) site.Input {
 		pi = &progressInput{Input: in, s: s, root: root, run: run, progress: progress}
 		return pi
 	}}

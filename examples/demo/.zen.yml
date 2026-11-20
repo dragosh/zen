@@ -11,6 +11,10 @@ build:
   out: _site
   editURL: https://github.com/zenmark-org/zenmd/edit/main/examples/demo/{path}
 
+# MyST directives (```{note}) are read in this folder; see plugins/dialects.md.
+markdown:
+  dialects: [myst]
+
 plugins:
   codeblock: true
   diagram: { theme: neutral }

@@ -24,7 +24,7 @@ function names(ids: readonly string[]): HTMLElement {
 
 /**
  * The section shows `host.addons` as cards (or says the build has none), then the plugins,
- * layouts and templates the build includes and its theme as short lists, each time Settings
+ * layouts, templates and markdown dialects the build includes and its theme as short lists, each time Settings
  * is shown. A host without a `build` shows the add-ons only.
  */
 export function buildSection(host: Pick<KitHost, "addons" | "build">): SettingsSection {
@@ -48,6 +48,7 @@ export function buildSection(host: Pick<KitHost, "addons" | "build">): SettingsS
         group("plugins", "Plugins", names(b.plugins)),
         group("layouts", "Layouts", names(b.layouts)),
         group("templates", "Templates", names(b.templates)),
+        group("dialects", "Dialects", names(b.dialects ?? [])),
         group("theme", "Theme", names(b.theme ? [b.theme] : [])),
       );
     }

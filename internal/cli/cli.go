@@ -66,6 +66,7 @@ func VersionLine() string {
 type BuildInfo struct {
 	App                                   string
 	Features, Plugins, Layouts, Templates []string
+	Dialects                              []string // markdown dialects (engine/dialects)
 	Theme                                 string
 }
 
@@ -76,7 +77,7 @@ var buildInfo func() BuildInfo
 func SetBuildInfo(f func() BuildInfo) { buildInfo = f }
 
 // VerboseVersion is the version line followed by the assembly, one line each:
-// app, features, add-ons, plugins, layouts, templates and theme.
+// app, features, add-ons, plugins, layouts, templates, dialects and theme.
 func VerboseVersion() string {
 	out := VersionLine() + "\n"
 	if buildInfo == nil {
@@ -99,6 +100,7 @@ func VerboseVersion() string {
 		"plugins: " + list(b.Plugins) + "\n" +
 		"layouts: " + list(b.Layouts) + "\n" +
 		"templates: " + list(b.Templates) + "\n" +
+		"dialects: " + list(b.Dialects) + "\n" +
 		"theme: " + b.Theme + "\n"
 }
 

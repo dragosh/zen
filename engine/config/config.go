@@ -44,6 +44,7 @@ type Config struct {
 	warnings []string
 	limits   Limits
 	layouts  LayoutDefaults
+	dialects []string // markdown.dialects of the folder's .zen.yml
 
 	templates any            // the global templates: key, read by TemplatesDir
 	build     map[string]any // merged build: sections, checked by Build
@@ -82,6 +83,67 @@ const (
 	// limits.openTimeout is not set.
 	DefaultOpenTimeout = 30
 )
+
+// Dialects returns the markdown dialects the folder's .zen.yml turns on, in
+// order (none by default). Only the folder chooses them: the global config
+// and a page's frontmatter cannot. An id that no build has is the caller's to
+// report.
+func (c *Config) Dialects() []string {
+	if c == nil {
+		return nil
+	}
+	return append([]string(nil), c.dialects...)
+}
+
+// parseMarkdown reads the markdown: mapping of a .zen.yml.
+func parseMarkdown(v any, warn func(string, ...any)) []string {
+	if v == nil {
+		return nil
+	}
+	m, ok := v.(map[string]any)
+	if !ok {
+		warn("markdown must be a mapping (dialects: [myst])")
+		return nil
+	}
+	var ids []string
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		if k != "dialects" {
+			warn("unknown key markdown.%s", k)
+			continue
+		}
+		raw := m[k]
+		if raw == nil {
+			continue
+		}
+		l, ok := raw.([]any)
+		if !ok {
+			warn("markdown.dialects must be a list of dialect ids such as myst")
+			return nil
+		}
+		valid := true
+		var got []string
+		for _, x := range l {
+			id, isStr := x.(string)
+			if !isStr || !dialectIDRE.MatchString(id) {
+				warn("markdown.dialects: %v is not a dialect id such as myst", x)
+				valid = false
+				continue
+			}
+			if !contains(got, id) {
+				got = append(got, id)
+			}
+		}
+		if valid {
+			ids = got
+		}
+	}
+	return ids
+}
 
 // Limits returns the configured folder limits (zero fields: defaults).
 func (c *Config) Limits() Limits {
@@ -166,6 +228,9 @@ func (c *Config) ForPage(frontmatter map[string]any) Settings {
 		} else {
 			warn("theme must be system, light or dark")
 		}
+	}
+	if _, ok := frontmatter["markdown"]; ok {
+		warn("markdown can only be set in the folder's .zen.yml")
 	}
 	if v, ok := frontmatter["plugins"]; ok && v != nil {
 		mergePlugins(s.plugins, v, warn)
@@ -349,6 +414,12 @@ func (c *Config) loadFile(path string, global bool) {
 			}
 			// The file's own rules come before those of the layers below it.
 			c.layouts.Rules = append(rules, c.layouts.Rules...)
+		case "markdown":
+			if global {
+				warn("markdown can only be set in a folder's .zen.yml")
+				continue
+			}
+			c.dialects = parseMarkdown(v, warn)
 		case "build":
 			c.mergeBuild(v)
 		case "templates":

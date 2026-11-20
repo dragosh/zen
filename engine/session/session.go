@@ -13,6 +13,7 @@ import (
 
 	"github.com/zenmark-org/zenmd/builtins"
 	"github.com/zenmark-org/zenmd/engine/config"
+	"github.com/zenmark-org/zenmd/engine/dialects"
 	"github.com/zenmark-org/zenmd/engine/extplugins"
 	"github.com/zenmark-org/zenmd/engine/index"
 	"github.com/zenmark-org/zenmd/engine/layouts"
@@ -120,6 +121,7 @@ type BuildInfo struct {
 	Plugins   []string    `json:"plugins"`
 	Layouts   []string    `json:"layouts"`
 	Templates []string    `json:"templates"`
+	Dialects  []string    `json:"dialects"`
 	Theme     string      `json:"theme"`
 }
 
@@ -133,6 +135,9 @@ type Startup struct {
 	Error     string      `json:"error,omitempty"` // the folder given at launch did not open: why
 	Addons    []AddonInfo `json:"addons,omitempty"`
 	Build     *BuildInfo  `json:"build,omitempty"` // the app's assembly; nil for an embedder that sets none
+	// DialectHint is the id of a markdown dialect the folder looks written for
+	// and has not turned on (Session.DialectHint), or empty.
+	DialectHint string `json:"dialectHint,omitempty"`
 }
 
 // PageChanged is the payload of page:changed.
@@ -162,13 +167,15 @@ type Session struct {
 	buildMu    sync.Mutex
 	building   *runningBuild // the build in progress (buildui.go), guarded by buildMu
 	trust      *extplugins.Trust
-	lbase      *layouts.Registry // built-in layouts
-	lreg       *layouts.Registry // lbase plus the allowed layouts of the open folder (guarded by mu)
-	lay        *layoutState      // guarded by mu
-	site       *layoutSite       // where pages sit in the folder (guarded by mu)
-	ext        *extState         // guarded by mu
-	streams    streams           // running plugin streams (stream.go)
-	reloadMu   sync.Mutex        // serialises loading the external plugins (open, trust changes, plugin edits)
+	lbase      *layouts.Registry  // built-in layouts
+	dbase      *dialects.Registry // markdown dialects the build has
+	hints      hintStore          // dismissed dialect hints (dialects.go)
+	lreg       *layouts.Registry  // lbase plus the allowed layouts of the open folder (guarded by mu)
+	lay        *layoutState       // guarded by mu
+	site       *layoutSite        // where pages sit in the folder (guarded by mu)
+	ext        *extState          // guarded by mu
+	streams    streams            // running plugin streams (stream.go)
+	reloadMu   sync.Mutex         // serialises loading the external plugins (open, trust changes, plugin edits)
 	life       context.Context
 	stop       context.CancelFunc // ends every plugin call (the session closes)
 
@@ -200,17 +207,18 @@ type Session struct {
 
 // Options configures a Session; every field is optional.
 type Options struct {
-	GlobalPath string            // config.yml; "" for none
-	ConfigDir  string            // trust, plugin data, user plugins/layouts, templates; default: the folder of GlobalPath
-	Registry   *plugins.Registry // built-in plugins; nil = the default set
-	Layouts    *layouts.Registry // built-in layouts; nil = the default set
-	Events     Events            // may be nil
-	Prompter   Prompter          // may be nil: never asks
-	Runtime    fs.FS             // the browser runtime (zen.js, zen.css) for Build and Print; nil = the embedded runtime package
-	Presets    fs.FS             // the built-in site templates; nil = the default set
-	Watch      bool              // live reload: watch the open folder
-	ReadOnly   bool              // refuse every write to the folder and the settings files (ErrReadOnly); reading and exporting still work
-	Version    string            // asset versioning of the built-ins; "" = "dev"
+	GlobalPath string             // config.yml; "" for none
+	ConfigDir  string             // trust, plugin data, user plugins/layouts, templates; default: the folder of GlobalPath
+	Registry   *plugins.Registry  // built-in plugins; nil = the default set
+	Layouts    *layouts.Registry  // built-in layouts; nil = the default set
+	Dialects   *dialects.Registry // markdown dialects the build has; the folder's .zen.yml turns them on; nil = the default set
+	Events     Events             // may be nil
+	Prompter   Prompter           // may be nil: never asks
+	Runtime    fs.FS              // the browser runtime (zen.js, zen.css) for Build and Print; nil = the embedded runtime package
+	Presets    fs.FS              // the built-in site templates; nil = the default set
+	Watch      bool               // live reload: watch the open folder
+	ReadOnly   bool               // refuse every write to the folder and the settings files (ErrReadOnly); reading and exporting still work
+	Version    string             // asset versioning of the built-ins; "" = "dev"
 }
 
 // New creates a session with no folder open. Call Close when done.
@@ -238,9 +246,13 @@ func New(o Options) *Session {
 	if presets == nil {
 		presets = builtins.SiteTemplates()
 	}
+	dbase := o.Dialects
+	if dbase == nil {
+		dbase = builtins.Dialects()
+	}
 	life, stop := context.WithCancel(context.Background())
 	s := &Session{
-		base: reg, reg: reg, lbase: lbase, lreg: lbase,
+		base: reg, reg: reg, lbase: lbase, lreg: lbase, dbase: dbase,
 		globalPath: o.GlobalPath, configDir: configDir,
 		events: o.Events, prompter: o.Prompter,
 		version: version, runtime: o.Runtime, presets: presets, now: time.Now,
@@ -300,7 +312,7 @@ func (s *Session) rebuildLocked() bool {
 		_, opts, _ := global.Plugin(id)
 		return opts
 	})
-	s.r = render.New(s.reg, s.cfg, &slugResolver{ws: s.ws, slugs: s.slugs}).WithLayouts(s.lreg, s.siteOrNil()) // reindex refreshes the slugs
+	s.r = render.New(s.reg, s.cfg, &slugResolver{ws: s.ws, slugs: s.slugs}).WithLayouts(s.lreg, s.siteOrNil()).WithDialects(s.dbase) // reindex refreshes the slugs
 	return s.reindexLocked()
 }
 
@@ -346,7 +358,7 @@ func (s *Session) reindexLocked() bool {
 		s.navWarn[strings.ToLower(p)] = w
 	}
 	s.slugs = slugs
-	s.r = render.New(s.reg, s.cfg, &slugResolver{ws: s.ws, slugs: slugs}).WithLayouts(s.lreg, s.siteOrNil())
+	s.r = render.New(s.reg, s.cfg, &slugResolver{ws: s.ws, slugs: slugs}).WithLayouts(s.lreg, s.siteOrNil()).WithDialects(s.dbase)
 	meta := func(p string) index.Meta {
 		m := metas[p]
 		if m.Parent != "" && !known[strings.ToLower(m.Parent)] {

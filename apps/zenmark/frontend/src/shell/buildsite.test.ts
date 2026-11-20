@@ -341,7 +341,7 @@ test("the dialog is Export Website", async () => {
 });
 
 test("read-only: no save defaults", async () => {
-  const build = { app: "x", features: [] as string[], addons: [], plugins: [], layouts: [], templates: [], theme: "default" };
+  const build = { app: "x", features: [] as string[], addons: [], plugins: [], layouts: [], templates: [], dialects: [], theme: "default" };
   const { f, btn, d } = open({ build });
   await settle();
   expect(Array.from(d.el.querySelectorAll("button")).some((b) => b.textContent === "Save as folder defaults")).toBe(false);

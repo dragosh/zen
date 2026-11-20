@@ -1,14 +1,14 @@
 // In-memory Api for development in a browser and for tests: a three-page
 // sample workspace, emit() to simulate Go events, and a record of every call.
 import type { LogEntry } from "@zenmd/kit";
-import type { AddonInfo, Api, BuildInfo, BuildProgress, Crumb, Draft, SiteTemplate, LayoutInfo, LintResult, NavNode, OpenProgress, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
+import type { AddonInfo, Api, BuildInfo, BuildProgress, Crumb, DialectInfo, Draft, SiteTemplate, LayoutInfo, LintResult, NavNode, OpenProgress, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
 
 type Method = "startup" | "pickFolder" | "cancelOpen" | "closeFolder"
   | "siteTemplates" | "pickSiteFolder" | "createSite" | "revealTemplates" | "templatesDir"
   | "buildOptions" | "buildWebsite" | "cancelBuild" | "saveBuildDefaults" | "pickBuildFolder" | "openBuiltSite" | "revealBuiltSite"
   | "printPage" | "printSite" | "printWindow" | "exportPdf" | "revealExport" | "printReady" | "printFailed" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "pageInfo" | "revealInFinder" | "openConfig" | "createPage"
   | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys"
-  | "reorderNav" | "setNavHidden"
+  | "reorderNav" | "setNavHidden" | "dialects" | "setDialect" | "dialectHint" | "dismissDialectHint"
   | "logs" | "layouts" | "layoutTrust" | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys";
 type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "layouts:changed": undefined; "menu:new-page": undefined; "menu:settings": undefined; "menu:close-folder": undefined; "workspace:opening": OpenProgress; "menu:new-site": undefined; "menu:build-website": undefined; "build:progress": BuildProgress; "menu:print-page": undefined; "menu:find": undefined; "menu:find-next": undefined; "menu:find-previous": undefined };
 
@@ -46,6 +46,10 @@ export type FakeOptions = {
   addons?: AddonInfo[];
   /** The assembly of the build (api.build): what is given is laid over the Zenmark default (everything built in, Vale, the default theme); null is a host that sends none. */
   build?: Partial<BuildInfo> | null;
+  /** The markdown dialects of the build (api.dialects()). Default: MyST, off; [] is a build without dialects. */
+  dialects?: DialectInfo[];
+  /** The dialect id dialectHint() answers: the folder looks written for it. Default: none. */
+  dialectHint?: string;
   /** What lint() resolves to. Default: Vale unavailable. */
   lint?: LintResult;
   /** Development only: computes lint() from the content instead (api/index.ts). */
@@ -70,8 +74,12 @@ export const ZENMARK_BUILD: BuildInfo = {
   plugins: ["codeblock", "diagram", "check", "quiz", "sandbox"],
   layouts: ["article", "docs", "post", "landing", "wide", "handout", "slides", "course"],
   templates: ["techdocs", "learning", "planner"],
+  dialects: ["myst"],
   theme: "default",
 };
+
+/** The MyST dialect as the Go side registers it (builtins/dialects/myst). */
+export const MYST_DIALECT: DialectInfo = { id: "myst", name: "MyST", summary: "Directives such as ```{note} and :::{note}, as written for MyST, Jupyter Book and Sphinx.", on: false };
 
 /** The Vale add-on as the Go side registers it (addons/vale). */
 export const VALE_ADDON: AddonInfo = { id: "vale", name: "Vale linting", summary: "Spelling and style checks for your pages, by the Vale prose linter." };
@@ -259,6 +267,9 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     return new Promise((res) => res(run()));
   };
 
+  let dialectList = (options.dialects ?? [MYST_DIALECT]).map((d) => ({ ...d }));
+  let hint = options.dialectHint ?? "";
+  let lastPage = "";
   const addons = (options.addons ?? [VALE_ADDON]).map((a) => ({ ...a }));
   const api: FakeApi = {
     calls: [],
@@ -320,7 +331,24 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     revealExport: () => call("revealExport", [], () => undefined),
     printReady: (late) => call("printReady", [late], () => undefined),
     printFailed: (message) => call("printFailed", [message], () => undefined),
-    page: (path) => call("page", [path], () => render(path, need(path))),
+    dialects: () => call("dialects", [], () => dialectList.map((d) => ({ ...d }))),
+    setDialect: (id, on) => call("setDialect", [id, on], () => {
+      if (api.build && !api.build.features.includes("editor")) throw new Error("this app is read-only");
+      const d = dialectList.find((x) => x.id === id);
+      if (!d) throw new Error(`dialect ${id} is not in this build`);
+      d.on = on;
+      if (on && hint === id) hint = "";
+      if (lastPage) api.emit("page:changed", { path: lastPage }); // the Go side renders the open pages again
+    }),
+    dialectHint: () => call("dialectHint", [], () => {
+      if (api.build && !api.build.features.includes("editor")) return "";
+      const d = dialectList.find((x) => x.id === hint);
+      return d && !d.on ? hint : "";
+    }),
+    dismissDialectHint: (id) => call("dismissDialectHint", [id], () => {
+      if (hint === id) hint = "";
+    }),
+    page: (path) => call("page", [path], () => { lastPage = path; return render(path, need(path)); }),
     source: (path) => call("source", [path], () => need(path)),
     preview: (path, content) => call("preview", [path, content], () => render(path, content)),
     save: (path, content) => call("save", [path, content], () => {

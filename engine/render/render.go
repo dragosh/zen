@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/zenmark-org/zenmd/engine/config"
+	"github.com/zenmark-org/zenmd/engine/dialects"
 	"github.com/zenmark-org/zenmd/engine/layouts"
 	"github.com/zenmark-org/zenmd/engine/plugins"
 	"github.com/zenmark-org/zenmd/engine/workspace"
@@ -59,6 +60,18 @@ type Renderer struct {
 
 	layouts *layouts.Registry // nil: only the built-in article exists
 	site    layouts.Site      // where pages sit in the folder, for template layouts
+
+	dialects *dialects.Registry // the dialects the build has; the folder's config says which are on
+}
+
+// WithDialects returns a renderer that reads the markdown dialects of reg (the
+// ones the build has) that the folder's config turns on (markdown.dialects). An
+// id the build does not have is ignored with a warning. With none turned on
+// rendering is what it is without dialects.
+func (r *Renderer) WithDialects(reg *dialects.Registry) *Renderer {
+	c := *r
+	c.dialects = reg
+	return &c
 }
 
 // WithLayouts returns a renderer that also knows the layouts of reg, and site
@@ -116,6 +129,13 @@ func (r *Renderer) Render(pagePath string, src []byte) (Page, error) {
 		st.warnings = append(st.warnings, fmWarn)
 	}
 	st.warnings = append(st.warnings, regWarn...)
+	for _, id := range r.cfg.Dialects() {
+		if d := r.dialects.Get(id); d != nil {
+			st.dialects = append(st.dialects, d)
+		} else {
+			st.warnings = append(st.warnings, fmt.Sprintf("dialect %s is not in this build", id))
+		}
+	}
 
 	// 2 source hooks
 	for _, p := range set.Plugins() {

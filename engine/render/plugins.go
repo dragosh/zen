@@ -7,8 +7,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"html"
+	"sort"
 	"strings"
 
+	"github.com/zenmark-org/zenmd/engine/dialects"
 	"github.com/zenmark-org/zenmd/engine/plugins"
 	"github.com/yuin/goldmark"
 	"github.com/yuin/goldmark/renderer"
@@ -33,6 +35,7 @@ type state struct {
 	denied    []string // ids of not-allowed plugins the page uses, in order
 	depth     int      // nesting of default-content containers
 	titleOnly bool     // only the title is wanted: run no hooks
+	dialects  []dialects.Dialect // the markdown dialects the folder turned on
 }
 
 // ctx is the hook context of plugin id: the page's settings and a way to
@@ -175,16 +178,35 @@ func (st *state) fragment(src string) string {
 }
 
 // replaceContainers renders the outermost containers owned by an enabled
-// plugin and puts a placeholder paragraph in their place.
+// plugin and puts a placeholder paragraph in their place. With markdown
+// dialects turned on, their directives (MyST's ```{note}) are containers too.
 func (st *state) replaceContainers(src []byte) []byte {
+	if len(st.dialects) > 0 {
+		return st.replaceWithDialects(src)
+	}
 	if !bytes.Contains(src, []byte(":::")) {
 		return src
 	}
+	return st.replaceSpans(src, plugins.ScanContainers(src), nil)
+}
+
+// replaceSpans replaces the outermost spans of an enabled plugin. dm holds the
+// dialects' spans by start offset (their code flag and warnings); spans is
+// already in source order.
+func (st *state) replaceSpans(src []byte, spans []plugins.Span, dm map[int]dialects.Span) []byte {
 	var out bytes.Buffer
 	last := 0
-	for _, sp := range plugins.ScanContainers(src) {
+	for _, sp := range spans {
 		if sp.Start < last {
 			continue // nested in a replaced container
+		}
+		ds, isDialect := dm[sp.Start]
+		if isDialect && ds.Code {
+			st.warnings = append(st.warnings, ds.Warnings...)
+			out.Write(src[last:sp.Start])
+			out.WriteString(codeFenceText(ds))
+			last = sp.End
+			continue
 		}
 		p := st.set.Block(sp.Name)
 		if p == nil {
@@ -193,6 +215,7 @@ func (st *state) replaceContainers(src []byte) []byte {
 			}
 			continue
 		}
+		st.warnings = append(st.warnings, ds.Warnings...)
 		h := st.block(p, plugins.Block{Name: sp.Name, Body: sp.Body, Attrs: sp.Attrs})
 		out.Write(src[last:sp.Start])
 		out.WriteString("\n" + st.placeholder(h, "") + "\n\n")
@@ -203,6 +226,93 @@ func (st *state) replaceContainers(src []byte) []byte {
 	}
 	out.Write(src[last:])
 	return out.Bytes()
+}
+
+// replaceWithDialects merges the spans of the folder's dialects with those of
+// `:::` containers in source order; the outermost wins. MyST's colon fences
+// end on a bare `:::` line that ScanContainers would take for the end of an
+// enclosing container, so those closing lines are blanked (same length) in the
+// copy it scans, and the bodies it returns are read from the real source.
+func (st *state) replaceWithDialects(src []byte) []byte {
+	var ds []dialects.Span
+	for _, d := range st.dialects {
+		ds = append(ds, d.Scan(src)...)
+	}
+	if len(ds) == 0 {
+		if !bytes.Contains(src, []byte(":::")) {
+			return src
+		}
+		return st.replaceSpans(src, plugins.ScanContainers(src), nil)
+	}
+	masked, changed := src, false
+	for _, sp := range ds {
+		first := bytes.TrimLeft(src[sp.Start:], " ")
+		ls := bytes.LastIndexByte(src[:sp.End], '\n') + 1
+		if len(first) == 0 || first[0] != ':' || ls <= sp.Start {
+			continue // not a colon fence
+		}
+		if !changed {
+			masked, changed = append([]byte(nil), src...), true
+		}
+		for i := ls; i < sp.End; i++ {
+			masked[i] = ' '
+		}
+	}
+	var zen []plugins.Span
+	if bytes.Contains(masked, []byte(":::")) {
+		zen = plugins.ScanContainers(masked)
+		if changed {
+			for i := range zen {
+				zen[i].Body = bodyOf(src, zen[i])
+			}
+		}
+	}
+	dm := make(map[int]dialects.Span, len(ds))
+	all := make([]plugins.Span, 0, len(zen)+len(ds))
+	all = append(all, zen...)
+	for _, d := range ds {
+		all = append(all, d.Span)
+		dm[d.Start] = d
+	}
+	sort.SliceStable(all, func(i, j int) bool {
+		if all[i].Start != all[j].Start {
+			return all[i].Start < all[j].Start
+		}
+		return all[i].End > all[j].End // the outer one first
+	})
+	return st.replaceSpans(src, all, dm)
+}
+
+// bodyOf is the text between the opening and closing lines of a container.
+func bodyOf(src []byte, sp plugins.Span) string {
+	nl := bytes.IndexByte(src[sp.Start:], '\n')
+	closeAt := bytes.LastIndexByte(src[:sp.End], '\n') + 1
+	if nl < 0 || sp.Start+nl+1 > closeAt {
+		return ""
+	}
+	return string(src[sp.Start+nl+1 : closeAt])
+}
+
+// codeFenceText is a code directive as an ordinary fenced block, long enough
+// that its body cannot end it.
+func codeFenceText(d dialects.Span) string {
+	longest, cur := 0, 0
+	for i := 0; i < len(d.Body); i++ {
+		if d.Body[i] == '`' {
+			cur++
+			if cur > longest {
+				longest = cur
+			}
+		} else {
+			cur = 0
+		}
+	}
+	fence := strings.Repeat("`", max(3, longest+1))
+	body := d.Body
+	if body != "" && !strings.HasSuffix(body, "\n") {
+		body += "\n"
+	}
+	return fence + d.Lang + "\n" + body + fence
 }
 
 // replaceInlines replaces inline directives of enabled plugins outside

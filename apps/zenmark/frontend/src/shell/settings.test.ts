@@ -72,7 +72,7 @@ async function plugins(plugins: PluginInfo[] = PLUGINS, hasWorkspace = true): Pr
 test("it is a page with a section list on the left: Appearance, Configuration files, Plugins, Layouts, Export, This build, Developer", () => {
   const { s } = setup();
   const names = Array.from(s.el.querySelectorAll(".zen-settings-section")).map((b) => b.textContent);
-  expect(names).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Export", "This build", "Developer"]);
+  expect(names).toEqual(["Appearance", "Configuration files", "Plugins", "Layouts", "Markdown", "Export", "This build", "Developer"]);
   expect(s.el.querySelector("h1")!.textContent).toBe("Settings");
   expect(s.el.getAttribute("aria-label")).toBe("Settings");
   expect(s.el.classList.contains("zen-settings-page")).toBe(true);
@@ -93,6 +93,8 @@ test("one section shows at a time; the first is Appearance; arrow keys and click
   expect(document.activeElement).toBe(section(s, "plugins"));
   key(list, "ArrowDown");
   expect(shown()).toEqual(["layouts"]);
+  key(list, "ArrowDown");
+  expect(shown()).toEqual(["markdown"]);
   key(list, "ArrowDown");
   expect(shown()).toEqual(["export"]);
   key(list, "ArrowDown");
@@ -730,7 +732,7 @@ test("This build section", async () => {
   // the build has no add-ons: the sections after it still list what it is made of
   let api = createFakeApi({
     addons: [],
-    build: { app: "demo", features: ["editor"], plugins: ["codeblock", "quiz"], layouts: ["article", "docs"], templates: ["learning"], theme: "default" },
+    build: { app: "demo", features: ["editor"], plugins: ["codeblock", "quiz"], layouts: ["article", "docs"], templates: ["learning"], dialects: ["myst"], theme: "default" },
   });
   let s = createSettingsView({ api, hasWorkspace: () => true });
   document.body.append(s.el);
@@ -739,13 +741,14 @@ test("This build section", async () => {
   expect(panel(s, "build").querySelector("h2")?.textContent ?? "").toBe("This build");
   const group = (id: string) => panel(s, "build").querySelector<HTMLElement>(`[data-group="${id}"]`)!;
   const heads = Array.from(panel(s, "build").querySelectorAll(".zen-build-group h3")).map((h) => h.textContent);
-  expect(heads).toEqual(["Features", "Add-ons", "Plugins", "Layouts", "Templates", "Theme"]);
+  expect(heads).toEqual(["Features", "Add-ons", "Plugins", "Layouts", "Templates", "Dialects", "Theme"]);
   expect(group("features").querySelector(".zen-build-list")!.textContent).toBe("editor");
   expect(group("addons").textContent).toContain("This build has no add-ons.");
   expect(group("addons").querySelector(".zen-addon")).toBeNull();
   expect(group("plugins").querySelector(".zen-build-list")!.textContent).toBe("codeblock, quiz");
   expect(group("layouts").querySelector(".zen-build-list")!.textContent).toBe("article, docs");
   expect(group("templates").querySelector(".zen-build-list")!.textContent).toBe("learning");
+  expect(group("dialects").querySelector(".zen-build-list")!.textContent).toBe("myst");
   expect(group("theme").querySelector(".zen-build-list")!.textContent).toBe("default");
   expect(panel(s, "build").querySelector("input, button, select")).toBeNull(); // read-only
   s.destroy();
@@ -794,7 +797,7 @@ test("read-only settings", () => {
   // no Configuration files section: nothing opens the config files
   expect(section(s, "files")).toBeNull();
   const names = Array.from(s.el.querySelectorAll(".zen-settings-section")).map((b) => b.textContent);
-  expect(names).toEqual(["Appearance", "Plugins", "Layouts", "Export", "This build", "Developer"]);
+  expect(names).toEqual(["Appearance", "Plugins", "Layouts", "Markdown", "Export", "This build", "Developer"]);
   expect(s.el.textContent).not.toContain("config.yml");
   // the build section says so, first
   const features = panel(s, "build").querySelector<HTMLElement>('[data-group="features"]')!;
@@ -804,3 +807,71 @@ test("read-only settings", () => {
   expect(panel(s, "export").textContent).toContain("Website");
   s.destroy();
 });
+
+test("Markdown section", async () => {
+  const api = createFakeApi({
+    dialects: [{ id: "myst", name: "MyST", summary: "Directives such as {note}.", on: false }, { id: "x", name: "<b>X</b>", summary: "<i>s</i>", on: true }],
+  });
+  const s = createSettingsView({ api, hasWorkspace: () => true });
+  document.body.append(s.el);
+  s.show();
+  expect(section(s, "markdown").textContent).toBe("Markdown");
+  s.el.querySelector<HTMLButtonElement>('.zen-settings-section[data-section="markdown"]')!.click();
+  await tick();
+  const boxes = () => Array.from(panel(s, "markdown").querySelectorAll<HTMLInputElement>('input[type="checkbox"]'));
+  expect(boxes().map((b) => [b.dataset.dialect, b.checked, b.disabled])).toEqual([["myst", false, false], ["x", true, false]]);
+  const rows = Array.from(panel(s, "markdown").querySelectorAll<HTMLElement>(".zen-dialect"));
+  expect(rows[0].querySelector(".zen-dialect-name")!.textContent).toBe("MyST");
+  expect(rows[0].querySelector(".zen-dialect-summary")!.textContent).toBe("Directives such as {note}.");
+  // names and summaries are text, never markup
+  expect(rows[1].querySelector(".zen-dialect-name")!.textContent).toBe("<b>X</b>");
+  expect(panel(s, "markdown").querySelector("b, i")).toBeNull();
+  expect(panel(s, "markdown").textContent).toContain("Saved in this folder's .zen.yml, so the folder renders the same everywhere.");
+
+  // a click writes the folder through the api and shows the new state
+  boxes()[0].click();
+  await tick();
+  expect(api.callsTo("setDialect")).toEqual([["myst", true]]);
+  expect(boxes()[0].checked).toBe(true);
+  boxes()[1].click();
+  await tick();
+  expect(api.callsTo("setDialect")[1]).toEqual(["x", false]);
+
+  // a refused change puts the box back and says why
+  api.failNext("setDialect", new Error("could not save .zen.yml"));
+  boxes()[0].click();
+  await tick();
+  expect(boxes()[0].checked).toBe(true);
+  expect(panel(s, "markdown").querySelector(".zen-settings-status")!.textContent).toContain("could not save .zen.yml");
+  s.destroy();
+
+  // no folder: the boxes are shown disabled, with the reason
+  const none = createSettingsView({ api: createFakeApi(), hasWorkspace: () => false });
+  document.body.append(none.el);
+  none.show();
+  await tick();
+  expect(Array.from(panel(none, "markdown").querySelectorAll<HTMLInputElement>("input")).every((b) => b.disabled)).toBe(true);
+  expect(panel(none, "markdown").textContent).toContain("Open a folder");
+  none.destroy();
+
+  // a read-only app: disabled, with the reason
+  const ro = createSettingsView({ api: createFakeApi({ build: { features: [] } }), hasWorkspace: () => true });
+  document.body.append(ro.el);
+  ro.show();
+  await tick();
+  const roBoxes = Array.from(panel(ro, "markdown").querySelectorAll<HTMLInputElement>("input"));
+  expect(roBoxes.length).toBe(1);
+  expect(roBoxes.every((b) => b.disabled)).toBe(true);
+  expect(panel(ro, "markdown").textContent).toContain("read-only");
+  ro.destroy();
+
+  // a build without dialects has no Markdown section
+  const nothing = createSettingsView({ api: createFakeApi({ dialects: [] }), hasWorkspace: () => true });
+  document.body.append(nothing.el);
+  nothing.show();
+  await tick();
+  expect(panel(nothing, "markdown").textContent).toContain("no markdown dialects");
+  nothing.destroy();
+});
+
+const tick = () => new Promise((r) => setTimeout(r, 0));

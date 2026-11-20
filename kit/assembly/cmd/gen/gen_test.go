@@ -177,3 +177,32 @@ func TestFeaturesGenerated(t *testing.T) {
 		t.Errorf("features none:\n%s", got)
 	}
 }
+
+func TestDialectsGenerated(t *testing.T) {
+	read := func(yml string) string {
+		dir := appDir(t, yml)
+		if code, _, errOut := gen(dir); code != 0 {
+			t.Fatalf("gen: %s", errOut)
+		}
+		src, _ := os.ReadFile(filepath.Join(dir, "assembly_gen.go"))
+		if _, err := parser.ParseFile(token.NewFileSet(), "assembly_gen.go", src, 0); err != nil {
+			t.Fatalf("not Go: %v\n%s", err, src)
+		}
+		return string(src)
+	}
+	got := read("app: demo\ndialects: all\n")
+	for _, want := range []string{"func assemblyDialects() *dialects.Registry", "myst.New()", `Dialects:  []string{"myst"}`,
+		`"github.com/zenmark-org/zenmd/builtins/dialects/myst"`, `"github.com/zenmark-org/zenmd/engine/dialects"`} {
+		if !strings.Contains(got, want) {
+			t.Errorf("missing %q:\n%s", want, got)
+		}
+	}
+	// none: the registry is empty and the package is not linked
+	got = read("app: demo\n")
+	if strings.Contains(got, "myst.New()") || strings.Contains(got, "builtins/dialects/myst") || !strings.Contains(got, `Dialects:  []string{}`) {
+		t.Errorf("no dialects:\n%s", got)
+	}
+	if !strings.Contains(got, "func assemblyDialects() *dialects.Registry") {
+		t.Errorf("assemblyDialects missing:\n%s", got)
+	}
+}
