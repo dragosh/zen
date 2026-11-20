@@ -4,20 +4,21 @@ import (
 	"os"
 	"path/filepath"
 	"reflect"
+	"slices"
 	"strings"
 	"testing"
 )
 
-var allFeatures = []string{"reader", "nav", "find", "editor", "inspector", "print", "export", "newsite", "developer"}
+var testFeatures = []string{"reader", "nav", "find", "editor", "inspector", "print", "export", "newsite", "developer"}
 
-var featureNeeds = map[string][]string{
+var testFeatureNeeds = map[string][]string{
 	"nav": {"reader"}, "find": {"reader"}, "editor": {"reader"}, "inspector": {"reader"}, "print": {"reader"}, "export": {"reader"},
 }
 
 func testCatalog() Catalog {
 	return Catalog{
-		Features:     allFeatures,
-		FeatureNeeds: featureNeeds,
+		Features:     testFeatures,
+		FeatureNeeds: testFeatureNeeds,
 		AddonNeeds:   map[string][]string{"vale": {"reader"}},
 		Addons:       []string{"vale"},
 		Plugins:      []string{"codeblock", "diagram", "check", "quiz", "sandbox"},
@@ -60,7 +61,7 @@ theme: default
 	if err != nil {
 		t.Fatal(err)
 	}
-	want := Assembly{App: "demo", Features: allFeatures, Addons: []string{"vale"}, Plugins: []string{"codeblock", "quiz", "check"},
+	want := Assembly{App: "demo", Features: testFeatures, Addons: []string{"vale"}, Plugins: []string{"codeblock", "quiz", "check"},
 		Layouts: []string{"article", "docs", "landing", "course"}, Templates: []string{"learning"}, Theme: "default"}
 	if !reflect.DeepEqual(a, want) {
 		t.Errorf("got %+v\nwant %+v", a, want)
@@ -157,7 +158,7 @@ func TestDependencies(t *testing.T) {
 	// and listing it is allowed.
 	cat := testCatalog()
 	cat.TemplateNeeds["techdocs"] = Needs{Layouts: []string{"article", "docs", "landing"}, Plugins: []string{"codeblock"}}
-	a := Assembly{App: "x", Plugins: []string{"codeblock"}, Layouts: []string{"docs", "landing"}, Templates: []string{"techdocs"}, Theme: "default"}
+	a := Assembly{App: "x", Features: []string{"reader"}, Plugins: []string{"codeblock"}, Layouts: []string{"docs", "landing"}, Templates: []string{"techdocs"}, Theme: "default"}
 	if err := Check(a, cat); err != nil {
 		t.Errorf("article is implied: %v", err)
 	}
@@ -277,13 +278,13 @@ func sameSet(a, b []string) bool {
 func TestFeatures(t *testing.T) {
 	// A missing key means all, unlike the other lists; newsite joins only when
 	// there is a template to start from.
-	noNewsite := slices.DeleteFunc(slices.Clone(allFeatures), func(f string) bool { return f == "newsite" })
+	noNewsite := slices.DeleteFunc(slices.Clone(testFeatures), func(f string) bool { return f == "newsite" })
 	a, err := load(t, "app: x\n")
 	if err != nil || !reflect.DeepEqual(a.Features, noNewsite) {
 		t.Errorf("missing: %+v, %v", a.Features, err)
 	}
 	a, err = load(t, "app: x\nlayouts: [docs, landing]\ntemplates: [techdocs]\nplugins: [codeblock]\n")
-	if err != nil || !reflect.DeepEqual(a.Features, allFeatures) {
+	if err != nil || !reflect.DeepEqual(a.Features, testFeatures) {
 		t.Errorf("missing, with templates: %+v, %v", a.Features, err)
 	}
 	// [] and null mean none: the bare shell.
@@ -315,10 +316,10 @@ func TestFeatures(t *testing.T) {
 	}
 	// The built-in catalog lists the features in order, with their needs.
 	c, _ := BuiltinCatalog()
-	if !reflect.DeepEqual(c.Features, allFeatures) {
+	if !reflect.DeepEqual(c.Features, testFeatures) {
 		t.Errorf("builtin features %v", c.Features)
 	}
-	if !reflect.DeepEqual(c.FeatureNeeds, featureNeeds) {
+	if !reflect.DeepEqual(c.FeatureNeeds, testFeatureNeeds) {
 		t.Errorf("builtin feature needs %v", c.FeatureNeeds)
 	}
 }

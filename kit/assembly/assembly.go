@@ -3,7 +3,7 @@
 // templates and theme; the build includes exactly that (specs/kit/assembly).
 //
 //	app: zenmark
-//	features: all
+//	features: all   # or a list: reader, nav, find, editor, inspector, print, export, newsite, developer
 //	addons: [vale]
 //	plugins: all
 //	layouts: [article, docs, course]
@@ -43,8 +43,9 @@ type Catalog struct {
 	Features, Addons, Plugins, Layouts, Templates, Themes []string
 	Dialects                                              []string // the markdown dialects that exist
 	LayoutNeeds, TemplateNeeds                            map[string]Needs
-	// FeatureNeeds says which features a feature requires (none yet; Check reads it).
-	FeatureNeeds map[string][]string
+	// FeatureNeeds says which features a feature requires; AddonNeeds which
+	// features an add-on requires. Check reads both.
+	FeatureNeeds, AddonNeeds map[string][]string
 }
 
 // DefaultTheme is the look of every app until themes exist.
@@ -94,6 +95,7 @@ func parse(data []byte, cat Catalog) (Assembly, error) {
 	}
 	m := doc.Content[0]
 	a.Features = slices.Clone(cat.Features) // a missing features key means all, so an old file never makes an app read-only
+	featuresAll := !hasKey(m, "features")
 	seen := map[string]bool{}
 	for i := 0; i+1 < len(m.Content); i += 2 {
 		k, v := m.Content[i].Value, m.Content[i+1]
@@ -109,6 +111,7 @@ func parse(data []byte, cat Catalog) (Assembly, error) {
 			a.Theme, err = scalar(k, v)
 		case "features":
 			a.Features, err = list(k, v, cat.Features)
+			featuresAll = isAll(v)
 		case "addons":
 			a.Addons, err = list(k, v, cat.Addons)
 		case "plugins":
@@ -126,6 +129,10 @@ func parse(data []byte, cat Catalog) (Assembly, error) {
 			return Assembly{}, err
 		}
 	}
+	if featuresAll && len(a.Templates) == 0 {
+		// all means every feature that can work: newsite needs a template to start from.
+		a.Features = slices.DeleteFunc(a.Features, func(f string) bool { return f == "newsite" })
+	}
 	if a.App == "" {
 		return Assembly{}, errors.New("app is required (the app id, such as zenmark)")
 	}
@@ -133,6 +140,23 @@ func parse(data []byte, cat Catalog) (Assembly, error) {
 		a.Theme = DefaultTheme
 	}
 	return a, nil
+}
+
+func hasKey(m *yaml.Node, key string) bool {
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value == key {
+			return true
+		}
+	}
+	return false
+}
+
+// isAll reports whether a list value is `all` or [all].
+func isAll(v *yaml.Node) bool {
+	if v.Kind == yaml.ScalarNode {
+		return v.Value == "all"
+	}
+	return v.Kind == yaml.SequenceNode && len(v.Content) == 1 && v.Content[0].Value == "all"
 }
 
 func scalar(key string, v *yaml.Node) (string, error) {
@@ -210,6 +234,26 @@ func Check(a Assembly, cat Catalog) error {
 		for _, need := range cat.FeatureNeeds[f] {
 			if !slices.Contains(a.Features, need) {
 				problems = append(problems, fmt.Sprintf("feature %s needs feature %s", f, need))
+			}
+		}
+	}
+	for _, ad := range a.Addons {
+		for _, need := range cat.AddonNeeds[ad] {
+			if !slices.Contains(a.Features, need) {
+				problems = append(problems, fmt.Sprintf("add-on %s needs feature %s", ad, need))
+			}
+		}
+	}
+	if slices.Contains(a.Features, "newsite") && len(a.Templates) == 0 {
+		problems = append(problems, "feature newsite needs at least one template")
+	}
+	if !slices.Contains(a.Features, "reader") {
+		for _, k := range []struct {
+			ids  []string
+			name string
+		}{{a.Plugins, "plugins"}, {a.Layouts, "layouts"}, {a.Dialects, "dialects"}} {
+			if len(k.ids) > 0 {
+				problems = append(problems, k.name+" need feature reader")
 			}
 		}
 	}
