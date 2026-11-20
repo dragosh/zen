@@ -117,7 +117,9 @@ func TestEvents(t *testing.T) {
 
 	write(t, filepath.Join(root, "img.png"), "x")
 	r.waitFor(t, Event{"img.png", "created"})
-	write(t, filepath.Join(root, ".zen.yml"), "x")
+	write(t, filepath.Join(root, ".zenmd.yml"), "x")
+	r.waitFor(t, Event{".zenmd.yml", "created"})
+	write(t, filepath.Join(root, ".zen.yml"), "x") // the old name is watched too
 	r.waitFor(t, Event{".zen.yml", "created"})
 
 	if err := os.Rename(filepath.Join(root, "a.md"), filepath.Join(root, "z.md")); err != nil {

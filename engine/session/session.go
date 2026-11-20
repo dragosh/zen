@@ -70,12 +70,14 @@ type NavNode struct {
 
 // Workspace is the open folder: its name, home page and sidebar tree.
 type Workspace struct {
-	Root  string    `json:"root"`
-	Name  string    `json:"name"`
-	Home  string    `json:"home"`
-	Title string    `json:"title"` // the home page's first heading, else Name
-	Logo  string    `json:"logo"`  // "/_ws/<path>" of the folder's logo, "" for Zenmark's mark
-	Tree  []NavNode `json:"tree"`
+	Root  string `json:"root"`
+	Name  string `json:"name"`
+	Home  string `json:"home"`
+	Title string `json:"title"` // the home page's first heading, else Name
+	Logo  string `json:"logo"`  // "/_ws/<path>" of the folder's logo, "" for Zenmark's mark
+	// ConfigFile is the name of the folder's settings file in use: ".zenmd.yml", or the old name while only that exists.
+	ConfigFile string    `json:"configFile,omitempty"`
+	Tree       []NavNode `json:"tree"`
 }
 
 // Crumb is one step of a page's breadcrumb.
@@ -207,11 +209,13 @@ type Session struct {
 	openGen     int
 	openTimeout time.Duration // 0 = from limits.openTimeout (tests set it)
 
-	indexCtx   context.Context       // set while open indexes: cancel stops the index (guarded by mu)
-	indexStep  func(done, total int) // progress of that index (guarded by mu)
-	indexErr   error                 // why that index stopped (guarded by mu)
-	logo       string                // the logo URL the frontend last got, to tell when it changed (guarded by mu)
-	logoWarned string                // the logo path already reported in the log (guarded by mu)
+	indexCtx     context.Context       // set while open indexes: cancel stops the index (guarded by mu)
+	indexStep    func(done, total int) // progress of that index (guarded by mu)
+	indexErr     error                 // why that index stopped (guarded by mu)
+	logo         string                // the logo URL the frontend last got, to tell when it changed (guarded by mu)
+	noticeLogged string                // the config notice already in the log (guarded by mu)
+	configFile   string                // the settings file name the frontend last got (guarded by mu)
+	logoWarned   string                // the logo path already reported in the log (guarded by mu)
 }
 
 // Options configures a Session; every field is optional.
@@ -220,7 +224,7 @@ type Options struct {
 	ConfigDir  string             // trust, plugin data, user plugins/layouts, templates; default: the folder of GlobalPath
 	Registry   *plugins.Registry  // built-in plugins; nil = the default set
 	Layouts    *layouts.Registry  // built-in layouts; nil = the default set
-	Dialects   *dialects.Registry // markdown dialects the build has; the folder's .zen.yml turns them on; nil = the default set
+	Dialects   *dialects.Registry // markdown dialects the build has; the folder's .zenmd.yml turns them on; nil = the default set
 	Events     Events             // may be nil
 	Prompter   Prompter           // may be nil: never asks
 	Runtime    fs.FS              // the browser runtime (zen.js, zen.css) for Build and Print; nil = the embedded runtime package
@@ -315,6 +319,7 @@ func (s *Session) rebuildLocked() bool {
 		return true
 	}
 	s.cfg = config.Load(s.globalPath, s.ws.Root())
+	s.logNoticeLocked()
 	// Options with scope user come from the global config only.
 	global := config.Load(s.globalPath, "").ForPage(nil)
 	s.reg.SetUserOptions(func(id string) map[string]any {
@@ -323,6 +328,30 @@ func (s *Session) rebuildLocked() bool {
 	})
 	s.r = render.New(s.reg, s.cfg, &slugResolver{ws: s.ws, slugs: s.slugs}).WithLayouts(s.lreg, s.siteOrNil()).WithDialects(s.dbase) // reindex refreshes the slugs
 	return s.reindexLocked()
+}
+
+// ConfigNotice is the text of the Problems item for a folder that still has
+// the old settings file (or both files): "" when it has not, or none is open.
+func (s *Session) ConfigNotice() string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.ws == nil {
+		return ""
+	}
+	return s.cfg.Notice()
+}
+
+// logNoticeLocked writes the config notice to the log once for as long as it
+// stays the same.
+func (s *Session) logNoticeLocked() {
+	n := s.cfg.Notice()
+	if n != "" {
+		n = s.ws.Root() + "\x00" + n // another folder with the same notice is logged too
+	}
+	if n != s.noticeLogged && n != "" {
+		slog.Warn(s.cfg.Notice(), "source", "workspace")
+	}
+	s.noticeLogged = n
 }
 
 // reindexLocked rebuilds the index and reports whether the tree changed.
@@ -449,7 +478,13 @@ func (s *Session) workspaceLocked() *Workspace {
 	}
 	logo := s.logoLocked()
 	s.logo = logo
-	return &Workspace{Root: s.ws.Root(), Name: s.ws.Name(), Home: s.ws.Home(), Title: s.titleLocked(), Logo: logo, Tree: s.tree}
+	_, legacy, _ := config.WorkspaceConfigPath(s.ws.Root())
+	file := config.WorkspaceFile
+	if legacy {
+		file = config.LegacyWorkspaceFile
+	}
+	s.configFile = file
+	return &Workspace{Root: s.ws.Root(), Name: s.ws.Name(), Home: s.ws.Home(), Title: s.titleLocked(), Logo: logo, ConfigFile: file, Tree: s.tree}
 }
 
 // titleLocked is the folder's title for the sidebar: the first heading of the
@@ -486,6 +521,13 @@ func (s *Session) logoChangedLocked() bool {
 		return false
 	}
 	return s.logoLocked() != s.logo
+}
+
+// configFileChangedLocked reports whether the name of the settings file in use
+// differs from the one the frontend last got (the old file was renamed).
+func (s *Session) configFileChangedLocked() bool {
+	_, legacy, _ := config.WorkspaceConfigPath(s.ws.Root())
+	return legacy != (s.configFile == config.LegacyWorkspaceFile)
 }
 
 // logoLocked is the /_ws/ URL of the logo the config names, "" when there is
@@ -749,7 +791,7 @@ func (s *Session) handle(evs []watch.Event) {
 	reindex, assets, cfg := false, false, false
 	for _, e := range evs {
 		switch {
-		case e.Path == config.WorkspaceFile:
+		case e.Path == config.WorkspaceFile || e.Path == config.LegacyWorkspaceFile:
 			cfg = true
 		case isMarkdownPath(e.Path):
 			reindex = true
@@ -799,7 +841,7 @@ func (s *Session) reloadConfig() {
 		return
 	}
 	changed := s.rebuildLocked()
-	if s.ws != nil && s.logoChangedLocked() {
+	if s.ws != nil && (s.logoChangedLocked() || s.configFileChangedLocked()) {
 		changed = true
 	}
 	var ws *Workspace

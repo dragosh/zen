@@ -210,7 +210,7 @@ After E3, the engine gets its own version (`zenmd 1.0.0-beta`) and apps depend o
 
 - **Engine:** SemVer, starting at `0.x`. A breaking change to the Go API, the CLI, the format, the plugin API (`apiVersion`) or the layout API bumps the minor version before 1.0 and the major version after.
 - **Apps:** their own versions, each naming the zenmd version it is built on, for example "Zenmark 0.3 (zenmd 0.5)".
-- **Content:** a folder may pin a minimum engine version in `.zen.yml` (`zenmd: ">=0.5"`), and older engines say so instead of rendering it wrongly.
+- **Content:** a folder may pin a minimum engine version in `.zenmd.yml` (`zenmd: ">=0.5"`), and older engines say so instead of rendering it wrongly.
 
 ## Decisions
 

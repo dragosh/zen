@@ -9,7 +9,7 @@ type DialectInfo = session.DialectInfo
 // Dialects lists the markdown dialects of this build with the open folder's choice.
 func (z *Zen) Dialects() []DialectInfo { return z.s.Dialects() }
 
-// SetDialect turns a dialect on or off for the open folder (its .zen.yml).
+// SetDialect turns a dialect on or off for the open folder (its .zenmd.yml).
 func (z *Zen) SetDialect(id string, on bool) error { return z.s.SetDialect(id, on) }
 
 // DismissDialectHint hides the "turn on MyST?" hint for the open folder; the

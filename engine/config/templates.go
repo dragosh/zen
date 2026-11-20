@@ -15,7 +15,7 @@ import (
 //
 // "~" is the home folder and a relative path is relative to configDir, the
 // folder of config.yml. Without the key it is <configDir>/templates. A folder's
-// .zen.yml cannot set it (that is a warning when the file loads). The strings
+// .zenmd.yml cannot set it (that is a warning when the file loads). The strings
 // returned are problems with the key; the default is used then.
 func (c *Config) TemplatesDir(configDir string) (string, []string) {
 	def := filepath.Join(configDir, "templates")

@@ -15,7 +15,7 @@ var openFile = func(path string) error {
 }
 
 // OpenConfig opens the global config file ("global") or the current
-// folder's .zen.yml ("workspace") in zen's own editor window, creating it
+// folder's .zenmd.yml ("workspace") in zen's own editor window, creating it
 // from a commented template first when it does not exist.
 func (z *Zen) OpenConfig(which string) error {
 	if z.ro {

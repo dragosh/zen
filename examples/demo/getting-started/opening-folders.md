@@ -20,7 +20,7 @@ watches stays inside that folder.
 |---|---|
 | `zenmd` | the current folder |
 | `zenmd docs/` | that folder |
-| `zenmd notes/idea.md` | the nearest folder above it with a `.zen.yml` or `.git`, at that page |
+| `zenmd notes/idea.md` | the nearest folder above it with a `.zenmd.yml` or `.git`, at that page |
 | `zenmd edit README.md` | the folder, plus an editor window for the page |
 | `zenmd --help` / `zenmd --version` | help, version |
 

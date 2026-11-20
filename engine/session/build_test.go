@@ -326,8 +326,8 @@ func (optPlugin) RenderBlock(ctx plugins.Context, b plugins.Block) (string, erro
 
 func TestBuildNoUserOptions(t *testing.T) {
 	dir := tree(t, map[string]string{
-		"README.md": "# Home\n\n:::opt\nx\n:::\n",
-		".zen.yml":  "version: 1\nplugins:\n  opt:\n    label: folder\n",
+		"README.md":  "# Home\n\n:::opt\nx\n:::\n",
+		".zenmd.yml": "version: 1\nplugins:\n  opt:\n    label: folder\n",
 	})
 	cfg := t.TempDir()
 	if err := os.WriteFile(filepath.Join(cfg, "config.yml"), []byte("version: 1\nplugins:\n  opt:\n    token: SECRET-TOKEN\n"), 0o600); err != nil {
@@ -396,7 +396,7 @@ func TestBuildConfig(t *testing.T) {
 		"docs.md":     "---\nlayout: docs\n---\n# Docs\n\ntext\n",
 		"wip.md":      "---\ndraft: true\n---\n# WIP\n",
 		"secret/x.md": "# X\n",
-		".zen.yml":    "version: 1\nbuild:\n  out: public\n  id: my-notes\n  editURL: https://github.com/me/notes/edit/main/{path}\n  exclude: [\"secret/**\"]\n",
+		".zenmd.yml":  "version: 1\nbuild:\n  out: public\n  id: my-notes\n  editURL: https://github.com/me/notes/edit/main/{path}\n  exclude: [\"secret/**\"]\n",
 	})
 	cfg := t.TempDir()
 	r := runBuild(t, dir, cfg, SiteOptions{})
@@ -429,7 +429,7 @@ func TestBuildConfig(t *testing.T) {
 		t.Fatalf("drafts: %v %v", r.err, r.files(t))
 	}
 	// build.drafts and build.portable from the folder.
-	if err := os.WriteFile(filepath.Join(dir, ".zen.yml"), []byte("version: 1\nbuild:\n  drafts: true\n  portable: true\n  zzz: 1\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".zenmd.yml"), []byte("version: 1\nbuild:\n  drafts: true\n  portable: true\n  zzz: 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	r = runBuild(t, dir, cfg, SiteOptions{})
@@ -437,7 +437,7 @@ func TestBuildConfig(t *testing.T) {
 		t.Errorf("config build section: %v %q", r.err, r.stderr)
 	}
 	// A wrong type is an error naming the key.
-	if err := os.WriteFile(filepath.Join(dir, ".zen.yml"), []byte("version: 1\nbuild:\n  drafts: soon\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".zenmd.yml"), []byte("version: 1\nbuild:\n  drafts: soon\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if r := runBuild(t, dir, cfg, SiteOptions{}); r.err == nil || !strings.Contains(r.err.Error(), "build.drafts") {

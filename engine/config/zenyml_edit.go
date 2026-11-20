@@ -13,7 +13,7 @@ import (
 
 var dialectIDRE = regexp.MustCompile(`^[a-z][a-z0-9-]{0,31}$`)
 
-// SetDialects sets markdown.dialects in the text of a .zen.yml to ids and
+// SetDialects sets markdown.dialects in the text of a .zenmd.yml to ids and
 // returns the new file ("" in, a new file out). Only the lines of the
 // markdown: block change: comments, other keys, their order, line endings and a
 // BOM stay. An empty ids removes the key, and the markdown: block when nothing
@@ -40,7 +40,7 @@ func SetDialects(src []byte, ids []string) ([]byte, error) {
 	}
 	var doc yaml.Node
 	if err := yaml.Unmarshal([]byte(text), &doc); err != nil {
-		return nil, errors.New(".zen.yml is not valid YAML; edit it by hand")
+		return nil, errors.New(".zenmd.yml is not valid YAML; edit it by hand")
 	}
 	lines := splitLines(text)
 	eol := "\n"
@@ -68,7 +68,7 @@ func SetDialects(src []byte, ids []string) ([]byte, error) {
 		}
 		out = appendLines(append([]fmLine(nil), lines...), append([]fmLine{{"markdown:", eol}}, block("  ")...))
 	case doc.Content[0].Kind != yaml.MappingNode:
-		return nil, errors.New(".zen.yml must be a mapping of settings; edit it by hand")
+		return nil, errors.New(".zenmd.yml must be a mapping of settings; edit it by hand")
 	default:
 		var err error
 		out, err = editMarkdown(lines, doc.Content[0], want, eol, block, appendLines)
@@ -113,11 +113,11 @@ func editMarkdown(lines []fmLine, top *yaml.Node, want []string, eol string,
 		return appendLines(cp(), append([]fmLine{{"markdown:", eol}}, block("  ")...)), nil
 	}
 	if val.Kind == yaml.AliasNode || val.Anchor != "" || key.Anchor != "" {
-		return nil, errors.New("markdown in .zen.yml uses an alias; edit it by hand")
+		return nil, errors.New("markdown in .zenmd.yml uses an alias; edit it by hand")
 	}
 	at := key.Line - 1 // the markdown: line
 	if at < 0 || at >= len(lines) {
-		return nil, errors.New("could not place markdown in .zen.yml; edit it by hand")
+		return nil, errors.New("could not place markdown in .zenmd.yml; edit it by hand")
 	}
 
 	switch {
@@ -135,7 +135,7 @@ func editMarkdown(lines []fmLine, top *yaml.Node, want []string, eol string,
 	case val.Kind == yaml.MappingNode && val.Style&yaml.FlowStyle != 0:
 		l := lines[at].text
 		if strings.Count(l, "{") != strings.Count(l, "}") || strings.Count(l, "[") != strings.Count(l, "]") {
-			return nil, errors.New("markdown in .zen.yml spans several lines; edit it by hand")
+			return nil, errors.New("markdown in .zenmd.yml spans several lines; edit it by hand")
 		}
 		pairs := append([]*yaml.Node(nil), val.Content...)
 		var kept []*yaml.Node
@@ -185,7 +185,7 @@ func editMarkdown(lines []fmLine, top *yaml.Node, want []string, eol string,
 			return splice(cp(), at+1, at+1, block(indent)), nil
 		}
 		if dv.Kind == yaml.AliasNode || dv.Anchor != "" {
-			return nil, errors.New("markdown.dialects in .zen.yml uses an alias; edit it by hand")
+			return nil, errors.New("markdown.dialects in .zenmd.yml uses an alias; edit it by hand")
 		}
 		var cur []string
 		if err := dv.Decode(&cur); err == nil && reflect.DeepEqual(cur, want) && len(want) > 0 {
@@ -193,7 +193,7 @@ func editMarkdown(lines []fmLine, top *yaml.Node, want []string, eol string,
 		}
 		d := dk.Line - 1
 		if d < 0 || d >= len(lines) {
-			return nil, errors.New("could not place markdown.dialects in .zen.yml; edit it by hand")
+			return nil, errors.New("could not place markdown.dialects in .zenmd.yml; edit it by hand")
 		}
 		end := d + 1
 		if dv.Kind == yaml.SequenceNode && dv.Style&yaml.FlowStyle == 0 || dv.Kind == yaml.ScalarNode && dv.Tag == "!!null" && dv.Line != dk.Line {
@@ -225,7 +225,7 @@ func editMarkdown(lines []fmLine, top *yaml.Node, want []string, eol string,
 		}
 		return splice(out, d, end, repl), nil
 	}
-	return nil, errors.New("markdown in .zen.yml must be a mapping; edit it by hand")
+	return nil, errors.New("markdown in .zenmd.yml must be a mapping; edit it by hand")
 }
 
 // splice replaces lines[from:to] with add.
@@ -240,11 +240,11 @@ func splice(lines []fmLine, from, to int, add []fmLine) []fmLine {
 func checkDialectEdit(before, after string, want []string) error {
 	b, err := decodeMap([]byte(before))
 	if err != nil {
-		return errors.New(".zen.yml is not valid YAML; edit it by hand")
+		return errors.New(".zenmd.yml is not valid YAML; edit it by hand")
 	}
 	a, err := decodeMap([]byte(after))
 	if err != nil {
-		return errors.New("the change would make .zen.yml invalid; edit it by hand")
+		return errors.New("the change would make .zenmd.yml invalid; edit it by hand")
 	}
 	strip := func(m map[string]any) []string {
 		var got []string
@@ -275,7 +275,7 @@ func checkDialectEdit(before, after string, want []string) error {
 		got = nil
 	}
 	if !reflect.DeepEqual(got, want) || !reflect.DeepEqual(b, a) {
-		return errors.New("the change to .zen.yml could not be made safely; edit it by hand")
+		return errors.New("the change to .zenmd.yml could not be made safely; edit it by hand")
 	}
 	return nil
 }

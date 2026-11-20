@@ -48,4 +48,4 @@ plugins:
   lint: false
 ```
 
-in a page's frontmatter, the folder's `.zen.yml` or the global `config.yml`.
+in a page's frontmatter, the folder's `.zenmd.yml` or the global `config.yml`.

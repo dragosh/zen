@@ -49,7 +49,7 @@ func TestOpenConfig(t *testing.T) {
 		t.Fatalf("overwritten: %q", b)
 	}
 
-	// Workspace: .zen.yml in the folder.
+	// Workspace: .zenmd.yml in the folder.
 	if err := z.OpenConfig("workspace"); err != nil {
 		t.Fatal(err)
 	}
@@ -119,7 +119,7 @@ func TestConfigInEditorWindow(t *testing.T) {
 		t.Fatalf("overwritten by bad YAML: %q", b)
 	}
 
-	// Saving the folder's .zen.yml re-renders the open page.
+	// Saving the folder's .zenmd.yml re-renders the open page.
 	if _, err := z.Page("README.md"); err != nil {
 		t.Fatal(err)
 	}
@@ -137,7 +137,7 @@ func TestConfigInEditorWindow(t *testing.T) {
 		}
 	}
 	if !found {
-		t.Fatal("no page:changed after saving .zen.yml")
+		t.Fatal("no page:changed after saving .zenmd.yml")
 	}
 
 	// The Edit path still refuses these pseudo paths.

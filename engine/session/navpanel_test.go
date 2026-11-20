@@ -28,7 +28,7 @@ func TestWorkspaceLogo(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			dir := tree(t, files)
 			if c.yml != "" {
-				if err := os.WriteFile(filepath.Join(dir, ".zen.yml"), []byte(c.yml), 0o644); err != nil {
+				if err := os.WriteFile(filepath.Join(dir, ".zenmd.yml"), []byte(c.yml), 0o644); err != nil {
 					t.Fatal(err)
 				}
 			}
@@ -56,7 +56,7 @@ func TestWorkspaceLogoSymlinkOut(t *testing.T) {
 	if err := os.Symlink(filepath.Join(outside, "o.png"), filepath.Join(dir, "logo.png")); err != nil {
 		t.Skip("no symlinks")
 	}
-	if err := os.WriteFile(filepath.Join(dir, ".zen.yml"), []byte("logo: logo.png\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".zenmd.yml"), []byte("logo: logo.png\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	z, _, _, _ := newTestZen(t, dir, "", "")

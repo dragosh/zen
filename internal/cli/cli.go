@@ -12,6 +12,7 @@ import (
 	"slices"
 	"strings"
 
+	"github.com/zenmark-org/zenmd/engine/config"
 	"github.com/zenmark-org/zenmd/kit/addons"
 )
 
@@ -248,10 +249,22 @@ func Run(args []string, cwd string, stdout, stderr io.Writer, launch Launcher, b
 			return fail(stderr, err)
 		}
 	}
+	if l.Dir != "" {
+		noticeLegacyConfig(stderr, l.Dir)
+	}
 	if err := launch(l); err != nil {
 		return fail(stderr, err)
 	}
 	return 0
+}
+
+// noticeLegacyConfig says on stderr, once per run, that the folder still has
+// the old settings file (or both files).
+func noticeLegacyConfig(stderr io.Writer, dir string) {
+	_, legacy, both := config.WorkspaceConfigPath(dir)
+	if n := config.Notice(legacy, both); n != "" {
+		fmt.Fprintln(stderr, n)
+	}
 }
 
 // runBuild parses the arguments after `zenmd build` and calls the builder.
@@ -318,6 +331,7 @@ func runBuild(args []string, cwd string, stdout, stderr io.Writer, build Builder
 	if build == nil {
 		return fail(stderr, errors.New("this zenmd cannot build sites"))
 	}
+	noticeLegacyConfig(stderr, b.Dir)
 	if err := build(b, stdout, stderr); err != nil {
 		return fail(stderr, err)
 	}
@@ -514,9 +528,9 @@ func resolve(arg, cwd string, allowNew bool) (dir, page string, err error) {
 	return dir, filepath.ToSlash(rel), nil
 }
 
-// root returns the nearest ancestor of start (inclusive) containing .zen.yml
-// or .git, searching only strictly below the user's home directory. Without
-// a marker, start itself is the root.
+// root returns the nearest ancestor of start (inclusive) containing a folder
+// settings file (either name) or .git, searching only strictly below the
+// user's home directory. Without a marker, start itself is the root.
 func root(start string) string {
 	home, err := os.UserHomeDir()
 	if err != nil || home == "" {
@@ -524,7 +538,7 @@ func root(start string) string {
 	}
 	home = filepath.Clean(home)
 	for d := start; within(d, home); d = filepath.Dir(d) {
-		for _, m := range []string{".zen.yml", ".git"} {
+		for _, m := range []string{config.WorkspaceFile, config.LegacyWorkspaceFile, ".git"} {
 			if _, err := os.Stat(filepath.Join(d, m)); err == nil {
 				return d
 			}

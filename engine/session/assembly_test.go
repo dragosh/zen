@@ -16,10 +16,10 @@ import (
 func TestOutsideAssembly(t *testing.T) {
 	dir := t.TempDir()
 	files := map[string]string{
-		".zen.yml":  "version: 1\n",
-		"flow.md":   "---\nplugins:\n  diagram: true\n---\n# Flow\n\n```mermaid\ngraph TD; A-->B\n```\n",
-		"guide.md":  "---\nlayout: docs\n---\n# Guide\n\nText.\n",
-		"README.md": "# Home\n",
+		".zenmd.yml": "version: 1\n",
+		"flow.md":    "---\nplugins:\n  diagram: true\n---\n# Flow\n\n```mermaid\ngraph TD; A-->B\n```\n",
+		"guide.md":   "---\nlayout: docs\n---\n# Guide\n\nText.\n",
+		"README.md":  "# Home\n",
 	}
 	for name, content := range files {
 		if err := os.WriteFile(filepath.Join(dir, name), []byte(content), 0o644); err != nil {

@@ -313,11 +313,11 @@ test("dialect hint", async () => {
   env.ctx.store.set({ path: "README.md" });
   mount();
   await tick();
-  api4.failNext("setDialect", new Error("could not save .zen.yml"));
+  api4.failNext("setDialect", new Error("could not save .zenmd.yml"));
   btn(hint()!, "Turn on").click();
   await tick();
   expect(hint()!.hidden).toBe(false);
-  expect(hint()!.textContent).toContain("could not save .zen.yml");
+  expect(hint()!.textContent).toContain("could not save .zenmd.yml");
   unmountPage();
 
   // no hint: nothing suggested, a read-only app, an api without the calls

@@ -39,6 +39,8 @@ export function createSettingsView(opts: {
   openBuild?(): void;
   /** The open folder's path, "" for none. */
   root?(): string;
+  /** The folder's settings file in use (Workspace.configFile): the old name is shown as such. */
+  configFile?(): string;
   /** Developer › Open Console (⌥⌘J): the shell opens the Inspector on the Console. */
   openConsole?(): void;
   /** A page named by a build warning: the shell shows it. */
@@ -57,13 +59,14 @@ export function createSettingsView(opts: {
 
   // ---- Configuration: the two config files, each with a read-only preview and its actions
 
+  const folderFile = () => opts.configFile?.() || ".zenmd.yml";
   const configItems = (): SettingsItem[] => [
     { id: "global", label: "config.yml", note: "All folders" },
-    { id: "workspace", label: ".zen.yml", note: "This folder", disabled: !opts.hasWorkspace() },
+    { id: "workspace", label: folderFile() === ".zenmd.yml" ? ".zenmd.yml" : `${folderFile()} (old name)`, note: "This folder", disabled: !opts.hasWorkspace() },
   ];
   function renderConfig(item: SettingsItem, right: HTMLElement): () => void {
     const which = item.id as "global" | "workspace";
-    const name = item.label;
+    const name = which === "workspace" ? folderFile() : item.label;
     let gone = false;
     right.append(el("p", "zen-settings-hint", which === "global" ? "The settings for all folders." : "The settings of the open folder."));
     const pre = el("pre", "zen-settings-file-preview");
@@ -97,7 +100,7 @@ export function createSettingsView(opts: {
 
   // ---- Markdown: the syntaxes are the items, like Plugins and Layouts (docs/UI.md, UI consistency).
   // CommonMark and GFM come first and are always on; each dialect of the build is on or off for this folder
-  // (saved in its .zen.yml). The right column has the selected one's switch, summary, sample and preview.
+  // (saved in its .zenmd.yml). The right column has the selected one's switch, summary, sample and preview.
 
   let dialects: DialectInfo[] = [];
   let dialectFailure = "";
@@ -157,7 +160,7 @@ export function createSettingsView(opts: {
       right.append(
         label, status,
         el("p", "zen-addon-summary zen-dialect-summary", d.summary),
-        el("p", "zen-settings-hint", reason || "Saved in this folder's .zen.yml, so the folder renders the same everywhere."),
+        el("p", "zen-settings-hint", reason || "Saved in this folder's .zenmd.yml, so the folder renders the same everywhere."),
       );
       const sample = DIALECT_SAMPLES[d.id];
       if (sample) {

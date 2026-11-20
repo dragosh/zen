@@ -15,7 +15,7 @@ import (
 )
 
 // FS has one folder per preset: techdocs, learning and planner. The "all:"
-// prefix keeps dotfiles such as .zen.yml.
+// prefix keeps dotfiles such as .zenmd.yml.
 //
 //go:embed all:techdocs all:learning all:planner
 var FS embed.FS

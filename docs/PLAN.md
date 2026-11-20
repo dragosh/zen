@@ -34,7 +34,7 @@ Companion documents: [UI.md](UI.md) (views, tokens, mockup), [PLUGINS.md](PLUGIN
 | Breadcrumb | The page's path in the navigation tree, computed in Go |
 | Plugins | Go interface with optional hooks. Built-ins are compiled in. External plugins (WASM, wazero) are designed for but ship in 0.2 |
 | Plugin syntax | Fenced blocks ```` ```name ````, container blocks `:::name`, inline `:name[text]{k=v}` |
-| Configuration | YAML. defaults < global < workspace `.zen.yml` < frontmatter |
+| Configuration | YAML. defaults < global < workspace `.zenmd.yml` < frontmatter |
 | Editor | Dependency-free source editor with toolbar, live Go-rendered preview, split view. True WYSIWYG is **open question 1** |
 | Versioning | SemVer, single `VERSION` file, see VERSIONING.md |
 | Sandbox | None in the alpha, so `zen` can open any folder from a terminal. The App Store build (beta) needs a sandboxed app plus an unsandboxed CLI helper; entitlements kept in `build/darwin/*.sandbox.plist` |
@@ -127,7 +127,7 @@ interface Api {
   on(event: "page:changed", fn: (e: { path: string }) => void): () => void;
   on(event: "workspace:opened", fn: (s: Startup) => void): () => void; // Open With, File > Open Folder
   openEditor(path: string): Promise<void>;           // opens/focuses the page's editor window
-  openConfig(which: "global" | "workspace"): Promise<void>; // config.yml / .zen.yml in the text editor
+  openConfig(which: "global" | "workspace"): Promise<void>; // config.yml / .zenmd.yml in the text editor
   lint(path: string, content: string): Promise<LintResult>; // Vale; "" content = file on disk
   exportPdf(title: string): Promise<string>;        // app/export: save panel + PDF; "" when cancelled
   revealExport(): Promise<void>;                    // Finder on the last exported PDF

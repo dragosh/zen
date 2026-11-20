@@ -17,7 +17,7 @@ page can never inject scripts into it.
 | `check` | a checklist block, used by the [course layout](../layouts/course.md) | yes |
 | `lint` | Vale flags (a switch, see [linting](../editing/linting.md)) | yes |
 
-Turn one off or set its options in frontmatter, `.zen.yml` or `config.yml`:
+Turn one off or set its options in frontmatter, `.zenmd.yml` or `config.yml`:
 
 ```yaml
 plugins:

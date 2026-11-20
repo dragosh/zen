@@ -13,7 +13,7 @@ import (
 )
 
 // ConfigPrefix marks the two config files as editor "pages":
-// zen:config/global (config.yml) and zen:config/workspace (.zen.yml). A colon
+// zen:config/global (config.yml) and zen:config/workspace (.zenmd.yml). A colon
 // never appears in a workspace page path the editor accepts, so these cannot
 // collide with real pages.
 const ConfigPrefix = "zen:config/"
@@ -63,13 +63,14 @@ func (s *Session) ConfigFile(which string) (path, template string, err error) {
 		if ws == nil {
 			return "", "", errors.New("no folder is open")
 		}
-		return filepath.Join(ws.Root, config.WorkspaceFile), workspaceTemplate, nil
+		path, _, _ := config.WorkspaceConfigPath(ws.Root)
+		return path, workspaceTemplate, nil
 	}
 	return "", "", errors.New("unknown settings file " + which)
 }
 
 // EnsureConfig creates the global config file ("global") or the open folder's
-// .zen.yml ("workspace") from a commented template when it does not exist,
+// .zenmd.yml ("workspace") from a commented template when it does not exist,
 // and returns its path.
 func (s *Session) EnsureConfig(which string) (string, error) {
 	path, template, err := s.ConfigFile(which)
@@ -108,6 +109,16 @@ func (s *Session) saveConfig(which, content string) error {
 	if err != nil {
 		return err
 	}
+	if which == "workspace" { // every write goes to the new name: the old file moves first
+		root, err := s.configRoot()
+		if err != nil {
+			return err
+		}
+		if err := config.MoveLegacy(root); err != nil {
+			return err
+		}
+		path = filepath.Join(root, config.WorkspaceFile)
+	}
 	name := filepath.Base(path)
 	var doc any
 	if err := yaml.Unmarshal([]byte(content), &doc); err != nil {
@@ -137,6 +148,16 @@ func (s *Session) saveConfig(which, content string) error {
 	}
 	s.reloadConfig()
 	return nil
+}
+
+// configRoot is the open folder's root, for the folder's settings file.
+func (s *Session) configRoot() (string, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.ws == nil {
+		return "", errors.New("no folder is open")
+	}
+	return s.ws.Root(), nil
 }
 
 // ensureFile writes template to path unless a file is already there.

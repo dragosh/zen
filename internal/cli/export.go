@@ -154,6 +154,7 @@ func runExportPDF(args []string, cwd string, stdout, stderr io.Writer, pdf PDFEx
 	if pdf == nil {
 		return fail(stderr, errors.New("this zenmd cannot export PDFs"))
 	}
+	noticeLegacyConfig(stderr, e.Dir)
 	if err := pdf(e, stdout, stderr); err != nil {
 		return fail(stderr, err)
 	}

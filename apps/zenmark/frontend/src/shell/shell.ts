@@ -61,7 +61,7 @@ export function windowKind(search: string): WindowKind {
 /** Editor-window titles for the settings files (see editor CONFIG_PREFIX). */
 const CONFIG_TITLES: Record<string, string> = {
   "zen:config/global": "config.yml — settings for all folders",
-  "zen:config/workspace": ".zen.yml — settings for this folder",
+  "zen:config/workspace": ".zenmd.yml — settings for this folder",
 };
 
 /** What the sidebar header shows: the folder's logo and its title (the folder's name when it has none). */
@@ -283,7 +283,7 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     }
     settings = createSettingsView({
       api, hasWorkspace: () => store.get().workspace !== null,
-      build: api, root: () => store.get().workspace?.root ?? "", ...settingsWiring,
+      build: api, root: () => store.get().workspace?.root ?? "", configFile: () => store.get().workspace?.configFile ?? "", ...settingsWiring,
       appearanceExtra: has("nav") ? [navSideRow(doc)] : [],
     });
     layout.showView(settings.el);

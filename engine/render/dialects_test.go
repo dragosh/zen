@@ -33,11 +33,11 @@ func mystReg(t *testing.T) *dialects.Registry {
 	return r
 }
 
-// folderCfg loads a config whose .zen.yml says yml.
+// folderCfg loads a config whose .zenmd.yml says yml.
 func folderCfg(t *testing.T, yml string) *config.Config {
 	t.Helper()
 	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, ".zen.yml"), []byte(yml), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".zenmd.yml"), []byte(yml), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	return config.Load("", dir)
@@ -55,9 +55,9 @@ func TestDialectOff(t *testing.T) {
 	src := "```{note} Remember\nBody text.\n```\n"
 	// the dialect exists in the build but the folder does not list it
 	for name, r := range map[string]*Renderer{
-		"default":      New(newReg(t, note), config.Default(), fakeResolver{}).WithDialects(mystReg(t)),
-		"no .zen.yml":  New(newReg(t, note), folderCfg(t, "version: 1\n"), fakeResolver{}).WithDialects(mystReg(t)),
-		"not in build": New(newReg(t, note), folderCfg(t, mystOn), fakeResolver{}),
+		"default":       New(newReg(t, note), config.Default(), fakeResolver{}).WithDialects(mystReg(t)),
+		"no .zenmd.yml": New(newReg(t, note), folderCfg(t, "version: 1\n"), fakeResolver{}).WithDialects(mystReg(t)),
+		"not in build":  New(newReg(t, note), folderCfg(t, mystOn), fakeResolver{}),
 	} {
 		p := render(t, r, src)
 		contains(t, p.HTML, "<pre><code", "Body text.")

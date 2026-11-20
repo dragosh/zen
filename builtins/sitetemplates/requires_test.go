@@ -74,7 +74,7 @@ func TestTemplatesDeclareNeeds(t *testing.T) {
 			}
 			text := string(raw)
 			switch {
-			case path.Base(p) == ".zen.yml":
+			case path.Base(p) == ".zenmd.yml":
 				var cfg struct {
 					Layout  string
 					Layouts map[string]string

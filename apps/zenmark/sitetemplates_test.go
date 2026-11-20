@@ -346,10 +346,10 @@ func TestInitSite(t *testing.T) {
 // presetFiles is what each preset creates for the title "Acme Docs".
 func presetFiles(id, date string) []string {
 	files := map[string][]string{
-		"techdocs": {".zen.yml", "CONTRIBUTING.md", "README.md", "explanation/how-it-works.md", "explanation/index.md", "how-to/index.md", "how-to/solve-a-common-problem.md",
+		"techdocs": {".zenmd.yml", "CONTRIBUTING.md", "README.md", "explanation/how-it-works.md", "explanation/index.md", "how-to/index.md", "how-to/solve-a-common-problem.md",
 			"reference/index.md", "reference/settings.md", "tutorials/getting-started.md", "tutorials/index.md"},
-		"learning": {".zen.yml", "README.md", "authoring.md", "glossary.md", "paths/first-path/index.md"},
-		"planner": {".zen.yml", "README.md", "decisions/0001-record-decisions.md", "decisions/template.md", "ideas.md", "meetings/template.md", "roadmap.md",
+		"learning": {".zenmd.yml", "README.md", "authoring.md", "glossary.md", "paths/first-path/index.md"},
+		"planner": {".zenmd.yml", "README.md", "decisions/0001-record-decisions.md", "decisions/template.md", "ideas.md", "meetings/template.md", "roadmap.md",
 			"weeks/" + date + ".md"},
 	}[id]
 	sort.Strings(files)
@@ -419,7 +419,7 @@ func TestPresets(t *testing.T) {
 				}
 				return nil
 			})
-			if len(files) != len(presetFiles(id, date))-1 { // the .zen.yml is not a page
+			if len(files) != len(presetFiles(id, date))-1 { // the .zenmd.yml is not a page
 				t.Errorf("pages: %v", files)
 			}
 			for _, p := range files {

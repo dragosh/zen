@@ -16,7 +16,7 @@ function fakeApi(over: Partial<BuildApi> = {}) {
     buildOptions: rec("buildOptions", () => Promise.resolve({ ...OPTIONS })),
     buildWebsite: rec("buildWebsite", () => new Promise<BuildResult>((res, rej) => { finish = (r) => (r instanceof Error ? rej(r) : res(r)); })),
     cancelBuild: rec("cancelBuild", () => Promise.resolve()),
-    saveBuildDefaults: rec("saveBuildDefaults", () => Promise.resolve("Adds to .zen.yml:\n  build.drafts: true")),
+    saveBuildDefaults: rec("saveBuildDefaults", () => Promise.resolve("Adds to .zenmd.yml:\n  build.drafts: true")),
     pickBuildFolder: rec("pickBuildFolder", () => Promise.resolve("")),
     openBuiltSite: rec("openBuiltSite", () => Promise.resolve()),
     revealBuiltSite: rec("revealBuiltSite", () => Promise.resolve()),
@@ -247,18 +247,18 @@ test("Save as folder defaults previews the change first and writes only on confi
   expect(f.to("saveBuildDefaults")).toHaveLength(1);
   btn("Save as folder defaults").click();
   await settle();
-  btn("Write .zen.yml").click();
+  btn("Write .zenmd.yml").click();
   await settle();
   expect(f.to("saveBuildDefaults")[2].args).toEqual([{ ...OPTIONS, drafts: true }, true]);
-  expect(q(".zen-buildsite-status").textContent).toContain("Saved to .zen.yml");
+  expect(q(".zen-buildsite-status").textContent).toContain("Saved to .zenmd.yml");
 });
 
-test("Save as folder defaults refuses while .zen.yml has unsaved changes; a failing preview shows the cause", async () => {
+test("Save as folder defaults refuses while .zenmd.yml has unsaved changes; a failing preview shows the cause", async () => {
   const { f, q, btn } = await open({}, { unsaved: () => ["zen:config/workspace", "a.md"] });
   btn("Save as folder defaults").click();
   await settle();
   expect(f.to("saveBuildDefaults")).toHaveLength(0);
-  expect(q(".zen-buildsite-error").textContent).toContain(".zen.yml has unsaved changes");
+  expect(q(".zen-buildsite-error").textContent).toContain(".zenmd.yml has unsaved changes");
   const bad = await open({ saveBuildDefaults: () => Promise.reject(new Error("the file is not a YAML mapping")) });
   bad.btn("Save as folder defaults").click();
   await settle();

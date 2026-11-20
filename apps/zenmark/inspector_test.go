@@ -37,7 +37,7 @@ func TestRevealInFinderPage(t *testing.T) {
 
 // Settings › Configuration shows the two settings files in Finder by name; every other path stays confined to the folder.
 func TestRevealInFinderConfig(t *testing.T) {
-	dir := tree(t, map[string]string{"README.md": "# Home\n", ".zen.yml": "a: 1\n"})
+	dir := tree(t, map[string]string{"README.md": "# Home\n", ".zenmd.yml": "a: 1\n"})
 	var shown []string
 	old := revealFile
 	revealFile = func(p string) error { shown = append(shown, p); return nil }
@@ -47,7 +47,7 @@ func TestRevealInFinderConfig(t *testing.T) {
 	if err := z.RevealInFinder("zen:config/workspace"); err != nil {
 		t.Fatal(err)
 	}
-	if len(shown) != 1 || filepath.Base(shown[0]) != ".zen.yml" {
+	if len(shown) != 1 || filepath.Base(shown[0]) != ".zenmd.yml" {
 		t.Fatalf("shown %v", shown)
 	}
 	// The global file: shown when it exists; "does not exist yet" otherwise, without a path in the message.

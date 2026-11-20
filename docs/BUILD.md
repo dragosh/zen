@@ -27,7 +27,7 @@ Exit codes: 0 built (warnings on stderr), 1 error, 2 usage.
 File › Export › Website… (⇧⌘B) or Settings › Export builds the open folder with
 the same code: the options above, a progress bar with Cancel, the warnings by
 page, then Open in Browser and Show in Finder. "Save as folder defaults" writes
-the options to `.zen.yml` after showing the change.
+the options to `.zenmd.yml` after showing the change.
 
 ## Output
 
@@ -69,7 +69,7 @@ Only files inside the folder are copied.
 ## Configuration
 
 ```yaml
-# .zen.yml or the global config.yml; flags win
+# .zenmd.yml or the global config.yml; flags win
 build:
   out: _site
   id: my-notes          # storage namespace for readers; default: folder name
@@ -119,7 +119,7 @@ rebuilt from a starting shell (`reader, nav, inspector, developer`) one roadmap
 step at a time (GitHub Project "Zenmark roadmap").
 
 `dialects:` lists the markdown dialects the app can read (specs/engine/dialects;
-missing means none). A folder turns one on in its `.zen.yml`.
+missing means none). A folder turns one on in its `.zenmd.yml`.
 
 ## Developing
 

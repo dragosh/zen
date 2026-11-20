@@ -35,7 +35,7 @@ my-template/
   template.yml
   README.md
   guides/{{date}}-first.md
-  .zen.yml
+  .zenmd.yml
 ```
 
 ```yaml

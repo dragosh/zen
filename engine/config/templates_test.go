@@ -70,7 +70,7 @@ func TestTemplatesDir(t *testing.T) {
 		t.Errorf("empty: %q %v", d, w)
 	}
 
-	// A folder's .zen.yml cannot set it: the key is a warning, the global value stays.
+	// A folder's .zenmd.yml cannot set it: the key is a warning, the global value stays.
 	d, w, lw := templatesOf(t, "templates:\n  dir: /srv/g\n", "templates:\n  dir: /tmp/evil\n")
 	if d != "/srv/g" || len(w) != 0 || len(lw) != 1 || !strings.Contains(lw[0], "templates can only be set in the global config") {
 		t.Errorf("workspace key: %q %v %v", d, w, lw)

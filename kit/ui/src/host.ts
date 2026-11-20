@@ -4,7 +4,11 @@
 import type { PluginStreamEvent, RuntimeHost } from "@zenmd/runtime";
 
 export type NavNode = { title: string; path: string; kind: "page" | "group"; children: NavNode[] };
-export type Workspace = { root: string; name: string; home: string; tree: NavNode[] }; // home: "" or "README.md"
+export type Workspace = {
+  root: string; name: string; home: string; tree: NavNode[]; // home: "" or "README.md"
+  /** The folder's settings file in use: ".zenmd.yml", or the old name while only that file exists. */
+  configFile?: string;
+};
 export type Crumb = { title: string; path: string };
 export type LayoutSource = "builtin" | "folder" | "user";
 export type PageLayoutRef = { name: string; source: LayoutSource | "" };
@@ -69,7 +73,7 @@ export interface KitHost extends RuntimeHost {
   build?: BuildInfo;
   /** The markdown dialects of this build with the open folder's choice (Settings › Markdown); an app without them omits it. */
   dialects?(): Promise<DialectInfo[]>;
-  /** Turns a dialect on or off for the open folder (writes its .zen.yml); refused in a read-only app. */
+  /** Turns a dialect on or off for the open folder (writes its .zenmd.yml); refused in a read-only app. */
   setDialect?(id: string, on: boolean): Promise<void>;
   /** The id of a dialect the open folder looks written for and has not turned on or dismissed, "" for none (the hint above the page). */
   dialectHint?(): Promise<string>;

@@ -205,7 +205,7 @@ func TestBuiltinStream(t *testing.T) {
 
 func TestStreamRefusals(t *testing.T) {
 	files := pluginDocs()
-	files[".zen.yml"] = "version: 1\nplugins:\n  off: false\n"
+	files[".zenmd.yml"] = "version: 1\nplugins:\n  off: false\n"
 	dir := pluginTree(t, files)
 	act, off := newActor("act"), newActor("off")
 	z, ev := openActing(t, dir, t.TempDir(), act, off)

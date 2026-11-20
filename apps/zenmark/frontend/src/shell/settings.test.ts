@@ -176,10 +176,19 @@ test("appearance items: without nav there is only Theme", async () => {
 // ---- 4: configuration
 
 const CONFIG = "theme: dark\nname: <b>x</b>\n";
+test("configuration section: the folder item says old name while only the old file exists", async () => {
+  const old = setup({ sources: { "zen:config/workspace": "plugins: {}\n" }, view: { configFile: () => ".zen.yml" } });
+  await go(old.s, "config");
+  expect(rows(old.s, "config").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["config.yml", ".zen.yml (old name)"]);
+  const now = setup({ sources: { "zen:config/workspace": "plugins: {}\n" }, view: { configFile: () => ".zenmd.yml" } });
+  await go(now.s, "config");
+  expect(rows(now.s, "config").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["config.yml", ".zenmd.yml"]);
+});
+
 test("configuration section", async () => {
   const { api, s } = setup({ sources: { "zen:config/global": CONFIG, "zen:config/workspace": "plugins: {}\n" } });
   await go(s, "config");
-  expect(rows(s, "config").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["config.yml", ".zen.yml"]);
+  expect(rows(s, "config").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["config.yml", ".zenmd.yml"]);
   expect(rows(s, "config")[0].textContent).toContain("All folders");
   expect(rows(s, "config")[1].textContent).toContain("This folder");
   expect(rows(s, "config")[1].getAttribute("aria-disabled")).toBeNull();
@@ -296,11 +305,11 @@ test("markdown section: the syntaxes are the items, like Plugins and Layouts; th
   expect(row(s, "markdown", "myst").getAttribute("aria-selected")).toBe("true");
   expect(row(s, "markdown", "myst").querySelector(".zen-settings-item-note")!.textContent).toBe("On");
   // a refused change puts the box back and says why
-  api.failNext("setDialect", new Error("could not save .zen.yml"));
+  api.failNext("setDialect", new Error("could not save .zenmd.yml"));
   box().click();
   await settle();
   expect(box().checked).toBe(true);
-  expect(detail(s, "markdown").querySelector("[role=status]")!.textContent).toContain("could not save .zen.yml");
+  expect(detail(s, "markdown").querySelector("[role=status]")!.textContent).toContain("could not save .zenmd.yml");
   // names and summaries are text; a dialect without a sample shows none
   row(s, "markdown", "x").click();
   await settle();

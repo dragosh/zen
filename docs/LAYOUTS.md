@@ -28,7 +28,7 @@ layout: { name: post, reading: false }
 ---
 ```
 
-`layoutOptions` wins over the same key in the mapping. In `.zen.yml` and the
+`layoutOptions` wins over the same key in the mapping. In `.zenmd.yml` and the
 global `config.yml`:
 
 ```yaml
@@ -239,7 +239,7 @@ The prompt says what a layout does: *changes how pages look; runs nothing* for
 CSS and a template, and *changes how pages look and runs a page script* with
 `js`. Settings › Layouts shows Allow and Block for the layouts that are not
 built in. A layout whose files change after it was approved is not used (the
-page says so) and zen asks again. Patterns in `.zen.yml` only apply layouts the
+page says so) and zen asks again. Patterns in `.zenmd.yml` only apply layouts the
 user has allowed.
 
 ## Service API
@@ -285,4 +285,4 @@ A `layouts:` key in `plugin.yml` or in a Tengo `plugin` map is an error:
 `examples/demo/.zen/layouts/memo/` is a layout of a folder (template plus CSS,
 fields `to`, `from`, `date`); `examples/demo/layouts/` has a page for each
 built-in layout and the how-to "Writing your own layout"; `examples/demo/blog/`
-chooses `post` by path with `layouts:` in the folder's `.zen.yml`.
+chooses `post` by path with `layouts:` in the folder's `.zenmd.yml`.

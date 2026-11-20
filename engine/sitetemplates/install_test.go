@@ -13,7 +13,7 @@ func TestInstall(t *testing.T) {
 	if err := Install(dir, b); err != nil {
 		t.Fatal(err)
 	}
-	if got := walk(t, filepath.Join(dir, "sites")); strings.Join(got, ",") != ".zen-templates.yml,planner/.zen.yml,planner/template.yml,techdocs/README.md,techdocs/template.yml" {
+	if got := walk(t, filepath.Join(dir, "sites")); strings.Join(got, ",") != ".zen-templates.yml,planner/.zenmd.yml,planner/template.yml,techdocs/README.md,techdocs/template.yml" {
 		t.Fatalf("installed: %v", got)
 	}
 	rec := read(t, dir, "sites/.zen-templates.yml")
@@ -120,7 +120,7 @@ func TestInstallReadOnly(t *testing.T) {
 	}
 	// Dotfiles of a bundled template are copied as well.
 	t2 := filepath.Join(t.TempDir(), "p")
-	if _, err := Create(list[1], t2, nil); err != nil || read(t, t2, ".zen.yml") != "layout: wide\n" {
+	if _, err := Create(list[1], t2, nil); err != nil || read(t, t2, ".zenmd.yml") != "layout: wide\n" {
 		t.Errorf("dotfile: %v", err)
 	}
 }

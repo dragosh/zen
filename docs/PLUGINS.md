@@ -79,7 +79,7 @@ type StreamHook interface { // emit is called in order; return when done; stop w
 `Option.Type` is `string`, `bool`, `int`, `map` (names to strings, a
 `map[string]string`) or `list` (strings, a `[]string`). An option with
 `Scope: "user"` is read from the user's global `config.yml` only; the same
-option in `.zen.yml` or frontmatter is ignored with a page warning. Use it for
+option in `.zenmd.yml` or frontmatter is ignored with a page warning. Use it for
 anything a folder must not be able to widen, such as the container images a
 sandbox plugin may run.
 
@@ -125,7 +125,7 @@ left untouched, so normal prose (`note: this`) is never affected.
 ### Other syntaxes (dialects)
 
 A folder can turn on a **dialect**, another way to write the same containers, in
-`.zen.yml` (`markdown: { dialects: [myst] }`); off by default. With `myst`,
+`.zenmd.yml` (`markdown: { dialects: [myst] }`); off by default. With `myst`,
 ```` ```{note} Title ```` and `:::{note} Title` mean `:::note{title="Title"}`,
 `:key: value` lines at the top become attributes, and `{code-block} lang` is a
 highlighted code block. A plugin answers to MyST names (`tip`, `important`, …) by
@@ -139,11 +139,11 @@ Order of precedence, last wins:
 1. Plugin default (`Manifest.Default`, option defaults)
 2. Global config — `<user config dir>/zen/config.yml`
    (macOS: `~/Library/Application Support/zen/config.yml`)
-3. Workspace config — `.zen.yml` in the opened folder
+3. Workspace config — `.zenmd.yml` in the opened folder
 4. Page frontmatter
 
 ```yaml
-# config.yml or .zen.yml
+# config.yml or .zenmd.yml
 version: 1
 plugins:
   codeblock: true                 # on, default options
@@ -169,7 +169,7 @@ limits:
   openTimeout: 60   # seconds reading and indexing may take (default 30, max 600)
 ```
 
-A `limits` key in `.zen.yml` is ignored with a warning, so a folder cannot
+A `limits` key in `.zenmd.yml` is ignored with a warning, so a folder cannot
 lift its own limits.
 
 Prose linting (Vale) is on by default when Vale is available. Turn it off for a

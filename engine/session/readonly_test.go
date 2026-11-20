@@ -73,7 +73,7 @@ func TestReadOnlyRefusesWrites(t *testing.T) {
 
 	calls := map[string]func() error{
 		"Save":         func() error { return s.Save("README.md", "# changed\n") },
-		"Save config":  func() error { return s.Save(".zen.yml", "version: 1\n") },
+		"Save config":  func() error { return s.Save(".zenmd.yml", "version: 1\n") },
 		"CreatePage":   func() error { _, err := s.CreatePage("new", ""); return err },
 		"ReorderNav":   func() error { return s.ReorderNav("", paths) },
 		"SetNavHidden": func() error { return s.SetNavHidden("README.md", true) },
@@ -156,7 +156,7 @@ func TestReadOnlyReads(t *testing.T) {
 		t.Errorf("EnsureConfig creating: %v", err)
 	}
 	// EnsureConfig of a file that exists is a read: it only returns the path.
-	p := filepath.Join(dir, ".zen.yml")
+	p := filepath.Join(dir, ".zenmd.yml")
 	if err := os.WriteFile(p, []byte("version: 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -183,8 +183,8 @@ func TestReadOnlyExport(t *testing.T) {
 	if _, err := s.SaveBuildDefaults(BuildOptions{Out: out}, true); !errors.Is(err, ErrReadOnly) {
 		t.Errorf("SaveBuildDefaults: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(dir, ".zen.yml")); err == nil {
-		t.Error(".zen.yml was written")
+	if _, err := os.Stat(filepath.Join(dir, ".zenmd.yml")); err == nil {
+		t.Error(".zenmd.yml was written")
 	}
 	names := []string{}
 	es, _ := os.ReadDir(dir)

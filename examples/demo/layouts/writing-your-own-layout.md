@@ -105,7 +105,7 @@ date: 2026-11-17
 ---
 ```
 
-Or choose it by path in `.zen.yml`:
+Or choose it by path in `.zenmd.yml`:
 
 ```yaml
 layouts:
