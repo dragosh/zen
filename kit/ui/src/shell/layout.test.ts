@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { beforeEach, expect, test } from "vitest";
 import { INSPECTOR_STATE, INSPECTOR_TOGGLE } from "../inspector/events";
 import { createLayout, navSideRow, setNavSide, SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN, storedNavSide, WIDTH_KEY } from "./layout";
@@ -371,7 +372,7 @@ test("active footer buttons", () => {
 });
 
 test("active footer buttons: the CSS rule, in tokens, mirrored with the sidebar", () => {
-  const css = readFileSync(new URL("../styles/shell.css", import.meta.url), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  const css = readFileSync(resolve(__dirname, "../styles/shell.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
   const rules = Array.from(css.matchAll(/([^{}]+)\{([^{}]*)\}/g)).filter((m) => /\.zen-settings-button[^,{]*(aria-pressed|aria-expanded)="true"/.test(m[1]));
   expect(rules.length).toBeGreaterThan(0);
   const all = rules.map((m) => m[1] + "{" + m[2]).join("\n");

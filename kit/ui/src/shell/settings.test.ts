@@ -207,6 +207,18 @@ test("appearance items: only Theme without extra rows; an unlabelled row is name
   expect(rows(v, "appearance").map((r) => r.querySelector(".zen-settings-item-label")!.textContent)).toEqual(["Theme", "Sidebar"]);
 });
 
+test("the frame says which section shows, for the footer's Export state", async () => {
+  const v = frame(listSection("a", ["One"]), listSection("export", ["Website"]));
+  await settle();
+  const seen: string[] = [];
+  v.el.addEventListener("zen-settings-section", (e) => seen.push((e as CustomEvent<{ section: string }>).detail.section));
+  expect(v.current()).toBe("a");
+  tab(v, "export").click();
+  expect(v.current()).toBe("export");
+  v.open("a");
+  expect(seen).toEqual(["export", "a"]);
+});
+
 // ---- 8: developer
 
 test("developer section", async () => {

@@ -16,6 +16,8 @@ export type SettingsView = {
   show(): void;
   /** Chooses a section, and an item of it when given (File › Export › Website… opens Settings › Export › Website). */
   open(sectionId: string, itemId?: string): void;
+  /** The id of the section that shows. The page also fires a `zen-settings-section` event ({ detail: { section } }) when it changes. */
+  current(): string;
   destroy(): void;
 };
 
@@ -79,19 +81,36 @@ function themePreview(theme: Theme): HTMLElement {
   return box;
 }
 
+/** The name of an extra Appearance row: its aria-label, else its title text, else a number. */
+function rowLabel(row: HTMLElement, i: number): string {
+  return row.getAttribute("aria-label") || row.querySelector(".zen-navside-title")?.textContent || `Option ${i + 1}`;
+}
+
 /**
- * Appearance: the theme as a list (System, Light, Dark) and a small preview of a page in the one chosen. It applies to
- * this machine and all windows. `extra` rows (the sidebar side, ui/nav-panel) go under the preview.
+ * Appearance: a list like Accessibility's. Theme (System, Light or Dark as radios, and a small preview of a page in
+ * the one chosen) applies to this machine and all windows. Each `extra` row (the sidebar side, ui/nav-panel) is an
+ * item after Theme, named by its label, and shows in the right column when chosen.
  */
 export function appearanceSection(doc: () => Document, extra: HTMLElement[] = []): SettingsSection {
   return {
     id: "appearance", label: "Appearance",
-    items: () => THEMES.map(({ id, label }) => ({ id, label })),
-    current: () => storedTheme(),
-    onPick: (item) => setTheme(item.id as Theme, doc()),
+    items: () => [{ id: "theme", label: "Theme" }, ...extra.map((row, i): SettingsItem => ({ id: `extra-${i}`, label: rowLabel(row, i) }))],
     render(item, right) {
-      const t = THEMES.find((x) => x.id === item.id) ?? THEMES[0];
-      right.append(el("p", "zen-settings-hint", t.note), themePreview(t.id), ...extra);
+      if (item.id !== "theme") {
+        const row = extra[Number(item.id.slice("extra-".length))];
+        if (row) right.append(row);
+        return;
+      }
+      const hint = el("p", "zen-settings-hint");
+      const shown = el("div", "zen-theme-preview-slot");
+      const sync = () => {
+        const t = THEMES.find((x) => x.id === storedTheme()) ?? THEMES[0];
+        hint.textContent = t.note;
+        shown.replaceChildren(themePreview(t.id));
+      };
+      const radios = segment<Theme>("Theme", THEMES.map((t) => ({ value: t.id, label: t.label })), () => storedTheme(), (v) => { setTheme(v, doc()); sync(); });
+      sync();
+      right.append(radios.el, hint, shown);
     },
   };
 }
@@ -491,6 +510,7 @@ export function createSettingsFrame(sections: SettingsSection[]): SettingsView {
     panels.forEach((p, pid) => { p.hidden = pid !== id; });
     const pane = panes.get(id);
     if (pane && reload) void load(pane);
+    page.dispatchEvent(new CustomEvent("zen-settings-section", { detail: { section: id } }));
   }
   choose(current, false);
 
@@ -511,6 +531,7 @@ export function createSettingsFrame(sections: SettingsSection[]): SettingsView {
       narrow(page.clientWidth);
       (tabs.find((t) => t.getAttribute("aria-current") === "true") ?? tabs[0])?.focus();
     },
+    current: () => current,
     open(sectionId, itemId) {
       const pane = panes.get(sectionId);
       if (pane && itemId !== undefined) pane.selected = itemId;

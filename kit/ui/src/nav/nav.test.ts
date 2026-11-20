@@ -2,6 +2,7 @@
 // The sidebar of a read-only app (kit/features): no editing items, no reordering.
 import { afterEach, beforeEach, expect, test } from "vitest";
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { createFakeApi, type FakeApi } from "../../../../apps/zenmark/frontend/src/api/fake";
 import type { NavNode, Workspace } from "../host";
 import { createStore } from "../shell/store";
@@ -64,7 +65,7 @@ test("one heading", () => {
   // the sidebar header (layout) is the only heading: the old folder row is gone, and so is its CSS
   expect(nav.querySelector(".zen-nav-ws, .zen-nav-ws-name")).toBeNull();
   expect(nav.textContent).not.toContain("docs");
-  expect(readFileSync(new URL("./nav.css", import.meta.url), "utf8")).not.toContain("zen-nav-ws");
+  expect(readFileSync(resolve(__dirname, "nav.css"), "utf8")).not.toContain("zen-nav-ws");
   // the status under the tree is still there, below the tree
   const status = nav.querySelector<HTMLElement>(".zen-nav-status")!;
   expect(status.getAttribute("role")).toBe("status");

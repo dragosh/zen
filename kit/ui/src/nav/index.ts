@@ -1,7 +1,7 @@
 // The nav feature: sidebar tree in the `nav` slot, breadcrumb in `breadcrumb`.
 import { hasFeature, type NavNode, type Workspace } from "../host";
 import { copyText } from "../shell/clipboard";
-import { el, logo } from "../shell/dom";
+import { el } from "../shell/dom";
 import type { AppState, Feature } from "../shell/types";
 import { renderBreadcrumb } from "./breadcrumb";
 import { menuEntries, type EntryEnv } from "./entries";
@@ -34,9 +34,6 @@ export const navFeature: Feature = {
   id: "nav",
   mount(slots, ctx) {
     const doc = slots.nav.ownerDocument;
-    const head = el("div", "zen-nav-ws");
-    const name = el("span", "zen-nav-ws-name");
-    head.append(logo("zen-nav-logo", 2), name);
     const treeHost = el("div", "zen-nav-tree");
     // What a menu action did, or why it failed (an alert), under the tree.
     const status = el("div", "zen-nav-status");
@@ -45,7 +42,7 @@ export const navFeature: Feature = {
     status.hidden = true;
     const crumbHost = el("nav", "zen-nav-crumbs");
     crumbHost.setAttribute("aria-label", "Breadcrumb");
-    slots.nav.append(head, treeHost, status);
+    slots.nav.append(treeHost, status);
     slots.breadcrumb.append(crumbHost);
 
     let root: string | null = null;
@@ -148,7 +145,6 @@ export const navFeature: Feature = {
       if (s.workspace !== last.workspace || s.path !== last.path || s.badges !== last.badges) {
         const r = s.workspace?.root ?? null;
         if (r !== root) { root = r; expanded = s.workspace ? loadExpanded(s.workspace) : new Set(); }
-        name.textContent = s.workspace?.name ?? "";
         drawTree();
       }
       if (s.page !== last.page || s.path !== last.path || s.mode !== last.mode || s.dirty !== last.dirty) drawCrumbs();
@@ -165,7 +161,6 @@ export const navFeature: Feature = {
       menu?.close();
       clearTimeout(statusTimer);
       clearTimeout(focusTimer);
-      head.remove();
       treeHost.remove();
       status.remove();
       crumbHost.remove();

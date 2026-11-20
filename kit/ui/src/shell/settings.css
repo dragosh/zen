@@ -32,18 +32,6 @@
 .zen-theme-preview a { color: var(--fg); text-decoration: underline; }
 .zen-theme-preview code { padding: 1px 4px; background: var(--bg-subtle); border-radius: 3px; font: 0.88em var(--font-mono); }
 
-/* About */
-.zen-about-backdrop { position: fixed; inset: 0; z-index: 40; display: flex; align-items: flex-start; justify-content: center; padding: 8vh 16px 16px; background: color-mix(in srgb, var(--fg) 18%, transparent); }
-.zen-about {
-  width: min(460px, 100%); max-height: 84vh; overflow: auto; box-sizing: border-box; padding: var(--space-5);
-  background: var(--bg); color: var(--fg); border: 1px solid var(--rule); border-radius: var(--radius);
-  box-shadow: 0 12px 32px color-mix(in srgb, var(--fg) 18%, transparent); font-family: var(--font-ui); font-size: 13px;
-}
-.zen-about-head { display: flex; flex-direction: column; align-items: center; gap: var(--space-1); margin-bottom: var(--space-4); text-align: center; }
-.zen-about-logo { width: 56px; height: 56px; }
-.zen-about-name { margin: var(--space-2) 0 0; font: 600 20px var(--font-ui); }
-.zen-about-version, .zen-about-copyright { margin: 0; color: var(--fg-muted); font-size: 12px; }
-.zen-about-foot { display: flex; justify-content: flex-end; margin-top: var(--space-4); }
 /* Accessibility: rows of a label, a control and the default; segments and steppers; the live samples. */
 .zen-a11y-row { display: grid; grid-template-columns: 9rem auto; align-items: center; column-gap: var(--space-3); row-gap: var(--space-1); margin: var(--space-3) 0; }
 .zen-a11y-label { color: var(--fg); }
@@ -66,5 +54,13 @@
 .zen-a11y-contrast-sample { max-width: 46ch; }
 .zen-a11y-contrast-sample p { margin: 0 0 var(--space-2); }
 .zen-a11y-muted { color: var(--fg-muted); padding-top: var(--space-2); border-top: 1px solid var(--rule); }
-@media (prefers-reduced-motion: reduce) { .zen-about, .zen-settings-item { transition: none; } }
-:root[data-reduce-motion="on"] .zen-about, :root[data-reduce-motion="on"] .zen-settings-item { transition: none; }
+@media (prefers-reduced-motion: reduce) { .zen-settings-item { transition: none; } }
+:root[data-reduce-motion="on"] .zen-settings-item { transition: none; }
+.zen-settings-detail .zen-navside-title { display: none; } /* the item is already the title */
+/* Markdown › Dialects: each dialect with its switch; the chosen one opens its summary, sample and preview. */
+.zen-dialect-entry { padding: var(--space-2) 0; border-bottom: 1px solid var(--rule); }
+.zen-dialect { display: flex; align-items: center; gap: var(--space-2); }
+.zen-dialect-pick { flex: 1; text-align: left; background: none; border: 0; color: var(--fg); font: inherit; cursor: pointer; padding: 2px 0; }
+.zen-dialect-pick[aria-expanded="true"] { font-weight: 600; }
+.zen-dialect-pick:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.zen-dialect-detail { margin-top: var(--space-2); }

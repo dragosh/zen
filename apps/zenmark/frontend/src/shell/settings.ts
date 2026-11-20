@@ -97,9 +97,12 @@ export function createSettingsView(opts: {
 
   let dialects: DialectInfo[] = [];
   let dialectFailure = "";
+  /** The dialect whose summary, sample and preview show; kept while the list is drawn again. */
+  let pickedDialect = "";
   const markdown: SettingsSection = {
     id: "markdown", label: "Markdown",
-    async items() {
+    // One item, Dialects, in every build; what the build has is in its right column.
+    items: async () => {
       dialectFailure = "";
       try {
         dialects = await (api.dialects?.() ?? Promise.resolve([]));
@@ -107,48 +110,71 @@ export function createSettingsView(opts: {
         dialects = [];
         dialectFailure = `Could not read the markdown syntaxes: ${message(err)}`;
       }
-      return dialects.map((d): SettingsItem => ({ id: d.id, label: d.name, note: d.on ? "On" : "Off" }));
+      return [{ id: "dialects", label: "Dialects" }];
     },
-    empty: () => dialectFailure || "This build reads CommonMark and GFM only.",
-    render(item, right) {
-      const d = dialects.find((x) => x.id === item.id);
-      if (!d) return;
+    render(_item, right) {
+      if (!dialects.length) {
+        right.append(el("p", "zen-settings-hint", dialectFailure || "No dialects in this build."));
+        return;
+      }
       let gone = false;
       const open = opts.hasWorkspace();
       const editable = hasFeature(api, "editor");
       const reason = !open ? "Open a folder to choose its markdown syntaxes." : !editable ? "This app is read-only, so the folder's settings cannot be changed." : "";
+      if (!dialects.some((x) => x.id === pickedDialect)) pickedDialect = dialects[0].id;
       const status = el("p", "zen-settings-status");
       status.setAttribute("role", "status");
-      const row = el("label", "zen-settings-check zen-dialect");
-      row.dataset.dialect = d.id;
-      const box = el("input");
-      box.type = "checkbox";
-      box.dataset.dialect = d.id;
-      box.checked = d.on;
-      box.disabled = reason !== "";
-      box.addEventListener("change", () => {
-        const want = box.checked;
-        status.textContent = "";
-        api.setDialect(d.id, want).then(() => { if (!gone) reloadSettings(box); }, (err) => {
-          box.checked = !want;
-          status.textContent = `Could not save ${d.name}: ${message(err)}`;
-        });
-      });
-      row.append(box, el("span", "", "Use in this folder"));
-      right.append(row, el("p", "zen-addon-summary zen-dialect-summary", d.summary));
-      if (reason) right.append(el("p", "zen-settings-hint", reason));
-      else right.append(el("p", "zen-settings-hint", "Saved in this folder's .zen.yml, so the folder renders the same everywhere."));
-      const sample = DIALECT_SAMPLES[d.id];
-      if (sample) {
-        right.append(el("h4", "zen-plugin-section", "Syntax"), Object.assign(el("pre", "zen-settings-file-preview"), { textContent: sample }), el("h4", "zen-plugin-section", "Rendered"));
-        const shown = el("div", "zen-page zen-dialect-preview");
-        right.append(shown);
-        if (!d.on) right.append(el("p", "zen-settings-hint", "Turn it on to see the syntax rendered in this folder."));
-        api.preview("zen-dialect-sample.md", sample).then((page) => {
-          if (!gone && shown.isConnected) mountPage(shown, page);
-        }).catch(() => { /* the sample stays without a preview */ });
-      }
-      right.append(status);
+      const list = el("div", "zen-dialect-list");
+      const draw = () => {
+        list.replaceChildren();
+        for (const d of dialects) {
+          const selected = d.id === pickedDialect;
+          const entry = el("div", "zen-dialect-entry");
+          entry.dataset.dialect = d.id;
+          const head = el("div", "zen-dialect");
+          const box = el("input");
+          box.type = "checkbox";
+          box.dataset.dialect = d.id;
+          box.checked = d.on;
+          box.disabled = reason !== "";
+          box.setAttribute("aria-label", `Use ${d.name} in this folder`);
+          box.addEventListener("change", () => {
+            const want = box.checked;
+            status.textContent = "";
+            api.setDialect(d.id, want).then(() => { if (!gone) reloadSettings(box); }, (err) => {
+              box.checked = !want;
+              status.textContent = `Could not save ${d.name}: ${message(err)}`;
+            });
+          });
+          const pick = el("button", "zen-dialect-pick", d.name);
+          pick.type = "button";
+          pick.setAttribute("aria-expanded", String(selected));
+          pick.addEventListener("click", () => { pickedDialect = d.id; draw(); });
+          head.append(box, pick, el("span", "zen-settings-item-note", d.on ? "On" : "Off"));
+          entry.append(head);
+          if (selected) entry.append(dialectDetail(d));
+          list.append(entry);
+        }
+      };
+      const dialectDetail = (d: DialectInfo): HTMLElement => {
+        const box = el("div", "zen-dialect-detail");
+        box.append(el("p", "zen-addon-summary zen-dialect-summary", d.summary));
+        if (reason) box.append(el("p", "zen-settings-hint", reason));
+        else box.append(el("p", "zen-settings-hint", "Saved in this folder's .zen.yml, so the folder renders the same everywhere."));
+        const sample = DIALECT_SAMPLES[d.id];
+        if (sample) {
+          box.append(el("h4", "zen-plugin-section", "Syntax"), Object.assign(el("pre", "zen-settings-file-preview"), { textContent: sample }), el("h4", "zen-plugin-section", "Rendered"));
+          const shown = el("div", "zen-page zen-dialect-preview");
+          box.append(shown);
+          if (!d.on) box.append(el("p", "zen-settings-hint", "Turn it on to see the syntax rendered in this folder."));
+          api.preview("zen-dialect-sample.md", sample).then((page) => {
+            if (!gone && shown.isConnected) mountPage(shown, page);
+          }).catch(() => { /* the sample stays without a preview */ });
+        }
+        return box;
+      };
+      draw();
+      right.append(list, status);
       return () => { gone = true; };
     },
   };
