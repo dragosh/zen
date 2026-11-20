@@ -562,7 +562,7 @@ test("Settings shows the plugins and its sections", async () => {
   await s.start();
   cog().click();
   await tick();
-  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Appearance", "Configuration", "Markdown", "Layouts", "Plugins", "Templates", "Export", "Developer"]);
+  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Appearance", "Accessibility", "Configuration", "Markdown", "Layouts", "Plugins", "Templates", "Export", "Developer"]);
   expect(api.callsTo("plugins")).toHaveLength(0); // a list is read when its section is chosen
 });
 
@@ -784,7 +784,7 @@ test("bare shell", async () => {
   s = boot(bare, shipped);
   await s.start();
   key(",");
-  expect(sectionNames()).toEqual(["Appearance"]);
+  expect(sectionNames()).toEqual(["Appearance", "Accessibility"]);
   // Zenmark › About lists what the build has, and what it could have, greyed; it works in a bare shell
   esc();
   bare.emit("menu:about", undefined);
@@ -827,7 +827,7 @@ test("developer alone in a bare shell gives an Inspector with the Console tab on
   mod("i", { altKey: true }); // ⌥⌘I: no Inspector in this build
   expect(panel.querySelector('[data-tab="info"]')).toBeNull();
   key(",");
-  expect(sectionNames()).toEqual(["Appearance", "Developer"]);
+  expect(sectionNames()).toEqual(["Appearance", "Accessibility", "Developer"]);
 });
 
 test("the Console follows the setting in a developer-only build: switched off, the panel goes", async () => {

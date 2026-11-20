@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import { A11Y_DEFAULTS, applyAccessibility, followAccessibility, resetAccessibility, setAccessibility, storedAccessibility, ZOOM_STEPS, zoomStep } from "./a11y";
 
@@ -105,7 +106,7 @@ test("reading options set the variables", () => {
   expect(root.dataset.linkUnderline).toBe("on");
   setAccessibility({ textSize: 14, font: "serif", lineSpacing: "loose", lineWidth: "narrow", underlineLinks: false }, document);
   expect(root.style.getPropertyValue("--zen-text-size")).toBe("14px");
-  expect(root.style.getPropertyValue("--zen-text-font")).toBe("var(--font-body)");
+  expect(root.style.getPropertyValue("--zen-text-font")).toBe(""); // serif is the stylesheet's own
   expect(root.style.getPropertyValue("--zen-line-height")).toBe("2.2");
   expect(root.style.getPropertyValue("--zen-measure")).toBe("60ch");
   expect(root.dataset.linkUnderline).toBeUndefined();
@@ -183,7 +184,7 @@ function parse(css: string, header: RegExp | null): Rule[] {
   walk(noComments(css), false);
   return out;
 }
-const read = (rel: string) => readFileSync(new URL(`../../../../${rel}`, import.meta.url), "utf8");
+const read = (rel: string) => readFileSync(resolve(import.meta.dirname, "../../../..", rel), "utf8");
 
 // The stylesheets this spec owns (the reduced-motion twins live in each).
 const OWNED_CSS = [
@@ -192,11 +193,16 @@ const OWNED_CSS = [
   "kit/ui/src/nav/nav.css", "kit/ui/src/inspector/inspector.css", "kit/ui/src/shell/settings.css",
 ];
 
+// The runtime's own stylesheets (base.css, page.css) are embedded in every built site, and a site, print and PDF must stay
+// byte for byte what they are, so their twins are in the app's shell.css; the kit's own files hold theirs.
+const SHELL = "kit/ui/src/styles/shell.css";
+const RUNTIME = ["runtime/src/css/base.css", "runtime/src/css/page.css"];
+
 test("every reduced-motion rule also matches data-reduce-motion", () => {
   let blocks = 0;
   for (const file of OWNED_CSS) {
     const css = read(file);
-    const all = parse(css, null);
+    const all = [...parse(css, null), ...(RUNTIME.includes(file) ? parse(read(SHELL), null) : [])];
     const twin = (sel: string, decls: string) => all.some((r) => r.decls === decls && r.selectors.includes(`:root[data-reduce-motion="on"] ${sel}`));
     for (const r of parse(css, /prefers-reduced-motion:\s*reduce/)) {
       blocks++;
@@ -207,36 +213,39 @@ test("every reduced-motion rule also matches data-reduce-motion", () => {
   // find.css animates only for no-preference: On switches that animation off too
   const find = parse(read("kit/ui/src/find/find.css"), null);
   expect(find.some((r) => r.selectors.includes(':root[data-reduce-motion="on"] .zen-find') && /animation:\s*none/.test(r.decls))).toBe(true);
-  // no stylesheet has a reduced-motion block without the attribute at all
-  for (const file of OWNED_CSS) {
-    const css = read(file);
-    if (/prefers-reduced-motion/.test(css)) expect(css, file).toContain('[data-reduce-motion="on"]');
+  // a kit stylesheet with a reduced-motion block has the attribute in it too
+  for (const file of OWNED_CSS.filter((f) => !RUNTIME.includes(f))) {
+    if (/prefers-reduced-motion:\s*reduce/.test(read(file))) expect(read(file), file).toContain('[data-reduce-motion="on"]');
   }
 });
 
-// ---- the reading variables reach the page, print and built sites keep the defaults (behaviour 10)
+// ---- the reading variables, print and built sites (behaviour 10)
 
-test("page.css reads the variables, print resets them, tokens.css keeps today's values", () => {
-  const tokens = parse(read("runtime/src/css/tokens.css"), null);
-  const rootDecls = tokens.find((r) => r.selectors.includes(":root"))!.decls;
-  expect(rootDecls).toContain("--zen-text-size: 17px");
-  expect(rootDecls).toContain("--zen-line-height: 1.65");
-  expect(rootDecls).toContain("--zen-text-font: var(--font-body)");
-  expect(rootDecls).toContain("--zen-measure: 68ch");
-  const page = read("runtime/src/css/page.css");
-  expect(page).toMatch(/\.zen-page\s*\{[^}]*font:\s*var\(--zen-text-size\)\s*\/\s*var\(--zen-line-height\)\s+var\(--zen-text-font\)/);
-  expect(page).toMatch(/\.zen-page\s*\{[^}]*max-width:\s*var\(--zen-measure\)/);
-  // print and the print preview put the defaults back on the page itself
-  const printed = parse(page, /^@media print$/).filter((r) => r.selectors.includes(".zen-page") && r.decls.includes("--zen-text-size"));
-  expect(printed.length).toBe(1);
-  const preview = parse(page, null).find((r) => r.selectors.includes(".zen-page.zen-print-doc") && r.decls.includes("--zen-text-size"));
-  expect(preview).toBeDefined();
-  for (const r of [printed[0], preview!]) {
-    expect(r.decls).toContain("--zen-text-size: 17px");
-    expect(r.decls).toContain("--zen-line-height: 1.65");
-    expect(r.decls).toContain("--zen-text-font: var(--font-body)");
-    expect(r.decls).toContain("--zen-measure: 68ch");
+test("the runtime stylesheets, which built sites and print use, are untouched; the app's shell.css has the reading options", () => {
+  for (const f of ["tokens.css", "page.css", "base.css", "print.css"]) {
+    const css = read(`runtime/src/css/${f}`);
+    expect(css, f).not.toMatch(/--zen-text|--zen-line|--zen-measure|--zen-text-font|data-reduce-motion|data-contrast|data-link-underline/);
   }
+  const shell = read(SHELL);
+  const rules = parse(shell, null);
+  const defaults = rules.find((r) => r.selectors.includes(":root") && r.decls.includes("--zen-text-size"))!;
+  expect(defaults.decls).toContain("--zen-text-size: 17px");
+  expect(defaults.decls).toContain("--zen-line-height: 1.65");
+  expect(defaults.decls).toContain("--zen-text-font: var(--font-body)");
+  expect(defaults.decls).toContain("--zen-measure: 68ch");
+  // today's values: page.css has 17px/1.65 var(--font-body) and 68ch
+  expect(read("runtime/src/css/page.css")).toMatch(/max-width:\s*68ch[\s\S]*font:\s*17px\/1\.65 var\(--font-body\)/);
+  // the page reads them on screen only, and not in layout pages, the print document or its preview
+  const page = parse(shell, /^@media screen$/).filter((r) => r.decls.includes("var(--zen-text-size)"));
+  expect(page.length).toBe(1);
+  expect(page[0].selectors[0]).toMatch(/\.zen-page:not\(\[data-layout\]\):not\(\.zen-print-doc\)$/);
+  expect(page[0].decls).toContain("font: var(--zen-text-size) / var(--zen-line-height) var(--zen-text-font)");
+  expect(page[0].decls).toContain("max-width: var(--zen-measure)");
   // underlined links: the reader's pages only, never the print document
-  expect(page).toMatch(/:root\[data-link-underline="on"\]\s+\.zen-page:not\(\.zen-print-doc\)\s+a\s*\{[^}]*text-decoration:\s*underline/);
+  const under = parse(shell, /^@media screen$/).find((r) => r.selectors.some((s) => s.startsWith(':root[data-link-underline="on"] .zen-page:not(.zen-print-doc) a')));
+  expect(under?.decls).toContain("text-decoration: underline");
+  // headings follow the text size: em, in the sizes of the page's own stylesheet at 17 px
+  const h1 = parse(shell, /^@media screen$/).find((r) => r.selectors[0].endsWith(" h1"));
+  expect(h1?.decls).toMatch(/font-size: 1\.9764\d*em/);
+  expect(2.1 * 16 / 17).toBeCloseTo(1.97647, 4);
 });

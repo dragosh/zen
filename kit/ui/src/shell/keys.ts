@@ -36,3 +36,17 @@ export function shellAction(e: KeyboardEvent, has: (feature: string) => boolean)
 export function reloadKey(e: KeyboardEvent): boolean {
   return plain(e, "r");
 }
+
+/**
+ * ⌘+ (also ⌘=, which is the same key), ⌘− and ⌘0: the zoom of the window, one step up (1), one step down (-1) or Actual
+ * Size (0). The View menu has the same keys; the window handles them when the menu does not (the editor window, tests).
+ */
+export function zoomKey(e: KeyboardEvent): 1 | -1 | 0 | null {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey) return null;
+  switch (e.key) {
+    case "=": case "+": return 1;
+    case "-": case "_": case "\u2212": return -1;
+    case "0": return e.shiftKey ? null : 0;
+  }
+  return null;
+}

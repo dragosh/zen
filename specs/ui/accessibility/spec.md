@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | specified |
+| Status | done |
 | Target version | 0.7.0 |
 | Branch | `feature/ui-accessibility` |
 | Wave | 27 |
@@ -159,7 +159,10 @@ Accessibility
   - each group is a labelled `radiogroup` with arrow keys;
   - steppers are `spinbutton` with `aria-valuetext` ("125 percent", "17 pixels");
   - the sample paragraph has `aria-hidden="true"`.
-- When #26 (Settings in two columns) lands, this section moves into its two-column layout like every other section, with the sample in the right column.
+- **Two columns** (#26's frame, `SettingsSection` with `items` and `render`). The single-column sketch above is what the right column shows, split by item:
+  - **items (left):** Zoom, Motion, Contrast and Reading (Reading only with `reader`);
+  - **right column:** that item's controls, each with its default, the live sample (Reading: the sample paragraph; Contrast: text, muted text and a rule), and **Reset to defaults** at the bottom;
+  - Zoom: the stepper and the keys; Motion: Reduce motion; Contrast: Increase contrast; Reading: Text size, Font, Line spacing, Line width and Underline links.
 
 ## Security
 

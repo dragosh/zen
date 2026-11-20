@@ -345,6 +345,7 @@ h4.zen-plugin-help-title { font-size: 14px; }
 @media (prefers-reduced-motion: reduce) {
   .zen-opening-indeterminate .zen-opening-fill { animation: none; left: 0; width: 100%; opacity: 0.4; }
 }
+:root[data-reduce-motion="on"] .zen-opening-indeterminate .zen-opening-fill { animation: none; left: 0; width: 100%; opacity: 0.4; }
 
 /* Welcome: logo, Open a folder, Start from a template (core/init). */
 .zen-welcome { position: relative; isolation: isolate; overflow: auto; justify-content: flex-start; gap: 0; padding: var(--space-6) var(--space-4); }
@@ -380,6 +381,7 @@ h4.zen-plugin-help-title { font-size: 14px; }
 }
 .zen-welcome .zen-welcome-menuhint { position: absolute; top: var(--space-3); left: var(--space-4); margin: 0; color: var(--fg-muted); font: 12px/1.4 var(--font-ui); }
 @media (prefers-reduced-motion: reduce) { .zen-welcome-card { transition: none; } }
+:root[data-reduce-motion="on"] .zen-welcome-card { transition: none; }
 
 /* One of three pictures behind the home screen, under a scrim of the page colour so the text reads in light and dark. */
 .zen-welcome-bg { position: fixed; inset: 0; z-index: -1; background-size: cover; background-position: center; pointer-events: none; }
@@ -392,6 +394,7 @@ h4.zen-plugin-help-title { font-size: 14px; }
 .zen-welcome-play .zen-welcome-first { animation: zen-welcome-fade 2s ease-out both; }
 .zen-welcome-play .zen-welcome-later { animation: zen-welcome-fade 2s ease-out both; }
 @media (prefers-reduced-motion: reduce) { .zen-welcome .zen-welcome-first, .zen-welcome .zen-welcome-later { animation: none; opacity: 1; } }
+:root[data-reduce-motion="on"] .zen-welcome .zen-welcome-first, :root[data-reduce-motion="on"] .zen-welcome .zen-welcome-later { animation: none; opacity: 1; }
 
 /* New Site dialog (core/init); the frame matches New Page. */
 .zen-newsite-backdrop {
@@ -498,3 +501,64 @@ h4.zen-plugin-help-title { font-size: 14px; }
 .zen-home-settings > :last-child { flex: 1; min-height: 0; }
 .zen-welcome-menuhint .zen-welcome-settings { background: none; border: 0; padding: 0; min-height: 0; color: inherit; font: inherit; text-decoration: underline; text-underline-offset: 2px; cursor: pointer; }
 .zen-welcome-menuhint .zen-welcome-settings:hover { color: var(--fg); }
+
+/* ---- Accessibility (ui/accessibility, Settings › Accessibility) ----
+   The app's own rules, here and not in runtime/src/css, so a built site, print and PDF keep exactly the
+   stylesheet they have. Set on <html> by shell/a11y.ts: data-reduce-motion, data-contrast, data-link-underline
+   and the reading variables. */
+
+/* The reader's text. The defaults are today's values; the page itself and the print document keep them. */
+:root {
+  --zen-text-size: 17px;
+  --zen-line-height: 1.65;
+  --zen-text-font: var(--font-body);
+  --zen-measure: 68ch;
+}
+@media screen {
+  /* Not the layouts (a layout page owns its look), not the print document or the print preview. */
+  :root .zen-page:not([data-layout]):not(.zen-print-doc) {
+    max-width: var(--zen-measure);
+    font: var(--zen-text-size) / var(--zen-line-height) var(--zen-text-font);
+  }
+  :root .zen-page-warnings { max-width: var(--zen-measure); }
+  /* The headings follow the text size (they are rem in the page's own stylesheet, which a built site keeps): the same
+     sizes as there, in em of the default 17 px. */
+  :root .zen-page:not([data-layout]):not(.zen-print-doc) h1 { font-size: 1.97647em; }
+  :root .zen-page:not([data-layout]):not(.zen-print-doc) h2 { font-size: 1.31765em; }
+  :root .zen-page:not([data-layout]):not(.zen-print-doc) h3 { font-size: 1.08235em; }
+  :root .zen-page:not([data-layout]):not(.zen-print-doc) h4 { font-size: 0.94118em; }
+  :root .zen-page:not([data-layout]):not(.zen-print-doc) h5 { font-size: 0.84706em; }
+  :root .zen-page:not([data-layout]):not(.zen-print-doc) h6 { font-size: 0.8em; }
+  /* Underline links: every link of a page, plugin output included, not only on hover. */
+  :root[data-link-underline="on"] .zen-page:not(.zen-print-doc) a { text-decoration: underline; }
+}
+
+/* Reduce motion On: what prefers-reduced-motion: reduce does, here and in the runtime's base.css and page.css, whose twins these are. */
+:root[data-reduce-motion="on"] *,
+:root[data-reduce-motion="on"] *::before,
+:root[data-reduce-motion="on"] *::after {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+:root[data-reduce-motion="on"] .zen-progress { animation: none; opacity: .6; }
+
+/* Increase contrast: macOS asks for it (prefers-contrast: more) or the option is On (data-contrast="more"). Muted text becomes
+   the text colour, the rules are at least 3:1 against the background in both themes, and focus rings are 3 px. Nothing else
+   changes colour. The selectors are repeated so they win over the theme rules whatever the theme. */
+@media (prefers-contrast: more) {
+  :root:root:root { --fg-muted: var(--fg); --rule: #888888; }
+  :focus-visible { outline-width: 3px !important; }
+}
+:root[data-contrast="more"]:root:root { --fg-muted: var(--fg); --rule: #888888; }
+@media (prefers-color-scheme: dark) and (prefers-contrast: more) {
+  :root:root:root:not([data-theme="light"]) { --rule: #7c7c7c; }
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-contrast="more"]:root:root:not([data-theme="light"]) { --rule: #7c7c7c; }
+}
+@media (prefers-contrast: more) {
+  :root[data-theme="dark"]:root:root { --rule: #7c7c7c; }
+}
+:root[data-theme="dark"][data-contrast="more"]:root { --rule: #7c7c7c; }
+:root[data-contrast="more"] :focus-visible { outline-width: 3px !important; }

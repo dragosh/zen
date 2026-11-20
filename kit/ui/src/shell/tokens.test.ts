@@ -115,13 +115,20 @@ const lum = (hex: string) => {
 const ratio = (a: string, b: string) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
 
 test("increase contrast", () => {
-  const rs = flat(css).filter((r) => /prefers-contrast:\s*more/.test(r.media) || r.selector.includes('[data-contrast="more"]'));
+  // The overrides are in the app's shell.css, not in the runtime's tokens.css (that is embedded in every built site, which stays as it is).
+  const shellCss = readFileSync(new URL("../styles/shell.css", import.meta.url), "utf8");
+  const rs = flat(shellCss).filter((r) => /prefers-contrast:\s*more/.test(r.media) || r.selector.includes('[data-contrast="more"]'));
   expect(rs.length).toBeGreaterThan(0);
   // by the system, and by the option: both
   expect(rs.some((r) => /prefers-contrast:\s*more/.test(r.media))).toBe(true);
   expect(rs.some((r) => r.selector.includes('[data-contrast="more"]'))).toBe(true);
   // nothing else changes colour: only the muted text and the rules
-  for (const r of rs) for (const k of Object.keys(r.decls)) expect(["--fg-muted", "--rule"], `${r.selector}: ${k}`).toContain(k);
+  for (const r of rs) for (const k of Object.keys(r.decls)) expect(["--fg-muted", "--rule", "outline-width"], `${r.selector}: ${k}`).toContain(k);
+  // focus rings are 3 px, by the system and by the option
+  const rings = rs.filter((r) => r.decls["outline-width"] !== undefined);
+  expect(rings.some((r) => /prefers-contrast:\s*more/.test(r.media))).toBe(true);
+  expect(rings.some((r) => r.selector.includes('[data-contrast="more"]'))).toBe(true);
+  for (const r of rings) expect(r.decls["outline-width"]).toMatch(/^3px/);
   // muted text becomes the text colour
   const muted = rs.filter((r) => "--fg-muted" in r.decls);
   expect(muted.length).toBeGreaterThan(1);
@@ -136,5 +143,5 @@ test("increase contrast", () => {
   for (const r of lightRules) expect(ratio(r.decls["--rule"], light["--bg"]), r.selector).toBeGreaterThanOrEqual(3);
   for (const r of darkRules) expect(ratio(r.decls["--rule"], dark["--bg"]), r.selector).toBeGreaterThanOrEqual(3);
   // they beat the theme rules they override: no theme selector is more specific
-  for (const r of rs) expect(r.selector).toMatch(/:root/);
+  for (const r of rs.filter((x) => "--rule" in x.decls || "--fg-muted" in x.decls)) expect(r.selector).toMatch(/:root/);
 });

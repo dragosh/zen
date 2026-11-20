@@ -114,6 +114,8 @@ test("every section is two columns, and the arrows of the section list move thro
   expect(s.el.querySelector("h1")!.textContent).toBe("Settings");
   const list = s.el.querySelector<HTMLElement>(".zen-settings-sections")!;
   key(list, "ArrowDown");
+  expect(tab(s, "accessibility").getAttribute("aria-current")).toBe("true");
+  key(list, "ArrowDown");
   expect(tab(s, "config").getAttribute("aria-current")).toBe("true");
 });
 

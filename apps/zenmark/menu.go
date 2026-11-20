@@ -2,6 +2,7 @@ package app
 
 import (
 	"slices"
+	"sync"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
 )
@@ -12,6 +13,17 @@ const EventSettings = "menu:settings"
 // EventAbout asks the main window to show the About sheet (Zenmark > About Zenmark).
 const EventAbout = "menu:about"
 
+// The View menu's zoom items (ui/accessibility) send these to every window; the one in front steps the
+// zoom (Window.SetZoom) and saves it, so the menu, the keys and Settings share one code path.
+const (
+	EventZoomIn    = "menu:zoom-in"
+	EventZoomOut   = "menu:zoom-out"
+	EventZoomReset = "menu:zoom-reset"
+	// EventZoomChanged is what a window tells Go after it zoomed: the new factor, a number. It greys
+	// Zoom In at 200% and Zoom Out at 75%.
+	EventZoomChanged = "app:zoom"
+)
+
 // menuActions are the callbacks app.go wires into the custom menu items, so
 // this file does not depend on Zen internals.
 type menuActions struct {
@@ -19,6 +31,11 @@ type menuActions struct {
 	CloseFolder                                   func()
 	BuildWebsite, PrintPage, PrintSite            func()
 	Find, FindNext, FindPrevious                  func()
+
+	// emit sends the event of a custom item that only tells the windows something (View > Zoom In); buildMenu sets it.
+	emit func(event string)
+	// zoom greys the zoom items at the ends of the list; buildMenu sets it.
+	zoom *zoomState
 }
 
 // forLabel returns the action of a custom (role-less) item, nil for others.
@@ -76,13 +93,15 @@ const (
 	labelCloseFolder   = "Close Folder"
 	labelSettings      = "Settings…"
 	labelAbout         = "About " + Name
+	labelActualSize    = "Actual Size"
+	labelZoomIn        = "Zoom In"
+	labelZoomOut       = "Zoom Out"
 )
 
 var sep = menuItem{Separator: true}
 
-// menuSpec is the whole menu bar of a full build: Zen, File, Edit, Window, and in
-// dev builds Develop. Production builds have no Reload, DevTools, View, Services
-// or Speech.
+// menuSpec is the whole menu bar of a full build: Zen, File, Edit, View (zoom only), Window,
+// and in dev builds Develop. Production builds have no Reload, DevTools, Services or Speech.
 func menuSpec(dev bool) []menuItem { return menuSpecFor(dev, allFeatures) }
 
 // menuSpecFor is menuSpec for a build with these features (kit/shell-features).
@@ -136,6 +155,12 @@ func menuSpecFor(dev bool, features []string) []menuItem {
 			{Label: labelFindPrevious, Accel: "CmdOrCtrl+Shift+G"},
 		}}),
 	)
+	// View: the zoom of the whole window, in every build (Settings › Accessibility has the same steps).
+	view := []menuItem{
+		{Label: labelActualSize, Accel: "CmdOrCtrl+0", Event: EventZoomReset},
+		{Label: labelZoomIn, Accel: "CmdOrCtrl+Plus", Event: EventZoomIn},
+		{Label: labelZoomOut, Accel: "CmdOrCtrl+-", Event: EventZoomOut},
+	}
 	bar := []menuItem{
 		{Label: Name, Children: []menuItem{
 			{Label: labelAbout, Event: EventAbout}, // the About sheet of the main window, not the standard panel
@@ -149,6 +174,7 @@ func menuSpecFor(dev bool, features []string) []menuItem {
 		}},
 		{Label: "File", Children: file},
 		{Label: "Edit", Children: edit},
+		{Label: "View", Children: view},
 	}
 	if dev && has("developer") {
 		bar = append(bar, menuItem{Label: "Develop", Children: []menuItem{
@@ -197,6 +223,13 @@ var roleByName = map[string]application.Role{
 // default is (the Wails app name is the lowercase binary name).
 func buildMenu(a *application.App, act menuActions, st *menuState, dev bool) *application.Menu {
 	menu := a.Menu.New()
+	act.emit = func(event string) { a.Event.Emit(event) }
+	act.zoom = newZoomState()
+	a.Event.On(EventZoomChanged, func(e *application.CustomEvent) {
+		if z, ok := zoomFromEvent(e.Data); ok {
+			act.zoom.set(z)
+		}
+	})
 	for _, top := range menuSpecFor(dev, assemblyInfo.Features) {
 		fillMenu(menu.AddSubmenu(top.Label), top.Children, act, st)
 	}
@@ -232,6 +265,17 @@ func fillMenu(sub *application.Menu, items []menuItem, act menuActions, st *menu
 			item = sub.Add(it.Label)
 			if f := act.forLabel(it.Label); f != nil {
 				item.OnClick(func(*application.Context) { f() })
+			} else if it.Event != "" && act.emit != nil {
+				event := it.Event
+				item.OnClick(func(*application.Context) { act.emit(event) })
+			}
+			if act.zoom != nil {
+				switch it.Label {
+				case labelZoomIn:
+					act.zoom.add(func(on bool) { item.SetEnabled(on) }, nil)
+				case labelZoomOut:
+					act.zoom.add(nil, func(on bool) { item.SetEnabled(on) })
+				}
 			}
 			if st != nil && folderOnly(it.Label) {
 				st.add(func(on bool) { item.SetEnabled(on) })
@@ -274,5 +318,74 @@ func showAndEmit(win shower, sink EventSink, event string) func() {
 		win.Show()
 		win.Focus()
 		sink.Emit(event, nil)
+	}
+}
+
+// zoomMin and zoomMax are the ends of the zoom list (kit/ui shell/a11y.ts ZOOM_STEPS: 75% to 200%).
+const (
+	zoomMin = 0.75
+	zoomMax = 2.0
+)
+
+// zoomEnabled says whether Zoom In and Zoom Out do anything at zoom z: the ends do nothing, and the items are greyed there.
+func zoomEnabled(z float64) (in, out bool) {
+	const eps = 1e-6
+	return z < zoomMax-eps, z > zoomMin+eps
+}
+
+// zoomFromEvent reads what a window sent with EventZoomChanged: a JSON number in the zoom range.
+func zoomFromEvent(data any) (float64, bool) {
+	z, ok := data.(float64)
+	if !ok || z < zoomMin-1e-6 || z > zoomMax+1e-6 {
+		return 0, false
+	}
+	return z, true
+}
+
+// zoomState keeps Zoom In and Zoom Out enabled or greyed to match the zoom. Like menuState it holds setters, not
+// Wails items, so tests drive it without an application. A nil zoomState does nothing.
+type zoomState struct {
+	mu      sync.Mutex
+	z       float64
+	in, out []func(bool)
+}
+
+func newZoomState() *zoomState { return &zoomState{z: 1} }
+
+// add registers the setters of Zoom In and/or Zoom Out (nil for the one it is not) and gives them the current state.
+func (m *zoomState) add(in, out func(bool)) {
+	m.mu.Lock()
+	if in != nil {
+		m.in = append(m.in, in)
+	}
+	if out != nil {
+		m.out = append(m.out, out)
+	}
+	z := m.z
+	m.mu.Unlock()
+	canIn, canOut := zoomEnabled(z)
+	if in != nil {
+		in(canIn)
+	}
+	if out != nil {
+		out(canOut)
+	}
+}
+
+// set records the zoom and updates the items.
+func (m *zoomState) set(z float64) {
+	if m == nil {
+		return
+	}
+	m.mu.Lock()
+	m.z = z
+	in, out := append([]func(bool){}, m.in...), append([]func(bool){}, m.out...)
+	m.mu.Unlock()
+	canIn, canOut := zoomEnabled(z)
+	for _, f := range in {
+		f(canIn)
+	}
+	for _, f := range out {
+		f(canOut)
 	}
 }
