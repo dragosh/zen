@@ -5,7 +5,6 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
-	"sync"
 	"time"
 
 	"github.com/wailsapp/wails/v3/pkg/application"
@@ -88,7 +87,7 @@ func Run(o Options) error {
 	win := a.Window.NewWithOptions(application.WebviewWindowOptions{
 		Name:   MainWindowName,
 		Title:  o.Name,
-		Width:  1100, // the size it returns to when un-maximised
+		Width:  1100, // replaced by the screen's work area at start (ApplicationStarted)
 		Height: 720,
 		URL:    "/",
 		// Hidden until the frontend drew its first screen (eventAppReady), so
@@ -113,39 +112,27 @@ func Run(o Options) error {
 	a.Event.On(eventAppReady, func(*application.CustomEvent) { ready.Ready() })
 
 	a.Event.OnApplicationEvent(events.Common.ApplicationStarted, func(*application.ApplicationEvent) {
-		// Fill the screen's usable area (not macOS full-screen mode).
-		// macOS ignores maximising a window that is not shown yet
-		// (StartState: WindowStateMaximised had no effect), and showing first and
-		// maximising after would let the user watch the window grow. So the hidden
-		// window is first given the work area's frame, then shown (already full
-		// size), then maximised so that it is a maximised window for the OS (the
-		// green button, un-maximise). If setting the frame already made it count
-		// as maximised there is nothing left to do and no event follows.
-		// Editor windows are sized from the main window (90%), so the startup
-		// editor waits until maximising has finished (it is asynchronous), or
-		// one second at most.
-		maximised := make(chan struct{})
-		var once sync.Once
-		done := func() { once.Do(func() { close(maximised) }) }
-		win.OnWindowEvent(events.Common.WindowMaximise, func(*application.WindowEvent) { done() })
+		// Fill the screen's usable area (not macOS full-screen mode). The window
+		// is hidden, so it gets the work area's frame now and appears at full
+		// size: no Maximise, which macOS ignores on a hidden window
+		// (StartState: WindowStateMaximised had no effect) and animates (zoom:)
+		// on a shown one. A frame equal to the work area is the zoomed frame.
+		// Size first, then position: Wails' SetPosition keeps the current height
+		// when it turns the top-left y into macOS's bottom-left origin, so the
+		// other order (and SetBounds) leaves the frame off the work area.
 		if s := a.Screen.GetPrimary(); s != nil {
-			win.SetBounds(s.WorkArea)
+			win.SetSize(s.WorkArea.Width, s.WorkArea.Height)
+			win.SetPosition(s.WorkArea.X, s.WorkArea.Y)
 		}
 		go func() {
 			// Shown when the frontend is ready, or after showTimeout, so that it
-			// never stays hidden (and its error screen is seen).
+			// never stays hidden (and its error screen is seen). Editor windows
+			// are sized from the main window (90%), so the startup editor opens
+			// after this, when the frame is final.
 			showWhenReady(ready, time.After(showTimeout), func() {
 				win.Show()
-				if win.IsMaximised() {
-					done()
-				} else {
-					win.Maximise()
-				}
+				a.Event.Emit(eventAppShown, nil)
 			})
-			select {
-			case <-maximised:
-			case <-time.After(time.Second):
-			}
 			if o.OnStarted != nil {
 				if err := o.OnStarted(a, win); err != nil {
 					a.Dialog.Warning().SetTitle("Could not edit").SetMessage(err.Error()).Show()

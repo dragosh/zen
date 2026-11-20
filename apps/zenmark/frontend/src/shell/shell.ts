@@ -367,7 +367,8 @@ export function createShell(root: HTMLElement, { api, features, search, random =
   function showWelcome(error = ""): void {
     closeFrame();
     store.set({ workspace: null, path: "", anchor: "", page: undefined, dirty: false });
-    const view = el("main", "zen-welcome");
+    // The fade (shell.css) plays only once the window is on screen; it would finish unseen in the hidden window.
+    const view = el("main", windowShown ? "zen-welcome zen-welcome-play" : "zen-welcome");
     // One of the backgrounds, behind a scrim (shell.css); it is not in the page view.
     const pick = Math.min(INTRO_IMAGES.length - 1, Math.max(0, Math.floor(random() * INTRO_IMAGES.length)));
     const bg = el("div", "zen-welcome-bg");
@@ -459,6 +460,8 @@ export function createShell(root: HTMLElement, { api, features, search, random =
    * two seconds anyway. Sent once; a failed start sends it too, so the error screen is seen.
    */
   let readySent = false;
+  /** The main window is on screen (appReady resolved); until then the welcome fade waits. */
+  let windowShown = kind.kind !== "main";
   async function sendReady(): Promise<void> {
     if (readySent || kind.kind !== "main") return;
     readySent = true;
@@ -474,6 +477,9 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     } catch (err) {
       console.error("zen: could not tell the window it is ready", err);
     }
+    if (destroyed) return;
+    windowShown = true;
+    root.querySelector(".zen-welcome")?.classList.add("zen-welcome-play");
   }
 
   let stopPreview: (() => void) | null = null;

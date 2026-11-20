@@ -74,7 +74,7 @@ export interface Api extends KitHost {
   pickFolder(): Promise<Workspace | null>; // native folder dialog; null also when the opening was cancelled
   /** Stops the folder that is opening; the one open before stays. */
   cancelOpen(): Promise<void>;
-  /** The main window's first screen is drawn (and its fonts, logo and background have loaded or failed): Go shows the hidden window. */
+  /** The main window's first screen is drawn (and its fonts, logo and background have loaded or failed): Go shows the hidden window. Resolves once it is on screen. */
   appReady(): Promise<void>;
   /** File › Close Folder: editor windows close first (each asks about unsaved changes); false when one kept its changes. */
   closeFolder(): Promise<boolean>;

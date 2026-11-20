@@ -1003,3 +1003,17 @@ test("app:ready is also sent when startup fails, so the error is seen", async ()
   expect(root.querySelector(".zen-error")).not.toBeNull();
   expect(api.callsTo("appReady")).toHaveLength(1);
 });
+
+test("the welcome fade waits until the window is shown (appReady resolves), then plays", async () => {
+  const api = createFakeApi();
+  let shown!: () => void;
+  api.appReady = () => new Promise<void>((r) => { shown = r; });
+  shell = createShell(root, { api, features: features(), search: "", assetWaitMs: 0 });
+  await shell.start();
+  await tick();
+  const view = root.querySelector(".zen-welcome")!;
+  expect(view.classList.contains("zen-welcome-play")).toBe(false);
+  shown();
+  await tick();
+  expect(root.querySelector(".zen-welcome")!.classList.contains("zen-welcome-play")).toBe(true);
+});
