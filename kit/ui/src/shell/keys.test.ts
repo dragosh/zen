@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { expect, test } from "vitest";
-import { closeWindowKey, reloadKey, shellAction } from "./keys";
+import { closeWindowKey, reloadKey, shellAction, zoomKey } from "./keys";
 
 const ev = (init: KeyboardEventInit) => new KeyboardEvent("keydown", init);
 
@@ -51,4 +51,24 @@ test("shellAction drops the shortcuts of missing features", () => {
   expect(act({ key: "\\" }, only("nav"))).toBe("toggle-sidebar");
   // open, settings and history stay in every build
   for (const key of ["o", ",", "[", "]"]) expect(act({ key }, only())).not.toBeNull();
+});
+
+test("zoom keys", () => {
+  const z = (init: KeyboardEventInit) => zoomKey(ev(init));
+  // ⌘+ (which is ⇧⌘= on a US keyboard), ⌘=, ⌘−, ⌘0
+  expect(z({ key: "+", metaKey: true, shiftKey: true })).toBe(1);
+  expect(z({ key: "+", metaKey: true })).toBe(1);
+  expect(z({ key: "=", metaKey: true })).toBe(1);
+  expect(z({ key: "=", ctrlKey: true })).toBe(1);
+  expect(z({ key: "-", metaKey: true })).toBe(-1);
+  expect(z({ key: "\u2212", metaKey: true })).toBe(-1);
+  expect(z({ key: "_", metaKey: true, shiftKey: true })).toBe(-1);
+  expect(z({ key: "0", metaKey: true })).toBe(0);
+  // not without the command key, and not with ⌥
+  expect(z({ key: "=" })).toBeNull();
+  expect(z({ key: "-" })).toBeNull();
+  expect(z({ key: "0" })).toBeNull();
+  expect(z({ key: "=", metaKey: true, altKey: true })).toBeNull();
+  expect(z({ key: "0", metaKey: true, altKey: true })).toBeNull();
+  expect(z({ key: "1", metaKey: true })).toBeNull();
 });

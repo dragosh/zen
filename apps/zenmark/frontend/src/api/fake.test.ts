@@ -341,3 +341,15 @@ test("fake delivers menu:about", () => {
   api.emit("menu:about", undefined);
   expect(n).toBe(1);
 });
+
+test("the View menu's zoom events reach on() listeners", () => {
+  const api = createFakeApi();
+  const got: string[] = [];
+  const offs = (["menu:zoom-in", "menu:zoom-out", "menu:zoom-reset"] as const).map((e) => api.on(e, () => got.push(e)));
+  api.emit("menu:zoom-in", undefined);
+  api.emit("menu:zoom-out", undefined);
+  api.emit("menu:zoom-reset", undefined);
+  offs[0]();
+  api.emit("menu:zoom-in", undefined);
+  expect(got).toEqual(["menu:zoom-in", "menu:zoom-out", "menu:zoom-reset"]);
+});

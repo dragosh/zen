@@ -9,13 +9,14 @@ export type {
 export { button, el, logo } from "./shell/dom";
 export { copyText } from "./shell/clipboard";
 export { createHistory, type Entry, type History } from "./shell/history";
-export { closeWindowKey, reloadKey, shellAction, type ShellAction } from "./shell/keys";
+export { closeWindowKey, reloadKey, shellAction, zoomKey, type ShellAction } from "./shell/keys";
 export { createLayout, type Layout, type LayoutHandlers } from "./shell/layout";
 export { createOpening, type Opening, type OpeningOptions } from "./shell/opening";
 export { installConsoleCapture, type ConsoleCapture } from "./shell/console";
 export { developerEnabled, developerKey, followDeveloper, setDeveloperEnabled } from "./shell/developer";
 export { applyAppTheme, buildSection } from "./shell/addons";
-export { appearanceSection, createSettingsFrame, developerSection, reloadSettings, type SettingsItem, type SettingsSection, type SettingsView } from "./shell/settings";
+export { A11Y_DEFAULTS, ZOOM_STEPS, applyAccessibility, followAccessibility, reducedMotion, resetAccessibility, setAccessibility, stepZoom, storedAccessibility, zoomStep, type Accessibility } from "./shell/a11y";
+export { accessibilitySection, appearanceSection, createSettingsFrame, developerSection, reloadSettings, type SettingsItem, type SettingsSection, type SettingsView } from "./shell/settings";
 export { openAbout } from "./shell/about";
 export { createStore } from "./shell/store";
 export { applyTheme, followTheme, setTheme, storedTheme, THEME_KEY, type Theme } from "./shell/theme";

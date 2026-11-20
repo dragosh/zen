@@ -81,3 +81,67 @@ test("data-theme=light forces the light theme", () => {
   const forced = all.filter((r) => r.selector.includes('[data-theme="light"]') && !r.selector.includes(":not("));
   for (const r of forced) for (const [k, v] of Object.entries(light)) if (k in r.decls) expect(r.decls[k]).toBe(v);
 });
+
+// ---- Increase contrast (ui/accessibility, behaviour 12)
+
+type Flat = { selector: string; media: string; decls: Record<string, string> };
+function flat(source: string): Flat[] {
+  const out: Flat[] = [];
+  const walk = (src: string, media: string) => {
+    let i = 0;
+    while (i < src.length) {
+      const open = src.indexOf("{", i);
+      if (open < 0) break;
+      let depth = 1, j = open + 1;
+      while (j < src.length && depth > 0) { if (src[j] === "{") depth++; else if (src[j] === "}") depth--; j++; }
+      const head = src.slice(i, open).replace(/\s+/g, " ").trim();
+      const body = src.slice(open + 1, j - 1);
+      if (head.startsWith("@media")) walk(body, head);
+      else {
+        const decls: Record<string, string> = {};
+        for (const d of body.split(";")) { const k = d.indexOf(":"); if (k > 0) decls[d.slice(0, k).trim()] = d.slice(k + 1).trim(); }
+        out.push({ selector: head, media, decls });
+      }
+      i = j;
+    }
+  };
+  walk(source.replace(/\/\*[\s\S]*?\*\//g, ""), "");
+  return out;
+}
+const lum = (hex: string) => {
+  const c = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255).map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2];
+};
+const ratio = (a: string, b: string) => { const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x); return (hi + 0.05) / (lo + 0.05); };
+
+test("increase contrast", () => {
+  // The overrides are in the app's shell.css, not in the runtime's tokens.css (that is embedded in every built site, which stays as it is).
+  const shellCss = readFileSync(new URL("../styles/shell.css", import.meta.url), "utf8");
+  const rs = flat(shellCss).filter((r) => /prefers-contrast:\s*more/.test(r.media) || r.selector.includes('[data-contrast="more"]'));
+  expect(rs.length).toBeGreaterThan(0);
+  // by the system, and by the option: both
+  expect(rs.some((r) => /prefers-contrast:\s*more/.test(r.media))).toBe(true);
+  expect(rs.some((r) => r.selector.includes('[data-contrast="more"]'))).toBe(true);
+  // nothing else changes colour: only the muted text and the rules
+  for (const r of rs) for (const k of Object.keys(r.decls)) expect(["--fg-muted", "--rule", "outline-width"], `${r.selector}: ${k}`).toContain(k);
+  // focus rings are 3 px, by the system and by the option
+  const rings = rs.filter((r) => r.decls["outline-width"] !== undefined);
+  expect(rings.some((r) => /prefers-contrast:\s*more/.test(r.media))).toBe(true);
+  expect(rings.some((r) => r.selector.includes('[data-contrast="more"]'))).toBe(true);
+  for (const r of rings) expect(r.decls["outline-width"]).toMatch(/^3px/);
+  // muted text becomes the text colour
+  const muted = rs.filter((r) => "--fg-muted" in r.decls);
+  expect(muted.length).toBeGreaterThan(1);
+  for (const r of muted) expect(r.decls["--fg-muted"]).toBe("var(--fg)");
+  // the rule is at least 3:1 against its background, in both themes
+  const isDark = (r: Flat) => r.selector.includes('[data-theme="dark"]') || /prefers-color-scheme:\s*dark/.test(r.media);
+  const withRule = rs.filter((r) => "--rule" in r.decls);
+  const lightRules = withRule.filter((r) => !isDark(r));
+  const darkRules = withRule.filter(isDark);
+  expect(lightRules.length).toBeGreaterThan(0);
+  expect(darkRules.length).toBeGreaterThan(0);
+  for (const r of lightRules) expect(ratio(r.decls["--rule"], light["--bg"]), r.selector).toBeGreaterThanOrEqual(3);
+  for (const r of darkRules) expect(ratio(r.decls["--rule"], dark["--bg"]), r.selector).toBeGreaterThanOrEqual(3);
+  // they beat the theme rules they override: no theme selector is more specific
+  for (const r of rs.filter((x) => "--rule" in x.decls || "--fg-muted" in x.decls)) expect(r.selector).toMatch(/:root/);
+});

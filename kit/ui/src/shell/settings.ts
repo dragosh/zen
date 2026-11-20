@@ -6,6 +6,7 @@
 // All text through textContent.
 import "./settings.css";
 import { button, el } from "./dom";
+import { A11Y_DEFAULTS, a11yPersists, currentZoomSink, resetAccessibility, setAccessibility, storedAccessibility, TEXT_SIZE_MAX, TEXT_SIZE_MIN, ZOOM_STEPS, zoomStep, type Accessibility } from "./a11y";
 import { developerEnabled, setDeveloperEnabled } from "./developer";
 import { setTheme, storedTheme, type Theme } from "./theme";
 
@@ -91,6 +92,189 @@ export function appearanceSection(doc: () => Document, extra: HTMLElement[] = []
     render(item, right) {
       const t = THEMES.find((x) => x.id === item.id) ?? THEMES[0];
       right.append(el("p", "zen-settings-hint", t.note), themePreview(t.id), ...extra);
+    },
+  };
+}
+
+// ---- Accessibility (ui/accessibility)
+
+const percent = (z: number) => `${Math.round(z * 100)}%`;
+
+/** A labelled row of the right column: the label, the control and what the default is. */
+function a11yRow(label: string, control: HTMLElement, def: string): HTMLElement {
+  const row = el("div", "zen-a11y-row");
+  const name = el("span", "zen-a11y-label", label);
+  const note = el("span", "zen-a11y-default", `Default: ${def}`);
+  row.append(name, control, note);
+  return row;
+}
+
+/** A group of radio buttons (role radiogroup) with the arrow keys: the zen-settings-segment of the page. */
+function segment<T extends string>(label: string, options: { value: T; label: string }[], get: () => T, set: (v: T) => void): { el: HTMLElement; sync(): void } {
+  const group = el("div", "zen-settings-segment");
+  group.setAttribute("role", "radiogroup");
+  group.setAttribute("aria-label", label);
+  const radios = options.map((o) => {
+    const b = el("button", "zen-settings-segment-option", o.label);
+    b.type = "button";
+    b.setAttribute("role", "radio");
+    b.addEventListener("click", () => { set(o.value); sync(); });
+    return b;
+  });
+  function sync(): void {
+    options.forEach((o, i) => {
+      const on = o.value === get();
+      radios[i].setAttribute("aria-checked", String(on));
+      radios[i].tabIndex = on ? 0 : -1;
+    });
+  }
+  group.addEventListener("keydown", (e) => {
+    const step = ({ ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 } as Record<string, number>)[e.key];
+    if (step === undefined) return;
+    e.preventDefault();
+    e.stopPropagation();
+    const at = Math.max(0, options.findIndex((o) => o.value === get()));
+    const next = Math.min(options.length - 1, Math.max(0, at + step));
+    set(options[next].value);
+    sync();
+    radios[next].focus();
+  });
+  group.append(...radios);
+  sync();
+  return { el: group, sync };
+}
+
+/** A stepper: − and + beside the value (role spinbutton, with ↑ ↓ Home and End). `move` is -1, 1, or "min" / "max". */
+function stepper(label: string, o: { text(): string; spoken(): string; now(): number; min: number; max: number; move(to: -1 | 1 | "min" | "max"): void }): { el: HTMLElement; sync(): void } {
+  const box = el("div", "zen-stepper");
+  const value = el("div", "zen-stepper-value");
+  value.setAttribute("role", "spinbutton");
+  value.setAttribute("aria-label", label);
+  value.tabIndex = 0;
+  value.setAttribute("aria-valuemin", String(o.min));
+  value.setAttribute("aria-valuemax", String(o.max));
+  const less = button(`Decrease ${label.toLowerCase()}`, () => go(-1), { text: "\u2212" });
+  const more = button(`Increase ${label.toLowerCase()}`, () => go(1), { text: "+" });
+  function sync(): void {
+    value.textContent = o.text();
+    value.setAttribute("aria-valuenow", String(o.now()));
+    value.setAttribute("aria-valuetext", o.spoken());
+    less.disabled = o.now() <= o.min;
+    more.disabled = o.now() >= o.max;
+  }
+  function go(to: -1 | 1 | "min" | "max"): void { o.move(to); sync(); }
+  value.addEventListener("keydown", (e) => {
+    const to = ({ ArrowUp: 1, ArrowRight: 1, ArrowDown: -1, ArrowLeft: -1, Home: "min", End: "max" } as Record<string, -1 | 1 | "min" | "max">)[e.key];
+    if (to === undefined) return;
+    e.preventDefault();
+    e.stopPropagation();
+    go(to);
+  });
+  box.append(less, value, more);
+  sync();
+  return { el: box, sync };
+}
+
+const changed = () => {
+  const now = storedAccessibility();
+  return (Object.keys(A11Y_DEFAULTS) as (keyof Accessibility)[]).some((k) => now[k] !== A11Y_DEFAULTS[k]);
+};
+
+/**
+ * Accessibility: Zoom (the whole window), Motion (Reduce motion), Contrast (Increase contrast) and, with `reader`,
+ * Reading (text size, font, line spacing, line width, link underlines, with a live sample). Every option takes effect
+ * at once and is kept per machine (shell/a11y.ts). `setZoom` scales the web view (the app gives Window.SetZoom);
+ * without it the one the app gave `followAccessibility` is used.
+ */
+export function accessibilitySection(doc: () => Document, o: { reader: boolean; setZoom?: (z: number) => void }): SettingsSection {
+  const zoomTo = (z: number) => (o.setZoom ?? currentZoomSink())?.(z);
+  return {
+    id: "accessibility", label: "Accessibility",
+    items: () => [
+      { id: "zoom", label: "Zoom" },
+      { id: "motion", label: "Motion" },
+      { id: "contrast", label: "Contrast" },
+      ...(o.reader ? [{ id: "reading", label: "Reading" }] : []),
+    ],
+    render(item, right) {
+      const syncs: (() => void)[] = [];
+      const add = <T extends { el: HTMLElement; sync(): void }>(x: T): HTMLElement => { syncs.push(x.sync); return x.el; };
+      const set = (patch: Partial<Accessibility>) => { setAccessibility(patch, doc()); refresh(); };
+      const reset = button("Reset to defaults", () => {
+        const z = storedAccessibility().zoom;
+        resetAccessibility(doc());
+        if (z !== A11Y_DEFAULTS.zoom) zoomTo(A11Y_DEFAULTS.zoom);
+        syncs.forEach((f) => f());
+        refresh();
+      });
+      function refresh(): void { reset.disabled = !changed(); }
+
+      if (item.id === "zoom") {
+        right.append(el("p", "zen-settings-hint", "Zooms the whole window: the sidebar, the page, the panels and the dialogs. It is the same in every window. Keys: \u2318\u2212, \u23180 and \u2318+ (View menu)."));
+        const z = stepper("Zoom", {
+          text: () => percent(storedAccessibility().zoom),
+          spoken: () => `${Math.round(storedAccessibility().zoom * 100)} percent`,
+          now: () => storedAccessibility().zoom,
+          min: ZOOM_STEPS[0], max: ZOOM_STEPS[ZOOM_STEPS.length - 1],
+          move(to) {
+            const cur = storedAccessibility().zoom;
+            const next = to === "min" ? ZOOM_STEPS[0] : to === "max" ? ZOOM_STEPS[ZOOM_STEPS.length - 1] : zoomStep(cur, to);
+            if (next === cur) return;
+            set({ zoom: next });
+            zoomTo(next);
+          },
+        });
+        right.append(a11yRow("Zoom", add(z), "100%"));
+      } else if (item.id === "motion") {
+        right.append(el("p", "zen-settings-hint", "On does what the macOS setting Reduce motion does, in every window: no fades, slides or moving bars. System follows the Mac."));
+        right.append(a11yRow("Reduce motion", add(segment("Reduce motion", [{ value: "system", label: "System" }, { value: "on", label: "On" }], () => storedAccessibility().reduceMotion, (v) => set({ reduceMotion: v }))), "System"));
+      } else if (item.id === "contrast") {
+        right.append(el("p", "zen-settings-hint", "Muted text becomes full strength, lines are easier to see and the focus ring is thicker, in both themes. System follows the Mac (Increase contrast)."));
+        right.append(a11yRow("Increase contrast", add(segment("Increase contrast", [{ value: "system", label: "System" }, { value: "more", label: "On" }], () => storedAccessibility().contrast, (v) => set({ contrast: v }))), "System"));
+        const sample = el("div", "zen-a11y-sample zen-a11y-contrast-sample");
+        sample.setAttribute("aria-hidden", "true");
+        sample.append(el("p", "", "Text in the page"), el("p", "zen-a11y-muted", "Muted text, such as a date or a hint"));
+        right.append(sample);
+      } else if (item.id === "reading") {
+        right.append(el("p", "zen-settings-hint", "How the reader shows a page, and the preview of a page in the editor. The sidebar and the controls keep their size (use Zoom for those). Print, PDF and built sites keep the document's own look."));
+        const size = stepper("Text size", {
+          text: () => `${storedAccessibility().textSize} px`,
+          spoken: () => `${storedAccessibility().textSize} pixels`,
+          now: () => storedAccessibility().textSize,
+          min: TEXT_SIZE_MIN, max: TEXT_SIZE_MAX,
+          move(to) {
+            const cur = storedAccessibility().textSize;
+            set({ textSize: to === "min" ? TEXT_SIZE_MIN : to === "max" ? TEXT_SIZE_MAX : cur + to });
+          },
+        });
+        right.append(a11yRow("Text size", add(size), "17 px"));
+        right.append(a11yRow("Font", add(segment("Font", [{ value: "serif", label: "Serif" }, { value: "sans", label: "Sans" }], () => storedAccessibility().font, (v) => set({ font: v }))), "Serif"));
+        right.append(a11yRow("Line spacing", add(segment("Line spacing", [{ value: "normal", label: "Normal" }, { value: "relaxed", label: "Relaxed" }, { value: "loose", label: "Loose" }], () => storedAccessibility().lineSpacing, (v) => set({ lineSpacing: v }))), "Normal"));
+        right.append(a11yRow("Line width", add(segment("Line width", [{ value: "narrow", label: "Narrow" }, { value: "normal", label: "Normal" }, { value: "wide", label: "Wide" }], () => storedAccessibility().lineWidth, (v) => set({ lineWidth: v }))), "Normal"));
+        const under = el("label", "zen-settings-check");
+        const box = el("input");
+        box.type = "checkbox";
+        box.checked = storedAccessibility().underlineLinks;
+        box.addEventListener("change", () => set({ underlineLinks: box.checked }));
+        under.append(box, el("span", "", "Underline links"));
+        syncs.push(() => { box.checked = storedAccessibility().underlineLinks; });
+        const underRow = el("div", "zen-a11y-row");
+        underRow.append(el("span", "zen-a11y-label", ""), under, el("span", "zen-a11y-default", "Default: off"));
+        right.append(underRow);
+        const link = el("a", "", "a link");
+        link.href = "#";
+        link.tabIndex = -1;
+        link.addEventListener("click", (e) => e.preventDefault());
+        const sample = el("p", "zen-a11y-sample zen-a11y-reading-sample");
+        sample.setAttribute("aria-hidden", "true");
+        sample.append("Sample paragraph in the reading style: the quick brown fox jumps over the lazy dog, then reads ", link, " and a line of ", el("code", "", "code()"), " at the size, spacing and width chosen above.");
+        right.append(sample);
+      }
+      const foot = el("div", "zen-settings-actions");
+      foot.append(reset);
+      right.append(foot);
+      if (!a11yPersists()) right.append(el("p", "zen-settings-hint zen-a11y-unsaved", "Not saved: applies to this window only."));
+      refresh();
     },
   };
 }

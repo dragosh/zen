@@ -67,5 +67,6 @@
   .zen-find { animation: zen-find-in 120ms ease-out; }
 }
 @keyframes zen-find-in { from { opacity: 0; transform: translateY(-4px); } }
+:root[data-reduce-motion="on"] .zen-find { animation: none; }
 @media print { .zen-find { display: none; } }
 

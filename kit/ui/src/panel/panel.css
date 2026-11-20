@@ -171,4 +171,5 @@ body.zen-panel-resizing { cursor: row-resize; user-select: none; }
 @media (prefers-reduced-motion: reduce) {
   .zen-panel-tab, .zen-panel-tab::after { transition: none; }
 }
+:root[data-reduce-motion="on"] .zen-panel-tab, :root[data-reduce-motion="on"] .zen-panel-tab::after { transition: none; }
 @media print { .zen-panel { display: none; } }

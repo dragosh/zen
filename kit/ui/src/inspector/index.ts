@@ -6,6 +6,7 @@
 // nothing about loading pages. All text goes in through textContent.
 import "./inspector.css";
 import { hasAddon, hasFeature, type Alert, type KitHost, type Page, type PageInfo } from "../host";
+import { reducedMotion } from "../shell/a11y";
 import { installConsoleCapture } from "../shell/console";
 import { copyText } from "../shell/clipboard";
 import { developerEnabled, developerKey, followDeveloper } from "../shell/developer";
@@ -214,7 +215,7 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
     }
     const t = p.el;
     if (!t?.isConnected) return;
-    const reduced = win.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false;
+    const reduced = reducedMotion(o.doc);
     t.scrollIntoView({ behavior: reduced ? "auto" : "smooth", block: "center" });
     if (!t.hasAttribute("tabindex")) t.setAttribute("tabindex", "-1"); // a broken link has no href and an image is not focusable
     t.focus({ preventScroll: true });

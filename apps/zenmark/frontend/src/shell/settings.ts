@@ -1,9 +1,10 @@
 // The Settings page of Zenmark (ui/settings-layout): the kit's frame (kit/ui shell/settings.ts), where every
 // section has two columns (what you pick on the left, its preview, help and actions on the right), and zen's
-// sections: Appearance, Configuration (the two config files), Markdown (the dialects the folder uses), Layouts,
+// sections: Appearance, Accessibility (zoom, motion, contrast and the reader's text), Configuration (the two config files), Markdown (the dialects the folder uses), Layouts,
 // Plugins, Templates, Export (the website and the PDF, in place) and Developer. What the build contains is in
 // Zenmark › About. A section whose feature the build leaves out is not there. All text through textContent.
 import { appearanceSection, button, createSettingsFrame, developerSection, el, hasFeature, mountPage, reloadSettings, type DialectInfo, type SettingsItem, type SettingsSection, type SettingsView } from "@zenmd/kit";
+import { accessibilitySection } from "@zenmd/kit/shell/settings";
 import type { Api } from "../api";
 import { createBuildForm, type BuildApi } from "./buildsite";
 import { createLayoutsSection } from "./layouthelp";
@@ -46,6 +47,8 @@ export function createSettingsView(opts: {
   unsaved?(): string[];
   /** Rows the Appearance section shows under its preview (ui/nav-panel adds the sidebar side). */
   appearanceExtra?: HTMLElement[];
+  /** Scales the whole window (Settings › Accessibility › Zoom); the app gives Window.SetZoom through followAccessibility. */
+  setZoom?(zoom: number): void;
 }): SettingsView {
   const { api } = opts;
   let frame: SettingsView | null = null;
@@ -199,6 +202,8 @@ export function createSettingsView(opts: {
 
   frame = createSettingsFrame([
     appearanceSection(doc, opts.appearanceExtra),
+    // Accessibility is in every build; its Reading item is the reader's.
+    accessibilitySection(doc, { reader: hasFeature(api, "reader"), setZoom: opts.setZoom }),
     // Nothing opens the config files in an app without the editor: the section is not there.
     ...(hasFeature(api, "editor") ? [config] : []),
     // The sections of a feature the build leaves out are not there at all (kit/shell-features): Markdown, Layouts

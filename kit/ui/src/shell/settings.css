@@ -44,4 +44,27 @@
 .zen-about-name { margin: var(--space-2) 0 0; font: 600 20px var(--font-ui); }
 .zen-about-version, .zen-about-copyright { margin: 0; color: var(--fg-muted); font-size: 12px; }
 .zen-about-foot { display: flex; justify-content: flex-end; margin-top: var(--space-4); }
+/* Accessibility: rows of a label, a control and the default; segments and steppers; the live samples. */
+.zen-a11y-row { display: grid; grid-template-columns: 9rem auto; align-items: center; column-gap: var(--space-3); row-gap: var(--space-1); margin: var(--space-3) 0; }
+.zen-a11y-label { color: var(--fg); }
+.zen-a11y-default { grid-column: 2; color: var(--fg-muted); font-size: 11px; }
+.zen-settings-segment { display: inline-flex; border: 1px solid var(--rule); border-radius: var(--radius); overflow: hidden; }
+.zen-settings-segment-option { border: 0; border-radius: 0; background: var(--bg); color: var(--fg); font: inherit; padding: 4px var(--space-3); cursor: pointer; }
+.zen-settings-segment-option + .zen-settings-segment-option { border-left: 1px solid var(--rule); }
+.zen-settings-segment-option:hover { background: var(--btn-bg); }
+.zen-settings-segment-option[aria-checked="true"] { background: var(--btn-primary-bg); color: var(--btn-primary-fg); }
+.zen-settings-segment-option:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
+.zen-stepper { display: inline-flex; align-items: center; gap: var(--space-2); }
+.zen-stepper-value { min-width: 5ch; padding: 4px var(--space-2); text-align: center; font-variant-numeric: tabular-nums; border: 1px solid var(--rule); border-radius: var(--radius); }
+.zen-stepper-value:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.zen-stepper button { min-width: 28px; }
+.zen-a11y-sample { margin: var(--space-4) 0 0; padding: var(--space-4); border: 1px solid var(--rule); border-radius: var(--radius); background: var(--bg); color: var(--fg); }
+.zen-a11y-reading-sample { font: var(--zen-text-size) / var(--zen-line-height) var(--zen-text-font); max-width: var(--zen-measure); overflow-wrap: break-word; }
+.zen-a11y-reading-sample code { font: .88em var(--font-mono); background: var(--bg-subtle); padding: .1em .35em; border-radius: 4px; }
+.zen-a11y-reading-sample a { color: var(--fg); text-underline-offset: 3px; text-decoration: none; }
+:root[data-link-underline="on"] .zen-a11y-reading-sample a { text-decoration: underline; }
+.zen-a11y-contrast-sample { max-width: 46ch; }
+.zen-a11y-contrast-sample p { margin: 0 0 var(--space-2); }
+.zen-a11y-muted { color: var(--fg-muted); padding-top: var(--space-2); border-top: 1px solid var(--rule); }
 @media (prefers-reduced-motion: reduce) { .zen-about, .zen-settings-item { transition: none; } }
+:root[data-reduce-motion="on"] .zen-about, :root[data-reduce-motion="on"] .zen-settings-item { transition: none; }

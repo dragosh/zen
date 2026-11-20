@@ -7,6 +7,7 @@ import { flash, markText } from "../lint";
 import { installRuntime } from "@zenmd/runtime/plugins";
 import { installImageZoom } from "@zenmd/runtime/zoom/zoom";
 import { button, el } from "../shell/dom";
+import { reducedMotion as a11yReducedMotion } from "../shell/a11y";
 import type { Ctx, Feature } from "../shell/types";
 import { loadAssets } from "./assets";
 import { handleLinkClick } from "./links";
@@ -42,9 +43,10 @@ function setLayout(el: HTMLElement, ref: Page["layout"] | undefined): void {
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
+/** The system asks for reduced motion, or Settings › Accessibility › Reduce motion is On. */
 function reducedMotion(): boolean {
   try {
-    return window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+    return a11yReducedMotion(document);
   } catch {
     return false;
   }

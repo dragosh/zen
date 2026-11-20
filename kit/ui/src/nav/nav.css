@@ -65,6 +65,7 @@
 @media (prefers-reduced-motion: reduce) {
   .zen-nav-twisty::before { transition: none; }
 }
+:root[data-reduce-motion="on"] .zen-nav-twisty::before { transition: none; }
 
 /* Guide line down each open branch, under the parent's chevron. */
 .zen-nav-group { position: relative; }

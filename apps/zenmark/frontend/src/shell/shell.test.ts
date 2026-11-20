@@ -562,7 +562,7 @@ test("Settings shows the plugins and its sections", async () => {
   await s.start();
   cog().click();
   await tick();
-  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Appearance", "Configuration", "Markdown", "Layouts", "Plugins", "Templates", "Export", "Developer"]);
+  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Appearance", "Accessibility", "Configuration", "Markdown", "Layouts", "Plugins", "Templates", "Export", "Developer"]);
   expect(api.callsTo("plugins")).toHaveLength(0); // a list is read when its section is chosen
 });
 
@@ -784,7 +784,7 @@ test("bare shell", async () => {
   s = boot(bare, shipped);
   await s.start();
   key(",");
-  expect(sectionNames()).toEqual(["Appearance"]);
+  expect(sectionNames()).toEqual(["Appearance", "Accessibility"]);
   expect(root.querySelector('[role="radiogroup"][aria-label="Navigation"]')).toBeNull(); // no nav: no side to choose
   // Zenmark › About lists what the build has, and what it could have, greyed; it works in a bare shell
   esc();
@@ -828,7 +828,7 @@ test("developer alone in a bare shell gives an Inspector with the Console tab on
   mod("i", { altKey: true }); // ⌥⌘I: no Inspector in this build
   expect(panel.querySelector('[data-tab="info"]')).toBeNull();
   key(",");
-  expect(sectionNames()).toEqual(["Appearance", "Developer"]);
+  expect(sectionNames()).toEqual(["Appearance", "Accessibility", "Developer"]);
 });
 
 test("the Console follows the setting in a developer-only build: switched off, the panel goes", async () => {
@@ -1223,4 +1223,29 @@ test("Navigation row: not on the home screen, where there is no sidebar", async 
   key(",");
   expect(root.querySelector(".zen-home-settings")).not.toBeNull();
   expect(navRow()).toBeNull();
+});
+
+// ui/accessibility 13: the options are on <html> before the shell's first render, so no window shows the defaults first.
+test("accessibility applied before mount", async () => {
+  localStorage.setItem("zen.a11y.contrast", "more");
+  localStorage.setItem("zen.a11y.reduceMotion", "on");
+  localStorage.setItem("zen.a11y.textSize", "22");
+  const root$ = document.documentElement;
+  delete root$.dataset.contrast;
+  delete root$.dataset.reduceMotion;
+  root$.style.removeProperty("--zen-text-size");
+  const seen: string[] = [];
+  const probe: Feature = {
+    id: "reader",
+    mount() { seen.push(`${root$.dataset.contrast}/${root$.dataset.reduceMotion}/${root$.style.getPropertyValue("--zen-text-size")}`); return () => {}; },
+  };
+  const s = boot(withWorkspace("README.md"), [probe]);
+  // before start(): createShell itself has applied them
+  expect(root$.dataset.contrast).toBe("more");
+  await s.start();
+  expect(seen.length).toBeGreaterThan(0);
+  expect(seen[0]).toBe("more/on/22px");
+  delete root$.dataset.contrast;
+  delete root$.dataset.reduceMotion;
+  root$.style.removeProperty("--zen-text-size");
 });
