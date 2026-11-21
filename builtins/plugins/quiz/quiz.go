@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"html"
 	"io/fs"
+	"log/slog"
 	"math"
 	"os"
 	"path/filepath"
@@ -233,6 +234,11 @@ func (p *plugin) Action(ctx plugins.Context, payload []byte) ([]byte, error) {
 		res.Score = int(math.Round(100 * float64(right) / float64(res.Total)))
 	}
 	res.Passed = res.Score >= rec.Pass
+	verdict := "not passed"
+	if res.Passed {
+		verdict = "passed"
+	}
+	plugins.Log("quiz "+req.Quiz, slog.LevelInfo, fmt.Sprintf("checked, %d%% (%s)", res.Score, verdict))
 	return json.Marshal(res)
 }
 

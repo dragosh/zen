@@ -69,7 +69,7 @@ func TestBuiltinHelp(t *testing.T) {
 
 // Plugins() carries the help and what each plugin adds.
 func TestPluginsHelpAndAdds(t *testing.T) {
-	demo := filepath.Join("..", "..", "examples", "demo")
+	demo := filepath.Join("..", "..", "examples", "showcase")
 	reg := plugins.NewRegistry()
 	for _, p := range builtinPlugins() {
 		if err := reg.Register(p); err != nil {

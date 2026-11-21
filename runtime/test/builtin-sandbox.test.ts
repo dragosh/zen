@@ -70,6 +70,19 @@ test("shows the code read-only, Run and Stop, and asks for the status", async ()
   expect(api.callsTo("pluginInvoke")).toEqual([["sandbox", "plugins/sandbox.md", JSON.stringify({ op: "status" })]]);
 });
 
+test("a coloured read-only block still runs the plain code text", async () => {
+  const w = render();
+  const pre = q(w, ".zen-sandbox-code")!;
+  pre.className = "zen-sandbox-code chroma language-python";
+  pre.innerHTML = '<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;a &lt;b&gt; &amp; c&quot;</span><span class="p">)</span>\n';
+  rt.mountAll(root);
+  await settle();
+  click(w, ".zen-sandbox-run");
+  await settle();
+  const calls = api.callsTo("pluginStream") as string[][];
+  expect(JSON.parse(calls[calls.length - 1][2]).code).toBe('print("a <b> & c")\n');
+});
+
 test("an editable block gets a textarea and runs the edited code", async () => {
   const w = render({ ...ATTRS, editable: "true" });
   await settle();
@@ -163,6 +176,54 @@ test("says so when the service is stopped or the tool is missing", async () => {
   w = render();
   await settle();
   expect(q(w, ".zen-sandbox-note")!.textContent).toMatch(/not installed/i);
+});
+
+test("the note goes away once the service runs: Check again, the window's focus, or a run", async () => {
+  api.invokeResult = { service: "stopped", images: ["python"] };
+  const w = render();
+  await settle();
+  const again = q<HTMLButtonElement>(w, ".zen-sandbox-note .zen-sandbox-recheck")!;
+  expect(again.textContent).toBe("Check again");
+  // still stopped: one note, not two
+  again.click();
+  await settle();
+  expect(w.querySelectorAll(".zen-sandbox-note").length).toBe(1);
+  // started in a terminal: Check again clears it
+  api.invokeResult = { service: "running", images: ["python"] };
+  q<HTMLButtonElement>(w, ".zen-sandbox-recheck")!.click();
+  await settle();
+  expect(q(w, ".zen-sandbox-note")).toBeNull();
+
+  // coming back to the window checks again by itself
+  api.invokeResult = { service: "stopped", images: ["python"] };
+  const v = render();
+  await settle();
+  expect(q(v, ".zen-sandbox-note")).not.toBeNull();
+  api.invokeResult = { service: "running", images: ["python"] };
+  window.dispatchEvent(new Event("focus"));
+  await settle();
+  expect(q(v, ".zen-sandbox-note")).toBeNull();
+
+  // a run that gets output clears it too
+  api.invokeResult = { service: "stopped", images: ["python"] };
+  const r = render();
+  await settle();
+  click(r, ".zen-sandbox-run");
+  streamEvt("call-1", { s: "out", t: "hi" });
+  await settle();
+  expect(q(r, ".zen-sandbox-note")).toBeNull();
+});
+
+test("unmounting stops listening to the window's focus", async () => {
+  api.invokeResult = { service: "stopped", images: ["python"] };
+  render();
+  await settle();
+  const before = api.callsTo("pluginInvoke").length;
+  rt.unmountAll();
+  await settle();
+  window.dispatchEvent(new Event("focus"));
+  await settle();
+  expect(api.callsTo("pluginInvoke").length).toBe(before);
 });
 
 test("a block that is not configured shows the code and the message but no Run", async () => {

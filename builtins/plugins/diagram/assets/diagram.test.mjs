@@ -89,6 +89,32 @@ test("syntax error keeps the source and shows the message", async () => {
   assert.equal("rendered" in d.dataset, true);
 });
 
+test("a diagram that fails to draw warns in the page's console, first line, 200 characters", async () => {
+  const warns = [];
+  const orig = console.warn;
+  console.warn = (...a) => warns.push(a.join(" "));
+  try {
+    const doc = makeDoc();
+    diagram(doc, "graph TD\nBAD");
+    const m = stub("BAD");
+    m.render = async () => { throw new Error("Parse error on line 2\n" + "x".repeat(300) + "\nSECOND"); };
+    await renderAll(doc.body, m);
+    assert.equal(warns.length, 1);
+    assert.equal(warns[0], "diagram: Parse error on line 2");
+    warns.length = 0;
+    const doc2 = makeDoc();
+    diagram(doc2, "graph TD\nBAD");
+    const m2 = stub();
+    m2.render = async () => { throw new Error("y".repeat(300)); };
+    await renderAll(doc2.body, m2);
+    assert.equal(warns.length, 1);
+    assert.ok(warns[0].length <= 200, "cut to 200 characters: " + warns[0].length);
+    assert.match(warns[0], /^diagram: y+/);
+  } finally {
+    console.warn = orig;
+  }
+});
+
 test("theme follows data-theme, forced by the app theme", () => {
   const el = (t) => ({ dataset: { theme: t } });
   assert.equal(mermaidTheme(el("neutral"), makeDoc()), "neutral");

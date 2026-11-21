@@ -445,11 +445,11 @@ func TestBuildConfig(t *testing.T) {
 	}
 }
 
-// TestBuildDemo builds examples/demo (its plugins and layout approved first,
+// TestBuildDemo builds examples/showcase (its plugins and layout approved first,
 // as a user would in the app) and expects no errors and no warnings.
 func TestBuildDemo(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
-	demo := filepath.Join(filepath.Dir(file), "..", "..", "examples", "demo")
+	demo := filepath.Join(filepath.Dir(file), "..", "..", "examples", "showcase")
 	cfg := t.TempDir()
 	openWith(t, demo, cfg, true)
 

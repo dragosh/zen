@@ -4,7 +4,7 @@
 the same Go pipeline as the app (plugins, layouts, sidebar, breadcrumb), then
 written as plain HTML with its assets next to it. Spec:
 [specs/core/static-build](../specs/core/static-build/spec.md). User guide:
-[examples/demo/build/index.md](../examples/demo/build/index.md).
+[examples/showcase/build/index.md](../examples/showcase/build/index.md).
 
 ```sh
 zenmd export site [folder] [-o dir] [--hosted] [--drafts] [--clean]

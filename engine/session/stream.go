@@ -8,6 +8,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -151,7 +152,11 @@ func (s *Session) PluginStream(id, page, payload string) (r0 string, err error) 
 	if err != nil {
 		return "", err
 	}
-	c, cancel := context.WithTimeout(context.Background(), builtinStreamTimeout)
+	// A stream cut for its output size says so in the context's cause, so the
+	// plugin can log why it stopped.
+	base, cancelCause := context.WithCancelCause(context.Background())
+	c, cancelTimeout := context.WithTimeout(base, builtinStreamTimeout)
+	cancel := func() { cancelTimeout(); cancelCause(nil) }
 	sc := &streamCall{cancel: cancel, plugin: id, page: page}
 	st := &s.streams
 	st.mu.Lock()
@@ -167,13 +172,16 @@ func (s *Session) PluginStream(id, page, payload string) (r0 string, err error) 
 	st.wg.Add(1)
 	st.mu.Unlock()
 
+	started := time.Now()
+	plugins.Log(id, slog.LevelDebug, "stream"+opOf(payload)+" started")
 	go func() {
 		defer st.wg.Done()
 		defer cancel()
 		b := &batcher{call: call, send: s.emit, c: c}
 		emit := func(line []byte) {
 			if !b.add(line) {
-				cancel() // over the output limit
+				cancelCause(plugins.ErrOutputLimit) // over the output limit
+				cancelTimeout()
 			}
 		}
 		err := func() (err error) {
@@ -190,8 +198,11 @@ func (s *Session) PluginStream(id, page, payload string) (r0 string, err error) 
 		st.mu.Unlock()
 		b.finish(!wasCancelled) // the last lines go out before the end of the stream
 		msg := streamError(err, c, wasCancelled, b.limited())
-		if msg == "" || msg == "cancelled" {
-			slog.Debug("plugin "+id+": stream ended"+map[bool]string{true: " (cancelled)"}[msg != ""], "source", "plugin")
+		took := " (" + strconv.FormatInt(time.Since(started).Milliseconds(), 10) + " ms)"
+		if msg == "" {
+			plugins.Log(id, slog.LevelDebug, "stream ended"+took)
+		} else if msg == "cancelled" {
+			plugins.Log(id, slog.LevelDebug, "stream cancelled"+took)
 		} else {
 			slog.Warn("plugin "+id+": stream failed: "+msg, "source", "plugin")
 		}

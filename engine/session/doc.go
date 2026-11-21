@@ -16,7 +16,7 @@
 //
 //	s := session.New(session.Options{Runtime: dist})
 //	defer s.Close()
-//	if err := s.Open("examples/demo"); err != nil { ... }
+//	if err := s.Open("examples/showcase"); err != nil { ... }
 //	page, _ := s.Page(s.Home())
 //	res, _ := s.Build(ctx, session.BuildOptions{Out: "site", Portable: true}, nil)
 //

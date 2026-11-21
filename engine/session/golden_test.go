@@ -16,14 +16,14 @@ import (
 
 var updateGolden = flag.Bool("update-golden", false, "rewrite testdata/demo-build.golden from the current build")
 
-// TestDemoBuildUnchanged builds examples/demo (portable and hosted) with the
+// TestDemoBuildUnchanged builds examples/showcase (portable and hosted) with the
 // real runtime and compares the file list and the SHA-256 of every file with
 // testdata/demo-build.golden, which was generated before the runtime moved to
 // runtime/. Regenerate on purpose with: go test ./engine/session -run
 // TestDemoBuildUnchanged -update-golden
 func TestDemoBuildUnchanged(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
-	demo := filepath.Join(filepath.Dir(file), "..", "..", "examples", "demo")
+	demo := filepath.Join(filepath.Dir(file), "..", "..", "examples", "showcase")
 	var lines []string
 	for _, mode := range []string{"portable", "hosted"} {
 		out := filepath.Join(t.TempDir(), "site")

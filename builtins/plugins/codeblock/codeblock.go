@@ -79,6 +79,46 @@ const closing = "</code></pre>"
 // those whose language chroma knows. A page with a block over 2 MB is returned
 // unchanged with an error (a render warning).
 func (plugin) HTML(ctx plugins.Context, in string) (string, error) {
+	out, err := blocks(ctx, in)
+	if err != nil {
+		return in, err
+	}
+	return colourSandbox(out), nil
+}
+
+// sandboxRE matches the code of a sandbox block, which names its language in
+// a class: <pre class="zen-sandbox-code language-python">escaped code</pre>.
+var sandboxRE = regexp.MustCompile(`(?s)<pre class="zen-sandbox-code language-([A-Za-z0-9_+#-]{1,30})">(.*?)</pre>`)
+
+var tagStrip = regexp.MustCompile(`<[^>]*>`)
+
+// colourSandbox colours the code of sandbox blocks in place, with the same
+// chroma classes as a code block (and so the same CSS) but no wrapper, no
+// buttons and no code element. A block stays as it was when chroma does not
+// know the language, the code is over 2 MB, or colouring would change its
+// text (Run sends the text of the element).
+func colourSandbox(in string) string {
+	if !strings.Contains(in, `<pre class="zen-sandbox-code language-`) {
+		return in
+	}
+	return sandboxRE.ReplaceAllStringFunc(in, func(m string) string {
+		g := sandboxRE.FindStringSubmatch(m)
+		lang, body := g[1], g[2]
+		lexer := lexers.Get(lang)
+		if lexer == nil || len(body) > maxBlock {
+			return m
+		}
+		code := html.UnescapeString(body)
+		out, err := formatWith(lexer, code, false, bare{})
+		if err != nil || html.UnescapeString(tagStrip.ReplaceAllString(out, "")) != code {
+			return m
+		}
+		return `<pre class="zen-sandbox-code chroma language-` + lang + `">` + out + `</pre>`
+	})
+}
+
+// blocks wraps the code blocks and colours those whose language is known.
+func blocks(ctx plugins.Context, in string) (string, error) {
 	lineNumbers, _ := ctx.Config["lineNumbers"].(bool)
 	open := `<div data-zen-plugin="codeblock" class="zen-codeblock">`
 	if wrap, _ := ctx.Config["wrap"].(bool); wrap {
@@ -151,7 +191,17 @@ func (w wrapper) Start(code bool, _ string) string {
 }
 func (wrapper) End(bool) string { return closing }
 
+// bare is a pre wrapper that writes nothing: only the coloured spans.
+type bare struct{}
+
+func (bare) Start(bool, string) string { return "" }
+func (bare) End(bool) string           { return "" }
+
 func format(lexer chroma.Lexer, lang, code string, lineNumbers bool) (string, error) {
+	return formatWith(lexer, code, lineNumbers, wrapper{lang})
+}
+
+func formatWith(lexer chroma.Lexer, code string, lineNumbers bool, wrap chromahtml.PreWrapper) (string, error) {
 	it, err := tokenise(lexer, code)
 	if err != nil {
 		return "", err
@@ -160,7 +210,7 @@ func format(lexer chroma.Lexer, lang, code string, lineNumbers bool) (string, er
 		chromahtml.WithClasses(true),
 		chromahtml.WithAllClasses(true),
 		chromahtml.WithLineNumbers(lineNumbers),
-		chromahtml.WithPreWrapper(wrapper{lang}),
+		chromahtml.WithPreWrapper(wrap),
 	)
 	var b strings.Builder
 	if err := f.Format(&b, styles.Fallback, it); err != nil {

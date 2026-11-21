@@ -1,0 +1,25 @@
+# Settings for this folder; they override the global config.yml and are
+# overridden by a page's frontmatter. Open from the cog > .zenmd.yml.
+version: 1
+
+# The sidebar shows this image beside the folder's title (a path inside the folder:
+# .svg, .png, .jpg, .gif or .webp); without it Zenmark's mark is shown.
+# logo: images/logo.svg
+
+# Layouts by path, the first match wins. A page's own layout beats these.
+layouts:
+  "blog/**": post
+
+# zenmd export site: export this folder as a static website (see build/index.md).
+build:
+  out: _site
+  editURL: https://github.com/zenmark-org/zenmd/edit/main/examples/demo/{path}
+
+# MyST directives (```{note}) are read in this folder; see plugins/dialects.md.
+markdown:
+  dialects: [myst]
+
+plugins:
+  codeblock: true
+  diagram: { theme: neutral }
+  lint: true

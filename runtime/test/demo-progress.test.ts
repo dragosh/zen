@@ -1,4 +1,4 @@
-// The demo folder's frontend-only plugin (examples/demo/.zen/plugins/progress),
+// The demo folder's frontend-only plugin (examples/showcase/.zen/plugins/progress),
 // loaded as the app loads it: an ES module with a default export, imported by the runtime.
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
@@ -7,7 +7,7 @@ import { afterEach, beforeEach, expect, test } from "vitest";
 import { createFakeApi, type FakeApi } from "../../apps/zenmark/frontend/src/api/fake";
 import { installRuntime } from "../src/plugins";
 
-const DIR = join(dirname(fileURLToPath(import.meta.url)), "../../examples/demo/.zen/plugins/progress");
+const DIR = join(dirname(fileURLToPath(import.meta.url)), "../../examples/showcase/.zen/plugins/progress");
 const file = (name: string) => join(DIR, name);
 
 let api: FakeApi;
@@ -22,7 +22,7 @@ beforeEach(async () => {
   rt = installRuntime({ importModule: async () => mod, api, navigate: () => {}, page: () => ({ path: "plugins/writing-plugins.md", title: "Writing plugins" }) });
   root = document.body.appendChild(document.createElement("article"));
   // @ts-ignore plain browser JavaScript outside src, no types
-  mod = await import("../../examples/demo/.zen/plugins/progress/progress.js");
+  mod = await import("../../examples/showcase/.zen/plugins/progress/progress.js");
   await rt.load({ js: ["/_plugins/progress/progress.js?v=test"], css: [] });
 });
 afterEach(() => rt.destroy());

@@ -1,3 +1,6 @@
+---
+title: Sandbox
+---
 # Sandbox
 
 A `sandbox` block runs its code inside a container, from the page. The block
@@ -7,20 +10,21 @@ It uses the `container` tool on your Mac (Apple's container platform), not Docke
 ## One-time setup
 
 1. Install Apple's container tool and check that `container --version` works in a terminal.
-2. Start its service. zen never starts it for you:
+2. Start its service. Zenmark never starts it for you:
 
    ```sh
    container system start
    ```
 
-3. Pull the image once. zen never pulls an image when you press Run:
+3. Pull the image once. Zenmark never pulls an image when you press Run:
 
    ```sh
    container image pull python:3.12-slim
    ```
 
-4. Name the image in your global config. Open the settings page (the cog), choose
-   Configuration files, open config.yml, and add:
+4. Name the image in your global config, `config.yml`. Settings › Configuration
+   shows where it is (Reveal in Finder); if it isn't there yet, create
+   `~/Library/Application Support/zen/config.yml` in any text editor. Add:
 
    ```yaml
    plugins:
@@ -83,5 +87,6 @@ red-tinted.
 - A run stops after `timeout` seconds. Stop kills the container at once.
 - The code is at most 1 MB and the console keeps the first 1 MB of output.
 - If the service is stopped, the block says so and tells you to run
-  `container system start`. If an image is not set up, the block shows the code
+  `container system start`. The note goes away by itself when you come back
+  to the window with the service running, or press **Check again**. If an image is not set up, the block shows the code
   and the setting to add.

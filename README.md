@@ -30,7 +30,7 @@ go install github.com/go-task/task/v3/cmd/task@latest
 git clone https://github.com/zenmark-org/zenmd && cd zenmd
 task build            # frontend, runtime and bin/zenmd
 task install          # links zenmd (and the old name zen) into ~/.local/bin
-zenmd examples/demo   # open the user guide, which shows every feature
+zenmd examples/showcase   # open the full feature tour (examples/demo is the Zenmark guide)
 ```
 
 To get the app bundle:
@@ -80,7 +80,8 @@ kit/desktop  kit/ui          the shared desktop shell: Go (windows, dialogs, pri
 apps/zenmark               Zenmark itself: menu, the Zen service, its dialogs, and its frontend
 build/                       packaging (macOS, Wails)
 main.go                      the zenmd binary
-examples/demo                the user guide
+examples/demo                the Zenmark guide (what the app has today)
+examples/showcase            the full feature tour the engine tests use
 ```
 
 Imports point down: apps, then kit, then engine.
@@ -99,7 +100,8 @@ Imports point down: apps, then kit, then engine.
 | [docs/VERSIONING.md](docs/VERSIONING.md) | SemVer for the app, the engine, plugins and config |
 | [docs/UI.md](docs/UI.md) | The design system |
 | [specs/README.md](specs/README.md) | Every feature spec, its wave and status |
-| [examples/demo](examples/demo/README.md) | The user guide, as a zen folder |
+| [examples/demo](examples/demo/README.md) | The Zenmark guide: what the app has today, as a zen folder |
+| [examples/showcase](examples/showcase/README.md) | The full feature tour, as a zen folder |
 
 ## How work is done
 

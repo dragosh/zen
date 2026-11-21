@@ -233,7 +233,7 @@ func TestDialectHint(t *testing.T) {
 // ships: the MyST fences become the same blocks as :::.
 func TestDemoDialectsPage(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
-	demo := filepath.Join(filepath.Dir(file), "..", "..", "examples", "demo")
+	demo := filepath.Join(filepath.Dir(file), "..", "..", "examples", "showcase")
 	z, err := newZen(zenOptions{Registry: builtins.Plugins(), ConfigDir: t.TempDir(), Dir: demo, Events: &sink{}, Dialogs: &fakeDialogs{Allow: true}})
 	if err != nil {
 		t.Fatal(err)

@@ -482,7 +482,7 @@ func TestPresetsLint(t *testing.T) {
 	if fi, err := os.Stat(vale); err != nil || fi.IsDir() {
 		t.Skip("no vale helper in build/darwin/helpers")
 	}
-	demo := filepath.Join(root, "examples", "demo")
+	demo := filepath.Join(root, "examples", "showcase")
 	linter := lint.New(vale)
 	for _, id := range []string{"techdocs", "learning", "planner"} {
 		env, _ := siteRig(t, "")

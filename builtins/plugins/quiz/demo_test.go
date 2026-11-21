@@ -9,7 +9,7 @@ import (
 // The demo page renders: its working quiz has five questions, the results
 // block is there and the key stays out of the live part of the page.
 func TestDemoPage(t *testing.T) {
-	src, err := os.ReadFile("../../../examples/demo/plugins/quiz.md")
+	src, err := os.ReadFile("../../../examples/showcase/plugins/quiz.md")
 	if err != nil {
 		t.Skip(err)
 	}

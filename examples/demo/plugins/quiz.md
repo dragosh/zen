@@ -3,8 +3,8 @@ title: Quizzes
 ---
 # Quizzes
 
-Write a quiz in markdown and zen turns it into a form. The answers stay out of
-the page: zen checks them when you press Check, so a quiz can't be solved by
+Write a quiz in markdown and Zenmark turns it into a form. The answers stay out of
+the page: Zenmark checks them when you press Check, so a quiz can't be solved by
 reading the page source. Your score is kept on this Mac.
 
 ## Syntax
@@ -50,27 +50,27 @@ score. The line above the quiz shows the best one.
 
 ## Try it
 
-:::quiz{id=zen-basics title="Know your zen" pass=60 attempts=5}
-1. Which language runs zen's backend?
-   - ( ) Rust
-   - (x) Go
-   - ( ) Python
-   > The window uses Wails, and the markdown engine is written in Go.
+:::quiz{id=guide-basics title="Know this guide" pass=60 attempts=5}
+1. Where does the sidebar get its pages from?
+   - ( ) A table of contents file
+   - (x) The links between pages, starting at README.md
+   - ( ) Every file, in alphabetical order
+   > A page appears under the first page that links to it.
 2. Which marker opens a container block in markdown?
    - ( ) ---
    - ( ) ###
    - (x) :::
    > A container starts and ends with three colons.
-3. Which of these are built-in plugins?
+3. Which of these are built-in plugins in this guide?
    - [x] diagram
-   - [x] polls
+   - [x] check
    - [ ] spreadsheet
    - [x] codeblock
    > Spreadsheets are not a plugin.
-4. What is the name of the file that describes a plugin folder? = plugin.yml
-   > Every plugin folder needs one.
-5. Which kind of hook lets a plugin's page ask its backend a question? = /^(the )?action( hook)?$/
-   > The page calls ctx.invoke, and the backend answers in an action.
+4. What is the name of the folder's settings file? = .zenmd.yml
+   > It sits at the top of the folder; see Configuration.
+5. Which panel lists a page's broken links? = /^(the )?(problems|inspector)( panel| tab)?$/
+   > The Inspector's Problems tab lists them.
 :::
 
 ## Your results

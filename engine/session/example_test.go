@@ -11,7 +11,7 @@ import (
 	"github.com/zenmark-org/zenmd/engine/session"
 )
 
-// Open examples/demo, list the tree, render README.md and build the site.
+// Open examples/showcase, list the tree, render README.md and build the site.
 func Example_renderFolder() {
 	runtime := fstest.MapFS{
 		"static/zen.js":  {Data: []byte("/* runtime */")},
@@ -19,7 +19,7 @@ func Example_renderFolder() {
 	}
 	s := session.New(session.Options{Runtime: runtime})
 	defer s.Close()
-	demo := filepath.Join("..", "..", "examples", "demo")
+	demo := filepath.Join("..", "..", "examples", "showcase")
 	if err := s.Open(demo); err != nil {
 		fmt.Println(err)
 		return
@@ -41,7 +41,7 @@ func Example_renderFolder() {
 	res, err := s.Build(context.Background(), session.BuildOptions{Out: filepath.Join(out, "site"), Portable: true}, nil)
 	fmt.Println(err, res.Pages > 0)
 	// Output:
-	// demo README.md
+	// showcase README.md
 	// true
 	// <nil> true
 }

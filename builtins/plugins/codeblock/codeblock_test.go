@@ -1,6 +1,7 @@
 package codeblock
 
 import (
+	"html"
 	"io/fs"
 	"os"
 	"regexp"
@@ -250,5 +251,40 @@ func TestLargeBlock(t *testing.T) {
 	}
 	if strings.Contains(got, "chroma") {
 		t.Errorf("oversized page should be returned unchanged")
+	}
+}
+
+const sandboxPre = `<div data-zen-plugin="sandbox"><div class="zen-sandbox zen-sandbox-ready"><pre class="zen-sandbox-code language-python">import os
+x = &#34;a &lt;b&gt;&#34;  # hi
+</pre></div></div>`
+
+// A sandbox block's code is coloured in place with the same chroma classes;
+// the text stays the same and the page is marked as using codeblock.
+func TestSandboxCodeIsColoured(t *testing.T) {
+	out := run(t, sandboxPre, false)
+	if out == sandboxPre {
+		t.Fatal("unchanged")
+	}
+	if !strings.Contains(out, `<pre class="zen-sandbox-code chroma language-python">`) || !strings.Contains(out, `<span class="kn">import</span>`) || !strings.Contains(out, `<span class="c1">`) {
+		t.Errorf("not coloured:\n%s", out)
+	}
+	if strings.Contains(out, `data-zen-plugin="codeblock"`) || strings.Contains(out, "<code") {
+		t.Errorf("a sandbox block is not a code block (no wrapper, no code element):\n%s", out)
+	}
+	m := regexp.MustCompile(`(?s)<pre class="zen-sandbox-code[^"]*">(.*?)</pre>`).FindStringSubmatch(out)
+	if got := html.UnescapeString(regexp.MustCompile(`<[^>]*>`).ReplaceAllString(m[1], "")); got != "import os\nx = \"a <b>\"  # hi\n" {
+		t.Errorf("text changed: %q", got)
+	}
+	if strings.Contains(out, "style=") {
+		t.Errorf("inline style:\n%s", out)
+	}
+	// an unknown language, or none, stays as it was
+	for _, in := range []string{
+		`<pre class="zen-sandbox-code language-nosuchlang">a &lt; b</pre>`,
+		`<pre class="zen-sandbox-code">a &lt; b</pre>`,
+	} {
+		if got := run(t, in, false); got != in {
+			t.Errorf("changed:\n in: %s\nout: %s", in, got)
+		}
 	}
 }

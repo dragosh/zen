@@ -29,17 +29,8 @@ type Page = { path: string; title: string };
 export const titles = (pages: Page[]) => pages.map((p) => p.title.trim());
 ```
 
-```yaml
-plugins:
-  codeblock: { lineNumbers: true }
-```
-
-```sh
-zenmd edit README.md   # open the editor
-```
-
 ```json
-{ "name": "zen", "plugins": ["codeblock", "diagram"], "beta": false }
+{ "name": "zenmark", "plugins": ["codeblock", "diagram"], "beta": false }
 ```
 
 ## Options
@@ -50,3 +41,6 @@ plugins:
     lineNumbers: true   # add a line-number gutter to code blocks
     wrap: true          # start with long lines wrapped
 ```
+
+Set them in `.zenmd.yml` for the folder, or in a page's frontmatter for one
+page. Turn the plugin off with `codeblock: false`.

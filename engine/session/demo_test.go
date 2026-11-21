@@ -1,6 +1,9 @@
 package session
 
 import (
+	"fmt"
+	"gopkg.in/yaml.v3"
+	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -17,13 +20,13 @@ import (
 	"github.com/zenmark-org/zenmd/engine/plugins"
 )
 
-// TestDemoFolder opens examples/demo the way the app does and checks that it
+// TestShowcaseFolder opens examples/showcase the way the app does and checks that it
 // documents what it claims: every page renders without warnings, the sidebar
 // has the shape the guide describes, and the only broken link is the
 // deliberate one in reading/navigation.md.
-func TestDemoFolder(t *testing.T) {
+func TestShowcaseFolder(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
-	demo := filepath.Join(filepath.Dir(file), "..", "..", "examples", "demo")
+	demo := filepath.Join(filepath.Dir(file), "..", "..", "examples", "showcase")
 	reg := plugins.NewRegistry()
 	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New(), check.New(), quiz.New(), sandbox.New()} {
 		if err := reg.Register(p); err != nil {
@@ -107,7 +110,7 @@ func TestDemoFolder(t *testing.T) {
 		t.Errorf("README children = %v", got)
 	}
 	for _, n := range tree[0].Children {
-		if n.Path == "plugins/index.md" && strings.Join(paths(n.Children), ",") != "plugins/writing-plugins.md,plugins/codeblock.md,plugins/diagram.md,plugins/quiz.md,plugins/sandbox.md,plugins/directives.md,plugins/dialects.md" {
+		if n.Path == "plugins/index.md" && strings.Join(paths(n.Children), ",") != "plugins/writing-plugins.md,plugins/codeblock.md,plugins/diagram.md,plugins/quiz.md,plugins/sandbox.md,plugins/check.md,plugins/directives.md,plugins/dialects.md" {
 			t.Errorf("Plugins children = %v", paths(n.Children))
 		}
 		if n.Path == "layouts/index.md" && strings.Join(paths(n.Children), ",") != "layouts/docs.md,layouts/post.md,layouts/landing.md,layouts/wide.md,layouts/handout.md,layouts/slides.md,layouts/course.md,layouts/writing-your-own-layout.md,layouts/memo.md" {
@@ -248,3 +251,273 @@ func TestDemoFolder(t *testing.T) {
 		t.Errorf("calc block: %v %v %s", err, calc.Warnings, calc.HTML)
 	}
 }
+
+// demoDir is the guide the app opens: examples/demo.
+func demoDir() string {
+	_, file, _, _ := runtime.Caller(0)
+	return filepath.Join(filepath.Dir(file), "..", "..", "examples", "demo")
+}
+
+// TestDemoFolder opens examples/demo the way Zenmark does (only the plugins its
+// build has) and checks the guide's shape: the sidebar sections in order, every
+// page rendering without warnings, and the one deliberate broken link.
+func TestDemoFolder(t *testing.T) {
+	demo := demoDir()
+	reg := plugins.NewRegistry()
+	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New(), check.New()} {
+		if err := reg.Register(p); err != nil {
+			t.Fatal(err)
+		}
+	}
+	dialogs := &fakeDialogs{Allow: true}
+	z, err := newZen(zenOptions{Registry: reg, ConfigDir: t.TempDir(), Dir: demo, Events: &sink{}, Dialogs: dialogs})
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(z.close)
+	if len(dialogs.Asked) != 0 {
+		t.Errorf("the demo asks for trust (it has no external plugins or layouts): %q", dialogs.Asked)
+	}
+	st := z.Startup()
+	if st.Page != "README.md" {
+		t.Fatalf("home = %q", st.Page)
+	}
+	paths := func(ns []NavNode) string {
+		var out []string
+		for _, n := range ns {
+			out = append(out, n.Path)
+		}
+		return strings.Join(out, ",")
+	}
+	tree := st.Workspace.Tree
+	if len(tree) != 2 || tree[0].Path != "README.md" || tree[1].Title != "Other pages" {
+		t.Fatalf("top level = %s", paths(tree))
+	}
+	// Intro is the README and its pages; then Plugins, Layouts and Configuration.
+	want := "intro/opening-folders.md,intro/navigation.md,intro/frontmatter.md,intro/inspector.md,intro/shortcuts.md,intro/markdown.md," +
+		"plugins/index.md,layouts/index.md,configuration/settings.md"
+	if got := paths(tree[0].Children); got != want {
+		t.Errorf("README children = %s\nwant %s", got, want)
+	}
+	sub := map[string]string{
+		"plugins/index.md":          "plugins/codeblock.md,plugins/diagram.md,plugins/check.md,plugins/quiz.md,plugins/sandbox.md",
+		"layouts/index.md":          "layouts/article.md",
+		"configuration/settings.md": "configuration/reference.md",
+	}
+	for _, n := range tree[0].Children {
+		if w, ok := sub[n.Path]; ok {
+			if got := paths(n.Children); got != w {
+				t.Errorf("%s children = %s, want %s", n.Path, got, w)
+			}
+			delete(sub, n.Path)
+		}
+	}
+	if len(sub) != 0 {
+		t.Errorf("sections missing from the sidebar: %v", sub)
+	}
+	// Other pages groups the unlinked page by its folder.
+	if len(tree[1].Children) != 1 || tree[1].Children[0].Title != "notes" || paths(tree[1].Children[0].Children) != "notes/scratch.md" {
+		t.Errorf("Other pages = %+v", tree[1].Children)
+	}
+	var all []string
+	var walk func([]NavNode)
+	walk = func(ns []NavNode) {
+		for _, n := range ns {
+			if n.Kind == "page" {
+				all = append(all, n.Path)
+			}
+			walk(n.Children)
+		}
+	}
+	walk(tree)
+	if strings.Contains(strings.Join(all, " "), "notes/hidden.md") {
+		t.Error("hidden page shown in the sidebar")
+	}
+
+	files, _ := z.ws.Files()
+	if len(files) != len(all)+1 { // every page but the hidden one is in the sidebar
+		t.Errorf("%d pages, %d in the sidebar", len(files), len(all))
+	}
+	for _, p := range files {
+		pg, err := z.Page(p)
+		if err != nil {
+			t.Errorf("%s: %v", p, err)
+			continue
+		}
+		if len(pg.Warnings) > 0 {
+			t.Errorf("%s: warnings %v", p, pg.Warnings)
+		}
+		if pg.Layout.Name != "article" {
+			t.Errorf("%s: layout %q, want article", p, pg.Layout.Name)
+		}
+		broken := strings.Count(pg.HTML, `data-zen-link="broken"`)
+		if want := map[bool]int{true: 1, false: 0}[p == "intro/navigation.md"]; broken != want {
+			t.Errorf("%s: %d broken links, want %d", p, broken, want)
+		}
+	}
+	nav, _ := z.Page("intro/navigation.md")
+	if !strings.Contains(nav.HTML, `data-path="intro/opening-folders.md"`) {
+		t.Error("slug link [A slug](open) not resolved")
+	}
+	if hl, _ := z.Page("plugins/codeblock.md"); !strings.Contains(hl.HTML, `class="chroma"`) {
+		t.Error("codeblock did not colour plugins/codeblock.md")
+	}
+	if dg, _ := z.Page("plugins/diagram.md"); strings.Count(dg.HTML, `class="zen-diagram"`) < 2 {
+		t.Error("the diagram page should draw its diagrams")
+	}
+	if ck, _ := z.Page("plugins/check.md"); strings.Count(ck.HTML, `type="checkbox"`) < 3 {
+		t.Error("the check page should show its checklists")
+	}
+}
+
+// demoAssembly is what apps/zenmark/app-assembly.yml lists; a nil list means `all`.
+type demoAssembly struct {
+	Plugins  yaml.Node `yaml:"plugins"`
+	Layouts  yaml.Node `yaml:"layouts"`
+	Dialects yaml.Node `yaml:"dialects"`
+}
+
+func assemblyIDs(t *testing.T, n yaml.Node) map[string]bool {
+	t.Helper()
+	if n.Kind == yaml.ScalarNode && n.Value == "all" {
+		return nil
+	}
+	var ids []string
+	if err := n.Decode(&ids); err != nil {
+		t.Fatalf("assembly list: %v", err)
+	}
+	m := map[string]bool{}
+	for _, id := range ids {
+		m[id] = true
+	}
+	return m
+}
+
+// TestDemoMatchesAssembly keeps the guide from getting ahead of the app: no page
+// of examples/demo may use a plugin block, a layout or a dialect that
+// apps/zenmark/app-assembly.yml does not list, or describe a feature the build
+// lacks. When a roadmap step adds one to the assembly, its pages may use it.
+func TestDemoMatchesAssembly(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(file), "..", "..", "apps", "zenmark", "app-assembly.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var a demoAssembly
+	if err := yaml.Unmarshal(raw, &a); err != nil {
+		t.Fatal(err)
+	}
+	havePlugin, haveLayout, haveDialect := assemblyIDs(t, a.Plugins), assemblyIDs(t, a.Layouts), assemblyIDs(t, a.Dialects)
+	allowed := func(set map[string]bool, id string) bool { return set == nil || set[id] }
+
+	// The block syntax of each plugin that has one, and the dialects' marks.
+	blockPlugin := map[string]string{"mermaid": "diagram", "diagram": "diagram", "check": "check", "quiz": "quiz", "quiz-results": "quiz", "sandbox": "sandbox"}
+	fence := regexp.MustCompile("(?m)^\\s*(?:```+|~~~+|:::+)\\s*(\\{[a-z-]+\\}|[A-Za-z][\\w-]*)")
+	// Words for features this build lacks (the showcase has them); the guide must not name them.
+	lacking := []string{"Vale", "MyST", "Jupyter", "zenmd export", "New Site", "newsite", ".zen/", "Print Page", "Find Next", "Open in Editor", "Edit this page"}
+	// A plugin's own name may appear once the assembly has it.
+	for _, id := range []string{"quiz", "sandbox"} {
+		if !allowed(havePlugin, id) {
+			lacking = append(lacking, id)
+		}
+	}
+
+	pages := 0
+	err = filepath.WalkDir(demo(t), func(p string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		rel, _ := filepath.Rel(demo(t), p)
+		if d.IsDir() {
+			if rel == ".zen" || rel == ".vale" {
+				t.Errorf("%s: the demo carries nothing the build lacks", rel)
+				return fs.SkipDir
+			}
+			return nil
+		}
+		if rel == ".vale.ini" {
+			t.Errorf("%s: the demo carries nothing the build lacks", rel)
+			return nil
+		}
+		b, _ := os.ReadFile(p)
+		text := string(b)
+		var front map[string]any
+		if rel == ".zenmd.yml" {
+			_ = yaml.Unmarshal(b, &front)
+			for _, key := range []string{"layouts", "build"} {
+				if _, ok := front[key]; ok {
+					t.Errorf("%s: %q does nothing in this build", rel, key)
+				}
+			}
+			if md, ok := front["markdown"].(map[string]any); ok {
+				if ds, _ := md["dialects"].([]any); len(ds) > 0 && havePlugin != nil && haveDialect != nil {
+					for _, d := range ds {
+						if !allowed(haveDialect, fmt.Sprint(d)) {
+							t.Errorf("%s: dialect %v is not in the assembly", rel, d)
+						}
+					}
+				}
+			}
+		} else if filepath.Ext(p) != ".md" {
+			return nil
+		} else {
+			pages++
+			if m := regexp.MustCompile(`(?s)\A---\n(.*?)\n---\n`).FindStringSubmatch(text); m != nil {
+				_ = yaml.Unmarshal([]byte(m[1]), &front)
+			}
+			for _, w := range lacking {
+				if strings.Contains(text, w) {
+					t.Errorf("%s: names %q, which this build lacks", rel, w)
+				}
+			}
+			for _, m := range fence.FindAllStringSubmatch(text, -1) {
+				name := m[1]
+				if strings.HasPrefix(name, "{") {
+					if !allowed(haveDialect, "myst") {
+						t.Errorf("%s: %s needs the myst dialect, which the assembly lacks", rel, name)
+					}
+					continue
+				}
+				if id, ok := blockPlugin[name]; ok && !allowed(havePlugin, id) {
+					t.Errorf("%s: a %s block needs the %s plugin, which the assembly lacks", rel, name, id)
+				}
+			}
+		}
+		// layout: name, or layout: { name: ... }
+		switch l := front["layout"].(type) {
+		case string:
+			if !allowed(haveLayout, l) {
+				t.Errorf("%s: layout %q is not in the assembly", rel, l)
+			}
+		case map[string]any:
+			if !allowed(haveLayout, fmt.Sprint(l["name"])) {
+				t.Errorf("%s: layout %v is not in the assembly", rel, l["name"])
+			}
+		}
+		if pl, ok := front["plugins"].(map[string]any); ok {
+			for id := range pl {
+				if !allowed(havePlugin, id) {
+					t.Errorf("%s: plugin %q is not in the assembly", rel, id)
+				}
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if pages < 10 {
+		t.Errorf("only %d pages found", pages)
+	}
+	// .zenmd.yml sets only keys this build uses.
+	var cfg map[string]any
+	b, _ := os.ReadFile(filepath.Join(demo(t), ".zenmd.yml"))
+	_ = yaml.Unmarshal(b, &cfg)
+	for k := range cfg {
+		if k != "version" && k != "logo" && k != "plugins" {
+			t.Errorf(".zenmd.yml sets %q, which this build does not use", k)
+		}
+	}
+}
+
+func demo(t *testing.T) string { t.Helper(); return demoDir() }

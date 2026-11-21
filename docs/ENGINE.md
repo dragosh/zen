@@ -149,7 +149,7 @@ default set when an app gives it no registries.
 
 Every exported name has a doc comment (`engine/doc_test.go` walks the AST), and
 `go doc ./engine` is the map. `engine/example_test.go` (`Example_embed`) opens
-`examples/demo`, lists the sidebar, renders a page and builds a site in about
+`examples/showcase`, lists the sidebar, renders a page and builds a site in about
 20 lines. CI runs `apidiff` over `engine/...` and `builtins/...` against the
 latest `v*` tag; an incompatible change fails unless a commit message or the
 PR body says `api-break: <reason>`. `task api:check` does the same locally
@@ -200,9 +200,9 @@ imports only `@zenmd/runtime`, the app imports both).
 | E2a ✓ | `engine/public-api` | Rename the module to `github.com/zenmark-org/zenmd`; move `internal/core/*` to `engine/*` and the built-ins to `builtins/*`; document the Go API, add an `apidiff` check in CI and an "embed zenmd" example. | `go doc` reads well; an example renders a folder in 20 lines |
 | E2b ✓ | `engine/runtime` | Split the frontend into `runtime/` (page, plugin runtime, static, print) and the app's UI. One build of the runtime is used by the app and by `zenmd build`. | Built sites and the app load the same runtime; the app bundle imports it |
 | E2c ✓ | `kit/desktop` + `kit/ui` | Move the reusable desktop parts out of `internal/app` and `frontend/src` into `kit/`; today's app becomes `apps/zenmark` (main, menu, `Zen` service, its features, packaging). | A second app is a main, a menu and its features; Zenmark behaves the same |
-| E3 | `engine/format-spec` | Write `spec/`: frontmatter keys, directives, inline attributes, plugin blocks, layouts and links. Add conformance fixtures (`.md` in, normalised HTML out) and `zenmd check` for a folder (render warnings, broken links, Vale). | Every documented feature has a fixture; `zenmd check examples/demo` is clean |
+| E3 | `engine/format-spec` | Write `spec/`: frontmatter keys, directives, inline attributes, plugin blocks, layouts and links. Add conformance fixtures (`.md` in, normalised HTML out) and `zenmd check` for a folder (render warnings, broken links, Vale). | Every documented feature has a fixture; `zenmd check examples/showcase` is clean |
 | E3 | `engine/hardening` | Fuzz the renderer, sanitiser, frontmatter and template placeholders. Add benchmarks with budgets (open 1,000 pages, render 5 MB, build 1,000 pages), and race tests in CI. Errors carry a code and a fix hint. | Fuzzers run in CI without findings; the budgets are enforced |
-| E4 | `engine/serve` (optional) | `zenmd serve`: a local preview server with live reload, for editors other than the app (VS Code, the terminal). | `zenmd serve examples/demo` previews in a browser and reloads on save |
+| E4 | `engine/serve` (optional) | `zenmd serve`: a local preview server with live reload, for editors other than the app (VS Code, the terminal). | `zenmd serve examples/showcase` previews in a browser and reloads on save |
 
 After E3, the engine gets its own version (`zenmd 1.0.0-beta`) and apps depend on it.
 
