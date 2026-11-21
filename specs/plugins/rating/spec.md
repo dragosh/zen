@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | in progress |
+| Status | done |
 | Target version | 0.7.0 |
 | Branch | `feature/13-layouts` (added during roadmap step 4, #13) |
 | Wave | 32 |
