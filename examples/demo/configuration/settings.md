@@ -17,7 +17,7 @@ Sections are listed on the left; the selected item shows on the right.
 - **Accessibility**: zoom, reduced motion, increased contrast, and for the
   reader the text size, font, line spacing, line width and underlined links.
 - **Markdown**: the syntax Zenmark reads. CommonMark and GitHub Flavored
-  Markdown are always on; see the [markdown showcase](../intro/markdown.md).
+  Markdown are always on; see the [reader](../features/reader.md).
 - **Layouts**: the [layouts](../layouts/index.md) of this build, with the help
   of the selected one.
 - **Plugins**: the [plugins](../plugins/index.md) of this build with their
@@ -25,7 +25,7 @@ Sections are listed on the left; the selected item shows on the right.
   Each snippet has a **Copy** button. **All plugins**, at the top of the list,
   shows the main snippet of every plugin on one page, as a cheat sheet.
 - **Developer**: one switch, **Show Console in the Inspector**; see
-  [the Inspector](../intro/inspector.md).
+  [the Developer page](../features/developer.md).
 
 Use the arrow keys to move in a list and <kbd>Enter</kbd> to select.
 

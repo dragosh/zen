@@ -17,7 +17,7 @@ layout: docs
 ## What it shows
 
 The rail lists the second and third level headings, and the **Edit this page**
-link under the text opens the [editor](../intro/editor.md) on this page. Both
+link under the text opens the [editor](../features/editor.md) on this page. Both
 can be switched off:
 
 ```yaml

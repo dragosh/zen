@@ -15,7 +15,7 @@ folder. This folder has one, `notes/scratch.md`. Another page,
 asks to stay out of the sidebar.
 
 To change a page's place or label, use
-[frontmatter](frontmatter.md#navigation).
+[frontmatter](../intro/frontmatter.md#navigation).
 
 ## The sidebar menu
 
@@ -34,7 +34,7 @@ or <kbd>⇧F10</kbd> on the selected row) for a menu:
 You can also drag a page up or down among its siblings. A line shows where it
 will land; <kbd>Esc</kbd> cancels. Pages move within their group only; to put a
 page under another one, use `nav: parent` in its
-[frontmatter](frontmatter.md#navigation).
+[frontmatter](../intro/frontmatter.md#navigation).
 
 The order is saved in the pages themselves: Zenmark numbers the pages of the
 group 10, 20, 30… in `nav: order` and changes **only the frontmatter** of the
@@ -50,7 +50,7 @@ rows, <kbd>→</kbd> and <kbd>←</kbd> to open and close a branch.
 | Link | What happens |
 |---|---|
 | [A page in this folder](markdown.md) | opens in place |
-| [A heading on a page](frontmatter.md#slugs) | opens and scrolls there |
+| [A heading on a page](../intro/frontmatter.md#slugs) | opens and scrolls there |
 | [A slug](open) | opens the page with `slug: open` |
 | [An external site](https://commonmark.org) | asks before opening your browser |
 | [A missing page](does-not-exist.md) | shown muted, does nothing |
@@ -63,7 +63,5 @@ The last link is broken on purpose. The Inspector lists it under Problems, see
 The bar above the page shows where you are in the sidebar tree; each part is
 a link. **‹** and **›**, or <kbd>⌘[</kbd> and <kbd>⌘]</kbd>, go back and forward.
 
-## Live reload
-
-Change a file in any editor and the open page updates by itself, keeping your
-scroll position. New, renamed and deleted pages update the sidebar.
+New, renamed and deleted pages update the sidebar by themselves, see
+[live reload](reader.md#live-reload).
