@@ -132,10 +132,27 @@ The static runtime is `frontend/src/static/` and its own Vite config
 
 ## PDF
 
-`zenmd export pdf [folder] [-o file.pdf]` writes the whole folder as one PDF (by default `exports/pdf/<folder name>.pdf`, made when needed; `exports/` is never read as pages):
+`zenmd export pdf [folder] [-o file.pdf] [--drafts] [--section page] [--no-cover]` writes the whole folder as one PDF (by default `exports/pdf/<folder name>.pdf`, made when needed; `exports/` is never read as pages):
 the print document (cover, contents, every page in sidebar order) laid out by
 macOS printing, portrait, with the system's default paper size. It runs without
 showing a window, needs macOS and a logged-in session, and prints
-`Wrote <file> (<n> pages)`. In the app, File › Export › PDF… (⇧⌘P) opens the
-preview, where **Export PDF…** saves the file. Spec: `specs/app/export/spec.md`.
+`Wrote <file> (<n> pages)`. `--drafts` adds pages with `draft: true`, `--section`
+keeps one page and the pages under it, `--no-cover` leaves out the cover and the
+contents.
 
+The folder's defaults are `export.pdf` in `.zenmd.yml` (or `config.yml`); the flags win, and `-o` wins over `out`:
+
+```yaml
+export:
+  pdf:
+    out: exports/pdf/guide.pdf   # relative is inside the folder, absolute is your own choice
+    drafts: false
+    cover: true
+    open: true                   # the app opens the file when done
+```
+
+In the app, Settings › Export › PDF is a form like the website's (output file,
+pages, drafts, cover and contents, open when done, **Export PDF** with no print
+panel, **Preview…**, **Save as folder defaults**). File › Export › PDF… (⇧⌘P)
+opens the print preview, which starts from the same defaults; its **Export PDF…**
+asks where to save. Specs: `specs/app/export/spec.md`, `specs/ui/export-pdf-settings/spec.md`.

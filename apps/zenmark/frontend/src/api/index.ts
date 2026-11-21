@@ -48,6 +48,12 @@ export type SiteTemplate = {
   builtin: boolean; update: string; error: string;
 };
 /** Build Website (ui/static-build). */
+/** The PDF form's options (apps/zenmark exportpdf.go); out is absolute from the app, and the form may send a path relative to the folder. */
+export type PdfOptions = { out: string; drafts: boolean; cover: boolean; open: boolean };
+/** A PDF export or preview of the form: the options, and whether it is only the open page and the pages under it. */
+export type PdfRun = PdfOptions & { section: boolean };
+/** How an Export PDF of the form ended (the pdf:export event): the file, or the error. */
+export type PdfExported = { path?: string; error?: string };
 export type BuildOptions = { out: string; portable: boolean; drafts: boolean; clean: boolean; print: boolean };
 export type BuildWarning = { path: string; message: string };
 export type BuildResult = { out: string; pages: number; files: number; warnings: BuildWarning[]; millis: number; cancelled: boolean };
@@ -109,8 +115,22 @@ export interface Api extends KitHost {
   /** Opens the print panel for the calling window (window.print() does nothing in the macOS web view). */
   printWindow(title: string): Promise<void>;
   // Export PDF (app/export)
-  /** Shows the save panel and writes the preview's document there; the path, "" when cancelled. title only names the job. */
-  exportPdf(title: string): Promise<string>;
+  /** Shows the save panel and writes the preview's document there; the path, "" when cancelled. title only names the job. With auto: the file the form chose, no panel (the preview of Export PDF in the form). */
+  exportPdf(title: string, auto?: boolean): Promise<string>;
+  /** The folder's PDF defaults (export.pdf), for the form and the preview. */
+  pdfDefaults(): Promise<PdfOptions>;
+  /** Without confirm: the preview text, nothing written. With it: writes export.pdf in .zenmd.yml. */
+  savePdfDefaults(o: PdfOptions, confirm: boolean): Promise<string>;
+  /** The native save panel for Choose…; "" when cancelled. */
+  pickPdfFile(): Promise<string>;
+  /** Export PDF of the form: returns once the work has begun; the pdf:export event says how it ended. */
+  runPdfExport(o: PdfRun): Promise<void>;
+  /** Preview… of the form: the print preview with these options. */
+  previewPdf(o: PdfRun): Promise<void>;
+  /** Opens the file the last export wrote. */
+  openExport(): Promise<void>;
+  /** Export PDF of the form: the preview could not prepare the document. */
+  pdfExportFailed(message: string): Promise<void>;
   /** Shows the file the last export wrote in Finder. */
   revealExport(): Promise<void>;
   /** Export mode of the preview: the document is laid out (late: blocks not ready in time). */
@@ -184,6 +204,7 @@ export interface Api extends KitHost {
   on(event: "menu:new-site", fn: () => void): () => void;
   on(event: "menu:build-website", fn: () => void): () => void;
   on(event: "build:progress", fn: (p: BuildProgress) => void): () => void;
+  on(event: "pdf:export", fn: (r: PdfExported) => void): () => void;
   on(event: "menu:print-page", fn: () => void): () => void;
   /** Edit › Find… (⌘F), Find Next (⌘G), Find Previous (⇧⌘G): sent to every window, the one in front acts (ui/find). */
   on(event: "menu:find" | "menu:find-next" | "menu:find-previous", fn: () => void): () => void;

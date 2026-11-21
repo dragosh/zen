@@ -724,12 +724,13 @@ test("export in place", async () => {
 
 test("export in place: PDF is a form like the website's; the last PDF; no folder", async () => {
   const { api, s } = exportSetup();
+  api.pdfDefaultsValue = { out: "/Users/me/site/exports/pdf/site.pdf", drafts: false, cover: true, open: true };
   try { localStorage.setItem("zen.lastPdfExport", JSON.stringify({ path: "/Users/me/Guide.pdf", at: Date.now() })); } catch { /* no storage */ }
   await go(s, "export", "pdf");
   const d = detail(s, "export");
   expect(d.querySelector("h3")!.textContent).toBe("PDF");
   expect(api.callsTo("pdfDefaults").length).toBeGreaterThan(0);
-  expect(d.querySelector<HTMLInputElement>(".zen-buildsite-out")!.value).toBe("exports/pdf/sample-docs.pdf");
+  expect(d.querySelector<HTMLInputElement>(".zen-buildsite-out")!.value).toBe("exports/pdf/site.pdf");
   expect(Array.from(d.querySelectorAll<HTMLInputElement>("input[type=checkbox]")).map((b) => [b.name, b.checked])).toEqual([["drafts", false], ["cover", true], ["open", true]]);
   expect(d.textContent).toContain("Guide.pdf");
   Array.from(d.querySelectorAll("button")).find((b) => b.textContent === "Show in Finder")!.click();

@@ -270,6 +270,7 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     openConsole: () => doc.dispatchEvent(new CustomEvent(INSPECTOR_CONSOLE)),
     onOpenPage: (p: string) => navigate(p),
     unsaved: () => Array.from(drafts),
+    currentPage: () => store.get().path,
   };
   /**
    * The cog at the bottom of the sidebar (and ⌘,) shows Settings in the main pane, in the place of

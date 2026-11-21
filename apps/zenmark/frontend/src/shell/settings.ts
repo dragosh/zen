@@ -7,21 +7,12 @@ import { appearanceSection, button, createSettingsFrame, developerSection, el, h
 import { accessibilitySection } from "@zenmd/kit/shell/settings";
 import type { Api } from "../api";
 import { createBuildForm, type BuildApi } from "./buildsite";
+import { createPdfForm, type PdfApi } from "./pdfform";
 import { createLayoutsSection } from "./layouthelp";
 import { createPluginsSection } from "./pluginhelp";
 import { createTemplatesSection } from "./templateshelp";
 
 export type { SettingsView };
-
-/** The preview records the PDF it saved here (the windows share one origin); Settings shows it. */
-export const LAST_PDF_KEY = "zen.lastPdfExport";
-export function lastPdfExport(): { path: string; at: number } | undefined {
-  try {
-    const v = JSON.parse(localStorage.getItem(LAST_PDF_KEY) ?? "null");
-    if (v && typeof v.path === "string" && typeof v.at === "number") return v;
-  } catch { /* no storage */ }
-  return undefined;
-}
 
 const message = (err: unknown) => (err instanceof Error ? err.message : String(err));
 
@@ -35,6 +26,10 @@ export function createSettingsView(opts: {
   hasWorkspace(): boolean;
   /** The build services (default: the api, once it has them). */
   build?: Partial<BuildApi>;
+  /** The PDF form's services (default: the api). */
+  pdf?: Partial<PdfApi>;
+  /** The page the main window shows, "" for none: Export › PDF › Pages › This section needs one. */
+  currentPage?(): string;
   /** Not used any more: File › Export › Website… opens Settings › Export (the shell calls `open("export", "website")`). */
   openBuild?(): void;
   /** The open folder's path, "" for none. */
@@ -202,35 +197,31 @@ export function createSettingsView(opts: {
     unsaved: opts.unsaved,
   });
   const withPdf = hasFeature(api, "print");
-  function renderPdf(right: HTMLElement): void {
-    const open = opts.hasWorkspace();
-    const status = el("p", "zen-settings-status");
-    status.setAttribute("role", "status");
-    const exportPdf = button("Export PDF…", () => void api.printSite().catch((err) => { status.textContent = message(err); }), { className: "zen-settings-export-pdf primary" });
-    exportPdf.disabled = !open;
-    const last = el("p", "zen-settings-export-last");
-    const l = open ? lastPdfExport() : undefined;
-    if (l) {
-      last.append(`Last PDF: ${l.path.split(/[\\/]/).pop()}, ${new Date(l.at).toLocaleTimeString()}. `);
-      last.append(button("Show in Finder", () => void api.revealExport().catch((err) => { status.textContent = message(err); }), { className: "zen-buildsite-link" }));
-    } else if (open) {
-      last.textContent = "No PDF yet.";
-    } else {
-      last.textContent = "Open a folder to export it.";
-    }
-    right.append(el("p", "zen-settings-hint", "The pages of the folder as one document, through the print preview."), last, exportPdf, status);
-  }
+  const pdf = createPdfForm({
+    api: opts.pdf ? (opts.pdf as PdfApi) : (api as unknown as PdfApi),
+    doc: document,
+    root,
+    currentPage: () => opts.currentPage?.() ?? "",
+    unsaved: opts.unsaved,
+  });
   const exportSection: SettingsSection = {
     id: "export", label: "Export",
     items: () => [{ id: "website", label: "Website" }, ...(withPdf ? [{ id: "pdf", label: "PDF" }] : [])],
     render(item, right) {
-      if (item.id === "pdf") { renderPdf(right); return; }
+      if (item.id === "pdf") {
+        right.append(pdf.el);
+        void pdf.refresh();
+        return;
+      }
       right.append(website.el);
       void website.refresh();
     },
     // The page is shown again: the folder's options may have changed (a build that runs, or a result on show, stays).
-    show: () => { if (website.el.isConnected) void website.refresh(true); },
-    destroy: () => website.destroy(),
+    show: () => {
+      if (website.el.isConnected) void website.refresh(true);
+      if (pdf.el.isConnected) void pdf.refresh(true);
+    },
+    destroy: () => { website.destroy(); pdf.destroy(); },
   };
 
   frame = createSettingsFrame([

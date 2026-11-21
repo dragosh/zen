@@ -67,7 +67,7 @@ verify" warning: `task darwin:sign:notarize` (see [docs/DISTRIBUTION.md](docs/DI
 zenmd [folder|file.md]                 # open in the app
 zenmd edit page.md                     # open in the editor
 zenmd export site [folder] [-o dir]    # a static website (portable by default; --hosted for a web server); zenmd build is the same
-zenmd export pdf [folder] [-o file]    # the whole folder as one PDF (macOS)
+zenmd export pdf [folder] [-o file]    # the whole folder as one PDF (macOS); --drafts, --section <page>, --no-cover
 zenmd init site --techdocs [folder]    # start a folder from a template (--learning, --planner)
 zenmd version
 ```

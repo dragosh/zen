@@ -10,7 +10,7 @@ import { FEATURE_IDS, type LogEntry } from "@zenmd/kit";
 const windowShown = new Promise<void>((resolve) => {
   const off = Events.On("app:shown", () => { off(); resolve(); });
 });
-import type { AddonInfo, Alert, Api, BuildInfo, BuildOptions, Crumb, DialectInfo, LayoutField, LayoutInfo, LintResult, NavNode, Page, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
+import type { AddonInfo, Alert, Api, BuildInfo, BuildOptions, Crumb, DialectInfo, LayoutField, LayoutInfo, LintResult, NavNode, Page, PdfOptions, PluginInfo, PluginOption, PluginSnippet, Startup, Workspace } from "./index";
 
 type Raw = Record<string, any> | null | undefined;
 
@@ -207,6 +207,10 @@ function buildOptions(o: Raw): BuildOptions {
   return { out: String(o?.out ?? ""), portable: o?.portable !== false, drafts: o?.drafts === true, clean: o?.clean === true, print: o?.print !== false };
 }
 
+function pdfOptions(o: Raw): PdfOptions {
+  return { out: String(o?.out ?? ""), drafts: o?.drafts === true, cover: o?.cover !== false, open: o?.open !== false };
+}
+
 const api: Api = {
   async startup(): Promise<Startup> {
     const s = (await call(Zen.Startup())) as Raw;
@@ -290,8 +294,29 @@ const api: Api = {
   async printWindow(title) {
     await call(Zen.PrintWindow(title));
   },
-  async exportPdf(title) {
-    return String((await call(Zen.ExportPDF(title))) ?? "");
+  async exportPdf(title, auto) {
+    return String((await call(Zen.ExportPDF(title, auto === true))) ?? "");
+  },
+  async pdfDefaults() {
+    return pdfOptions((await call(Zen.PDFDefaults())) as Raw);
+  },
+  async savePdfDefaults(o, confirm) {
+    return String((await call(Zen.SavePDFDefaults(o, confirm))) ?? "");
+  },
+  async pickPdfFile() {
+    return String((await call(Zen.PickPDFFile())) ?? "");
+  },
+  async runPdfExport(o) {
+    await call(Zen.RunPDFExport(o));
+  },
+  async previewPdf(o) {
+    await call(Zen.PreviewPDF(o));
+  },
+  async openExport() {
+    await call(Zen.OpenExport());
+  },
+  async pdfExportFailed(message) {
+    await call(Zen.PDFExportFailed(message));
   },
   async revealExport() {
     await call(Zen.RevealExport());
@@ -414,7 +439,7 @@ const api: Api = {
       if (list.length) fn(list);
     });
   },
-  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "layouts:changed" | "menu:new-page" | "menu:settings" | "menu:close-folder" | "workspace:opening" | "menu:new-site" | "menu:build-website" | "build:progress" | "menu:print-page" | "menu:find" | "menu:find-next" | "menu:find-previous" | "menu:zoom-in" | "menu:zoom-out" | "menu:zoom-reset", fn: (p: any) => void): () => void {
+  on(event: "workspace:changed" | "page:changed" | "workspace:opened" | "page:draft" | "plugin:stream" | "plugins:changed" | "layouts:changed" | "menu:new-page" | "menu:settings" | "menu:close-folder" | "workspace:opening" | "menu:new-site" | "menu:build-website" | "build:progress" | "pdf:export" | "menu:print-page" | "menu:find" | "menu:find-next" | "menu:find-previous" | "menu:zoom-in" | "menu:zoom-out" | "menu:zoom-reset", fn: (p: any) => void): () => void {
     if (event === "menu:new-page") return Events.On("menu:new-page", () => fn(undefined));
     if (event === "menu:settings") return Events.On("menu:settings", () => fn(undefined));
     if (event === "menu:close-folder") return Events.On("menu:close-folder", () => fn(undefined));
@@ -427,6 +452,12 @@ const api: Api = {
       return Events.On("build:progress", (e: { data: unknown }) => {
         const d = payload(e.data) as { done?: unknown; total?: unknown } | null;
         fn({ done: typeof d?.done === "number" ? d.done : 0, total: typeof d?.total === "number" ? d.total : 0 });
+      });
+    }
+    if (event === "pdf:export") {
+      return Events.On("pdf:export", (e: { data: unknown }) => {
+        const d = payload(e.data) as { path?: unknown; error?: unknown } | null;
+        fn({ ...(typeof d?.path === "string" && d.path ? { path: d.path } : {}), ...(typeof d?.error === "string" && d.error ? { error: d.error } : {}) });
       });
     }
     if (event === "layouts:changed") return Events.On("layouts:changed", () => fn(undefined));

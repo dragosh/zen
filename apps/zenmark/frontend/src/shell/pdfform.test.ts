@@ -1,5 +1,5 @@
 // @vitest-environment happy-dom
-import { beforeEach, expect, test, vi } from "vitest";
+import { beforeEach, expect, test } from "vitest";
 import { createPdfForm, type PdfApi, type PdfOptions } from "./pdfform";
 
 const ROOT = "/Users/me/Guide";

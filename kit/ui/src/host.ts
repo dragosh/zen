@@ -99,7 +99,11 @@ export interface KitHost extends RuntimeHost {
   /** Opens the print panel for the calling window (window.print() does nothing in the macOS web view). */
   printWindow?(title: string): Promise<void>;
   /** Export PDF… (app/export): the save panel, then the preview's document written as a PDF. The path, "" when cancelled; title only names the job. */
-  exportPdf?(title: string): Promise<string>;
+  exportPdf?(title: string, auto?: boolean): Promise<string>;
+  /** The folder's PDF defaults (export.pdf): the preview starts from them. */
+  pdfDefaults?(): Promise<{ out: string; drafts: boolean; cover: boolean; open: boolean }>;
+  /** Auto export (Settings › Export › PDF › Export PDF): the preview could not prepare the document. */
+  pdfExportFailed?(message: string): Promise<void>;
   /** Shows the file the last export wrote in Finder. It takes no path. */
   revealExport?(): Promise<void>;
   /** Export mode of the preview (`zenmd export pdf`): the document is laid out; late names the blocks that were not ready in time. */

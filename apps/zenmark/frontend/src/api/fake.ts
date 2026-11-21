@@ -1,16 +1,16 @@
 // In-memory Api for development in a browser and for tests: a three-page
 // sample workspace, emit() to simulate Go events, and a record of every call.
 import { FEATURE_IDS, type LogEntry } from "@zenmd/kit";
-import type { AddonInfo, Api, BuildInfo, BuildProgress, Crumb, DialectInfo, Draft, SiteTemplate, LayoutInfo, LintResult, NavNode, OpenProgress, Page, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
+import type { AddonInfo, Api, BuildInfo, BuildProgress, Crumb, DialectInfo, Draft, SiteTemplate, LayoutInfo, LintResult, NavNode, OpenProgress, Page, PdfExported, PdfOptions, PluginInfo, PluginStreamEvent, Startup, Workspace } from "./index";
 
 type Method = "startup" | "appReady" | "pickFolder" | "cancelOpen" | "closeFolder"
   | "siteTemplates" | "pickSiteFolder" | "createSite" | "revealTemplates" | "templatesDir"
   | "buildOptions" | "buildWebsite" | "cancelBuild" | "saveBuildDefaults" | "pickBuildFolder" | "openBuiltSite" | "revealBuiltSite"
-  | "printPage" | "printSite" | "printWindow" | "exportPdf" | "revealExport" | "printReady" | "printFailed" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "pageInfo" | "revealInFinder" | "openConfig" | "createPage"
+  | "printPage" | "printSite" | "printWindow" | "exportPdf" | "revealExport" | "printReady" | "printFailed" | "pdfDefaults" | "savePdfDefaults" | "pickPdfFile" | "runPdfExport" | "previewPdf" | "openExport" | "pdfExportFailed" | "page" | "source" | "preview" | "save" | "openExternal" | "openEditor" | "lint" | "pageInfo" | "revealInFinder" | "openConfig" | "createPage"
   | "plugins" | "pluginTrust" | "pluginStorageGet" | "pluginStorageSet" | "pluginInvoke" | "pluginStream" | "pluginCancel" | "pluginStorageKeys"
   | "reorderNav" | "setNavHidden" | "dialects" | "setDialect" | "dialectHint" | "dismissDialectHint"
   | "logs" | "layouts" | "layoutTrust" | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys";
-type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "layouts:changed": undefined; "menu:new-page": undefined; "menu:settings": undefined; "menu:close-folder": undefined; "workspace:opening": OpenProgress; "menu:new-site": undefined; "menu:build-website": undefined; "build:progress": BuildProgress; "menu:print-page": undefined; "menu:find": undefined; "menu:find-next": undefined; "menu:find-previous": undefined; "menu:zoom-in": undefined; "menu:zoom-out": undefined; "menu:zoom-reset": undefined };
+type Events = { "workspace:changed": Workspace; "page:changed": { path: string }; "workspace:opened": Startup; "page:draft": Draft; "plugin:stream": PluginStreamEvent; "plugins:changed": undefined; "layouts:changed": undefined; "menu:new-page": undefined; "menu:settings": undefined; "menu:close-folder": undefined; "workspace:opening": OpenProgress; "menu:new-site": undefined; "menu:build-website": undefined; "build:progress": BuildProgress; "pdf:export": PdfExported; "menu:print-page": undefined; "menu:find": undefined; "menu:find-next": undefined; "menu:find-previous": undefined; "menu:zoom-in": undefined; "menu:zoom-out": undefined; "menu:zoom-reset": undefined };
 
 /** A plugin as tests write it: the help and what it adds default to nothing. */
 export type PluginSeed = Omit<PluginInfo, "help" | "blocks" | "inlines" | "layouts" | "options"> & Partial<Pick<PluginInfo, "help" | "blocks" | "inlines" | "layouts" | "options">>;
@@ -102,6 +102,8 @@ export type FakeApi = Api & {
   pick: Workspace | null;
   /** What exportPdf() resolves to: a path, "" for a cancelled save panel, or a function that answers later. */
   exportPath: string | (() => string | Promise<string>);
+  /** What pdfDefaults() resolves to (a copy); assignable between calls. */
+  pdfDefaultsValue: PdfOptions;
   /** What openExternal() resolves to (the user's answer). Default true. */
   confirmExternal: boolean;
   /**
@@ -223,6 +225,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     "menu:new-site": new Set(),
     "menu:build-website": new Set(),
     "build:progress": new Set(),
+    "pdf:export": new Set(),
     "menu:print-page": new Set(),
     "menu:find": new Set(),
     "menu:find-next": new Set(),
@@ -281,6 +284,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     pick: options.pick === undefined ? sampleWorkspace() : options.pick,
     confirmExternal: true,
     exportPath: "/Users/me/Documents/sample-docs.pdf",
+    pdfDefaultsValue: { out: "/Users/me/sample-docs/exports/pdf/sample-docs.pdf", drafts: false, cover: true, open: true },
     broadcasts: [],
     addons,
     build: options.build === null ? undefined : { ...ZENMARK_BUILD, addons: addons.map((a) => ({ ...a })), ...options.build },
@@ -333,7 +337,14 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     printPage: () => call("printPage", [], () => undefined),
     printSite: () => call("printSite", [], () => undefined),
     printWindow: (title) => call("printWindow", [title], () => { (globalThis as { print?: () => void }).print?.(); }),
-    exportPdf: (title) => call("exportPdf", [title], () => (typeof api.exportPath === "function" ? api.exportPath() : api.exportPath)).then((p) => p),
+    exportPdf: (title, auto) => call("exportPdf", auto ? [title, true] : [title], () => (typeof api.exportPath === "function" ? api.exportPath() : api.exportPath)).then((p) => p),
+    pdfDefaults: () => call("pdfDefaults", [], () => ({ ...api.pdfDefaultsValue })),
+    savePdfDefaults: (o, confirm) => call("savePdfDefaults", [o, confirm], () => "Nothing to change"),
+    pickPdfFile: () => call("pickPdfFile", [], () => ""),
+    runPdfExport: (o) => call("runPdfExport", [o], () => undefined),
+    previewPdf: (o) => call("previewPdf", [o], () => undefined),
+    openExport: () => call("openExport", [], () => undefined),
+    pdfExportFailed: (message) => call("pdfExportFailed", [message], () => undefined),
     revealExport: () => call("revealExport", [], () => undefined),
     printReady: (late) => call("printReady", [late], () => undefined),
     printFailed: (message) => call("printFailed", [message], () => undefined),
