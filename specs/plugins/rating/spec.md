@@ -19,13 +19,12 @@ with it and the reader can see later what they rated.
 ## Behaviour
 
 1. **Syntax.** `:::rating{id=course title="How was this course?"}` opens the block and `:::` closes it.
-   - `id` names the stored rating. It is required: 1–59 letters, digits, `.`, `_` or `-`, unique in the page. A missing or bad id renders a page warning and the block's text.
+   - `id` names the stored rating. It is required: 1–57 letters (so `rating-<id>` fits the 64-character storage key), digits, `.`, `_` or `-`, unique in the page. A missing or bad id renders a page warning and the block's text. A repeated id isn't detected, because the block hook has no per-page state.
    - `title` is the question. The default is "Rate this page".
    - `max` is the number of stars, 3 to 10, default 5.
    - `labels` is optional, written as `labels="Poor|Fair|Good|Very good|Excellent"`: one label per star, shown beside the stars for the hovered or picked value.
    - Any markdown inside the block shows under the question as its text.
-2. **Rendering (Go).** The block renders a `fieldset`. Its `legend` is the title. It holds `max` radio inputs named after the id, each with a visible star and a visually hidden label ("3 of 5", or the star's label). A status line follows.
-   - Without the page script, as in a built site with scripts off, it is a plain radio group that still reads well.
+2. **Rendering (Go).** The page sanitiser keeps no `fieldset`, `legend`, `label` or input names. So Go renders the question, the body and a read-only star row as plain `div` and `span` elements, with "Not rated yet". The page script builds the radio group from that markup. Without the script, the block reads as the question and an empty star row.
 3. **The page script:**
    - **On mount:** it reads `rating-<id>` from `ctx.storage` and checks the saved star.
    - **Picking a star:** clicking a star or pressing Space saves `{ version: 1, value, max, date }`. The status reads "You rated 4 of 5 · 21 Nov 2026".
@@ -45,7 +44,7 @@ with it and the reader can see later what they rated.
 
 - **`builtins/plugins/rating/rating.go`:**
   - the manifest: id `rating`, blocks `rating` and `rating-results`, `Default: true`, help with three snippets (a rating, labels, the results);
-  - the block hook renders the fieldset and validates the attributes;
+  - the block hook renders the question and star row and validates the attributes; `rating.js` builds the radio group;
   - the assets are `assets/rating.js` and `assets/rating.css`, embedded as quiz does.
 - **Registration:** add `rating` everywhere a built-in plugin is listed (builtins, assembly catalog and generator, their tests), then add `rating` to `apps/zenmark/app-assembly.yml` and regenerate.
 - **Demo:**
@@ -63,7 +62,7 @@ Storage key `rating-<id>`. Value: `{ version: 1, value: int, max: int, date: str
 | # | Behaviour | Test |
 |---|---|---|
 | 1 | Attributes, defaults, bad id, max range, labels count | `builtins/plugins/rating/rating_test.go` |
-| 2 | Rendered fieldset, radios and hidden labels; text escaped | `rating_test.go` |
+| 2 | Rendered question and star row; text escaped | `rating_test.go` |
 | 3 | Mount reads, pick saves, keys move, Clear writes null, bad stored value | `runtime/test/builtin-rating.test.ts` |
 | 4 | Results list from storage keys, empty state, links | `builtin-rating.test.ts` |
 | 5 | Registered and in the assembly; demo page renders with no warnings; the course has the rating step | existing assembly and demo tests, updated |
