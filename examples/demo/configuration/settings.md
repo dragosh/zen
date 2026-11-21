@@ -24,6 +24,8 @@ Sections are listed on the left; the selected item shows on the right.
   state, what each adds and snippets that show how to use it in a page.
   Each snippet has a **Copy** button. **All plugins**, at the top of the list,
   shows the main snippet of every plugin on one page, as a cheat sheet.
+- **Export**: the [website and PDF](../features/export.md) of this folder,
+  with the same choices as File › Export.
 - **Developer**: one switch, **Show Console in the Inspector**; see
   [the Developer page](../features/developer.md).
 

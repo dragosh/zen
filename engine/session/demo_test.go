@@ -301,7 +301,7 @@ func TestDemoFolder(t *testing.T) {
 		t.Errorf("README children = %s\nwant %s", got, want)
 	}
 	sub := map[string]string{
-		"features/index.md":         "features/reader.md,features/navigation.md,features/find.md,features/editor.md,features/inspector.md,features/printing.md,features/developer.md",
+		"features/index.md":         "features/reader.md,features/navigation.md,features/find.md,features/editor.md,features/inspector.md,features/printing.md,features/export.md,features/developer.md",
 		"features/reader.md":        "features/markdown.md,features/myst.md",
 		"plugins/index.md":          "plugins/codeblock.md,plugins/diagram.md,plugins/check.md,plugins/quiz.md,plugins/sandbox.md,plugins/rating.md",
 		"layouts/index.md":          "layouts/article.md,layouts/docs.md,layouts/post.md,layouts/landing.md,layouts/wide.md,layouts/handout.md,layouts/slides.md,layouts/course.md",
@@ -419,7 +419,7 @@ func TestDemoFeaturesMatchAssembly(t *testing.T) {
 		t.Fatal(err)
 	}
 	page := map[string]string{"reader": "reader.md", "nav": "navigation.md", "find": "find.md", "editor": "editor.md",
-		"inspector": "inspector.md", "print": "printing.md", "developer": "developer.md"}
+		"inspector": "inspector.md", "print": "printing.md", "export": "export.md", "developer": "developer.md"}
 	have := assemblyIDs(t, a.Features)
 	if have == nil { // `all`
 		have = map[string]bool{}

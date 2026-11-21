@@ -59,7 +59,7 @@ func assemblyDialects() *dialects.Registry {
 // Settings. The add-ons are the ones linked in (build tags), added at run time.
 var assemblyInfo = session.BuildInfo{
 	App:       "zenmark",
-	Features:  []string{"reader", "nav", "inspector", "developer", "find", "editor", "print"},
+	Features:  []string{"reader", "nav", "inspector", "developer", "find", "editor", "print", "export"},
 	Plugins:   []string{"codeblock", "diagram", "check", "quiz", "sandbox", "rating"},
 	Layouts:   []string{"article", "docs", "post", "landing", "wide", "handout", "slides", "course"},
 	Templates: []string{},
