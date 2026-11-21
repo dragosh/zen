@@ -83,7 +83,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 35 | [ui/reader-settings](ui/reader-settings/spec.md) | `dialects: all` (#22); Settings › Markdown becomes Settings › Reader with CommonMark and GFM as the default and the dialects under a Markdown heading; the demo Reader page holds CommonMark/GFM and MyST | engine/dialects, ui/settings-layout, app/demo-guide | done |
 | 36–40 | [plugins/myst-builtins](plugins/myst-builtins/spec.md) | every common MyST directive and role as a built-in, in phases: callouts, figures and tables, math, tabs/dropdowns/cards, roles and the rest of MyST syntax | engine/dialects, builtins/dialects/myst, ui/plugin-kit | planned |
 | 41 | [engine/export-key](engine/export-key/spec.md) | the website export settings key is `export:` in .zenmd.yml and config.yml; `build:` still read with a Problems note, moved on Save as folder defaults | engine/config-name, app/export | done |
-| 42 | [ui/export-pdf-settings](ui/export-pdf-settings/spec.md) | Settings › Export › PDF as a form like the website: output file, drafts, pages, cover, open when done, Export PDF, Preview, Save as folder defaults (`export.pdf`); the CLI and preview read the same defaults | engine/export-key, app/export | in progress |
+| 42 | [ui/export-pdf-settings](ui/export-pdf-settings/spec.md) | Settings › Export › PDF as a form like the website: output file, drafts, pages, cover, open when done, Export PDF, Preview, Save as folder defaults (`export.pdf`); the CLI and preview read the same defaults | engine/export-key, app/export | done |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 

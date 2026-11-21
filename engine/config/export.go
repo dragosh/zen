@@ -89,6 +89,11 @@ func (c *Config) PDF() (PDF, error) {
 		if !ok {
 			return p, errors.New("export.pdf.out must be text")
 		}
+		// A settings file (which may come with a folder someone else wrote) never aims the PDF outside the
+		// folder: no absolute path, no "..". A place the user picks (the form's Choose…, -o) is not read here.
+		if c := filepath.Clean(filepath.FromSlash(s)); s != "" && (filepath.IsAbs(c) || strings.HasPrefix(s, "~") || c == ".." || strings.HasPrefix(c, ".."+string(filepath.Separator))) {
+			return p, errors.New("export.pdf.out must be a path inside the folder, such as exports/pdf/guide.pdf")
+		}
 		p.Out = s
 	}
 	d, err := flag("drafts")
