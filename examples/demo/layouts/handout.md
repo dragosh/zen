@@ -6,8 +6,9 @@ author: The Zenmark team
 ---
 # The handout layout
 
-For one-pagers. The page sits on a white sheet, the size of a sheet of paper,
-with a header and a footer.
+For one-pagers you print. On screen the page sits on a white sheet with a
+header and a footer. Print it (**File › Print Page…**, <kbd>⌘P</kbd>) and only
+the sheet comes out, at the right paper size.
 
 ```yaml
 ---
@@ -23,6 +24,7 @@ author: Ada
 1. Open the folder in Zenmark.
 2. Pick the page you want to hand out.
 3. Give it `layout: handout`, a `date` and an `author`.
+4. Choose **File › Print Page…**.
 
 ## Paper
 
@@ -30,5 +32,3 @@ The sheet is A4. For US Letter use `layout: { name: handout, paper: letter }`.
 
 > The header shows the author and the date, and the footer shows the title and
 > the date.
-
-Printing the sheet comes with printing in a later version of Zenmark.
