@@ -26,6 +26,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 - Find in page: ⌘F (Edit › Find) opens a find bar in the reader and the editor with a match count, next/previous (⌘G, ⇧⌘G) and a match-case toggle (#4).
 
 ### Changed
+- The demo guide groups the app's features in a Features section, one page each (reader, navigation, find, editor, inspector, print, developer), after the Intro.
 - Find, Edit and the Inspector are icons in the top bar (a magnifying glass, a pencil and a panel); the sidebar footer keeps Settings and Export, and every icon comes from one set.
 - Every interactive block (quiz, rating, checklists, sandbox, course) uses one set of frames, buttons, choices and text styles, documented in docs/PLUGIN-UI.md for future plugins and layouts; the course's step list lines up wrapped titles.
 - `examples/demo` is the Zenmark guide for what the app has today and grows with each roadmap step; the full tour is `examples/showcase`.
