@@ -88,7 +88,7 @@ func TestPluginAssets(t *testing.T) {
 	contains(t, "p1", p1, `<link rel="stylesheet" href="_zen/zen.css">`, `href="_zen/plugins/hello/hello.css"`, `<script src="_zen/zen.js" defer></script>`,
 		`<script type="application/json" id="zen-page">`, `"path":"p1.md"`, `"siteId":"site"`, `"root":""`, `/_plugins/hello/hello.js`)
 	lacks(t, "p1", p1, "?v=")
-	lacks(t, "p2", p2, "hello", "memo", "<script")
+	lacks(t, "p2", p2, "hello", "memo", "data-zen-module", "/_plugins/") // the shell script is on every page (ui/site-topbar), the plugins only where used
 	contains(t, "p2", p2, `href="../_zen/zen.css"`)
 	contains(t, "p3", p3, `href="../_zen/layouts/memo/memo.css"`)
 	lacks(t, "p3", p3, "hello.css")
