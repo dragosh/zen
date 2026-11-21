@@ -41,7 +41,21 @@ sections, and grows one step at a time. The complete feature tour moves to
    3. **Layouts**: an index plus the `article` page.
    4. **Configuration**: the settings page (Settings sections as they are today) and the `.zenmd.yml` reference, limited to keys that do something in this build.
 
-   Later roadmap steps add Dialects, Add-ons and Templates in the order Intro, Dialects, Add-ons, Plugins, Layouts, Templates, Configuration. The README's table of contents follows that order.
+   Later roadmap steps add Dialects, Add-ons and Templates in the order Intro, Features, Dialects, Add-ons, Plugins, Layouts, Templates, Configuration. The README's table of contents follows that order.
+
+   **Features (added on 2026-11-21, after #18).** The app's features have their own section, after Intro.
+   - `features/index.md` lists the features this build has, in assembly order, with one line each.
+   - Under it there is one page per feature:
+     - `reader`: reading a page, live reload and the markdown showcase;
+     - `nav`: the sidebar, links and breadcrumbs;
+     - `find`;
+     - `editor`;
+     - `inspector`: Page Info and Problems;
+     - `print`;
+     - `developer`: the Console and Build tabs, and the switch.
+   - A feature that isn't in the build has no page.
+   - Intro keeps what isn't a feature: what Zenmark is, opening a folder, frontmatter and the keyboard shortcuts.
+   - The demo test checks that the Features pages match the assembly's `features`.
 3. **Nothing missing is named as present.** No page links to, uses or describes as available a plugin, layout, dialect, add-on, template or feature the build lacks. That covers the editor, find, print, export, newsite, Vale, MyST, quiz, sandbox, layouts other than article, and the `.zen/` example plugins and layouts. Those stay in the showcase.
    - `.zenmd.yml` in the demo sets only keys this build uses: `version`, `logo` (commented, as today), and `plugins` for codeblock and diagram.
    - There are no `layouts:` by path, no `build:` and no `markdown.dialects`.
