@@ -82,6 +82,12 @@ task test && task build                             # the lead, after each merge
   checks it in review.
 - UI: black and white tokens only (docs/UI.md), keyboard reachable, and
   `prefers-reduced-motion` respected.
+- **CLI first.** Every option of an export, a build or any folder operation
+  is designed first as a `zenmd` flag and a config key, then shown in the
+  app, which calls the same engine code. A spec lists the flag in its
+  Interfaces section. Export options are kept in one table,
+  `apps/zenmark/export-options.json`, and tests check the CLI and the
+  Settings forms against it.
 - **Plugins and layouts** follow docs/PLUGIN-UI.md: interactive blocks use
   the plugin kit (`.zen-block`, `.zen-btn`, `.zen-btn-primary`, `.zen-btn-quiet`,
   `.zen-choice`, `.zen-field`) and the UI font at 14px, never their own buttons,
