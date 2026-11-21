@@ -24,6 +24,7 @@ in the sidebar footer.
    |---|---|---|---|---|
    | Find | a magnifying glass | "Find (⌘F)" | opens the find bar, or closes it when open | `find` |
    | Edit | a pencil | "Edit (⌘E)" | opens the page in the editor, as the Edit button does today | `editor`, and a page that can be edited |
+   | Print (#18) | a printer | "Print (⌘P)" | prints the page, as ⌘P and File › Print Page… do (the `zen:print-page` event to the shell's page print) | `print` |
    | Inspector | a window with a bottom panel showing a `>_` prompt | "Inspector (⌥⌘I)" | opens or closes the Inspector, as the footer button does today, with its red problem-count badge | `inspector` (or `developer` alone, as today) |
 
    Each button shows only with its feature, and a build without any of them has no action group.

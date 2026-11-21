@@ -18,8 +18,9 @@ it, and the guide only describes what this version of Zenmark has.
 3. [Find in a page](intro/find.md) with ⌘F.
 4. Tune a page with [frontmatter](intro/frontmatter.md).
 5. [Edit a page](intro/editor.md) and add new ones.
-6. Check a page with the [Inspector and the Developer panel](intro/inspector.md).
-7. [Keyboard shortcuts](intro/shortcuts.md) and the [markdown showcase](intro/markdown.md).
+6. [Print a page](intro/printing.md), or save it as a PDF.
+7. Check a page with the [Inspector and the Developer panel](intro/inspector.md).
+8. [Keyboard shortcuts](intro/shortcuts.md) and the [markdown showcase](intro/markdown.md).
 
 ## The rest of the guide
 

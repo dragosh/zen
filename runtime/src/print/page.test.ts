@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
-import { installPagePrint, printPage } from "./page";
+import { installPagePrint, PRINT_PAGE, printPage } from "./page";
 
 let print: ReturnType<typeof vi.fn>;
 beforeEach(() => {
@@ -111,6 +111,20 @@ test("⌘P and the menu event print; ⇧⌘P and other keys do not", async () =>
   key({ key: "p", metaKey: true });
   await advance(100);
   expect(print).toHaveBeenCalledTimes(2);
+});
+
+test("the top bar's Print button (the PRINT_PAGE event) prints like ⌘P, and stops with the remover", async () => {
+  expect(PRINT_PAGE).toBe("zen:print-page");
+  article("<p>x</p>");
+  const f = fakeApi();
+  const off = installPagePrint(document, f.api, { quiet: 0 });
+  document.dispatchEvent(new CustomEvent(PRINT_PAGE));
+  await advance(100);
+  expect(print).toHaveBeenCalledTimes(1);
+  off();
+  document.dispatchEvent(new CustomEvent(PRINT_PAGE));
+  await advance(100);
+  expect(print).toHaveBeenCalledTimes(1);
 });
 
 test("a second request while one is waiting is ignored", async () => {

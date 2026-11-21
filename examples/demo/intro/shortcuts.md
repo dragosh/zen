@@ -8,6 +8,7 @@ Only the keys Zenmark has today.
 |---|---|
 | <kbd>⌘O</kbd> | open a folder |
 | <kbd>⌘N</kbd> | a [new page](editor.md#new-pages) |
+| <kbd>⌘P</kbd> | [print the page](printing.md) |
 | <kbd>⇧⌘W</kbd> | close the folder |
 | <kbd>⌘,</kbd> | Settings (<kbd>Esc</kbd> goes back) |
 | <kbd>⌘[</kbd> / <kbd>⌘]</kbd> | back / forward |

@@ -46,3 +46,4 @@ layoutOptions: { ratio: "4:3" }
 - Home and End jump to the first and last slide
 - O shows all slides, F shows the deck full page (Esc leaves)
 - Click the slide first if the sidebar has the focus
+- P prints one slide per page

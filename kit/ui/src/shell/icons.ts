@@ -1,7 +1,7 @@
 // The app's line icons, one set (ui/top-bar-actions): a 24x24 viewBox drawn at 16px, stroke currentColor,
 // width 1.5, no fill, round caps and joins. Built with DOM APIs, never innerHTML.
 
-export type IconName = "cog" | "export" | "search" | "pencil" | "panel";
+export type IconName = "cog" | "export" | "search" | "pencil" | "panel" | "printer";
 
 const SVG = "http://www.w3.org/2000/svg";
 
@@ -33,6 +33,12 @@ const SHAPES: Record<IconName, Shape[]> = {
     { tag: "rect", x: 3, y: 4, w: 18, h: 16, r: 2 },
     { tag: "path", d: "M3 13.5h18" },
     { tag: "path", d: "M6.5 15.3l2 1.6-2 1.6M11 18.6h3.5" },
+  ],
+  // a printer: the paper going in at the top, the body, and the printed sheet coming out
+  printer: [
+    { tag: "path", d: "M7 8V3.5h10V8" },
+    { tag: "rect", x: 3, y: 8, w: 18, h: 9, r: 2 },
+    { tag: "path", d: "M7 14h10v6.5H7z" },
   ],
 };
 
