@@ -66,7 +66,7 @@ export function missingImage(img: HTMLImageElement): Problem {
 
 /** What to do about a render warning the renderer is known to give; "" for any other. */
 export function warningFix(message: string): string {
-  if (/^dialect \S+ is not in this build/.test(message)) return "Settings › Markdown, or remove it from .zenmd.yml";
+  if (/^dialect \S+ is not in this build/.test(message)) return "Settings › Reader, or remove it from .zenmd.yml";
   if (/^This folder's settings are in /.test(message)) return "It is renamed the next time a folder setting is saved, or rename it yourself.";
   if (/^unknown layout\b/.test(message)) return "Settings › Layouts, or change layout: in the front matter";
   return "";

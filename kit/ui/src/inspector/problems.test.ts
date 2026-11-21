@@ -307,7 +307,7 @@ test("page warnings: the right column has the message and the Fix help for a dia
   const i = warned([DIALECT, LAYOUT, "something else"]);
   select1(i, 0);
   expect(detail(i, "message")).toBe(DIALECT);
-  expect(detail(i, "fix")).toBe("Settings › Markdown, or remove it from .zenmd.yml");
+  expect(detail(i, "fix")).toBe("Settings › Reader, or remove it from .zenmd.yml");
   select1(i, 1);
   expect(detail(i, "fix")).toBe("Settings › Layouts, or change layout: in the front matter");
   select1(i, 2);

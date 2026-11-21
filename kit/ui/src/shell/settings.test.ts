@@ -34,6 +34,20 @@ function frame(...sections: SettingsSection[]): SettingsView {
 
 // ---- 2: the frame
 
+test("a section heading stands over the items, outside the options, and not over an empty list", async () => {
+  const v = frame(listSection("things", ["Alpha", "Beta"], { heading: "Group" }), listSection("none", [], { heading: "Group", empty: "Nothing." }), listSection("plain", ["Alpha"]));
+  await settle();
+  const head = (id: string) => v.el.querySelector<HTMLElement>(`.zen-settings-panel[data-section="${id}"] .zen-settings-list-heading`);
+  expect(head("things")!.textContent).toBe("Group");
+  expect(head("things")!.getAttribute("role")).toBe("presentation");
+  expect(head("things")!.nextElementSibling).toBe(rows(v, "things")[0]);
+  expect(rows(v, "things")).toHaveLength(2); // the heading is not an option
+  expect(head("none")).toBeNull();
+  expect(head("plain")).toBeNull();
+  rows(v, "things")[1].click();
+  expect(head("things")!.textContent).toBe("Group"); // kept when the selection changes
+});
+
 test("two-column frame", async () => {
   const v = frame(listSection("things", ["Alpha", "Beta", "Gamma", "Delta"]), { id: "old", label: "Old", el: Object.assign(document.createElement("p"), { textContent: "legacy" }) });
   await settle();
