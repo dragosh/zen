@@ -201,3 +201,54 @@ func TestTopBarNoSidebar(t *testing.T) {
 	contains(t, "home", h, `zen-site-back`, `zen-site-forward`)
 	lacks(t, "home", h, "zen-site-sidebar-toggle", "<aside")
 }
+
+// export.theme.scheme: light or dark sets data-theme on the <html> of every page (the shell, the home that
+// redirects, print.html); auto, the default, leaves the page as it was (a folder without export.theme is
+// byte-identical).
+func TestShellScheme(t *testing.T) {
+	pages := func(o Options) map[string]string {
+		_, out := build(t, sidebarFake(), o)
+		got := map[string]string{}
+		for name, body := range listing(t, out) {
+			if strings.HasSuffix(name, ".html") {
+				got[name] = body
+			}
+		}
+		return got
+	}
+	plain := pages(Options{})
+	if len(plain) < 3 {
+		t.Fatalf("only %d pages", len(plain))
+	}
+	for name, body := range plain {
+		if strings.Contains(body, "data-theme") {
+			t.Errorf("%s: auto has data-theme", name)
+		}
+	}
+	for _, scheme := range []string{"", "auto"} {
+		for name, body := range pages(Options{Scheme: scheme}) {
+			if body != plain[name] {
+				t.Errorf("scheme %q changes %s", scheme, name)
+			}
+		}
+	}
+	for _, scheme := range []string{"light", "dark"} {
+		got := pages(Options{Scheme: scheme})
+		if len(got) != len(plain) {
+			t.Fatalf("%s: %d pages, want %d", scheme, len(got), len(plain))
+		}
+		for name, body := range got {
+			if !regexp.MustCompile(`<html lang="[^"]*" data-theme="` + scheme + `">`).MatchString(body) {
+				t.Errorf("%s %s: no data-theme=%q on <html>", scheme, name, scheme)
+			}
+			if strings.Count(body, "data-theme") != 1 {
+				t.Errorf("%s %s: data-theme appears %d times", scheme, name, strings.Count(body, "data-theme"))
+			}
+		}
+	}
+	// An empty site (the plain "No pages yet" home) is themed too.
+	_, out := build(t, newFake(), Options{Scheme: "dark"})
+	if !strings.Contains(read(t, out, "index.html"), `data-theme="dark"`) {
+		t.Error("the plain home has no data-theme")
+	}
+}

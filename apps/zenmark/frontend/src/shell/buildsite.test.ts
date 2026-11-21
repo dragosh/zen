@@ -3,7 +3,7 @@ import { beforeEach, expect, test, vi } from "vitest";
 import { createBuildForm, lastBuild, registerBuildSite, type BuildApi, type BuildOptions, type BuildProgress, type BuildResult } from "./buildsite";
 
 const ROOT = "/Users/me/site";
-const OPTIONS: BuildOptions = { out: `${ROOT}/_site`, portable: true, drafts: false, clean: false, print: true };
+const OPTIONS: BuildOptions = { out: `${ROOT}/_site`, portable: true, drafts: false, clean: false, print: true, scheme: "auto" };
 const RESULT: BuildResult = { out: `${ROOT}/_site`, pages: 34, files: 19, warnings: [], millis: 1234, cancelled: false };
 
 /** A local fake of the build part of the api; buildWebsite waits until the test finishes it. */
@@ -75,7 +75,7 @@ test("the form is in the page, not a dialog, and is filled from buildOptions: ou
   expect(d.el.getAttribute("aria-modal")).toBeNull();
   expect(d.el.querySelector(".zen-buildsite-title")).toBeNull(); // the title is Settings' h3
   expect(q<HTMLInputElement>(".zen-buildsite-out").value).toBe("_site");
-  const radios = Array.from(d.el.querySelectorAll<HTMLInputElement>("input[type=radio]"));
+  const radios = Array.from(d.el.querySelectorAll<HTMLInputElement>("[data-field=opens] input[type=radio]"));
   expect(radios.map((r) => [r.value, r.checked])).toEqual([["portable", true], ["hosted", false]]);
   const boxes = Array.from(d.el.querySelectorAll<HTMLInputElement>("input[type=checkbox]"));
   expect(boxes.map((b) => [b.name, b.checked])).toEqual([["drafts", false], ["clean", false], ["print", true]]);
@@ -120,7 +120,7 @@ test("Export passes the options, shows progress with Cancel, and disables the fo
   d.el.querySelector<HTMLInputElement>("input[name=drafts]")!.click();
   btn("Export").click();
   await settle();
-  expect(f.to("buildWebsite")[0].args[0]).toEqual({ out: `${ROOT}/docs/out`, portable: false, drafts: true, clean: false, print: true });
+  expect(f.to("buildWebsite")[0].args[0]).toEqual({ out: `${ROOT}/docs/out`, portable: false, drafts: true, clean: false, print: true, scheme: "auto" });
   const bar = q("[role=progressbar]");
   expect(q(".zen-buildsite-progress-text").textContent).toBe("Building…");
   f.progress({ done: 12, total: 34 });
@@ -297,4 +297,40 @@ test("the default output is exports/html: before the options arrive, and for an 
   btn("Export").click();
   await settle();
   expect(f2.to("buildWebsite")[0].args[0]).toMatchObject({ out: `${ROOT}/exports/html` });
+});
+
+// The Theme row (engine/export-cli-parity): Auto, Light (white) or Dark (black), a radio group of the shared form pieces,
+// filled from the folder's export.theme.scheme, built with, and saved by Save as folder defaults.
+test("Theme: a radio group Auto, Light (white), Dark (black); auto by default, filled from the options, passed to the build and the save", async () => {
+  const { f, d, btn } = await open();
+  const group = d.el.querySelector<HTMLElement>("[data-field=scheme]")!;
+  expect(group.getAttribute("role")).toBe("radiogroup");
+  const label = document.getElementById(group.getAttribute("aria-labelledby")!)!;
+  expect(label.textContent).toBe("Theme");
+  const radios = Array.from(group.querySelectorAll<HTMLInputElement>("input[type=radio]"));
+  expect(radios.map((r) => [r.value, r.checked])).toEqual([["auto", true], ["light", false], ["dark", false]]);
+  expect(Array.from(group.querySelectorAll(".zen-buildsite-choice-name")).map((n) => n.textContent)).toEqual(["Auto", "Light (white)", "Dark (black)"]);
+  // The same pieces as the other radio group: one class for the group and one for each choice.
+  expect(group.className).toBe(d.el.querySelector("[data-field=opens]")!.className);
+  radios[2].click();
+  btn("Export").click();
+  await settle();
+  expect(f.to("buildWebsite")[0].args[0]).toMatchObject({ scheme: "dark" });
+  f.finish(RESULT);
+  await settle();
+  btn("Build Again").click();
+  btn("Save as folder defaults").click();
+  await settle();
+  expect(f.to("saveBuildDefaults")[0].args).toEqual([expect.objectContaining({ scheme: "auto" }), false]);
+});
+
+test("Theme: the folder's scheme is shown, and the radios are locked while building", async () => {
+  const { f, d, btn } = await open({ buildOptions: () => Promise.resolve({ ...OPTIONS, scheme: "light" }) });
+  await settle();
+  const radios = Array.from(d.el.querySelectorAll<HTMLInputElement>("[data-field=scheme] input[type=radio]"));
+  expect(radios.map((r) => r.checked)).toEqual([false, true, false]);
+  btn("Export").click();
+  await settle();
+  expect(radios.every((r) => r.disabled)).toBe(true);
+  f.finish(RESULT);
 });
