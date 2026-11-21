@@ -46,6 +46,10 @@ func TestExportPDFKeyErrors(t *testing.T) {
 		"export:\n  pdf:\n    drafts: x\n":    "export.pdf.drafts must be true or false",
 		"export:\n  pdf:\n    cover: 1\n":     "export.pdf.cover must be true or false",
 		"export:\n  pdf:\n    open: \"no\"\n": "export.pdf.open must be true or false",
+		// A settings file never aims the PDF outside the folder: only a place the user picks may (the form, -o).
+		"export:\n  pdf:\n    out: /tmp/x.pdf\n":        "export.pdf.out must be a path inside the folder, such as exports/pdf/guide.pdf",
+		"export:\n  pdf:\n    out: ../x.pdf\n":          "export.pdf.out must be a path inside the folder, such as exports/pdf/guide.pdf",
+		"export:\n  pdf:\n    out: exports/../../x.pdf\n": "export.pdf.out must be a path inside the folder, such as exports/pdf/guide.pdf",
 	} {
 		_, err := loadKeys(t, "", in).PDF()
 		if err == nil || err.Error() != want {
