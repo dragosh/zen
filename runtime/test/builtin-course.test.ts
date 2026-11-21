@@ -233,3 +233,118 @@ test("a step in the list has its title in its own element, so a wrapped title li
   expect(link.querySelector(".course-step-title")!.textContent).toBe("Install");
   expect(link.textContent).toBe("Install");
 });
+
+// ---- Skip step (#13) ----
+const skip = async (w: HTMLElement) => { btn(w, "course-skip").click(); await settle(); };
+
+test("Skip step is a quiet button after Next in tab order", async () => {
+  const w = await render();
+  const s = btn(w, "course-skip");
+  expect(s.textContent).toBe("Skip step");
+  expect(s.classList.contains("zen-btn")).toBe(true);
+  expect(s.classList.contains("zen-btn-quiet")).toBe(true);
+  const all = Array.from(w.querySelectorAll("button"));
+  expect(all.indexOf(s)).toBeGreaterThan(all.indexOf(btn(w, "course-next")));
+});
+
+test("skip unlocks the next step and marks the skipped one", async () => {
+  const w = await render();
+  expect(btn(w, "course-next").disabled).toBe(true); // gated, yet skippable
+  await skip(w);
+  expect(open(w)).toBe(1);
+  expect(states(w)).toEqual(["skipped", "current", "locked"]);
+  const items = Array.from(w.querySelectorAll<HTMLButtonElement>(".course-steps button"));
+  expect(items[0].disabled).toBe(false);
+  await skip(w);
+  expect(open(w)).toBe(2);
+  expect(states(w)).toEqual(["skipped", "skipped", "current"]);
+});
+
+test("the count and bar ignore skipped steps; the header adds the skipped number", async () => {
+  const w = await render();
+  expect(count(w)).toBe("0 of 3 steps");
+  await skip(w);
+  expect(count(w)).toBe("0 of 3 steps · 1 skipped");
+  expect(w.querySelector<HTMLElement>(".course-progress-fill")!.style.width).toBe("0%");
+  expect(badges.at(-1)).toEqual([PATH, "0/3"]);
+  await tick(boxes(w, 1)[0]);
+  await tick(boxes(w, 1)[1]);
+  await next(w);
+  expect(count(w)).toBe("1 of 3 steps · 1 skipped");
+  expect(w.querySelector<HTMLElement>(".course-progress-fill")!.style.width).toBe(`${(1 / 3) * 100}%`);
+});
+
+test("a finished step has no Skip step button", async () => {
+  const w = await render();
+  await tick(boxes(w, 0)[0]);
+  await next(w);
+  btn(w, "course-prev").click();
+  await settle();
+  expect(open(w)).toBe(0);
+  expect(btn(w, "course-skip").hidden).toBe(true);
+  btn(w, "course-next").click();
+  await settle();
+  expect(btn(w, "course-skip").hidden).toBe(false);
+});
+
+test("skipped steps are saved and restored", async () => {
+  let w = await render();
+  await skip(w);
+  expect(stored("intro").skipped).toEqual([0]);
+  expect(stored("intro").done).toEqual([]);
+  w = await render();
+  expect(states(w)).toEqual(["skipped", "current", "locked"]);
+  expect(open(w)).toBe(1);
+  expect(count(w)).toBe("0 of 3 steps · 1 skipped");
+});
+
+test("ticking every box of a skipped step makes it done", async () => {
+  const w = await render();
+  await skip(w);
+  btn(w, "course-prev").click();
+  await settle();
+  expect(open(w)).toBe(0);
+  await tick(boxes(w, 0)[0]);
+  expect(states(w)[0]).toBe("done");
+  expect(count(w)).toBe("1 of 3 steps");
+  expect(stored("intro").skipped).toEqual([]);
+  expect(stored("intro").done).toEqual([0]);
+});
+
+test("Next on a skipped step without a checklist makes it done; Finish works with skips", async () => {
+  const w = await render();
+  await skip(w);
+  await skip(w);
+  expect(open(w)).toBe(2);
+  expect(btn(w, "course-next").textContent).toBe("Finish");
+  await next(w);
+  expect(states(w)).toEqual(["skipped", "skipped", "done"]);
+  expect(count(w)).toBe("1 of 3 steps · 2 skipped");
+  // a step without a checklist, skipped, then Next
+  const w2 = await render("<h2>A</h2><p>x</p><h2>B</h2><p>y</p>", { id: "plain" });
+  await skip(w2);
+  btn(w2, "course-prev").click();
+  await settle();
+  await next(w2);
+  expect(states(w2)).toEqual(["done", "current"]);
+});
+
+test("Reset clears skipped steps", async () => {
+  const w = await render();
+  await skip(w);
+  btn(w, "course-reset").click();
+  await settle();
+  expect(states(w)).toEqual(["current", "locked", "locked"]);
+  expect(count(w)).toBe("0 of 3 steps");
+  expect(stored("intro").skipped).toEqual([]);
+});
+
+test("a stored skipped with bad entries is filtered", async () => {
+  await api.layoutStorageSet("course", "intro", JSON.stringify({ step: 0, done: [0], skipped: [0, 1, 1.5, -1, 9, "x", null] }));
+  const w = await render();
+  expect(states(w)[0]).toBe("done"); // done wins over skipped
+  expect(states(w)[1]).toBe("skipped");
+  expect(count(w)).toBe("1 of 3 steps · 1 skipped");
+  await api.layoutStorageSet("course", "intro", JSON.stringify({ step: 0, skipped: "nope" }));
+  expect(states(await render())).toEqual(["current", "locked", "locked"]);
+});
