@@ -372,6 +372,61 @@ func (s *Session) CancelBuild() {
 // text either way.
 func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (r0 string, err error) {
 	defer s.logFail("SaveBuildDefaults", &err)
+	return s.editExport(confirm, "Nothing to change: .zenmd.yml already has these export defaults.", func(root string, exp *yaml.Node) []exportChange {
+		out := o.Out
+		if out == "" {
+			out = config.DefaultExportOut
+		}
+		if abs := absOut(root, out); !strings.HasPrefix(abs, root+string(filepath.Separator)) {
+			out = abs
+		} else {
+			out, _ = filepath.Rel(root, abs)
+			out = filepath.ToSlash(out)
+		}
+		return setExportKeys(exp, "export.", []exportKey{
+			{"out", out, "!!str"},
+			{"portable", strconv.FormatBool(o.Portable), "!!bool"},
+			{"drafts", strconv.FormatBool(o.Drafts), "!!bool"},
+		})
+	})
+}
+
+// exportKey is a key of an export mapping to set, with its YAML tag.
+type exportKey struct{ key, val, tag string }
+
+// exportChange is one key setExportKeys changed or added.
+type exportChange struct {
+	key, was, now string
+	existed       bool
+}
+
+// setExportKeys sets the keys in the mapping m and returns what changed; a key
+// that already has the value (an out path compared cleaned) is left alone.
+func setExportKeys(m *yaml.Node, prefix string, want []exportKey) []exportChange {
+	var changes []exportChange
+	for _, w := range want {
+		cur := mapValue(m, w.key)
+		if cur != nil {
+			same := cur.Value == w.val || w.key == "out" && filepath.ToSlash(filepath.Clean(cur.Value)) == w.val
+			if same {
+				continue
+			}
+			changes = append(changes, exportChange{prefix + w.key, cur.Value, w.val, true})
+			cur.Value, cur.Tag, cur.Style = w.val, w.tag, 0
+			continue
+		}
+		changes = append(changes, exportChange{prefix + w.key, "", w.val, false})
+		setKey(m, w.key, scalar(w.val, w.tag))
+	}
+	return changes
+}
+
+// editExport edits the export: mapping of the folder's .zenmd.yml (made when
+// there is none) with edit, and returns the preview text of what changed, or
+// nothing when there is none to change. With confirm it also writes the file
+// atomically; the YAML tree keeps the comments and the other keys. A first
+// write moves an old settings file to the new name.
+func (s *Session) editExport(confirm bool, nothing string, edit func(root string, exp *yaml.Node) []exportChange) (string, error) {
 	if err := s.writable(); err != nil {
 		return "", err
 	}
@@ -401,46 +456,19 @@ func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (r0 string, er
 	if fresh {
 		setKey(top, "version", scalar("1", "!!int"))
 	}
-	build, renamed, err := exportSection(top)
+	exp, renamed, err := exportSection(top)
 	if err != nil {
 		return "", err
 	}
-
-	out := o.Out
-	if out == "" {
-		out = config.DefaultExportOut
-	}
-	if abs := absOut(root, out); !strings.HasPrefix(abs, root+string(filepath.Separator)) {
-		out = abs
-	} else {
-		out, _ = filepath.Rel(root, abs)
-		out = filepath.ToSlash(out)
-	}
-	type change struct{ key, was, now string }
-	var changes []change
-	want := []struct{ key, val, tag string }{
-		{"out", out, "!!str"},
-		{"portable", strconv.FormatBool(o.Portable), "!!bool"},
-		{"drafts", strconv.FormatBool(o.Drafts), "!!bool"},
+	changes := edit(root, exp)
+	if len(changes) == 0 && !renamed {
+		return nothing, nil
 	}
 	added := true
-	for _, w := range want {
-		cur := mapValue(build, w.key)
-		if cur != nil {
-			same := cur.Value == w.val || w.key == "out" && filepath.ToSlash(filepath.Clean(cur.Value)) == w.val
-			if same {
-				continue
-			}
+	for _, c := range changes {
+		if c.existed {
 			added = false
-			changes = append(changes, change{w.key, cur.Value, w.val})
-			cur.Value, cur.Tag, cur.Style = w.val, w.tag, 0
-			continue
 		}
-		changes = append(changes, change{w.key, "", w.val})
-		setKey(build, w.key, scalar(w.val, w.tag))
-	}
-	if len(changes) == 0 && !renamed {
-		return "Nothing to change: .zenmd.yml already has these export defaults.", nil
 	}
 	var sb strings.Builder
 	if added && !renamed {
@@ -452,7 +480,7 @@ func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (r0 string, er
 		sb.WriteString("\n  build: becomes export: (its values move with it)")
 	}
 	for _, c := range changes {
-		sb.WriteString("\n  export." + c.key + ": " + c.now)
+		sb.WriteString("\n  " + c.key + ": " + c.now)
 		if c.was != "" {
 			sb.WriteString("  (was " + c.was + ")")
 		}
@@ -484,6 +512,81 @@ func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (r0 string, er
 		return "", err
 	}
 	return preview, nil
+}
+
+// PDFOptions are what the PDF form shows and the export uses.
+type PDFOptions struct {
+	Out    string `json:"out"` // absolute from PDFDefaults; the form may send a path relative to the folder
+	Drafts bool   `json:"drafts"`
+	Cover  bool   `json:"cover"` // the cover sheet and the table of contents
+	Open   bool   `json:"open"`  // open the file when done
+}
+
+// PDFRun is a PDF export or preview of the form: the options, and whether it
+// is only the page that was open and the pages under it.
+type PDFRun struct {
+	PDFOptions
+	Section bool `json:"section"`
+}
+
+// PDFDefaults returns the form's starting values for the open folder: the
+// export.pdf section of the config files, over the defaults.
+func (s *Session) PDFDefaults() (r0 PDFOptions, err error) {
+	defer s.logFail("PDFDefaults", &err)
+	root, err := s.buildFolder()
+	if err != nil {
+		return PDFOptions{}, err
+	}
+	p, err := config.Load(s.globalPath, root).PDF()
+	if err != nil {
+		return PDFOptions{}, err
+	}
+	out, err := config.ResolvePDFOut(root, p.Out)
+	if err != nil {
+		return PDFOptions{}, err
+	}
+	return PDFOptions{Out: out, Drafts: p.Drafts, Cover: p.CoverOn(), Open: p.OpenOn()}, nil
+}
+
+// SavePDFDefaults writes the options into export.pdf of the folder's
+// .zenmd.yml, as SaveBuildDefaults does for the website: the rest of export:
+// and the file's comments stay. Without confirm it only returns the preview.
+func (s *Session) SavePDFDefaults(o PDFOptions, confirm bool) (r0 string, err error) {
+	defer s.logFail("SavePDFDefaults", &err)
+	if err := s.writable(); err != nil {
+		return "", err
+	}
+	root, err := s.buildFolder()
+	if err != nil {
+		return "", err
+	}
+	if _, err := config.ResolvePDFOut(root, o.Out); err != nil {
+		return "", err
+	}
+	return s.editExport(confirm, "Nothing to change: .zenmd.yml already has these PDF defaults.", func(root string, exp *yaml.Node) []exportChange {
+		out := ""
+		if abs, err := config.ResolvePDFOut(root, o.Out); err == nil {
+			if rel, err := filepath.Rel(root, abs); err == nil && rel != ".." && !strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+				abs = rel
+			}
+			out = filepath.ToSlash(abs)
+		}
+		pdf := mapValue(exp, "pdf")
+		if pdf == nil || pdf.Kind != yaml.MappingNode {
+			pdf = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+			setKey(exp, "pdf", pdf)
+		}
+		changes := setExportKeys(pdf, "export.pdf.", []exportKey{
+			{"out", out, "!!str"},
+			{"drafts", strconv.FormatBool(o.Drafts), "!!bool"},
+			{"cover", strconv.FormatBool(o.Cover), "!!bool"},
+			{"open", strconv.FormatBool(o.Open), "!!bool"},
+		})
+		if len(changes) == 0 && len(pdf.Content) == 0 { // nothing was needed: do not leave an empty pdf:
+			deleteKey(exp, "pdf")
+		}
+		return changes
+	})
 }
 
 // exportSection returns the export: mapping of the top-level mapping, creating

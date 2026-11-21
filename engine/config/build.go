@@ -36,6 +36,19 @@ func (c *Config) mergeBuild(v any) {
 		c.build = map[string]any{}
 	}
 	for k, x := range m {
+		// pdf: is a mapping of its own; the folder's keys win one by one there too.
+		if pm, ok := x.(map[string]any); ok && k == "pdf" {
+			if old, ok := c.build[k].(map[string]any); ok {
+				merged := map[string]any{}
+				for ok2, ov := range old {
+					merged[ok2] = ov
+				}
+				for pk, pv := range pm {
+					merged[pk] = pv
+				}
+				x = merged
+			}
+		}
 		c.build[k] = x
 	}
 }
@@ -81,6 +94,8 @@ func (c *Config) Build() (Build, []string, error) {
 			if err = str(k, &b.ID); err == nil && !siteIDRE.MatchString(b.ID) {
 				err = errors.New("export.id must be 1 to 64 letters, digits, '.', '_' or '-'")
 			}
+		case "pdf":
+			// read by PDF()
 		case "editURL":
 			err = str(k, &b.EditURL)
 		case "drafts":

@@ -160,6 +160,14 @@ func requireFeature(id string) error {
 	return nil
 }
 
+// requireExportPDF is the gate of the PDF form's services: the export and print features.
+func requireExportPDF() error {
+	if err := requireFeature("export"); err != nil {
+		return err
+	}
+	return requireFeature("print")
+}
+
 // readOnlyBuild reports whether this build leaves out the editor feature
 // (app-assembly.yml): the app is then a reader and never changes the folder.
 func readOnlyBuild() bool { return !slices.Contains(assemblyInfo.Features, "editor") }
@@ -427,4 +435,21 @@ func (z *Zen) SaveBuildDefaults(o BuildOptions, confirm bool) (string, error) {
 		return "", err
 	}
 	return z.s.SaveBuildDefaults(o, confirm)
+}
+
+// PDFDefaults returns the PDF form's starting values for the open folder.
+func (z *Zen) PDFDefaults() (PDFOptions, error) {
+	if err := requireFeature("export"); err != nil {
+		return PDFOptions{}, err
+	}
+	return z.s.PDFDefaults()
+}
+
+// SavePDFDefaults writes the options into export.pdf of the folder's
+// .zenmd.yml; without confirm it only returns the preview text.
+func (z *Zen) SavePDFDefaults(o PDFOptions, confirm bool) (string, error) {
+	if err := requireFeature("export"); err != nil {
+		return "", err
+	}
+	return z.s.SavePDFDefaults(o, confirm)
 }

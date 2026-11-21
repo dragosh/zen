@@ -157,7 +157,7 @@ Usage:
   zenmd export site [folder]
                         build a static website; options below
   zenmd export pdf [folder] [-o file.pdf]
-                        write the whole folder as one PDF file
+                        write the whole folder as one PDF file; options below
   zenmd build [folder]  same as export site
   zenmd init site [--techdocs|--learning|--planner] [folder]
                         start a folder from a site template; options below
@@ -176,6 +176,10 @@ Init options:
 
 Export pdf options:
   -o, --out <file>    output file (default: exports/pdf/<folder name>.pdf)
+  --drafts            include pages with "draft: true"
+  --section <page>    only this page and the pages under it
+  --no-cover          leave out the cover and the contents
+  The folder's export.pdf in .zenmd.yml (out, drafts, cover) gives the defaults.
 
 Build options (export site, build):
   -o, --out <dir>     output folder (default: exports/html in the folder)

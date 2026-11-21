@@ -41,10 +41,10 @@ func TestExportPDFKeysMerge(t *testing.T) {
 // A wrong type names the key; an unknown key is a warning of Build-style, not an error.
 func TestExportPDFKeyErrors(t *testing.T) {
 	for in, want := range map[string]string{
-		"export:\n  pdf: yes\n":              "export.pdf must be a mapping",
-		"export:\n  pdf:\n    out: 3\n":      "export.pdf.out must be text",
-		"export:\n  pdf:\n    drafts: x\n":   "export.pdf.drafts must be true or false",
-		"export:\n  pdf:\n    cover: 1\n":    "export.pdf.cover must be true or false",
+		"export:\n  pdf: yes\n":               "export.pdf must be a mapping",
+		"export:\n  pdf:\n    out: 3\n":       "export.pdf.out must be text",
+		"export:\n  pdf:\n    drafts: x\n":    "export.pdf.drafts must be true or false",
+		"export:\n  pdf:\n    cover: 1\n":     "export.pdf.cover must be true or false",
 		"export:\n  pdf:\n    open: \"no\"\n": "export.pdf.open must be true or false",
 	} {
 		_, err := loadKeys(t, "", in).PDF()

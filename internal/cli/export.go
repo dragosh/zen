@@ -8,7 +8,6 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"unicode"
 
 	"github.com/zenmark-org/zenmd/engine/config"
 )
@@ -17,6 +16,12 @@ import (
 type ExportPDF struct {
 	Dir string // absolute folder
 	Out string // absolute output file; the default is DefaultPDFOut(Dir)
+
+	Drafts  bool   // include pages with draft: true (export.pdf.drafts, --drafts)
+	Section string // only this page and the pages under it ("" for all)
+	NoCover bool   // leave out the cover and the contents (export.pdf.cover: false, --no-cover)
+	// MakeDir: the output folder is made when missing (the default, or export.pdf.out); with -o it is the user's to make.
+	MakeDir bool
 }
 
 // PDFExporter writes the PDF. It prints "Wrote <path> (<n> pages)" to stdout and
@@ -24,22 +29,8 @@ type ExportPDF struct {
 // no file was written. Return UsageError for a wrong request (exit 2).
 type PDFExporter func(ExportPDF, io.Writer, io.Writer) error
 
-// PDFName is the default file name of the PDF of a folder called name: the name with
-// path separators and control characters replaced, never empty, never a hidden file, plus ".pdf".
-func PDFName(name string) string {
-	name = strings.Trim(name, `/\`)
-	name = strings.Map(func(r rune) rune {
-		if r == '/' || r == '\\' || unicode.IsControl(r) {
-			return '-'
-		}
-		return r
-	}, name)
-	name = strings.Trim(strings.TrimSpace(name), ". ")
-	if name == "" {
-		name = "export"
-	}
-	return name + ".pdf"
-}
+// PDFName is the default file name of the PDF of a folder called name (config.PDFName).
+func PDFName(name string) string { return config.PDFName(name) }
 
 // DefaultPDFOut is where the PDF of dir goes without -o: exports/pdf inside
 // it, named after it. The folder is created by whoever writes the file.
@@ -92,6 +83,8 @@ func runExport(args []string, cwd string, stdout, stderr io.Writer, build Builde
 func runExportPDF(args []string, cwd string, stdout, stderr io.Writer, pdf PDFExporter) int {
 	var paths []string
 	out, hasOut, flags := "", false, true
+	var drafts, noCover bool
+	section := ""
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
 		switch {
@@ -100,6 +93,21 @@ func runExportPDF(args []string, cwd string, stdout, stderr io.Writer, pdf PDFEx
 		case flags && (arg == "-h" || arg == "--help"):
 			fmt.Fprint(stdout, usage)
 			return 0
+		case flags && arg == "--drafts":
+			drafts = true
+		case flags && arg == "--no-cover":
+			noCover = true
+		case flags && arg == "--section":
+			if i+1 >= len(args) {
+				return fail(stderr, usageError("--section needs a page"))
+			}
+			i++
+			section = args[i]
+		case flags && strings.HasPrefix(arg, "--section="):
+			_, section, _ = strings.Cut(arg, "=")
+			if section == "" {
+				return fail(stderr, usageError("--section needs a page"))
+			}
 		case flags && (arg == "-o" || arg == "--out"):
 			if i+1 >= len(args) {
 				return fail(stderr, usageError(arg+" needs a file name"))
@@ -139,7 +147,24 @@ func runExportPDF(args []string, cwd string, stdout, stderr io.Writer, pdf PDFEx
 		return fail(stderr, errors.New(shown+": export takes a folder, not a file"))
 	}
 
+	// The folder's export.pdf gives the defaults; the flags win.
+	gp, _ := config.GlobalPath()
+	pc, err := config.Load(gp, e.Dir).PDF()
+	if err != nil {
+		return fail(stderr, err)
+	}
+	e.Drafts = drafts || pc.Drafts
+	e.NoCover = noCover || !pc.CoverOn()
+	e.Section = section
+	e.MakeDir = !hasOut
 	e.Out = DefaultPDFOut(e.Dir)
+	if !hasOut && pc.Out != "" {
+		o, err := config.ResolvePDFOut(e.Dir, pc.Out)
+		if err != nil {
+			return fail(stderr, errors.New("export.pdf.out: "+err.Error()))
+		}
+		e.Out = o
+	}
 	if hasOut {
 		e.Out = out
 		if !filepath.IsAbs(e.Out) {

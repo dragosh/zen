@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -33,6 +34,9 @@ type headlessPlan struct {
 	Out     string
 	Name    string // the folder's name
 	Timeout time.Duration
+	Drafts  bool
+	Section string // only this page and the pages under it
+	NoCover bool
 }
 
 func planHeadless(e cli.ExportPDF, name string) headlessPlan {
@@ -40,13 +44,13 @@ func planHeadless(e cli.ExportPDF, name string) headlessPlan {
 	if out == "" {
 		out = cli.DefaultPDFOut(e.Dir)
 	}
-	return headlessPlan{Out: out, Name: name, Timeout: headlessTimeout}
+	return headlessPlan{Out: out, Name: name, Timeout: headlessTimeout, Drafts: e.Drafts, Section: e.Section, NoCover: e.NoCover}
 }
 
 // ensurePDFDir creates the default exports/pdf folder when the PDF goes there;
 // with -o the folder is the user's to make.
 func ensurePDFDir(e cli.ExportPDF, out string) error {
-	if e.Out != "" && e.Out != cli.DefaultPDFOut(e.Dir) {
+	if e.Out != "" && !e.MakeDir && e.Out != cli.DefaultPDFOut(e.Dir) {
 		return nil
 	}
 	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
@@ -55,12 +59,27 @@ func ensurePDFDir(e cli.ExportPDF, out string) error {
 	return nil
 }
 
+// query is the options of the export as the preview window reads them.
+func (p headlessPlan) query() string {
+	b := func(v bool) string {
+		if v {
+			return "1"
+		}
+		return "0"
+	}
+	pages := "all"
+	if p.Section != "" {
+		pages = "section"
+	}
+	return "&drafts=" + b(p.Drafts) + "&cover=" + b(!p.NoCover) + "&pages=" + pages + "&page=" + url.QueryEscape(p.Section)
+}
+
 // windowOptions is the one hidden window, at the print preview's export mode.
 func (p headlessPlan) windowOptions() application.WebviewWindowOptions {
 	return application.WebviewWindowOptions{
 		Name:   printWindowName,
 		Title:  p.Name + " — Print",
-		URL:    "/?window=" + printWindowName + "&export=1&page=",
+		URL:    "/?window=" + printWindowName + "&export=1" + p.query(),
 		Width:  printWindowWidth,
 		Height: printWindowHeight,
 		Hidden: true,
