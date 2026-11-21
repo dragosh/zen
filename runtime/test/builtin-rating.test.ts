@@ -235,3 +235,13 @@ test("results list each rating with page link, question, stars and date", async 
   expect(w.textContent).toContain("<b>Guide</b>");
   expect(w.textContent).toContain("★★☆");
 });
+
+test("controls carry the plugin kit classes", async () => {
+  const w = render();
+  await settle();
+  expect(w.querySelector("fieldset")!.classList.contains("zen-block")).toBe(true);
+  expect(w.querySelector("legend")!.classList.contains("zen-block-head")).toBe(true);
+  const c = clearBtn(w)!;
+  expect(c.classList.contains("zen-btn")).toBe(true);
+  expect(c.classList.contains("zen-btn-quiet")).toBe(true);
+});

@@ -213,3 +213,23 @@ test("the stylesheet uses only the app's colours", () => {
   const css = readFileSync(join(ASSETS, "course.css"), "utf8");
   expect(css).not.toMatch(/#[0-9a-f]{3,8}\b|rgb\(|hsl\(/i);
 });
+
+test("controls carry the plugin kit classes", async () => {
+  const w = await render();
+  expect(btn(w, "course-next").classList.contains("zen-btn")).toBe(true);
+  expect(btn(w, "course-next").classList.contains("zen-btn-primary")).toBe(true);
+  expect(btn(w, "course-prev").classList.contains("zen-btn")).toBe(true);
+  expect(btn(w, "course-prev").classList.contains("zen-btn-primary")).toBe(false);
+  expect(btn(w, "course-reset").classList.contains("zen-btn-quiet")).toBe(true);
+  for (const c of Array.from(w.querySelectorAll('[data-zen-name="check"]'))) {
+    expect(c.classList.contains("zen-block")).toBe(true);
+    expect(Array.from(c.querySelectorAll("li")).every((li) => li.classList.contains("zen-choice"))).toBe(true);
+  }
+});
+
+test("a step in the list has its title in its own element, so a wrapped title lines up", async () => {
+  const w = await render();
+  const link = w.querySelector(".course-steps .course-step-link")!;
+  expect(link.querySelector(".course-step-title")!.textContent).toBe("Install");
+  expect(link.textContent).toBe("Install");
+});
