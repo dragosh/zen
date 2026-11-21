@@ -12,7 +12,7 @@ page can never inject scripts into it.
 |---|---|---|
 | [codeblock](codeblock.md) | colours code blocks, adds Copy and Wrap buttons | yes |
 | [diagram](diagram.md) | draws mermaid diagrams | yes |
-| [check](check.md) | a checklist block you can tick | yes |
+| [check](check.md) | a checklist block | yes |
 
 Settings has a **Plugins** section that lists them with help and snippets to
 copy into a page; see [Settings](../configuration/settings.md).

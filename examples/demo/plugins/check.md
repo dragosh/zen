@@ -3,7 +3,8 @@ title: Checklists
 ---
 # Checklists
 
-A `check` block holds a checklist: a plain list of boxes to tick.
+A `check` block holds a checklist. The boxes show what the markdown says,
+ticked (`[x]`) or not (`[ ]`); clicking them does nothing.
 
 ## Syntax
 
