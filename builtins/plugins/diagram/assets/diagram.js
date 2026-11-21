@@ -64,8 +64,12 @@ export async function renderOne(el, mermaid) {
 function showError(el, err) {
   const box = (el.ownerDocument || document).createElement("div");
   box.className = "zen-plugin-error";
-  box.textContent = "diagram: " + (err && err.message ? err.message : String(err));
+  const msg = err && err.message ? err.message : String(err);
+  box.textContent = "diagram: " + msg;
   el.append(box);
+  // The Console shows the page's console, so a broken diagram leaves a line there too.
+  const first = ("diagram: " + msg).split("\n")[0];
+  console.warn(first.length > 200 ? first.slice(0, 199) + "…" : first);
 }
 
 /** Renders every not-yet-rendered diagram under root. */

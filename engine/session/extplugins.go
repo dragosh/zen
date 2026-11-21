@@ -14,8 +14,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/zenmark-org/zenmd/engine/extplugins"
 	"github.com/zenmark-org/zenmd/engine/plugins"
@@ -799,6 +801,23 @@ func (p pluginStore) Keys(prefix string) ([]string, error) {
 	return p.s.PluginStorageKeys(p.id, prefix)
 }
 
+// opOf is " <op>" for a payload whose op field is a string of 1 to 20 letters,
+// digits or "-", and "" otherwise. It is all the log learns of a payload.
+func opOf(payload string) string {
+	var p struct {
+		Op string `json:"op"`
+	}
+	if json.Unmarshal([]byte(payload), &p) != nil || p.Op == "" || len(p.Op) > 20 {
+		return ""
+	}
+	for _, r := range p.Op {
+		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || r == '-') {
+			return ""
+		}
+	}
+	return " " + p.Op
+}
+
 // PluginInvoke runs a plugin's action hook (a built-in ActionHook, or an
 // external backend with ZEN_HOOK=action) with a JSON payload and returns the
 // JSON it answers ("null" for no output).
@@ -818,7 +837,9 @@ func (s *Session) PluginInvoke(id, page, payload string) (r0 string, err error) 
 	if !ok {
 		return "", fmt.Errorf("plugin %q does not declare the action hook", id)
 	}
+	started := time.Now()
 	out, err := h.Action(t.ctx, []byte(payload))
+	plugins.Log(id, slog.LevelDebug, "action"+opOf(payload)+" ("+strconv.FormatInt(time.Since(started).Milliseconds(), 10)+" ms)")
 	if err != nil {
 		slog.Warn("plugin "+id+": "+err.Error(), "source", "plugin")
 		return "", fmt.Errorf("plugin %q: %v", id, err)

@@ -26,6 +26,7 @@ import (
 	"html"
 	"io"
 	"io/fs"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -220,8 +221,10 @@ func (plugin) Action(ctx plugins.Context, payload []byte) ([]byte, error) {
 	if req.Op != "status" {
 		return nil, fmt.Errorf("unknown op %q", req.Op)
 	}
+	state := serviceState(context.Background())
+	plugins.Log("sandbox", slog.LevelDebug, "service "+state)
 	return json.Marshal(map[string]any{
-		"service": serviceState(context.Background()),
+		"service": state,
 		"images":  sortedKeys(images(ctx)),
 	})
 }
@@ -274,11 +277,14 @@ func (plugin) Stream(c context.Context, ctx plugins.Context, payload []byte, emi
 
 	switch serviceState(c) {
 	case "missing":
+		plugins.Log("sandbox", slog.LevelWarn, "the container tool is not installed")
 		return fmt.Errorf("Apple's container tool is not installed (looked for %s). Install it, then run `container system start` in a terminal.", ContainerPath)
 	case "stopped":
+		plugins.Log("sandbox", slog.LevelWarn, "the container service is not running")
 		return errors.New("the container service is not running. Run `container system start` in a terminal, then try again")
 	}
 	if c.Err() != nil {
+		logStop(c)
 		return c.Err()
 	}
 
@@ -310,6 +316,7 @@ func (plugin) Stream(c context.Context, ctx plugins.Context, payload []byte, emi
 		ref, "sh", "-c", req.Cmd)
 
 	limit := time.Duration(intOpt(ctx, "timeout", 30, 1, maxTimeout)) * time.Second
+	plugins.Log("sandbox", slog.LevelInfo, "run "+req.Image+" "+file)
 	tc, cancel := context.WithTimeout(c, limit)
 	defer cancel()
 	return runContainer(c, tc, name, args, emit)
@@ -332,6 +339,7 @@ func runContainer(parent, tc context.Context, name string, args []string, emit f
 	}
 
 	var mu sync.Mutex
+	logged := 0 // output lines so far, under mu
 	send := func(v any) {
 		b, err := json.Marshal(v)
 		if err != nil {
@@ -339,6 +347,16 @@ func runContainer(parent, tc context.Context, name string, args []string, emit f
 		}
 		mu.Lock()
 		emit(b)
+		if m, ok := v.(map[string]string); ok {
+			logged++
+			if logged <= maxLogLines {
+				mark := "│ "
+				if m["s"] == "err" {
+					mark = "! "
+				}
+				plugins.Log("sandbox", slog.LevelInfo, mark+cut(m["t"], maxLogLine))
+			}
+		}
 		mu.Unlock()
 	}
 	var readers sync.WaitGroup
@@ -380,11 +398,18 @@ func runContainer(parent, tc context.Context, name string, args []string, emit f
 		}
 	}
 
+	mu.Lock()
+	if logged > maxLogLines {
+		plugins.Log("sandbox", slog.LevelInfo, fmt.Sprintf("… %d more lines (see the block)", logged-maxLogLines))
+	}
+	mu.Unlock()
 	if parent.Err() != nil {
+		logStop(parent)
 		return parent.Err()
 	}
 	ms := time.Since(start).Milliseconds()
 	if tc.Err() != nil {
+		plugins.Log("sandbox", slog.LevelWarn, "exit -1 in "+seconds(ms)+" s (timed out)")
 		send(map[string]any{"s": "exit", "code": -1, "ms": ms, "timedOut": true})
 		return nil
 	}
@@ -396,8 +421,36 @@ func runContainer(parent, tc context.Context, name string, args []string, emit f
 		}
 		code = ee.ExitCode()
 	}
+	plugins.Log("sandbox", slog.LevelInfo, fmt.Sprintf("exit %d in %s s", code, seconds(ms)))
 	send(map[string]any{"s": "exit", "code": code, "ms": ms})
 	return nil
+}
+
+// Console limits of a run's output: the first lines only, each cut short.
+const (
+	maxLogLines = 20
+	maxLogLine  = 200
+)
+
+// cut keeps at most n characters of s, ending in "…" when it cut.
+func cut(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n-1]) + "…"
+}
+
+func seconds(ms int64) string { return fmt.Sprintf("%.1f", float64(ms)/1000) }
+
+// logStop logs the end of a run the app cut: by the reader (stopped) or for
+// its output size (a warn).
+func logStop(c context.Context) {
+	if errors.Is(context.Cause(c), plugins.ErrOutputLimit) {
+		plugins.Log("sandbox", slog.LevelWarn, "output over the limit")
+		return
+	}
+	plugins.Log("sandbox", slog.LevelInfo, "stopped")
 }
 
 // killContainer stops the named container; errors are ignored (it may be gone).

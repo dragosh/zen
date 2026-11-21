@@ -87,6 +87,7 @@ async function mountQuiz(el, ctx) {
     try {
       await ctx.storage.set(key, state);
     } catch (err) {
+      console.warn("quiz: could not save the results");
       note.textContent = `Could not save: ${err.message}`;
     }
   };
@@ -296,6 +297,7 @@ async function mountResults(el, ctx) {
   try {
     keys = await ctx.storage.keys(PREFIX);
   } catch (err) {
+    console.warn("quiz: could not read the results");
     box.append(h("p", { class: "zq-note", text: `Could not read the results: ${err.message}` }));
   }
   const items = [];
