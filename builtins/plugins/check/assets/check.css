@@ -1,5 +1,0 @@
-/* The Reset button of a :::check block: a small text button, as the course layout's Reset. */
-.zen-check-reset { font: inherit; font-size: .85em; font-family: var(--font-ui); padding: 2px 8px; margin: 0 0 1em; border: 0; border-radius: var(--radius, 6px); background: transparent; color: var(--fg-muted); cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
-.zen-check-reset:hover { color: var(--fg); background: var(--btn-bg-hover); }
-.zen-check-reset:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-[data-zen-plugin="check"] li:has(> input[type="checkbox"]:not(:disabled)) { cursor: pointer; }
