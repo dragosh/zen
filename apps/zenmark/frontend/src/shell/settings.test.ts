@@ -722,29 +722,58 @@ test("export in place", async () => {
   expect(build.cancelBuild).toHaveBeenCalledTimes(1);
 });
 
-test("export in place: PDF, the last PDF, no folder", async () => {
+test("export in place: PDF is a form like the website's; the last PDF; no folder", async () => {
   const { api, s } = exportSetup();
   try { localStorage.setItem("zen.lastPdfExport", JSON.stringify({ path: "/Users/me/Guide.pdf", at: Date.now() })); } catch { /* no storage */ }
   await go(s, "export", "pdf");
   const d = detail(s, "export");
   expect(d.querySelector("h3")!.textContent).toBe("PDF");
+  expect(api.callsTo("pdfDefaults").length).toBeGreaterThan(0);
+  expect(d.querySelector<HTMLInputElement>(".zen-buildsite-out")!.value).toBe("exports/pdf/sample-docs.pdf");
+  expect(Array.from(d.querySelectorAll<HTMLInputElement>("input[type=checkbox]")).map((b) => [b.name, b.checked])).toEqual([["drafts", false], ["cover", true], ["open", true]]);
   expect(d.textContent).toContain("Guide.pdf");
-  btn(d, "Show in Finder").click();
+  Array.from(d.querySelectorAll("button")).find((b) => b.textContent === "Show in Finder")!.click();
   await settle();
   expect(api.callsTo("revealExport")).toHaveLength(1);
-  btn(d, "Export PDF…").click();
+  btn(d, "Export PDF").click();
   await settle();
-  expect(api.callsTo("printSite")).toHaveLength(1);
+  expect(api.callsTo("runPdfExport")).toHaveLength(1);
+  expect(api.callsTo("printSite")).toHaveLength(0);
+  btn(d, "Preview…");
   try { localStorage.removeItem("zen.lastPdfExport"); } catch { /* no storage */ }
 
   const none = exportSetup({ hasWorkspace: false });
   await go(none.s, "export", "pdf");
-  expect(btn(detail(none.s, "export"), "Export PDF…").disabled).toBe(true);
+  expect(detail(none.s, "export").textContent).toContain("Open a folder to export it.");
+  expect(btn(detail(none.s, "export"), "Export PDF").disabled).toBe(true);
   row(none.s, "export", "website").click();
   await settle();
   expect(detail(none.s, "export").textContent).toContain("Open a folder to export it.");
   expect(btn(detail(none.s, "export"), "Export").disabled).toBe(true);
   expect(none.build.buildOptions).not.toHaveBeenCalled();
+});
+
+test("export in place: the two forms are built from the same parts", async () => {
+  const { s } = exportSetup();
+  await go(s, "export");
+  const shape = (d: HTMLElement) => {
+    const f = d.querySelector("form")!;
+    const foot = Array.from(f.querySelector(".zen-buildsite-actions-form")!.children);
+    return {
+      top: Array.from(f.children).map((c) => c.className.split(" ")[0]),
+      options: Array.from(f.querySelector(".zen-buildsite-options")!.children).slice(0, 2).map((c) => c.className.split(" ")[0]),
+      first: foot[0].className, last: foot.at(-1)!.className,
+      choose: Array.from(f.querySelectorAll("button")).some((b) => b.textContent === "Choose…"),
+    };
+  };
+  const web = shape(detail(s, "export"));
+  row(s, "export", "pdf").click();
+  await settle();
+  const pdf = shape(detail(s, "export"));
+  expect(pdf).toEqual(web);
+  expect(web.first).toContain("primary");
+  expect(web.last).toContain("zen-buildsite-link");
+  expect(web.top.indexOf("zen-buildsite-actions-form")).toBeLessThan(web.top.indexOf("zen-buildsite-error"));
 });
 
 test("export in place: the PDF item only with print; a build that runs keeps running when the reader leaves, and the result shows on return", async () => {

@@ -548,3 +548,69 @@ func TestDialogDraftsOverrideConfig(t *testing.T) {
 		t.Fatalf("config drafts on: %v %v", r.err, r.files(t))
 	}
 }
+
+// ---- the PDF form's folder defaults (ui/export-pdf-settings)
+
+func TestPDFDefaults(t *testing.T) {
+	b := newBuildZen(t, map[string]string{"README.md": "# Home\n"})
+	o, err := b.z.PDFDefaults()
+	if err != nil || o.Out != filepath.Join(b.dir, "exports", "pdf", filepath.Base(b.dir)+".pdf") || o.Drafts || !o.Cover || !o.Open {
+		t.Fatalf("%+v, %v", o, err)
+	}
+	yml := "export:\n  pdf:\n    out: pdf/guide.pdf\n    drafts: true\n    cover: false\n    open: false\n"
+	if err := os.WriteFile(filepath.Join(b.dir, ".zenmd.yml"), []byte(yml), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	o, err = b.z.PDFDefaults()
+	if err != nil || o.Out != filepath.Join(b.dir, "pdf", "guide.pdf") || !o.Drafts || o.Cover || o.Open {
+		t.Fatalf("%+v, %v", o, err)
+	}
+}
+
+// Save as folder defaults writes export.pdf and keeps the rest of export:.
+func TestSavePDFDefaults(t *testing.T) {
+	b := newBuildZen(t, map[string]string{"README.md": "# Home\n"})
+	yml := filepath.Join(b.dir, ".zenmd.yml")
+	orig := "# mine\nversion: 1\nexport:\n  # site\n  out: _site\n  portable: false\nplugins:\n  check: true\n"
+	if err := os.WriteFile(yml, []byte(orig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	o := PDFOptions{Out: filepath.Join(b.dir, "exports", "pdf", "guide.pdf"), Drafts: true, Cover: false, Open: true}
+	prev, err := b.z.SavePDFDefaults(o, false)
+	if err != nil || !strings.Contains(prev, "export.pdf.out: exports/pdf/guide.pdf") || !strings.Contains(prev, "export.pdf.cover: false") {
+		t.Fatalf("preview: %q, %v", prev, err)
+	}
+	if after, _ := os.ReadFile(yml); string(after) != orig {
+		t.Fatal("preview changed the file")
+	}
+	if _, err := b.z.SavePDFDefaults(o, true); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := os.ReadFile(yml)
+	for _, keep := range []string{"# mine", "# site", "out: _site", "portable: false", "check: true", "pdf:", "out: exports/pdf/guide.pdf", "drafts: true", "cover: false", "open: true"} {
+		if !strings.Contains(string(after), keep) {
+			t.Errorf("lacks %q:\n%s", keep, after)
+		}
+	}
+	got, err := b.z.PDFDefaults()
+	if err != nil || got != o {
+		t.Errorf("round trip: %+v, %v", got, err)
+	}
+	// The website's own defaults are untouched by it, and the same choices say nothing to change.
+	if bo, err := b.z.BuildOptions(); err != nil || bo.Out != filepath.Join(b.dir, "_site") {
+		t.Errorf("website options: %+v, %v", bo, err)
+	}
+	if prev, err := b.z.SavePDFDefaults(o, false); err != nil || !strings.Contains(prev, "Nothing to change") {
+		t.Errorf("again: %q, %v", prev, err)
+	}
+	// A new file gets version and export.pdf; an outside folder is kept absolute.
+	c := newBuildZen(t, map[string]string{"README.md": "# Home\n"})
+	out := filepath.Join(t.TempDir(), "a.pdf")
+	if _, err := c.z.SavePDFDefaults(PDFOptions{Out: out, Cover: true, Open: true}, true); err != nil {
+		t.Fatal(err)
+	}
+	data, _ := os.ReadFile(filepath.Join(c.dir, ".zenmd.yml"))
+	if !strings.Contains(string(data), "version: 1") || !strings.Contains(string(data), "out: "+out) {
+		t.Errorf("new file:\n%s", data)
+	}
+}

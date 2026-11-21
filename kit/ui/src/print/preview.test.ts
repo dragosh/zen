@@ -335,3 +335,68 @@ test("export mode: a failed load calls printFailed and not printReady", async ()
   expect(api.callsTo("printReady")).toHaveLength(0);
   expect(root.querySelectorAll("button")).toHaveLength(0);
 });
+
+// ---- the options the Settings form and `zenmd export pdf` hand over (ui/export-pdf-settings)
+
+test("the window's query sets the options: drafts, pages and cover", async () => {
+  const f = fetcher(() => ({ body: docHtml(3) }));
+  open(f, "?window=print&page=p2.md&drafts=1&pages=section&cover=0");
+  await flush();
+  expect(f.calls[0].url).toBe("/_print/site?drafts=1&section=p2.md");
+  expect(q<HTMLInputElement>('input[type="checkbox"]').checked).toBe(true);
+  expect(q<HTMLSelectElement>("select").value).toBe("section");
+  expect(root.querySelector(".zen-print-cover")).toBeNull();
+  expect(root.querySelector("nav.zen-print-toc")).toBeNull();
+  expect(root.querySelectorAll("section.zen-print-page").length).toBe(3);
+});
+
+test("pages=section without a page falls back to all", async () => {
+  const f = fetcher(() => ({ body: docHtml(2) }));
+  open(f, "?window=print&pages=section");
+  await flush();
+  expect(f.calls[0].url).toBe("/_print/site?drafts=0");
+  expect(q<HTMLSelectElement>("select").value).toBe("all");
+});
+
+test("without a query the folder's defaults start it; the query wins", async () => {
+  api.pdfDefaultsValue = { out: "/x/a.pdf", drafts: true, cover: false, open: true };
+  const f = fetcher(() => ({ body: docHtml(2) }));
+  open(f, "?window=print&page=p2.md");
+  await flush();
+  expect(f.calls[0].url).toBe("/_print/site?drafts=1");
+  expect(root.querySelector(".zen-print-cover")).toBeNull();
+  stop?.();
+  const g = fetcher(() => ({ body: docHtml(2) }));
+  open(g, "?window=print&page=p2.md&drafts=0&cover=1");
+  await flush();
+  expect(g.calls[0].url).toBe("/_print/site?drafts=0");
+  expect(root.querySelector(".zen-print-cover")).not.toBeNull();
+});
+
+test("auto: writes the form's file when laid out, with no panel, then closes", async () => {
+  const closed = vi.fn();
+  window.addEventListener("zen:close-window", closed);
+  api.exportPath = "/x/out/Guide.pdf";
+  const f = fetcher(() => ({ body: docHtml(2) }));
+  open(f, "?window=print&auto=1&page=p1.md");
+  await flush();
+  expect(api.callsTo("exportPdf")).toEqual([[expect.any(String), true]]);
+  expect(closed).toHaveBeenCalledTimes(1);
+  window.removeEventListener("zen:close-window", closed);
+});
+
+test("auto: a document that cannot be prepared tells the app; a failed save stays open", async () => {
+  const closed = vi.fn();
+  window.addEventListener("zen:close-window", closed);
+  open(fetcher(() => ({ status: 500, body: "boom\nmore" })), "?window=print&auto=1");
+  await flush();
+  expect(api.callsTo("pdfExportFailed")).toEqual([["boom"]]);
+  expect(api.callsTo("exportPdf")).toHaveLength(0);
+  stop?.();
+  api.failNext("exportPdf", new Error("disk full"));
+  open(fetcher(() => ({ body: docHtml(1) })), "?window=print&auto=1");
+  await flush();
+  expect(closed).not.toHaveBeenCalled();
+  expect(root.textContent).toContain("disk full");
+  window.removeEventListener("zen:close-window", closed);
+});

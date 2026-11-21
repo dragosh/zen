@@ -212,3 +212,33 @@ func TestEnsureDefaultPDFDir(t *testing.T) {
 		t.Error("-o: its folder is the user's to make")
 	}
 }
+
+// The options of `zenmd export pdf` reach the preview window as its query (ui/export-pdf-settings).
+func TestHeadlessPlanOptions(t *testing.T) {
+	q := func(e cli.ExportPDF) url.Values {
+		u, err := url.Parse(planHeadless(e, "x").windowOptions().URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return u.Query()
+	}
+	if v := q(cli.ExportPDF{Dir: "/x"}); v.Get("drafts") != "0" || v.Get("cover") != "1" || v.Get("pages") != "all" || v.Get("page") != "" || v.Get("export") != "1" {
+		t.Errorf("defaults %v", v)
+	}
+	v := q(cli.ExportPDF{Dir: "/x", Drafts: true, NoCover: true, Section: "docs/a b.md"})
+	if v.Get("drafts") != "1" || v.Get("cover") != "0" || v.Get("pages") != "section" || v.Get("page") != "docs/a b.md" {
+		t.Errorf("options %v", v)
+	}
+}
+
+// A folder from export.pdf.out is made like the default one; a -o folder is not.
+func TestEnsurePDFDirFromConfig(t *testing.T) {
+	dir := t.TempDir()
+	e := cli.ExportPDF{Dir: dir, Out: filepath.Join(dir, "books", "a.pdf"), MakeDir: true}
+	if err := ensurePDFDir(e, e.Out); err != nil {
+		t.Fatal(err)
+	}
+	if fi, err := os.Stat(filepath.Join(dir, "books")); err != nil || !fi.IsDir() {
+		t.Errorf("books not created: %v", err)
+	}
+}
