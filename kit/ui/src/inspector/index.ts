@@ -12,7 +12,8 @@ import { developerEnabled, developerKey, followDeveloper } from "../shell/develo
 import { createConsoleTab, type ConsoleTab } from "../shell/devpanel";
 import { button, el } from "../shell/dom";
 import { BOTTOM_PANEL_HEIGHT, bindColumns, createTabbedPanel, PANEL_COLLAPSED_KEY, panelColumns, panelEmpty, panelProps } from "../panel";
-import { INSPECTOR_CLOSE, INSPECTOR_CONSOLE, INSPECTOR_MARK, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorIcon, inspectorLabel, type InspectorState } from "./events";
+import { icon } from "../shell/icons";
+import { INSPECTOR_CLOSE, INSPECTOR_CONSOLE, INSPECTOR_MARK, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorLabel, type InspectorState } from "./events";
 import { buildItems } from "./build";
 import { formatDate, formatSize, readingLabel } from "./format";
 import { brokenLinks, failedAlready, isCheck, missingImage, problemTarget, sameProblem, spellingProblems, warningProblems, type Filter, type Problem } from "./problems";
@@ -37,7 +38,7 @@ export type InspectorOptions = {
   /** The panel was opened or closed (button, shortcut or API); not called when nothing changes. */
   onOpenChange?(open: boolean): void;
   /**
-   * The sidebar's Inspector button (ui/shell) drives this one: its state goes out as INSPECTOR_STATE
+   * The top bar's Inspector button (ui/shell) drives this one: its state goes out as INSPECTOR_STATE
    * events and INSPECTOR_TOGGLE toggles it. `button` is then not used. Without it (the editor)
    * `button` is the toggle and nothing is sent.
    */
@@ -147,7 +148,7 @@ export function createInspector(o: InspectorOptions): InspectorPanel {
   toggle.hidden = true;
   const badge = el("span", "zen-inspector-badge");
   badge.hidden = true;
-  toggle.append(inspectorIcon(o.doc), badge);
+  toggle.append(icon(o.doc, "panel"), badge);
   toggle.setAttribute("aria-label", inspectorLabel(0));
 
   const consoleOn = () => consoleFeature && developerEnabled();

@@ -3,7 +3,8 @@ title: Find in a page
 ---
 # Find in a page
 
-Press <kbd>⌘F</kbd>, or choose **Edit › Find…**, and a small find bar opens at
+Press <kbd>⌘F</kbd>, click the magnifying glass in the top bar, or choose
+**Edit › Find…**, and a small find bar opens at
 the top right of the window. Type, and every match on the page is marked; the
 current one stands out and scrolls into view.
 

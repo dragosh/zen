@@ -3,7 +3,7 @@ title: Settings
 ---
 # Settings
 
-Click the **cog** at the bottom of the sidebar, or press <kbd>⌘,</kbd>. The
+Click the **cog** at the bottom of the sidebar (Export is next to it), or press <kbd>⌘,</kbd>. The
 Settings page takes the place of the page you were reading, and the sidebar
 stays. Press <kbd>Esc</kbd> or <kbd>⌘[</kbd>, or choose a page, to go back.
 Sections are listed on the left; the selected item shows on the right.

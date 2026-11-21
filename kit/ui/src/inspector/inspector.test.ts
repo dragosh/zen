@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, expect, test, vi } from "vitest";
 import type { AddonInfo, Page, PageInfo } from "../host";
 import { alert } from "../lint/test-util";
+import { icon } from "../shell/icons";
 import { createInspector, INSPECTOR_CLOSE, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorKey, OPEN_KEY, TAB_KEY, type Inspector } from "./index";
 
 const tick = () => new Promise((r) => setTimeout(r, 0));
@@ -204,6 +205,7 @@ test("the button is an icon with an accessible name; the badge is red text with 
   const i = make();
   i.setPage("docs/a.md", page(), article());
   expect(i.button.querySelector("svg")).not.toBeNull();
+  expect(i.button.querySelector("svg")!.outerHTML).toBe(icon(document, "panel").outerHTML); // the app's one icon set
   expect(i.button.getAttribute("aria-label")).toBe("Inspector");
   i.setIssues([alert({ line: 1, match: "x" }), alert({ line: 2, match: "x" }), alert({ line: 3, match: "x" })]);
   expect(i.button.getAttribute("aria-label")).toBe("Inspector, 3 issues");

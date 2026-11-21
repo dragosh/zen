@@ -1,4 +1,5 @@
 // Small DOM helpers. Text always goes in through textContent.
+import { icon, type IconName } from "./icons";
 
 export function el<K extends keyof HTMLElementTagNameMap>(
   tag: K, className = "", text = "",
@@ -15,6 +16,16 @@ export function button(label: string, onClick: () => void, opts: { className?: s
   if (opts.text !== undefined && opts.text !== label) b.setAttribute("aria-label", label);
   if (opts.title) b.title = opts.title;
   b.addEventListener("click", onClick);
+  return b;
+}
+
+/**
+ * An icon button of the footer and the top bar (ui/top-bar-actions): no visible text, the name is the aria-label,
+ * the tooltip the title; `.zen-settings-button` gives its size, focus ring and on style (aria-pressed / aria-expanded).
+ */
+export function iconButton(name: IconName, label: string, title: string, onClick: () => void, extraClass = ""): HTMLButtonElement {
+  const b = button(label, onClick, { className: `ghost zen-settings-button${extraClass ? " " + extraClass : ""}`, text: "", title });
+  b.append(icon(document, name));
   return b;
 }
 

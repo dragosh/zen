@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | in progress |
+| Status | done |
 | Target version | 0.7.0 |
 | Branch | `feature/15-editor` (found while checking roadmap step 6, #15) |
 | Wave | 34 |

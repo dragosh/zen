@@ -68,6 +68,7 @@ test("Find toggles the bar, and its aria-pressed follows the bar, however it ope
   expect(find.getAttribute("aria-pressed")).toBe("true");
   key({ key: "Escape" });
   expect(find.getAttribute("aria-pressed")).toBe("false");
+  vi.spyOn(Date, "now").mockReturnValue(Date.now() + 1000); // the menu event is not the ⌘F press just before
   env.api.emit("menu:find", undefined); // Edit › Find
   expect(find.getAttribute("aria-pressed")).toBe("true");
   (document.querySelector(".zen-find-close") as HTMLButtonElement).click();

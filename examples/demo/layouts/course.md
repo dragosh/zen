@@ -69,7 +69,7 @@ own.
 
 ## Check a page
 
-Open the Inspector from the button at the bottom of the sidebar. Page Info
+Open the Inspector from the button in the top bar. Page Info
 shows what the page is made of, and Problems lists its broken links and missing
 images.
 

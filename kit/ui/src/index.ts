@@ -6,7 +6,8 @@ export { hasAddon, hasFeature } from "./host";
 export type {
   AddonInfo, Alert, BuildInfo, Crumb, DialectInfo, Draft, KitHost, LayoutSource, LintResult, LogEntry, LogLevel, NavNode, OpenProgress, Page, PageInfo, PageLayoutRef, PluginStreamEvent, Workspace,
 } from "./host";
-export { button, el, logo } from "./shell/dom";
+export { button, el, iconButton, logo } from "./shell/dom";
+export { icon, type IconName } from "./shell/icons";
 export { copyText } from "./shell/clipboard";
 export { createHistory, type Entry, type History } from "./shell/history";
 export { closeWindowKey, reloadKey, shellAction, zoomKey, type ShellAction } from "./shell/keys";

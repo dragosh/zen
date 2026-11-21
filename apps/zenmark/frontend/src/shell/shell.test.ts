@@ -1217,17 +1217,17 @@ test("sidebar close: the folder stays when an editor window keeps its changes", 
   expect(s.store.get().workspace).not.toBeNull();
 });
 
-test("footer buttons per feature: only those the build has, in order, and never a Developer button", async () => {
+test("footer buttons per feature: Settings, and Export when the build has it; the Inspector is in the top bar, and never a Developer button", async () => {
   const { features: shipped } = await import("./features");
   const labels = () => Array.from(sidebar().querySelectorAll(".zen-sidebar-foot button")).map((b) => b.getAttribute("aria-label"));
   let s = boot(buildWith(ALL), shipped);
   await s.start();
-  expect(labels()).toEqual(["Settings", "Export", "Inspector"]);
+  expect(labels()).toEqual(["Settings", "Export"]);
   expect(root.querySelector(".zen-developer-button")).toBeNull();
   s.destroy();
   s = boot(buildWith(without("export")), shipped);
   await s.start();
-  expect(labels()).toEqual(["Settings", "Inspector"]);
+  expect(labels()).toEqual(["Settings"]);
   s.destroy();
   s = boot(buildWith(without("inspector")), shipped);
   await s.start();
