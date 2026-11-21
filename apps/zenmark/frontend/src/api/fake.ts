@@ -323,7 +323,7 @@ export function createFakeApi(options: FakeOptions = {}): FakeApi {
     }),
     revealTemplates: () => call("revealTemplates", [], () => undefined),
     templatesDir: () => call("templatesDir", [], () => "/Users/me/Library/Application Support/zen/templates"),
-    buildOptions: () => call("buildOptions", [], () => ({ out: "/Users/me/sample-docs/_site", portable: true, drafts: false, clean: false, print: true })),
+    buildOptions: () => call("buildOptions", [], () => ({ out: "/Users/me/sample-docs/exports/html", portable: true, drafts: false, clean: false, print: true })),
     buildWebsite: (o) => call("buildWebsite", [o], () => ({ out: o.out, pages: 3, files: 2, warnings: [], millis: 42, cancelled: false })),
     cancelBuild: () => call("cancelBuild", [], () => undefined),
     saveBuildDefaults: (o, confirm) => call("saveBuildDefaults", [o, confirm], () => "Nothing to change"),

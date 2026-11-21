@@ -44,7 +44,7 @@ export function shownOut(root: string, out: string): string {
 }
 function absoluteOut(root: string, text: string): string {
   let t = text.trim().replace(/^\.\//, "");
-  if (t === "") t = "_site";
+  if (t === "") t = "exports/html";
   if (t === ".") return root;
   return t.startsWith("/") || t.startsWith("~") ? t : `${root}/${t}`;
 }
@@ -88,7 +88,7 @@ export function createBuildForm(opts: BuildFormOptions): BuildForm {
   out.id = `zen-buildsite-out-${id}`;
   out.autocomplete = "off";
   out.spellcheck = false;
-  out.value = "_site";
+  out.value = "exports/html";
   outLabel.htmlFor = out.id;
   const choose = button("Choose…", () => void pick());
   const outRow = el("div", "zen-buildsite-row");
@@ -225,7 +225,7 @@ export function createBuildForm(opts: BuildFormOptions): BuildForm {
     build.disabled = false;
     if (root === filledFor && !force) return;
     filledFor = root;
-    fill_({ out: `${root}/_site`, portable: true, drafts: false, clean: false, print: true });
+    fill_({ out: `${root}/exports/html`, portable: true, drafts: false, clean: false, print: true });
     ready = api.buildOptions().then(fill_, (err) => { if (!destroyed) error.textContent = message(err); });
     await ready;
   }

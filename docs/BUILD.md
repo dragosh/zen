@@ -12,7 +12,7 @@ zenmd export site [folder] [-o dir] [--hosted] [--drafts] [--clean]
 
 | Option | Meaning |
 |---|---|
-| `-o`, `--out` | output folder (default `export.out`, else `<folder>/_site`) |
+| `-o`, `--out` | output folder (default `export.out`, else `<folder>/exports/html`) |
 | *(default)* | portable: opens from disk (`file://`) and from any web server. Scripts are embedded in each page and loaded as Blob modules |
 | `--hosted` | for a web server only: scripts stay separate files loaded with `import()`, which browsers refuse from `file://` (each block then says so) |
 | `--portable` | the default, named explicitly (cannot be combined with `--hosted`) |
@@ -32,7 +32,7 @@ the options to `.zenmd.yml` after showing the change.
 ## Output
 
 ```
-_site/
+exports/html/
   index.html              home page (or a redirect to it)
   print.html              the whole site as one document: cover, contents, every page
   README.html, a/b.html   one file per page, same paths
@@ -71,7 +71,7 @@ Only files inside the folder are copied.
 ```yaml
 # .zenmd.yml or the global config.yml; flags win
 export:
-  out: _site
+  out: exports/html
   id: my-notes          # storage namespace for readers; default: folder name
   editURL: https://github.com/me/notes/edit/main/{path}   # the docs layout's "Edit this page"
   drafts: false
@@ -132,7 +132,7 @@ The static runtime is `frontend/src/static/` and its own Vite config
 
 ## PDF
 
-`zenmd export pdf [folder] [-o file.pdf]` writes the whole folder as one PDF:
+`zenmd export pdf [folder] [-o file.pdf]` writes the whole folder as one PDF (by default `exports/pdf/<folder name>.pdf`, made when needed; `exports/` is never read as pages):
 the print document (cover, contents, every page in sidebar order) laid out by
 macOS printing, portrait, with the system's default paper size. It runs without
 showing a window, needs macOS and a logged-in session, and prints

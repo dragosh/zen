@@ -12,6 +12,7 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -40,6 +41,18 @@ func planHeadless(e cli.ExportPDF, name string) headlessPlan {
 		out = cli.DefaultPDFOut(e.Dir)
 	}
 	return headlessPlan{Out: out, Name: name, Timeout: headlessTimeout}
+}
+
+// ensurePDFDir creates the default exports/pdf folder when the PDF goes there;
+// with -o the folder is the user's to make.
+func ensurePDFDir(e cli.ExportPDF, out string) error {
+	if e.Out != "" && e.Out != cli.DefaultPDFOut(e.Dir) {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+		return fmt.Errorf("export pdf: %w", errors.Unwrap(err))
+	}
+	return nil
 }
 
 // windowOptions is the one hidden window, at the print preview's export mode.
@@ -193,6 +206,9 @@ func ExportPDF(e cli.ExportPDF, stdout, stderr io.Writer) error {
 		return err
 	}
 	plan := planHeadless(e, ws.Name)
+	if err := ensurePDFDir(e, plan.Out); err != nil {
+		return err
+	}
 	var win application.Window
 	h := newHeadlessService(func(path, title string) (int, error) {
 		return desktop.SavePDF(win, path, title)

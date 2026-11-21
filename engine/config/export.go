@@ -29,6 +29,9 @@ func (c *Config) legacyBuild(path string, doc map[string]any, v any) {
 // Both are kept out of the pages and the watcher by their .zen-build marker or
 // by never holding markdown (see workspace.Files).
 const (
+	// ExportsDir is the folder at the top of a workspace that holds the
+	// exports; it is never read as pages or watched.
+	ExportsDir       = "exports"
 	DefaultExportOut = "exports/html" // the website
 	DefaultPDFDir    = "exports/pdf"  // the PDF
 )

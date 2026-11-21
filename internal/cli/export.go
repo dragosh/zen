@@ -9,12 +9,14 @@ import (
 	"slices"
 	"strings"
 	"unicode"
+
+	"github.com/zenmark-org/zenmd/engine/config"
 )
 
 // ExportPDF describes `zenmd export pdf`: the whole folder as one PDF file.
 type ExportPDF struct {
 	Dir string // absolute folder
-	Out string // absolute output file, "" = <Dir>/<name>.pdf
+	Out string // absolute output file; the default is DefaultPDFOut(Dir)
 }
 
 // PDFExporter writes the PDF. It prints "Wrote <path> (<n> pages)" to stdout and
@@ -39,8 +41,11 @@ func PDFName(name string) string {
 	return name + ".pdf"
 }
 
-// DefaultPDFOut is where the PDF of dir goes without -o: inside it, named after it.
-func DefaultPDFOut(dir string) string { return filepath.Join(dir, PDFName(filepath.Base(dir))) }
+// DefaultPDFOut is where the PDF of dir goes without -o: exports/pdf inside
+// it, named after it. The folder is created by whoever writes the file.
+func DefaultPDFOut(dir string) string {
+	return filepath.Join(dir, filepath.FromSlash(config.DefaultPDFDir), PDFName(filepath.Base(dir)))
+}
 
 // needBuilt checks that the build has the features (kit/shell-features): an
 // app made without export has no `zenmd export site`, and one without export or
@@ -148,7 +153,8 @@ func runExportPDF(args []string, cwd string, stdout, stderr io.Writer, pdf PDFEx
 			e.Out += ".pdf"
 		}
 	}
-	if fi, err := os.Stat(filepath.Dir(e.Out)); err != nil || !fi.IsDir() {
+	// The default exports/pdf is made by the exporter; a chosen folder must exist.
+	if fi, err := os.Stat(filepath.Dir(e.Out)); hasOut && (err != nil || !fi.IsDir()) {
 		return fail(stderr, errors.New("the folder "+filepath.Dir(e.Out)+" does not exist"))
 	}
 	if pdf == nil {

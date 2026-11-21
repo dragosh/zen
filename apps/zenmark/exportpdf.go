@@ -40,11 +40,10 @@ func (e *exportState) get() string {
 
 // pdfHooks are the parts of an export that need the GUI; tests replace pdfIO.
 type pdfHooks struct {
-	window   func(ctx context.Context) (application.Window, error)
-	panel    func(w application.Window, name, dir string) (string, error)
-	save     func(w application.Window, path, title string) (int, error)
-	reveal   func(path string) error
-	settings func() string // the folder of the settings files
+	window func(ctx context.Context) (application.Window, error)
+	panel  func(w application.Window, name, dir string) (string, error)
+	save   func(w application.Window, path, title string) (int, error)
+	reveal func(path string) error
 }
 
 var pdfIO = pdfHooks{
@@ -60,15 +59,7 @@ var pdfIO = pdfHooks{
 	},
 	save:   desktop.SavePDF,
 	reveal: func(path string) error { return desktop.OpenFile("-R", path) },
-	settings: func() string {
-		if p, err := config.GlobalPath(); err == nil && p != "" {
-			return filepath.Dir(p)
-		}
-		return ""
-	},
 }
-
-const lastPDFFolderFile = "export-pdf-folder"
 
 // ExportPDF shows the save panel for the window that calls it and writes the
 // open folder's print document there as a PDF, without the print panel. title
@@ -92,7 +83,12 @@ func (z *Zen) ExportPDF(ctx context.Context, title string) (r0 string, err error
 	if err != nil {
 		return "", err
 	}
-	path, err := pdfIO.panel(w, cli.PDFName(ws.Name), lastPDFFolder())
+	// The panel starts in exports/pdf of the folder, which is created for it.
+	dir := filepath.Join(ws.Root, filepath.FromSlash(config.DefaultPDFDir))
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		dir = ws.Root
+	}
+	path, err := pdfIO.panel(w, cli.PDFName(ws.Name), dir)
 	if err != nil {
 		return "", err
 	}
@@ -109,7 +105,6 @@ func (z *Zen) ExportPDF(ctx context.Context, title string) (r0 string, err error
 	}
 	desktop.LogApp(slog.LevelInfo, "export finished", "format", "pdf", "name", filepath.Base(path), "ms", time.Since(start).Milliseconds())
 	z.export.set(path)
-	rememberPDFFolder(filepath.Dir(path))
 	return path, nil
 }
 
@@ -127,26 +122,4 @@ func (z *Zen) RevealExport() (err error) {
 		return errors.New("nothing has been exported yet")
 	}
 	return pdfIO.reveal(p)
-}
-
-// lastPDFFolder is the folder of the last PDF export, else Documents.
-func lastPDFFolder() string {
-	if dir := pdfIO.settings(); dir != "" {
-		if b, err := os.ReadFile(filepath.Join(dir, lastPDFFolderFile)); err == nil {
-			if p := strings.TrimSpace(string(b)); filepath.IsAbs(p) {
-				if fi, err := os.Stat(p); err == nil && fi.IsDir() {
-					return p
-				}
-			}
-		}
-	}
-	home, _ := os.UserHomeDir()
-	return filepath.Join(home, "Documents")
-}
-
-func rememberPDFFolder(dir string) {
-	if s := pdfIO.settings(); s != "" {
-		_ = os.MkdirAll(s, 0o755)
-		_ = os.WriteFile(filepath.Join(s, lastPDFFolderFile), []byte(dir+"\n"), 0o644)
-	}
 }

@@ -58,9 +58,9 @@ document; for more, export a section.
 The `zenmd` command does the same without the app:
 
 ```sh
-zenmd export site                       # writes _site next to your pages
+zenmd export site                       # writes exports/html in the folder
 zenmd export site -o public --hosted    # for a web server only
-zenmd export pdf                        # writes <folder name>.pdf
+zenmd export pdf                        # writes exports/pdf/<folder name>.pdf
 zenmd export pdf -o ~/Desktop/guide.pdf
 ```
 
@@ -71,7 +71,7 @@ folder is the same:
 
 ```yaml
 export:
-  out: _site
+  out: exports/html
   drafts: false
   portable: true   # false = for a web server only
   exclude: ["private/**"]

@@ -232,7 +232,7 @@ func TestExportNeedsFeature(t *testing.T) {
 // The help names the new default outputs.
 func TestExportHelpDefaults(t *testing.T) {
 	r := run(t, t.TempDir(), nil, "--help")
-	for _, want := range []string{"default: exports/html in the folder", "<folder>/exports/pdf/<folder name>.pdf"} {
+	for _, want := range []string{"default: exports/html in the folder", "exports/pdf/<folder name>.pdf"} {
 		if !strings.Contains(r.stdout, want) {
 			t.Errorf("help lacks %q", want)
 		}
