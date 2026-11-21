@@ -26,6 +26,7 @@ has these layouts:
 | [post](post.md) | blog posts, with a cover, date, author and tags |
 | [landing](landing.md) | the home page of a folder, with cards for its pages; this page uses it |
 | [wide](wide.md) | the whole pane, for wide tables and diagrams |
+| [handout](handout.md) | a one-pager on a paper sheet |
  Settings has a **Layouts** section that lists the
 layouts with help and snippets to copy; see
 [Settings](../configuration/settings.md).

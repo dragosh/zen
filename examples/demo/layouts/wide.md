@@ -20,6 +20,7 @@ layout: wide
 | post | template, CSS | date, author, cover, tags | reading | blog posts | cover and meta line |
 | landing | template, CSS | tagline, cover | cards | a folder home | cards for the pages below |
 | wide | template, CSS | nothing | none | tables, diagrams | no reading column |
+| handout | template, CSS | date, author | paper | one-pagers | a paper sheet |
 
 ```mermaid
 graph LR; Page --> Layout --> Reader; Page --> Plugins --> Layout
