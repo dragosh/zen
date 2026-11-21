@@ -7,6 +7,9 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- All built-in layouts are back in Zenmark (docs, post, landing, wide, handout, slides, course), each with a page in the demo guide (#13).
+- The rating plugin: a reader gives a page or a course 1 to 5 stars (or up to 10, with labels), kept on this Mac, with a list of every rating in the folder.
+- Course: a Skip step button; a skipped step shows ✗, unlocks the next one and turns into ✓ when it is finished later.
 - The built-in plugins are back in Zenmark: code colours (codeblock), mermaid diagrams, checklists, quizzes and the container sandbox (#12).
 - The Console shows what the built-in plugins do: the steps of a sandbox run (service check, files, container, exit, clean-up), quiz scores and diagram errors, never code, answers or user settings.
 - The Console shows what the app does, at debug, info, warn and error levels (start-up, opening a folder, reloads, exports, failures), with folder-relative paths only; it starts at Info+ and remembers the level.
@@ -20,6 +23,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 - Find in page: ⌘F (Edit › Find) opens a find bar in the reader and the editor with a match count, next/previous (⌘G, ⇧⌘G) and a match-case toggle (#4).
 
 ### Changed
+- Every interactive block (quiz, rating, checklists, sandbox, course) uses one set of frames, buttons, choices and text styles, documented in docs/PLUGIN-UI.md for future plugins and layouts; the course's step list lines up wrapped titles.
 - `examples/demo` is the Zenmark guide for what the app has today and grows with each roadmap step; the full tour is `examples/showcase`.
 - Sandbox: read-only code is coloured like a code block, and the note about a stopped container service checks again when you come back to the window or press Check again.
 - Clicking a problem jumps to it in the page and marks it like a spelling mark, with its details on the right; the Inspector's Build tab is a list with details. Settings opens on Configuration, a config file that does not exist is greyed out when the build cannot create it, and the home screen fades in only when the app starts.
