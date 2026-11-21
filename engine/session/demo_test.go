@@ -300,7 +300,7 @@ func TestDemoFolder(t *testing.T) {
 		t.Errorf("README children = %s\nwant %s", got, want)
 	}
 	sub := map[string]string{
-		"plugins/index.md":          "plugins/codeblock.md,plugins/diagram.md,plugins/check.md,plugins/quiz.md",
+		"plugins/index.md":          "plugins/codeblock.md,plugins/diagram.md,plugins/check.md,plugins/quiz.md,plugins/sandbox.md",
 		"layouts/index.md":          "layouts/article.md",
 		"configuration/settings.md": "configuration/reference.md",
 	}
