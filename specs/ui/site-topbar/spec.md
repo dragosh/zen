@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | in progress |
+| Status | done |
 | Target version | 0.7.0 |
 | Branch | `feature/19-export` (found while checking roadmap step 10, #19) |
 | Wave | 43 |

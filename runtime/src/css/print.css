@@ -50,9 +50,9 @@
   html, body, #app { background: #ffffff; color: #000000; }
   body { font-size: 11pt; }
 
-  /* No chrome: the app's panes, the site's sidebar and breadcrumb, the preview toolbar, the editor's tools. */
+  /* No chrome: the app's panes, the site's sidebar, top bar and breadcrumb, the preview toolbar, the editor's tools. */
   .zen-sidebar, .zen-resizer, .zen-top, .zen-actions, .zen-progress, .zen-page-warnings, .zen-page-error,
-  .zen-site-side, .zen-site-crumbs, .zen-skip, .zen-print-bar,
+  .zen-site-side, .zen-site-top, .zen-site-crumbs, .zen-skip, .zen-print-bar,
   .zen-editor-bar, .zen-editor-toolbar, .zen-editor-divider, .zen-editor-source, .zen-lint-wrap, .zen-lint-console { display: none !important; }
   .zen-editor, .zen-editor-panes, .zen-editor-preview, .zen-editor-window { display: block; height: auto; overflow: visible; }
 

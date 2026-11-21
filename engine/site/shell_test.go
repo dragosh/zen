@@ -180,7 +180,7 @@ func TestTopBar(t *testing.T) {
 		}
 	}
 	// The bar sits first in the content column, before main; the sidebar carries the id the toggle controls.
-	contains(t, "page", a, `<aside class="zen-site-side" id="zen-site-side">`, `<script src="_zen/zen.js" defer></script>`, `"siteId":"s"`)
+	contains(t, "page", a, `<aside class="zen-site-side" id="zen-site-side">`, `<script src="../_zen/zen.js" defer></script>`, `"siteId":"s"`)
 	if strings.Index(a, `class="zen-top zen-site-top"`) > strings.Index(a, `<main id="main">`) {
 		t.Error("the bar is after main")
 	}
@@ -195,7 +195,7 @@ func TestTopBarNoSidebar(t *testing.T) {
 	f := newFake()
 	f.home = "README.md"
 	f.page("README.md", "Home", "<p>home</p>")
-	f.tree = nil
+	f.tree = []NavNode{}
 	_, out := build(t, f, Options{})
 	h := read(t, out, "README.html")
 	contains(t, "home", h, `zen-site-back`, `zen-site-forward`)

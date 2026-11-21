@@ -11,8 +11,9 @@ bottom of the sidebar, next to the cog.
 ## A website
 
 **File › Export › Website…** (<kbd>⇧⌘B</kbd>) builds the folder as a static
-website: one HTML page for each markdown page, with the sidebar and breadcrumb
-written into every page, and the images and plugin files it uses copied next
+website: one HTML page for each markdown page, with the sidebar and a fixed
+top bar (hide the sidebar, back and forward, and the breadcrumb) written into
+every page, and the images and plugin files it uses copied next
 to it. Put the result on any static host.
 
 The dialog asks for:

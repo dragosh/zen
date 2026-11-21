@@ -59,10 +59,10 @@ var shellTmpl = template.Must(template.New("shell").Parse(`{{define "node"}}{{if
 <body class="zen-site">
 <a class="zen-skip" href="#main">Skip to content</a>
 <div class="zen-site-frame">
-{{if .Items}}<aside class="zen-site-side"><details class="zen-site-menu"><summary>Contents</summary><nav aria-label="Pages" class="zen-site-nav"><ul>{{range .Items}}{{template "node" .}}{{end}}</ul></nav></details></aside>
+{{if .Items}}<aside class="zen-site-side" id="zen-site-side"><details class="zen-site-menu"><summary>Contents</summary><nav aria-label="Pages" class="zen-site-nav"><ul>{{range .Items}}{{template "node" .}}{{end}}</ul></nav></details></aside>
 {{end}}<div class="zen-site-body">
-{{if .Crumbs}}<nav aria-label="Breadcrumb" class="zen-site-crumbs"><ol>{{range .Crumbs}}<li>{{if .Href}}<a href="{{.Href}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}</li>{{end}}</ol></nav>
-{{end}}<main id="main">
+<header class="zen-top zen-site-top"><div class="zen-top-controls">{{if .Items}}<button type="button" class="ghost zen-site-sidebar-toggle" aria-label="Hide sidebar" title="Hide sidebar (⌘\)" aria-expanded="true" aria-controls="zen-site-side" hidden></button>{{end}}<button type="button" class="ghost zen-site-back" aria-label="Back" title="Back (⌘[)" disabled hidden>‹</button><button type="button" class="ghost zen-site-forward" aria-label="Forward" title="Forward (⌘])" disabled hidden>›</button></div>{{if .Crumbs}}<nav aria-label="Breadcrumb" class="zen-site-crumbs"><ol>{{range .Crumbs}}<li>{{if .Href}}<a href="{{.Href}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}</li>{{end}}</ol></nav>{{end}}</header>
+<main id="main">
 <article class="{{.ArticleClass}}"{{if .Layout}} data-layout="{{.Layout}}"{{end}}>{{.Body}}</article>
 </main>
 </div>

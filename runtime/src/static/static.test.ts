@@ -268,8 +268,9 @@ beforeEach(() => {
 });
 
 test("top bar: the script shows the buttons and puts the sidebar icon in the toggle", () => {
-  expect(q(".zen-site-sidebar-toggle").hidden).toBe(true);
-  bar();
+  document.body.innerHTML = BAR;
+  expect(q(".zen-site-sidebar-toggle").hidden).toBe(true); // without the script
+  start(document);
   for (const s of [".zen-site-sidebar-toggle", ".zen-site-back", ".zen-site-forward"]) expect(q(s).hidden, s).toBe(false);
   const svg = q(".zen-site-sidebar-toggle").querySelector("svg")!;
   expect(svg.getAttribute("viewBox")).toBe("0 0 24 24");
@@ -328,7 +329,8 @@ test("top bar: Back and Forward use history and are disabled when there is nowhe
   q(".zen-site-back").click();
   key("[");
   expect(back).not.toHaveBeenCalled();
-  bar(); // a link to the next page: a new entry
+  history.replaceState(null, ""); // a link to the next page: a new entry, with no state yet
+  bar();
   expect((q(".zen-site-back") as HTMLButtonElement).disabled).toBe(false);
   expect((q(".zen-site-forward") as HTMLButtonElement).disabled).toBe(true);
   q(".zen-site-back").click();
@@ -372,7 +374,8 @@ test("top bar: works when localStorage is blocked", () => {
 
 // ---- the top bar's CSS (no DOM) ----
 const css = () => readFileSync(resolve(import.meta.dirname, "static.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-const rule = (src: string, sel: string): string => {
+const rule = (raw: string, sel: string): string => {
+  const src = raw.replace(/\/\*[\s\S]*?\*\//g, "");
   for (const m of Array.from(src.matchAll(/([^{}]+)\{([^{}]*)\}/g))) if (m[1].split(",").map((s) => s.trim()).includes(sel)) return m[2];
   return "";
 };
