@@ -150,6 +150,8 @@
   flex: none;
   align-items: center;
   gap: var(--space-2);
+  /* right-aligned by itself: the breadcrumb that fills the middle is hidden in Settings */
+  margin-left: auto;
 }
 .zen-actions {
   display: flex;
