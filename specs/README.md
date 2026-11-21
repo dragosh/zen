@@ -79,6 +79,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 31 | [plugins/logging](plugins/logging/spec.md) | the Console shows the built-in plugins: action and stream calls at debug, sandbox runs with capped output and exit, quiz scores, diagram errors; `engine/plugins/log.go`, logging in `engine/session` and `builtins/plugins/{sandbox,quiz,diagram}` | app/logging, core/plugin-extras | done |
 | 32 | [plugins/rating](plugins/rating/spec.md) | `:::rating`: 1–5 stars (or up to 10) with optional labels, kept on this Mac, Clear, and `:::rating-results`; demo page and the last step of the demo course; `builtins/plugins/rating` | core/plugin-extras, plugins/quiz | done |
 | 33 | [ui/plugin-kit](ui/plugin-kit/spec.md) | one kit of block, button, choice and field classes shipped on every page; quiz, rating, check, sandbox and course adopt it; docs/PLUGIN-UI.md, the style guide for future plugins and layouts | plugins/rating | done |
+| 34 | [ui/top-bar-actions](ui/top-bar-actions/spec.md) | Find, Edit and the Inspector as icons in the top bar (magnifying glass, pencil, panel), one icon set in `kit/ui/src/shell/icons.ts`, the footer keeps Settings and Export, the view group stays | ui/nav-panel, ui/find, #25 | in progress |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 
