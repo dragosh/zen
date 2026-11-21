@@ -44,6 +44,14 @@ layoutOptions: { id: intro-to-zen }
 
 - **Split:** each `h2` is a step; the layout shows a step list on the left (done / current / locked), the current step, and Previous / Next.
 - **Progress:** per step done state and the last open step in `ctx.storage` under the course `id`; "3 of 7 steps" in the header and a Reset button. Optional `:::check` blocks gate Next until every box is ticked.
+- **Skip step (#13):**
+  - A quiet **Skip step** button sits next to Next on every step except a finished one. It marks the step as skipped and moves on. A skipped step unlocks the next one even when its checklist isn't ticked.
+  - In the step list a skipped step shows **✗** in place of the number, and a done step keeps ✓. The skipped mark has its own `data-state="skipped"`, styled with the kit's muted text colour, not red.
+  - **Counts:** "3 of 7 steps" counts done steps only, and the header adds " · 1 skipped" when there are any. The progress bar fills for done steps only. Skipped steps are saved with the progress, as `skipped: [index]` next to `done`.
+  - **Going back:** a skipped step can be opened again. Ticking all its boxes, or pressing Next on a step with no checklist, turns it from skipped to done. Reset clears the skipped steps too.
+  - **Finish:** Finish is allowed with skipped steps.
+  - **Keyboard:** the button is reachable in tab order after Next. It has no shortcut.
+  - **Tests:** `runtime/test/builtin-course.test.ts`: skip unlocks the next step and marks ✗; the count and bar ignore skipped steps; it is saved and restored; ticking a skipped step's boxes makes it done; Reset clears it; a stored `skipped` with bad entries is filtered.
 - **Across pages:** a course can span files: `layoutOptions.pages: [a.md, b.md]`; the sidebar marks finished pages (needs the nav badge hook below).
 
 ## Needs from the core
