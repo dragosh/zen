@@ -15,6 +15,7 @@ page can never inject scripts into it.
 | [check](check.md) | a checklist block | yes |
 | [quiz](quiz.md) | questions with saved answers and scores | yes |
 | [sandbox](sandbox.md) | runs a code block in a container | yes, after setup |
+| [rating](rating.md) | star ratings kept on this Mac | yes |
 
 Settings has a **Plugins** section that lists them with help and snippets to
 copy into a page; see [Settings](../configuration/settings.md).

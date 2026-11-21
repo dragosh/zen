@@ -35,31 +35,46 @@ export function normalise(v, max) {
 const str = (x) => (typeof x === "string" ? x : "");
 
 async function mountRating(el, ctx) {
+  const original = Array.from(el.childNodes);
   const id = ctx.attrs.id || "";
   const key = PREFIX + id;
-  const fieldset = el.querySelector("fieldset.zr-rating");
-  const radios = Array.from(el.querySelectorAll("input[type=radio]"));
-  const stars = el.querySelector(".zr-stars");
-  const statusEl = el.querySelector(".zr-status");
-  if (!fieldset || radios.length === 0 || !stars || !statusEl) return;
-  const max = radios.length;
-  const question = (fieldset.querySelector(".zr-legend")?.textContent ?? "").trim();
-  const labels = radios.map((r, i) => (r.closest("label")?.querySelector(".zr-sr")?.textContent ?? `${i + 1} of ${max}`).trim());
+  // What Go rendered: the question, optional text, one span per star and a status line.
+  const starEls = Array.from(el.querySelectorAll(".zr-stars > .zr-star"));
+  if (starEls.length === 0) return;
+  const max = starEls.length;
+  const question = (el.querySelector(".zr-legend")?.textContent ?? "").trim();
+  const text = el.querySelector(".zr-text");
+  const labels = starEls.map((s, i) => (s.querySelector(".zr-sr")?.textContent ?? `${i + 1} of ${max}`).trim());
   const hasLabels = labels.some((l, i) => l !== `${i + 1} of ${max}`);
-  const glyphs = radios.map((r) => r.closest("label")?.querySelector(".zr-glyph"));
-  let hint = el.querySelector(".zr-hint");
-  if (!hint) { hint = h("span", { class: "zr-hint", "aria-hidden": "true" }); stars.append(hint); }
+
+  // ---- layout: a fieldset of radio inputs ----
+  const fieldset = h("fieldset", { class: "zr-rating" });
+  fieldset.append(h("legend", { class: "zr-legend", text: question }));
+  if (text) fieldset.append(text.cloneNode(true));
+  const stars = h("div", { class: "zr-stars" });
+  const radios = [];
+  const glyphs = [];
+  labels.forEach((label, i) => {
+    const input = h("input", { type: "radio", name: PREFIX + id, value: String(i + 1) });
+    const glyph = h("span", { class: "zr-glyph", "aria-hidden": "true", text: "☆" });
+    radios.push(input);
+    glyphs.push(glyph);
+    stars.append(h("label", { class: "zr-star" }, input, glyph, h("span", { class: "zr-sr", text: label })));
+  });
+  const hint = h("span", { class: "zr-hint", "aria-hidden": "true" });
+  stars.append(hint);
+  const statusEl = h("p", { class: "zr-status", role: "status", "aria-live": "polite", text: "Not rated yet" });
   const note = h("p", { class: "zr-note", role: "alert" });
   note.hidden = true;
   const clear = h("button", { type: "button", class: "zr-clear", text: "Clear" });
   clear.hidden = true;
-  const actions = h("div", { class: "zr-actions" }, clear);
-  fieldset.append(note, actions);
+  fieldset.append(stars, statusEl, note, h("div", { class: "zr-actions" }, clear));
+  el.replaceChildren(fieldset);
   let dead = false;
 
   let state = null;
   try {
-    state = normalise(await ctx.storage.get(PREFIX + id), max);
+    state = normalise(await ctx.storage.get(key), max);
   } catch (err) {
     console.error("rating: could not read the stored rating", err);
   }
@@ -133,13 +148,7 @@ async function mountRating(el, ctx) {
     stars.removeEventListener("mouseover", onOver);
     stars.removeEventListener("mouseleave", onLeave);
     clear.removeEventListener("click", onClear);
-    // The markup Go rendered goes back as it was: nothing checked, not rated.
-    actions.remove();
-    note.remove();
-    glyphs.forEach((g) => { if (g) g.textContent = "☆"; });
-    radios.forEach((r) => { r.checked = false; });
-    statusEl.textContent = "Not rated yet";
-    hint.textContent = "";
+    el.replaceChildren(...original);
   };
 }
 

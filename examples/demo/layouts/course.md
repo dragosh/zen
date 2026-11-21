@@ -97,6 +97,13 @@ images.
 - [ ] I checked my answers
 :::
 
+## Rate this course
+
+How did it go? Pick the stars, and Zenmark keeps your rating on this Mac.
+
+:::rating{id=learn-by-doing title="How was this course?" labels="Poor|Fair|Good|Very good|Excellent"}
+:::
+
 ## Done
 
 You finished the course. Press Finish to mark it done, or Reset to start over.
