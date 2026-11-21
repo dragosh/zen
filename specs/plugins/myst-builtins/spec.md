@@ -81,8 +81,12 @@ Each built-in also works without MyST, as a `:::name` container or a
 | `{math}` role, and `$ … $` inline (dialect syntax, only when the folder turns on MyST's `dollarmath`) | inline math |
 | `{eq}` role | a link to a labelled equation, showing its number |
 
-**Rendering is an open question (decision below).** Without a renderer the
-TeX stays visible as monospace text in a `.zen-block`, still readable.
+**Rendering: KaTeX, vendored** (decided 2026-11-21).
+- **Where it lives:** the files go in `builtins/plugins/math/assets/`, as mermaid's do: `katex.min.js`, `katex.min.css` and the fonts. A `VENDOR.md` records the version, the source and the licence (MIT).
+- **When it loads:** only on pages that have math, through `ctx.assetUrl`, the way the diagram plugin loads mermaid.
+- **How it renders:** in the page, with `throwOnError: false`, `trust: false` and `strict: "warn"`. An error shows the TeX with the message under it.
+- **Before KaTeX loads,** and in a page without scripts, the TeX shows as monospace text in a `.zen-block`.
+- **Fetching it:** the lead downloads KaTeX once, with the user's go-ahead, before the subagent starts. Subagents never download.
 
 ### Phase 4: interactive layout blocks (sphinx-design), built-ins `tabs`, `dropdown` and `cards` (wave 39)
 
@@ -167,9 +171,8 @@ colour appears only as a callout's left rule, from the lint tokens.
 
 ## Notes
 
-- **Open decisions for the user, before phase 3:**
-  - Math rendering. One option is to vendor KaTeX (about 300 KB, like mermaid is vendored, rendered in the page). The other is to keep TeX visible as text. My recommendation is KaTeX, loaded only on pages that use math.
-  - Whether the new built-ins join Zenmark's `plugins:` list one phase at a time, as in roadmap step 3.
+- **Decided:** math is rendered by vendored KaTeX (phase 3).
+- **Open:** whether the new built-ins join Zenmark's `plugins:` list one phase at a time, as in roadmap step 3. The plan is yes.
 - **Out of scope:** Jupyter notebooks (`.ipynb`); executing `code-cell`; Sphinx cross-project references (`intersphinx`); bibliographies (`{cite}`); `myst.yml` project settings beyond detection.
 - **Changelog per phase,** for example: `Added: MyST callouts (note, tip, warning, …, admonition, versionadded) as the callout built-in.`
 
