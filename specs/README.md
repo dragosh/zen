@@ -86,6 +86,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 42 | [ui/export-pdf-settings](ui/export-pdf-settings/spec.md) | Settings › Export › PDF as a form like the website: output file, drafts, pages, cover, open when done, Export PDF, Preview, Save as folder defaults (`export.pdf`); the CLI and preview read the same defaults | engine/export-key, app/export | done |
 | 43 | [ui/site-topbar](ui/site-topbar/spec.md) | exported websites get the app's fixed top bar: a sidebar toggle (remembered, ⌘\), back and forward (⌘[ ⌘]), and the breadcrumb; same icons and tokens; hidden in print | core/static-build, engine/runtime, ui/top-bar-actions | done |
 | 44 | [engine/export-theme](engine/export-theme/spec.md) | `export.theme`: built-in and folder site themes, design tokens (with an accent) for light and dark, scheme, logo, favicon, og image, footer, your own stylesheet; Settings › Export › Website Theme part with Preview; the PDF uses fonts and accent; the app stays black and white | engine/export-key, ui/site-topbar | planned |
+| 45 | [engine/export-cli-parity](engine/export-cli-parity/spec.md) | CLI first: one table of export options checked against the CLI and both Settings forms; new flags (--no-drafts, --all, --cover, --open, --save-defaults, --scheme); the website's light or dark scheme (export.theme.scheme) in Settings and the CLI | engine/export-key, ui/export-pdf-settings | in progress |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 
