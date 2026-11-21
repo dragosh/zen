@@ -9,6 +9,8 @@ Work through the steps in order. Tick the boxes to unlock the next step. Your
 progress is saved on this Mac. The steps use the other plugins too, so a course
 can hold code, diagrams and quizzes as well as checklists.
 
+If a step isn't for you, press **Skip step** to move on; you can come back to it later.
+
 ## Open a folder
 
 Zenmark reads a folder of markdown files. Open one from the File menu, or run
