@@ -301,7 +301,7 @@ func TestDemoFolder(t *testing.T) {
 	}
 	sub := map[string]string{
 		"plugins/index.md":          "plugins/codeblock.md,plugins/diagram.md,plugins/check.md,plugins/quiz.md,plugins/sandbox.md",
-		"layouts/index.md":          "layouts/article.md",
+		"layouts/index.md":          "layouts/article.md,layouts/docs.md",
 		"configuration/settings.md": "configuration/reference.md",
 	}
 	for _, n := range tree[0].Children {
@@ -347,8 +347,13 @@ func TestDemoFolder(t *testing.T) {
 		if len(pg.Warnings) > 0 {
 			t.Errorf("%s: warnings %v", p, pg.Warnings)
 		}
-		if pg.Layout.Name != "article" {
-			t.Errorf("%s: layout %q, want article", p, pg.Layout.Name)
+		// Each layout's own page shows it; every other page is an article.
+		wantLayout := map[string]string{"layouts/docs.md": "docs"}[p]
+		if wantLayout == "" {
+			wantLayout = "article"
+		}
+		if pg.Layout.Name != wantLayout {
+			t.Errorf("%s: layout %q, want %s", p, pg.Layout.Name, wantLayout)
 		}
 		broken := strings.Count(pg.HTML, `data-zen-link="broken"`)
 		if want := map[bool]int{true: 1, false: 0}[p == "intro/navigation.md"]; broken != want {

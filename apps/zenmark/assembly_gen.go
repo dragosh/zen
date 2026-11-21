@@ -32,7 +32,7 @@ func assemblyPlugins() *plugins.Registry {
 // assemblyLayouts is the registry of the built-in layouts this app includes
 // (article, the fallback, is always there).
 func assemblyLayouts(version string) *enginelayouts.Registry {
-	return layouts.Registry(version, "article")
+	return layouts.Registry(version, "article", "docs")
 }
 
 // assemblyTemplates holds the built-in site templates this app includes.
@@ -59,7 +59,7 @@ var assemblyInfo = session.BuildInfo{
 	App:       "zenmark",
 	Features:  []string{"reader", "nav", "inspector", "developer"},
 	Plugins:   []string{"codeblock", "diagram", "check", "quiz", "sandbox"},
-	Layouts:   []string{"article"},
+	Layouts:   []string{"article", "docs"},
 	Templates: []string{},
 	Dialects:  []string{},
 	Theme:     "default",

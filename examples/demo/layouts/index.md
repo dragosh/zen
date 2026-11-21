@@ -15,7 +15,13 @@ layout: article
 ---
 ```
 
-This build has one layout, [article](article.md), and every page uses it
-unless it names another. Settings has a **Layouts** section that lists the
+Every page uses [article](article.md) unless it names another. This build
+has these layouts:
+
+| Layout | For |
+|---|---|
+| [article](article.md) | the reading view, the default |
+| [docs](docs.md) | documentation, with a contents rail and previous and next links |
+ Settings has a **Layouts** section that lists the
 layouts with help and snippets to copy; see
 [Settings](../configuration/settings.md).

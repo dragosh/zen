@@ -11,7 +11,7 @@ app: zenmark
 features: [reader, nav, inspector, developer]
 addons: []
 plugins: [codeblock, diagram, check, quiz, sandbox]
-layouts: [article]
+layouts: [article, docs]
 templates: []
 dialects: []
 theme: default
