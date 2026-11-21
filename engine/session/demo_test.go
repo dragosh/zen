@@ -301,7 +301,7 @@ func TestDemoFolder(t *testing.T) {
 	}
 	sub := map[string]string{
 		"plugins/index.md":          "plugins/codeblock.md,plugins/diagram.md,plugins/check.md,plugins/quiz.md,plugins/sandbox.md",
-		"layouts/index.md":          "layouts/article.md,layouts/docs.md,layouts/post.md",
+		"layouts/index.md":          "layouts/article.md,layouts/docs.md,layouts/post.md,layouts/landing.md",
 		"configuration/settings.md": "configuration/reference.md",
 	}
 	for _, n := range tree[0].Children {
@@ -348,7 +348,7 @@ func TestDemoFolder(t *testing.T) {
 			t.Errorf("%s: warnings %v", p, pg.Warnings)
 		}
 		// Each layout's own page shows it; every other page is an article.
-		wantLayout := map[string]string{"layouts/docs.md": "docs", "layouts/post.md": "post"}[p]
+		wantLayout := map[string]string{"layouts/docs.md": "docs", "layouts/post.md": "post", "layouts/index.md": "landing", "layouts/landing.md": "docs"}[p]
 		if wantLayout == "" {
 			wantLayout = "article"
 		}
