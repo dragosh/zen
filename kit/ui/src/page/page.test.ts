@@ -23,7 +23,7 @@ afterEach(() => { unmount?.(); unmount = undefined; vi.useRealTimers(); });
 const mount = () => { unmount = pageFeature.mount(env.slots, env.ctx); };
 const article = () => env.slots.main.querySelector("article.zen-page") as HTMLElement;
 const btn = (root: HTMLElement, label: string) =>
-  Array.from(root.querySelectorAll("button")).find((b) => b.textContent?.includes(label)) as HTMLButtonElement;
+  Array.from(root.querySelectorAll("button")).find((b) => (b.getAttribute("aria-label") ?? b.textContent)?.includes(label)) as HTMLButtonElement;
 
 test("loads, mounts, sets title and stores the page", async () => {
   expect(pageFeature.id).toBe("reader");

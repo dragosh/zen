@@ -943,6 +943,53 @@ test("with every feature the same controls are there", async () => {
   expect(e.defaultPrevented).toBe(true);
 });
 
+// ui/top-bar-actions: Find, Edit and the Inspector are icon buttons in the top bar, each with its feature.
+const topButtons = () => Array.from(root.querySelectorAll<HTMLButtonElement>(".zen-top-actions button")).filter((b) => !b.hidden);
+
+test("top bar: Find, Edit, Inspector in that order as icons with names and tooltips; the footer keeps Settings and Export", async () => {
+  const { features: shipped } = await import("./features");
+  await boot(buildWith(ALL), shipped).start();
+  await tick();
+  await tick();
+  expect(topButtons().map((b) => b.getAttribute("aria-label"))).toEqual(["Find", "Edit", "Inspector"]);
+  expect(topButtons().map((b) => b.title)).toEqual(["Find (⌘F)", "Edit (⌘E)", "Inspector (⌥⌘I)"]);
+  for (const b of topButtons()) {
+    expect(b.querySelector("svg")).not.toBeNull();
+    expect(b.textContent).toBe("");
+  }
+  expect(Array.from(root.querySelectorAll(".zen-sidebar-foot button")).map((b) => b.getAttribute("aria-label"))).toEqual(["Settings", "Export"]);
+  // the buttons turn on with their view: Find with its bar (also by key), the Inspector with its panel
+  const [find, , inspector] = topButtons();
+  expect(find.getAttribute("aria-pressed")).toBe("false");
+  find.click();
+  expect(document.querySelector(".zen-find")).not.toBeNull();
+  expect(find.getAttribute("aria-pressed")).toBe("true");
+  document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true, cancelable: true }));
+  expect(find.getAttribute("aria-pressed")).toBe("false");
+  inspector.click();
+  expect(inspector.getAttribute("aria-expanded")).toBe("true");
+});
+
+test.each([
+  ["find", ["Edit", "Inspector"]],
+  ["editor", ["Find", "Inspector"]],
+  ["inspector", ["Find", "Edit"]],
+])("top bar: a build without %s has no such button", async (feature, left) => {
+  const { features: shipped } = await import("./features");
+  await boot(buildWith(ALL.filter((f) => f !== feature)), shipped).start();
+  await tick();
+  await tick();
+  expect(topButtons().map((b) => b.getAttribute("aria-label"))).toEqual(left);
+});
+
+test("top bar: a build with none of the three has no action buttons", async () => {
+  const { features: shipped } = await import("./features");
+  await boot(buildWith(ALL.filter((f) => !["find", "editor", "inspector"].includes(f))), shipped).start();
+  await tick();
+  await tick();
+  expect(root.querySelectorAll(".zen-top-actions button")).toHaveLength(0);
+});
+
 // Intro screen (zenmark-org/zenmd#23)
 test("welcome: the logo comes first, the rest follows in order (CSS delays)", async () => {
   await boot(createFakeApi()).start();
