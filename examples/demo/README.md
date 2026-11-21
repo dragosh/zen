@@ -14,13 +14,14 @@ it, and the guide only describes what this version of Zenmark has.
 ## Introduction
 
 1. [Open a folder](intro/opening-folders.md), and what Zenmark shows first.
-2. How the [sidebar, links and breadcrumbs](intro/navigation.md) work.
-3. [Find in a page](intro/find.md) with ⌘F.
-4. Tune a page with [frontmatter](intro/frontmatter.md).
-5. [Edit a page](intro/editor.md) and add new ones.
-6. [Print a page](intro/printing.md), or save it as a PDF.
-7. Check a page with the [Inspector and the Developer panel](intro/inspector.md).
-8. [Keyboard shortcuts](intro/shortcuts.md) and the [markdown showcase](intro/markdown.md).
+2. Tune a page with [frontmatter](intro/frontmatter.md).
+3. [Keyboard shortcuts](intro/shortcuts.md).
+
+## Features
+
+[Features](features/index.md) has one page for each thing Zenmark does:
+reading and live reload, the sidebar and links, find, the editor, the
+Inspector, printing and the Developer tools.
 
 ## The rest of the guide
 

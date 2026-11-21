@@ -1,4 +1,7 @@
-# The Inspector and the Developer panel
+---
+title: Inspector
+---
+# The Inspector
 
 The **Inspector** is a panel under the page that tells you about the page you
 are reading. Open and close it with the **Inspector** button in the top bar (a
@@ -33,17 +36,5 @@ to scroll to it on the page, where it is marked. The Inspector button shows
 how many problems the page has. Pages of this guide are clean, apart from the
 one link above.
 
-## The Developer panel
-
-The Developer panel is two more tabs of the same Inspector, off until you turn
-them on. Open **Settings** (<kbd>⌘,</kbd>), choose **Developer** and tick
-**Show Console in the Inspector**. Then:
-
-- **Console** shows the app's log, errors from plugins and what the page
-  prints. Filter by source (All, App, Plugins or Page), by level or by text.
-  **Clear** empties the list and **Copy** copies the lines. <kbd>⌥⌘J</kbd>
-  opens the Inspector on this tab.
-- **Build** shows what this Zenmark is made of: its version, features,
-  plugins, layouts and theme, with a list on the left and details on the right.
-
-Logs hold file paths and error messages, never the text of your pages.
+The Inspector has two more tabs, Console and Build, which are off until you
+turn them on; see [Developer](developer.md).

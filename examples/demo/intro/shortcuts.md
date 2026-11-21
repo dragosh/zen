@@ -1,14 +1,15 @@
 # Keyboard shortcuts
 
-Only the keys Zenmark has today.
+Only the keys Zenmark has today. What each one does is on its page in
+[Features](../features/index.md).
 
 ## Window
 
 | Keys | Action |
 |---|---|
 | <kbd>⌘O</kbd> | open a folder |
-| <kbd>⌘N</kbd> | a [new page](editor.md#new-pages) |
-| <kbd>⌘P</kbd> | [print the page](printing.md) |
+| <kbd>⌘N</kbd> | a new page |
+| <kbd>⌘P</kbd> | print the page |
 | <kbd>⇧⌘W</kbd> | close the folder |
 | <kbd>⌘,</kbd> | Settings (<kbd>Esc</kbd> goes back) |
 | <kbd>⌘[</kbd> / <kbd>⌘]</kbd> | back / forward |
@@ -45,7 +46,7 @@ Only the keys Zenmark has today.
 
 | Keys | Action |
 |---|---|
-| <kbd>⌘E</kbd> | [edit](editor.md) the open page |
+| <kbd>⌘E</kbd> | edit the open page |
 | <kbd>⌘S</kbd> | save |
 | <kbd>⌘B</kbd> / <kbd>⌘I</kbd> | bold / italic |
 | <kbd>⌘K</kbd> | link |
@@ -57,7 +58,7 @@ Only the keys Zenmark has today.
 
 | Keys | Action |
 |---|---|
-| <kbd>⌘F</kbd> | [find in the page](find.md) |
+| <kbd>⌘F</kbd> | find in the page |
 | <kbd>⌘G</kbd> / <kbd>⇧⌘G</kbd> | the next / previous match |
 | <kbd>⌘C</kbd> | copy |
 | <kbd>⌘A</kbd> | select all |

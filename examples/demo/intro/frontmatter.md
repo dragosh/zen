@@ -23,7 +23,7 @@ plugins:
 ```
 
 The Inspector's Page Info tab lists the keys a page has, see
-[the Inspector](inspector.md).
+[Features](../features/index.md).
 
 ## Title
 
