@@ -82,6 +82,11 @@ task test && task build                             # the lead, after each merge
   checks it in review.
 - UI: black and white tokens only (docs/UI.md), keyboard reachable, and
   `prefers-reduced-motion` respected.
+- **Plugins and layouts** follow docs/PLUGIN-UI.md: interactive blocks use
+  the plugin kit (`.zen-block`, `.zen-btn`, `.zen-btn-primary`, `.zen-btn-quiet`,
+  `.zen-choice`, `.zen-field`) and the UI font at 14px, never their own buttons,
+  choices or fonts. Put the guide in every plugin or layout brief, and check its
+  review list before merging.
 - Commits and PRs: plain messages with no Co-Authored-By lines. Never put
   personal data in issues.
 - Never ask for passwords, keys or certificates in chat. The user runs
