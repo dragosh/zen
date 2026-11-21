@@ -7,6 +7,8 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- The built-in plugins are back in Zenmark: code colours (codeblock), mermaid diagrams, checklists, quizzes and the container sandbox (#12).
+- The Console shows what the built-in plugins do: the steps of a sandbox run (service check, files, container, exit, clean-up), quiz scores and diagram errors, never code, answers or user settings.
 - The Console shows what the app does, at debug, info, warn and error levels (start-up, opening a folder, reloads, exports, failures), with folder-relative paths only; it starts at Info+ and remembers the level.
 - Settings › Accessibility: zoom for the whole window (View › Zoom In/Out/Actual Size, ⌘+ ⌘− ⌘0), the reader's text size, font, line spacing, line width and link underlines, and Reduce motion and Increase contrast that also follow macOS.
 - Intro screen: the window opens at full size with no flash (it is shown once the first screen is drawn), the logo and text fade in together, centred, over one of three random backgrounds; ⌘P does nothing until a folder is open (#23).
@@ -18,6 +20,8 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 - Find in page: ⌘F (Edit › Find) opens a find bar in the reader and the editor with a match count, next/previous (⌘G, ⇧⌘G) and a match-case toggle (#4).
 
 ### Changed
+- `examples/demo` is the Zenmark guide for what the app has today and grows with each roadmap step; the full tour is `examples/showcase`.
+- Sandbox: read-only code is coloured like a code block, and the note about a stopped container service checks again when you come back to the window or press Check again.
 - Clicking a problem jumps to it in the page and marks it like a spelling mark, with its details on the right; the Inspector's Build tab is a list with details. Settings opens on Configuration, a config file that does not exist is greyed out when the build cannot create it, and the home screen fades in only when the app starts.
 - The folder settings file is now `.zenmd.yml`. A `.zen.yml` is still read, shown under Problems, and renamed the first time a folder setting is saved.
 - The sidebar shows the folder's name once and marks the open panel's button; Settings › Appearance lists Theme and Navigation, and Settings › Markdown lists Dialects, like the other sections.
