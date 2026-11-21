@@ -1,0 +1,42 @@
+/* The plugin kit: the one look of every interactive block (quiz, rating, checklist, sandbox, course ...).
+   The sandbox's bar and buttons are the reference. Plugins and layouts add these classes to their elements and keep
+   only the styles that are their own; they never restyle buttons, choices, fields or frames. Tokens only (docs/UI.md).
+   The rules for authors are in docs/PLUGIN-UI.md. */
+
+/* The frame of a block. */
+.zen-block { box-sizing: border-box; margin: 1em 0; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--bg-subtle); color: var(--fg); font: 14px/1.4 var(--font-ui); }
+/* The block's title row, with an optional status on the right. */
+.zen-block-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0; padding: 8px 12px; font: 600 14px/1.4 var(--font-ui); }
+.zen-block-status { color: var(--fg-muted); font: 13px/1.4 var(--font-ui); font-weight: 400; }
+.zen-block-body { padding: 10px 12px; }
+/* The action row. */
+.zen-block-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 6px 12px; border-top: 1px solid var(--rule); font-size: 13px; }
+
+/* A fieldset used as a block: its legend becomes the title row, inside the frame. */
+fieldset.zen-block { min-width: 0; padding: 0; }
+fieldset.zen-block > legend.zen-block-head { float: left; box-sizing: border-box; width: 100%; }
+fieldset.zen-block > legend.zen-block-head + * { clear: both; }
+
+/* Buttons. */
+.zen-btn { box-sizing: border-box; padding: 3px 12px; border: 0; border-radius: var(--radius); background: var(--btn-bg); color: var(--fg); font: 13px/1.5 var(--font-ui); cursor: pointer; }
+.zen-btn:hover:not(:disabled) { background: var(--btn-bg-hover); }
+.zen-btn:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.zen-btn:disabled { opacity: 0.45; cursor: default; }
+.zen-btn-primary { background: var(--btn-primary-bg); color: var(--btn-primary-fg); }
+.zen-btn-primary:hover:not(:disabled) { background: var(--btn-primary-bg); opacity: 0.85; }
+.zen-btn-quiet { background: transparent; color: var(--fg-muted); }
+.zen-btn-quiet:hover:not(:disabled) { background: var(--btn-bg); color: var(--fg); }
+
+/* An option row with a radio or a checkbox: the input inside the frame, wrapped text hangs after it. */
+.zen-choice { display: flex; align-items: flex-start; gap: 8px; margin: 0; padding: 4px 0; font: 14px/1.4 var(--font-ui); cursor: pointer; }
+.zen-page .zen-choice { margin: 0; }
+.zen-choice input { flex: none; width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--fg); }
+.zen-choice input:not(:disabled) { cursor: pointer; }
+.zen-choice input:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.zen-choice input:disabled { cursor: default; }
+
+/* A text input or textarea. */
+.zen-field { box-sizing: border-box; width: 100%; padding: 4px 8px; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--bg); color: var(--fg); font: 14px/1.4 var(--font-ui); }
+.zen-field:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) { .zen-btn, .zen-choice, .zen-field { transition: none; } }

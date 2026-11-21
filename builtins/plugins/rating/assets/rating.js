@@ -48,9 +48,11 @@ async function mountRating(el, ctx) {
   const hasLabels = labels.some((l, i) => l !== `${i + 1} of ${max}`);
 
   // ---- layout: a fieldset of radio inputs ----
-  const fieldset = h("fieldset", { class: "zr-rating" });
-  fieldset.append(h("legend", { class: "zr-legend", text: question }));
-  if (text) fieldset.append(text.cloneNode(true));
+  const fieldset = h("fieldset", { class: "zr-rating zen-block" });
+  fieldset.append(h("legend", { class: "zr-legend zen-block-head", text: question }));
+  const body = h("div", { class: "zr-body zen-block-body" });
+  fieldset.append(body);
+  if (text) body.append(text.cloneNode(true));
   const stars = h("div", { class: "zr-stars" });
   const radios = [];
   const glyphs = [];
@@ -66,9 +68,9 @@ async function mountRating(el, ctx) {
   const statusEl = h("p", { class: "zr-status", role: "status", "aria-live": "polite", text: "Not rated yet" });
   const note = h("p", { class: "zr-note", role: "alert" });
   note.hidden = true;
-  const clear = h("button", { type: "button", class: "zr-clear", text: "Clear" });
+  const clear = h("button", { type: "button", class: "zr-clear zen-btn zen-btn-quiet", text: "Clear" });
   clear.hidden = true;
-  fieldset.append(stars, statusEl, note, h("div", { class: "zr-actions" }, clear));
+  body.append(stars, statusEl, note, h("div", { class: "zr-actions" }, clear));
   el.replaceChildren(fieldset);
   let dead = false;
 

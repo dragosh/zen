@@ -1,21 +1,17 @@
-.zr-rating { font-family: var(--font-ui); border: 1px solid var(--rule); border-radius: var(--radius, 6px); margin: 12px 0; padding: 8px 16px 12px; }
-.zr-legend { font-family: var(--font-body); padding: 0 8px; font-weight: 600; }
+/* :::rating — only what is the rating's own (the stars); the frame, title and Clear button are the plugin kit's (docs/PLUGIN-UI.md). */
+.zr-rating { margin: 12px 0; }
 .zr-text { margin: 0 0 8px; }
 .zr-stars { display: flex; align-items: baseline; gap: 2px; }
 .zr-star { position: relative; cursor: pointer; font-size: 24px; line-height: 1.2; color: var(--fg); }
 .zr-star input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
-.zr-star:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius, 6px); }
+.zr-star:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; border-radius: var(--radius); }
 .zr-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .zr-hint { margin-left: 8px; color: var(--fg-muted); font-size: 13px; }
 .zr-hint:empty { display: none; }
-.zr-status { margin: 8px 0 0; font-weight: 600; }
+.zr-status { margin: 8px 0 0; font-size: 13px; font-weight: 600; }
 .zr-actions { display: flex; gap: 8px; margin-top: 8px; }
-.zr-clear { font: inherit; padding: 4px 16px; border: 0; border-radius: var(--radius, 6px); background: var(--btn-bg); color: var(--fg); cursor: pointer; }
-.zr-clear:hover { background: var(--btn-bg-hover); }
-.zr-clear:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.zr-clear[hidden] { display: none; }
 .zr-note { color: var(--lint-error); }
-.zr-results-items { list-style: none; padding: 0; font-family: var(--font-ui); }
+.zr-results-items { list-style: none; padding: 0; font: 14px/1.4 var(--font-ui); }
 .zr-results-items li { padding: 4px 0; border-bottom: 1px solid var(--rule); }
 .zr-results-items a { color: var(--fg); font-weight: 600; }
 .zr-stars-line { letter-spacing: 1px; }

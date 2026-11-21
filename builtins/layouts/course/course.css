@@ -29,8 +29,11 @@
 .course-steps { flex: none; width: 14em; font: 14px/1.4 var(--font-ui); }
 .course-steps ol { margin: 0; padding: 0; list-style: none; counter-reset: step; }
 .course-steps li { counter-increment: step; }
+/* A step: the mark (the number, or the tick) in a fixed first column, the title in the second, so a wrapped title lines up under the title. */
 .course-step-link {
-  display: block;
+  display: grid;
+  grid-template-columns: 1.6em 1fr;
+  align-items: baseline;
   width: 100%;
   padding: var(--space-2) var(--space-3);
   border: 0;
@@ -41,25 +44,21 @@
   text-align: left;
   cursor: pointer;
 }
-.course-step-link::before { content: counter(step) ". "; }
+.course-step-title { min-width: 0; overflow-wrap: anywhere; }
+.course-step-link::before { content: counter(step) "."; }
 .course-step-link:hover:not(:disabled) { background: var(--btn-bg); }
+.course-step-link:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 li[data-state="current"] .course-step-link { background: var(--btn-bg); color: var(--fg); font-weight: 600; }
-li[data-state="done"] .course-step-link::before { content: "\2713  "; }
+li[data-state="done"] .course-step-link::before { content: "\2713"; }
 li[data-state="locked"] .course-step-link { opacity: 0.5; cursor: default; }
 
 .course-content { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .course-main { flex: 1; }
 .course-step[hidden] { display: none; }
 .course-step > h2 { margin-top: 0; }
-[data-zen-name="check"] {
-  margin: 0 0 1em;
-  padding: var(--space-3) var(--space-4);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-}
+/* :::check is a kit block (zen-block, zen-choice, set by course.js); only the list reset and the ticked colour are the course's. */
 [data-zen-name="check"] ul { margin: 0; padding-left: 0; list-style: none; }
-[data-zen-name="check"] li:has(> input:checked) { color: var(--fg-muted); }
-[data-zen-name="check"] input[type="checkbox"]:not(:disabled) { cursor: pointer; }
+[data-zen-name="check"] .zen-choice:has(:checked) { color: var(--fg-muted); }
 
 .course-nav {
   display: flex;
@@ -67,19 +66,6 @@ li[data-state="locked"] .course-step-link { opacity: 0.5; cursor: default; }
   padding-top: var(--space-4);
   border-top: 1px solid var(--rule);
 }
-.course-root button:not(.course-step-link) {
-  padding: var(--space-1) var(--space-4);
-  border: 0;
-  border-radius: var(--radius);
-  background: var(--btn-bg);
-  color: var(--fg);
-  font: 13px/1.5 var(--font-ui);
-  cursor: pointer;
-}
-.course-root button:not(.course-step-link):hover:not(:disabled) { background: var(--btn-bg-hover); }
-.course-root button:disabled { opacity: 0.5; cursor: default; }
-.course-next:not(:disabled) { background: var(--btn-primary-bg); color: var(--btn-primary-fg); }
-.course-next:not(:disabled):hover { background: var(--btn-primary-bg); opacity: 0.85; }
 
 @media (max-width: 640px) {
   .course-body { flex-direction: column; }

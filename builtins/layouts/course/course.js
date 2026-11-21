@@ -11,7 +11,7 @@ function el(doc, name, cls, text) {
   return e;
 }
 function button(doc, cls, text) {
-  const b = el(doc, "button", cls, text);
+  const b = el(doc, "button", cls + " zen-btn", text);
   b.type = "button";
   return b;
 }
@@ -67,7 +67,7 @@ export default {
     const bar = el(doc, "div", "course-progress");
     const fill = el(doc, "div", "course-progress-fill");
     bar.append(fill);
-    const reset = button(doc, "course-reset", "Reset");
+    const reset = button(doc, "course-reset zen-btn-quiet", "Reset");
     meta.append(count, bar, reset);
     header.append(introBox, meta);
 
@@ -79,7 +79,7 @@ export default {
     const main = el(doc, "div", "course-main");
     const footer = el(doc, "div", "course-nav");
     const prev = button(doc, "course-prev", "Previous");
-    const next = button(doc, "course-next", "Next");
+    const next = button(doc, "course-next zen-btn-primary", "Next");
     footer.append(prev, next);
 
     const sections = steps.map((s) => {
@@ -90,13 +90,20 @@ export default {
     });
     const items = steps.map((s, i) => {
       const li = el(doc, "li");
-      const b = button(doc, "course-step-link", s.title);
+      const b = el(doc, "button", "course-step-link");
+      b.type = "button";
+      b.append(el(doc, "span", "course-step-title", s.title));
       b.addEventListener("click", () => open(i));
       li.append(b);
       list.append(li);
       return { li, b };
     });
     const boxesOf = (i) => Array.from(sections[i].querySelectorAll('[data-zen-name="check"] input[type="checkbox"]'));
+    // The checklists are the kit's: a frame, each item a choice with its box inside.
+    for (const c of main.querySelectorAll('[data-zen-name="check"]')) {
+      c.classList.add("zen-block", "zen-block-body");
+      for (const li of c.querySelectorAll("li")) if (li.querySelector(':scope > input[type="checkbox"]')) li.classList.add("zen-choice");
+    }
     const allBoxes = sections.flatMap((_, i) => boxesOf(i));
     for (const b of allBoxes) b.disabled = false;
     for (let i = 0; i < total; i++) {

@@ -63,7 +63,9 @@ function builtinCss(): string[] {
       else if (e.name.endsWith(".css")) out.push(`${d}/${e.name}`);
     }
   };
-  walk("builtins");
+  // The plugins and the course layout (the other layouts own their pages, and use the serif for the page's own text).
+  walk("builtins/plugins");
+  walk("builtins/layouts/course");
   return out;
 }
 
@@ -74,7 +76,7 @@ test("plugins define no button, choice or field rules of their own, and no serif
     const css = strip(read(f));
     // codeblock's Copy and Wrap are small tool chips inside a code block, not a block's controls.
     if (!f.includes("codeblock")) {
-      expect(selectors(css).filter((s) => /\bbutton\b|\binput\b|\bselect\b|\btextarea\b/.test(s) && !/sandbox-editor/.test(s)), `${f}: controls`).toEqual([]);
+      expect(selectors(css).filter((s) => /\bbutton\b|\binput\b|\bselect\b|\btextarea\b/.test(s) && !/sandbox-editor|\.zr-star input/.test(s)), `${f}: controls`).toEqual([]);
     }
     expect(css, `${f}: serif`).not.toMatch(/var\(--font-body\)/);
     expect(selectors(css).filter((s) => /-option\b|-legend\b|-clear\b|-check\b|-recheck\b/.test(s)), `${f}: choices`).toEqual([]);

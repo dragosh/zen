@@ -590,6 +590,13 @@ Print: File › Print… (⌘P) prints the open page; zen hides the sidebar, hea
 and panels and uses the full page width. A plugin can add its own rules in an
 `@media print` block of its CSS (for instance one slide per sheet).
 
+### Look and feel: the plugin kit
+
+Every interactive block looks the same: a frame, a title row, buttons, option
+rows and text fields come from the plugin kit, which zen ships on every page. Add
+its classes to your elements and style only what is your own. The classes and the
+rules for plugins and layouts are in [PLUGIN-UI.md](PLUGIN-UI.md).
+
 ### Layouts are not plugins
 
 A `layouts:` key in `plugin.yml`, or in a Tengo `plugin` map, is an error that

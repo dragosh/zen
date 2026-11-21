@@ -93,43 +93,45 @@ async function mountQuiz(el, ctx) {
   };
 
   // ---- layout ----
-  const header = h("div", { class: "zq-header" });
+  const header = h("div", { class: "zq-header zen-block-head" });
   const titleEl = h("strong", { class: "zq-title", text: title || "Quiz" });
-  const summary = h("span", { class: "zq-summary" });
+  const summary = h("span", { class: "zq-summary zen-block-status" });
   header.append(titleEl, summary);
   const form = h("form", { class: "zq-form", novalidate: "" });
   const note = h("p", { class: "zq-note", role: "alert" });
   const outcome = h("p", { class: "zq-outcome", role: "status", "aria-live": "polite", tabindex: "-1" });
   const actions = h("div", { class: "zq-actions" });
-  const checkBtn = h("button", { type: "submit", class: "zq-check", text: "Check" });
-  const retryBtn = h("button", { type: "button", class: "zq-retry", text: "Retry" });
+  const checkBtn = h("button", { type: "submit", class: "zq-check zen-btn zen-btn-primary", text: "Check" });
+  const retryBtn = h("button", { type: "button", class: "zq-retry zen-btn", text: "Retry" });
   retryBtn.hidden = true;
   actions.append(checkBtn, retryBtn);
 
   /** Per question: {fieldset, inputs, status, explain, kind}. */
   const rows = questions.map((q, i) => {
-    const fs = h("fieldset", { class: `zq-question zq-${q.kind}` });
-    fs.append(h("legend", { class: "zq-legend", text: `${i + 1}. ${q.prompt}` }));
+    const fs = h("fieldset", { class: `zq-question zen-block zq-${q.kind}` });
+    fs.append(h("legend", { class: "zq-legend zen-block-head", text: `${i + 1}. ${q.prompt}` }));
+    const body = h("div", { class: "zq-body zen-block-body" });
+    fs.append(body);
     const inputs = [];
     if (q.kind === "text") {
-      const input = h("input", { type: "text", class: "zq-input", autocomplete: "off", spellcheck: "false", "aria-label": `Answer to question ${i + 1}` });
+      const input = h("input", { type: "text", class: "zq-input zen-field", autocomplete: "off", spellcheck: "false", "aria-label": `Answer to question ${i + 1}` });
       inputs.push(input);
-      fs.append(input);
+      body.append(input);
     } else {
       const order = shuffle ? shuffled(q.options.length) : q.options.map((_, k) => k);
       for (const k of order) {
         const input = h("input", { type: q.kind === "multi" ? "checkbox" : "radio", name: `${base}-${i}`, value: String(k) });
         inputs.push(input);
-        fs.append(h("label", { class: "zq-option" }, input, h("span", { text: q.options[k] })));
+        body.append(h("label", { class: "zq-option zen-choice" }, input, h("span", { text: q.options[k] })));
       }
     }
     const status = h("p", { class: "zq-status", "aria-live": "polite" });
     const explain = h("p", { class: "zq-explanation" });
-    fs.append(status, explain);
+    body.append(status, explain);
     let button = null;
     if (each) {
-      button = h("button", { type: "submit", class: "zq-check-one", text: "Check" });
-      fs.append(button);
+      button = h("button", { type: "submit", class: "zq-check-one zen-btn zen-btn-primary", text: "Check" });
+      body.append(button);
     }
     form.append(fs);
     return { fieldset: fs, inputs, status, explain, kind: q.kind, button, done: false, correct: false };

@@ -198,7 +198,7 @@ func (plugin) RenderBlock(ctx plugins.Context, b plugins.Block) (string, error) 
 	key := b.Attrs["image"]
 	code := `<pre class="` + codeClass(b.Attrs) + `">` + html.EscapeString(b.Body) + `</pre>`
 	if _, ok := imgs[key]; ok && key != "" {
-		return `<div class="zen-sandbox zen-sandbox-ready">` + code + `</div>`, nil
+		return `<div class="zen-block zen-sandbox zen-sandbox-ready">` + code + `</div>`, nil
 	}
 	var msg string
 	switch {
@@ -209,7 +209,7 @@ func (plugin) RenderBlock(ctx plugins.Context, b plugins.Block) (string, error) 
 	default:
 		msg = "Unknown image \"" + key + "\". Configured: " + strings.Join(sortedKeys(imgs), ", ") + ". Add it under plugins.sandbox.images in your global config.yml, for example:"
 	}
-	return `<div class="zen-sandbox zen-sandbox-setup"><div class="zen-sandbox-note">` + html.EscapeString(msg) +
+	return `<div class="zen-block zen-sandbox zen-sandbox-setup"><div class="zen-sandbox-note">` + html.EscapeString(msg) +
 		`<pre class="zen-sandbox-snippet">` + html.EscapeString(snippet) + `</pre></div>` + code + `</div>`, nil
 }
 
