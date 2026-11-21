@@ -84,7 +84,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 36–40 | [plugins/myst-builtins](plugins/myst-builtins/spec.md) | every common MyST directive and role as a built-in, in phases: callouts, figures and tables, math, tabs/dropdowns/cards, roles and the rest of MyST syntax | engine/dialects, builtins/dialects/myst, ui/plugin-kit | planned |
 | 41 | [engine/export-key](engine/export-key/spec.md) | the website export settings key is `export:` in .zenmd.yml and config.yml; `build:` still read with a Problems note, moved on Save as folder defaults | engine/config-name, app/export | done |
 | 42 | [ui/export-pdf-settings](ui/export-pdf-settings/spec.md) | Settings › Export › PDF as a form like the website: output file, drafts, pages, cover, open when done, Export PDF, Preview, Save as folder defaults (`export.pdf`); the CLI and preview read the same defaults | engine/export-key, app/export | done |
-| 43 | [ui/site-topbar](ui/site-topbar/spec.md) | exported websites get the app's fixed top bar: a sidebar toggle (remembered, ⌘\), back and forward (⌘[ ⌘]), and the breadcrumb; same icons and tokens; hidden in print | core/static-build, engine/runtime, ui/top-bar-actions | in progress |
+| 43 | [ui/site-topbar](ui/site-topbar/spec.md) | exported websites get the app's fixed top bar: a sidebar toggle (remembered, ⌘\), back and forward (⌘[ ⌘]), and the breadcrumb; same icons and tokens; hidden in print | core/static-build, engine/runtime, ui/top-bar-actions | done |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 
