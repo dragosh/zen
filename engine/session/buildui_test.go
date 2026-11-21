@@ -108,10 +108,10 @@ func TestBuildOptions(t *testing.T) {
 		t.Fatalf("defaults: %+v, want %+v", o, want)
 	}
 
-	// The folder's build: section pre-fills the form.
+	// The folder's export: section pre-fills the form.
 	b2 := newBuildZen(t, map[string]string{
 		"README.md":  "# Home\n",
-		".zenmd.yml": "version: 1\nbuild:\n  out: public\n  portable: false\n  drafts: true\n",
+		".zenmd.yml": "version: 1\nexport:\n  out: public\n  portable: false\n  drafts: true\n",
 	})
 	o, err = b2.z.BuildOptions()
 	if err != nil {
@@ -143,9 +143,9 @@ func TestBuildOptions(t *testing.T) {
 		t.Error("options leaked to another folder")
 	}
 
-	// A wrong build: type is an error with the CLI's text.
-	b3 := newBuildZen(t, map[string]string{"README.md": "# H\n", ".zenmd.yml": "build: 3\n"})
-	if _, err := b3.z.BuildOptions(); err == nil || !strings.Contains(err.Error(), "build must be a mapping") {
+	// A wrong export: type is an error with the CLI's text.
+	b3 := newBuildZen(t, map[string]string{"README.md": "# H\n", ".zenmd.yml": "export: 3\n"})
+	if _, err := b3.z.BuildOptions(); err == nil || !strings.Contains(err.Error(), "export must be a mapping") {
 		t.Errorf("wrong type: %v", err)
 	}
 
@@ -295,9 +295,9 @@ func TestBuildErrors(t *testing.T) {
 		t.Errorf("after errors: %v", err)
 	}
 
-	// A wrong build: type, with the config's text.
-	b2 := newBuildZen(t, map[string]string{"README.md": "# H\n", ".zenmd.yml": "build:\n  drafts: 7\n"})
-	if _, err := b2.z.BuildWebsite(BuildOptions{Portable: true}); err == nil || !strings.Contains(err.Error(), "build.drafts must be true or false") {
+	// A wrong export: type, with the config's text.
+	b2 := newBuildZen(t, map[string]string{"README.md": "# H\n", ".zenmd.yml": "export:\n  drafts: 7\n"})
+	if _, err := b2.z.BuildWebsite(BuildOptions{Portable: true}); err == nil || !strings.Contains(err.Error(), "export.drafts must be true or false") {
 		t.Errorf("wrong type: %v", err)
 	}
 	// A missing runtime.
@@ -390,7 +390,7 @@ func TestSaveBuildDefaults(t *testing.T) {
 	yml := filepath.Join(b.dir, ".zenmd.yml")
 	opt := BuildOptions{Out: filepath.Join(b.dir, "docs-site"), Portable: false, Drafts: true, Clean: true}
 
-	// No .zenmd.yml: preview first, then create it with version and build:.
+	// No .zenmd.yml: preview first, then create it with version and export:.
 	prev, err := b.z.SaveBuildDefaults(opt, false)
 	if err != nil || !strings.Contains(prev, "Adds to .zenmd.yml") || !strings.Contains(prev, "docs-site") {
 		t.Fatalf("preview: %q, %v", prev, err)
@@ -402,7 +402,7 @@ func TestSaveBuildDefaults(t *testing.T) {
 		t.Fatal(err)
 	}
 	got, _ := os.ReadFile(yml)
-	for _, want := range []string{"version: 1", "build:", "out: docs-site", "portable: false", "drafts: true"} {
+	for _, want := range []string{"version: 1", "export:", "out: docs-site", "portable: false", "drafts: true"} {
 		if !strings.Contains(string(got), want) {
 			t.Errorf("created file lacks %q:\n%s", want, got)
 		}
@@ -420,7 +420,7 @@ func TestSaveBuildDefaults(t *testing.T) {
 	}
 
 	// An existing file keeps its comments, other keys and other build keys.
-	orig := "# my site\nversion: 1\ntheme: dark # keep\n\nbuild:\n  # where it goes\n  out: _site\n  exclude:\n    - \"drafts/**\"\n  portable: true\nplugins:\n  check: true\n"
+	orig := "# my site\nversion: 1\ntheme: dark # keep\n\nexport:\n  # where it goes\n  out: _site\n  exclude:\n    - \"drafts/**\"\n  portable: true\nplugins:\n  check: true\n"
 	if err := os.WriteFile(yml, []byte(orig), 0o644); err != nil {
 		t.Fatal(err)
 	}
@@ -468,12 +468,67 @@ func TestSaveBuildDefaults(t *testing.T) {
 	if now, _ := os.ReadFile(yml); string(now) != bad {
 		t.Error("a refused save changed the file")
 	}
-	// A build: that is not a mapping likewise.
-	if err := os.WriteFile(yml, []byte("build: 3\n"), 0o644); err != nil {
+	// An export: that is not a mapping likewise.
+	if err := os.WriteFile(yml, []byte("export: 3\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := b.z.SaveBuildDefaults(opt, true); err == nil {
-		t.Error("saved into build: 3")
+		t.Error("saved into export: 3")
+	}
+}
+
+// An old build: mapping moves to export: on Save as folder defaults: its other
+// values go with it, comments and other keys stay, and build: is gone.
+func TestSaveBuildDefaultsMovesLegacyKey(t *testing.T) {
+	b := newBuildZen(t, map[string]string{"README.md": "# Home\n"})
+	yml := filepath.Join(b.dir, ".zenmd.yml")
+	orig := "# my site\nversion: 1\ntheme: dark # keep\n\nbuild:\n  # where it goes\n  out: _site\n  id: my-notes # the id\n  exclude:\n    - \"drafts/**\"\n  portable: true\nplugins:\n  check: true\n"
+	if err := os.WriteFile(yml, []byte(orig), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	opt := BuildOptions{Out: filepath.Join(b.dir, "_site"), Portable: true, Drafts: true}
+	prev, err := b.z.SaveBuildDefaults(opt, false)
+	if err != nil || !strings.Contains(prev, "export.drafts: true") || !strings.Contains(prev, "build:") || !strings.Contains(prev, "export:") {
+		t.Fatalf("the preview shows the move: %q, %v", prev, err)
+	}
+	if after, _ := os.ReadFile(yml); string(after) != orig {
+		t.Fatal("preview changed the file")
+	}
+	if _, err := b.z.SaveBuildDefaults(opt, true); err != nil {
+		t.Fatal(err)
+	}
+	after, _ := os.ReadFile(yml)
+	text := string(after)
+	for _, keep := range []string{"# my site", "theme: dark # keep", "# where it goes", "out: _site", "id: my-notes # the id", `"drafts/**"`, "portable: true", "check: true", "drafts: true", "export:"} {
+		if !strings.Contains(text, keep) {
+			t.Errorf("lost %q:\n%s", keep, text)
+		}
+	}
+	if strings.Contains(text, "build:") {
+		t.Errorf("build: is still there:\n%s", text)
+	}
+	if strings.Count(text, "export:") != 1 {
+		t.Errorf("export: appears %d times:\n%s", strings.Count(text, "export:"), text)
+	}
+	// It reads back with no notice.
+	if o, err := b.z.BuildOptions(); err != nil || o.Out != opt.Out || !o.Drafts {
+		t.Errorf("round trip: %+v, %v", o, err)
+	}
+	if n := b.z.ConfigNotice(); n != "" {
+		t.Errorf("notice after the move: %q", n)
+	}
+
+	// Both keys: export: stays the one that counts, build: goes, and its other values are not lost.
+	both := "version: 1\nbuild:\n  id: old-id\n  out: old\nexport:\n  out: new\n"
+	if err := os.WriteFile(yml, []byte(both), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := b.z.SaveBuildDefaults(BuildOptions{Out: filepath.Join(b.dir, "new"), Portable: true, Drafts: false}, true); err != nil {
+		t.Fatal(err)
+	}
+	after, _ = os.ReadFile(yml)
+	if strings.Contains(string(after), "build:") || !strings.Contains(string(after), "out: new") || strings.Contains(string(after), "out: old") || !strings.Contains(string(after), "id: old-id") {
+		t.Errorf("both keys:\n%s", after)
 	}
 }
 
@@ -481,7 +536,7 @@ func TestDialogDraftsOverrideConfig(t *testing.T) {
 	dir := tree(t, map[string]string{
 		"README.md":  "# Home\n",
 		"wip.md":     "---\ndraft: true\n---\n# WIP\n",
-		".zenmd.yml": "version: 1\nbuild:\n  drafts: true\n",
+		".zenmd.yml": "version: 1\nexport:\n  drafts: true\n",
 	})
 	out := filepath.Join(t.TempDir(), "site")
 	r := runBuild(t, dir, t.TempDir(), SiteOptions{Out: out, NoDrafts: true})

@@ -551,7 +551,12 @@ func TestDemoMatchesAssembly(t *testing.T) {
 		var front map[string]any
 		if rel == ".zenmd.yml" {
 			_ = yaml.Unmarshal(b, &front)
-			for _, key := range []string{"layouts", "build"} {
+			// export: is allowed with the export feature; build: (its old name) never.
+			keys := []string{"layouts", "build"}
+			if !allowed(haveFeature, "export") {
+				keys = append(keys, "export")
+			}
+			for _, key := range keys {
 				if _, ok := front[key]; ok {
 					t.Errorf("%s: %q does nothing in this build", rel, key)
 				}
@@ -621,7 +626,7 @@ func TestDemoMatchesAssembly(t *testing.T) {
 	b, _ := os.ReadFile(filepath.Join(demo(t), ".zenmd.yml"))
 	_ = yaml.Unmarshal(b, &cfg)
 	for k := range cfg {
-		if k != "version" && k != "logo" && k != "plugins" && k != "markdown" {
+		if k != "version" && k != "logo" && k != "plugins" && k != "markdown" && !(k == "export" && allowed(haveFeature, "export")) {
 			t.Errorf(".zenmd.yml sets %q, which this build does not use", k)
 		}
 	}

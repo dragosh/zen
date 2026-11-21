@@ -20,7 +20,7 @@ func buildOf(t *testing.T, global, folder string) (Build, []string, error) {
 	}
 	cfg := Load(g, root)
 	if ws := cfg.Warnings(); len(ws) != 0 {
-		t.Fatalf("loading warned about a build: section: %v", ws)
+		t.Fatalf("loading warned about an export: section: %v", ws)
 	}
 	return cfg.Build()
 }
@@ -34,7 +34,7 @@ func TestBuildSection(t *testing.T) {
 
 	// All keys.
 	b, warns, err = buildOf(t, "", `
-build:
+export:
   out: _site
   id: my-notes
   editURL: https://github.com/me/notes/edit/main/{path}
@@ -48,34 +48,34 @@ build:
 	}
 
 	// The folder wins key by key over the global file; the rest comes from global.
-	b, _, err = buildOf(t, "build:\n  out: global-out\n  id: g\n  drafts: true\n  exclude: [\"a/**\"]\n", "build:\n  out: _site\n  portable: true\n  exclude: [\"b/**\"]\n")
+	b, _, err = buildOf(t, "export:\n  out: global-out\n  id: g\n  drafts: true\n  exclude: [\"a/**\"]\n", "export:\n  out: _site\n  portable: true\n  exclude: [\"b/**\"]\n")
 	want = Build{Out: "_site", ID: "g", Drafts: true, Portable: ptr(true), Exclude: []string{"b/**"}}
 	if err != nil || !reflect.DeepEqual(b, want) {
 		t.Errorf("layers: %+v %v", b, err)
 	}
 	// Global alone works.
-	b, _, err = buildOf(t, "build:\n  id: only-global\n", "")
+	b, _, err = buildOf(t, "export:\n  id: only-global\n", "")
 	if err != nil || b.ID != "only-global" {
 		t.Errorf("global only: %+v %v", b, err)
 	}
 
 	// Unknown keys are warnings (sorted), the rest still applies.
-	b, warns, err = buildOf(t, "", "build:\n  out: x\n  zebra: 1\n  apple: 2\n")
-	if err != nil || b.Out != "x" || len(warns) != 2 || !strings.Contains(warns[0], "build.apple") || !strings.Contains(warns[1], "build.zebra") {
+	b, warns, err = buildOf(t, "", "export:\n  out: x\n  zebra: 1\n  apple: 2\n")
+	if err != nil || b.Out != "x" || len(warns) != 2 || !strings.Contains(warns[0], "export.apple") || !strings.Contains(warns[1], "export.zebra") {
 		t.Errorf("unknown keys: %+v %v %v", b, warns, err)
 	}
 
 	// Wrong types are errors naming the key.
 	for yaml, key := range map[string]string{
-		"build:\n  out: 5\n":                  "build.out",
-		"build:\n  id: [a]\n":                 "build.id",
-		"build:\n  editURL: true\n":           "build.editURL",
-		"build:\n  drafts: \"yes\"\n":         "build.drafts",
-		"build:\n  portable: 1\n":             "build.portable",
-		"build:\n  exclude: \"private/**\"\n": "build.exclude",
-		"build:\n  exclude: [1]\n":            "build.exclude",
-		"build: nope\n":                       "build",
-		"build:\n  - a\n":                     "build",
+		"export:\n  out: 5\n":                  "export.out",
+		"export:\n  id: [a]\n":                 "export.id",
+		"export:\n  editURL: true\n":           "export.editURL",
+		"export:\n  drafts: \"yes\"\n":         "export.drafts",
+		"export:\n  portable: 1\n":             "export.portable",
+		"export:\n  exclude: \"private/**\"\n": "export.exclude",
+		"export:\n  exclude: [1]\n":            "export.exclude",
+		"export: nope\n":                       "export",
+		"export:\n  - a\n":                     "export",
 	} {
 		_, _, err := buildOf(t, "", yaml)
 		if err == nil || !strings.Contains(err.Error(), key) {
@@ -83,7 +83,7 @@ build:
 		}
 	}
 	// An id that could escape its namespace.
-	if _, _, err := buildOf(t, "", "build:\n  id: \"a b/c\"\n"); err == nil || !strings.Contains(err.Error(), "build.id") {
+	if _, _, err := buildOf(t, "", "export:\n  id: \"a b/c\"\n"); err == nil || !strings.Contains(err.Error(), "export.id") {
 		t.Errorf("bad id: %v", err)
 	}
 }
@@ -91,10 +91,10 @@ build:
 func ptr(b bool) *bool { return &b }
 
 func TestBuildPortableUnset(t *testing.T) {
-	if b, _, err := buildOf(t, "", "build:\n  out: x\n"); err != nil || b.Portable != nil {
+	if b, _, err := buildOf(t, "", "export:\n  out: x\n"); err != nil || b.Portable != nil {
 		t.Errorf("portable not set: %v %v", b.Portable, err)
 	}
-	if b, _, err := buildOf(t, "", "build:\n  portable: false\n"); err != nil || b.Portable == nil || *b.Portable {
+	if b, _, err := buildOf(t, "", "export:\n  portable: false\n"); err != nil || b.Portable == nil || *b.Portable {
 		t.Errorf("portable: false: %v %v", b.Portable, err)
 	}
 }
