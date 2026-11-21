@@ -110,7 +110,7 @@ func TestShowcaseFolder(t *testing.T) {
 		t.Errorf("README children = %v", got)
 	}
 	for _, n := range tree[0].Children {
-		if n.Path == "plugins/index.md" && strings.Join(paths(n.Children), ",") != "plugins/writing-plugins.md,plugins/codeblock.md,plugins/diagram.md,plugins/quiz.md,plugins/sandbox.md,plugins/check.md,plugins/directives.md,plugins/dialects.md" {
+		if n.Path == "plugins/index.md" && strings.Join(paths(n.Children), ",") != "plugins/writing-plugins.md,plugins/codeblock.md,plugins/diagram.md,plugins/quiz.md,plugins/sandbox.md,plugins/rating.md,plugins/check.md,plugins/directives.md,plugins/dialects.md" {
 			t.Errorf("Plugins children = %v", paths(n.Children))
 		}
 		if n.Path == "layouts/index.md" && strings.Join(paths(n.Children), ",") != "layouts/docs.md,layouts/post.md,layouts/landing.md,layouts/wide.md,layouts/handout.md,layouts/slides.md,layouts/course.md,layouts/writing-your-own-layout.md,layouts/memo.md" {
@@ -172,6 +172,13 @@ func TestShowcaseFolder(t *testing.T) {
 	}
 	if dg, _ := z.Page("plugins/diagram.md"); strings.Count(dg.HTML, `class="zen-diagram"`) != 3 {
 		t.Error("diagram page should have three diagrams")
+	}
+	// The rating plugin has its page, and the course ends with a rating step.
+	if rp, _ := z.Page("plugins/rating.md"); !strings.Contains(rp.HTML, `data-zen-name="rating"`) || !strings.Contains(rp.HTML, `data-zen-name="rating-results"`) || strings.Count(rp.HTML, `type="radio"`) < 5 {
+		t.Errorf("plugins/rating.md should hold a live rating and a results block: %s", rp.HTML)
+	}
+	if cp, _ := z.Page("layouts/course.md"); !strings.Contains(cp.HTML, "Rate this course") || !strings.Contains(cp.HTML, `name="rating-learn-by-doing"`) || !strings.Contains(cp.HTML, "Very good") || strings.Index(cp.HTML, "Rate this course") > strings.Index(cp.HTML, "Done") {
+		t.Errorf("the course should have a rating step before Done: %s", cp.HTML)
 	}
 	// The external demo plugins: :::note on the directives page goes through
 	// note.sh; calc pipes a fence through bc.
@@ -416,12 +423,12 @@ func TestDemoMatchesAssembly(t *testing.T) {
 	allowed := func(set map[string]bool, id string) bool { return set == nil || set[id] }
 
 	// The block syntax of each plugin that has one, and the dialects' marks.
-	blockPlugin := map[string]string{"mermaid": "diagram", "diagram": "diagram", "check": "check", "quiz": "quiz", "quiz-results": "quiz", "sandbox": "sandbox"}
+	blockPlugin := map[string]string{"mermaid": "diagram", "diagram": "diagram", "check": "check", "quiz": "quiz", "quiz-results": "quiz", "sandbox": "sandbox", "rating": "rating", "rating-results": "rating"}
 	fence := regexp.MustCompile("(?m)^\\s*(?:```+|~~~+|:::+)\\s*(\\{[a-z-]+\\}|[A-Za-z][\\w-]*)")
 	// Words for features this build lacks (the showcase has them); the guide must not name them.
 	lacking := []string{"Vale", "MyST", "Jupyter", "zenmd export", "New Site", "newsite", ".zen/", "Print Page", "Find Next", "Open in Editor", "Edit this page"}
 	// A plugin's own name may appear once the assembly has it.
-	for _, id := range []string{"quiz", "sandbox"} {
+	for _, id := range []string{"quiz", "sandbox", "rating"} {
 		if !allowed(havePlugin, id) {
 			lacking = append(lacking, id)
 		}

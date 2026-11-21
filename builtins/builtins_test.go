@@ -14,7 +14,7 @@ func TestDefaultSets(t *testing.T) {
 	for _, m := range Plugins().All() {
 		plugins = append(plugins, m.ID)
 	}
-	if want := []string{"codeblock", "diagram", "check", "quiz", "sandbox"}; !reflect.DeepEqual(plugins, want) {
+	if want := []string{"codeblock", "diagram", "check", "quiz", "sandbox", "rating"}; !reflect.DeepEqual(plugins, want) {
 		t.Errorf("plugins = %v, want %v", plugins, want)
 	}
 
@@ -70,7 +70,7 @@ func TestFor(t *testing.T) {
 	if r, err := PluginsFor(nil); err != nil || len(r.All()) != 0 {
 		t.Errorf("PluginsFor(nil) = %v, %v; want an empty registry", r, err)
 	}
-	if _, err := PluginsFor([]string{"codeblock", "nope"}); err == nil || !strings.Contains(err.Error(), "nope") || !strings.Contains(err.Error(), "codeblock, diagram, check, quiz, sandbox") {
+	if _, err := PluginsFor([]string{"codeblock", "nope"}); err == nil || !strings.Contains(err.Error(), "nope") || !strings.Contains(err.Error(), "codeblock, diagram, check, quiz, sandbox, rating") {
 		t.Errorf("unknown plugin: %v", err)
 	}
 	if _, err := PluginsFor([]string{"quiz", "quiz"}); err == nil {
