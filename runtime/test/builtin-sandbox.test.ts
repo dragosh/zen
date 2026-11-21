@@ -70,6 +70,19 @@ test("shows the code read-only, Run and Stop, and asks for the status", async ()
   expect(api.callsTo("pluginInvoke")).toEqual([["sandbox", "plugins/sandbox.md", JSON.stringify({ op: "status" })]]);
 });
 
+test("a coloured read-only block still runs the plain code text", async () => {
+  const w = render();
+  const pre = q(w, ".zen-sandbox-code")!;
+  pre.className = "zen-sandbox-code chroma language-python";
+  pre.innerHTML = '<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;a &lt;b&gt; &amp; c&quot;</span><span class="p">)</span>\n';
+  rt.mountAll(root);
+  await settle();
+  click(w, ".zen-sandbox-run");
+  await settle();
+  const calls = api.callsTo("pluginStream") as string[][];
+  expect(JSON.parse(calls[calls.length - 1][2]).code).toBe('print("a <b> & c")\n');
+});
+
 test("an editable block gets a textarea and runs the edited code", async () => {
   const w = render({ ...ATTRS, editable: "true" });
   await settle();
