@@ -9,3 +9,7 @@ version: 1
 plugins:
   codeblock: true
   diagram: { theme: neutral }
+
+# Markdown dialects this folder reads besides CommonMark and GFM (Settings › Reader).
+markdown:
+  dialects: [myst]

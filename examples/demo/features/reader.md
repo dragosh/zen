@@ -18,8 +18,14 @@ Layouts part of this guide shows each one.
 - **Text size, font, line spacing and width** are in Settings, under
   Accessibility.
 
-The [markdown showcase](markdown.md) is one page with every kind of text
-Zenmark renders.
+## Markdown
+
+Every folder reads CommonMark and GFM, and Settings › Reader lists them first,
+as the default. Two pages go further:
+
+- [Markdown](markdown.md) is one page with every kind of text Zenmark renders.
+- [MyST](myst.md) turns on another syntax for the same blocks, for folders
+  written for MyST, Jupyter Book or Sphinx.
 
 ## Live reload
 

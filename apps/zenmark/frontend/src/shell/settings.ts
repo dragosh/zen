@@ -108,8 +108,8 @@ export function createSettingsView(opts: {
   }
   const config: SettingsSection = { id: "config", label: "Configuration", items: configItems, render: renderConfig };
 
-  // ---- Markdown: the syntaxes are the items, like Plugins and Layouts (docs/UI.md, UI consistency).
-  // CommonMark and GFM come first and are always on; each dialect of the build is on or off for this folder
+  // ---- Reader: the markdown syntaxes are the items, like Plugins and Layouts (docs/UI.md, UI consistency),
+  // under a small "Markdown" heading. CommonMark and GFM come first and are the default (always on); each dialect of the build is on or off for this folder
   // (saved in its .zenmd.yml). The right column has the selected one's switch, summary, sample and preview.
 
   let dialects: DialectInfo[] = [];
@@ -117,8 +117,8 @@ export function createSettingsView(opts: {
   /** The selected item, kept while the list is read again (after a switch). */
   let pickedSyntax = "";
   const BASE_SYNTAX = "commonmark";
-  const markdown: SettingsSection = {
-    id: "markdown", label: "Markdown",
+  const reader: SettingsSection = {
+    id: "reader", label: "Reader", heading: "Markdown",
     items: async () => {
       dialectFailure = "";
       try {
@@ -129,12 +129,12 @@ export function createSettingsView(opts: {
         return []; // the failure stands in the left column (empty)
       }
       return [
-        { id: BASE_SYNTAX, label: "CommonMark and GFM", note: "Always on" },
+        { id: BASE_SYNTAX, label: "CommonMark and GFM", note: "Default" },
         ...dialects.map((d) => ({ id: d.id, label: d.name, note: d.on ? "On" : "Off" })),
       ];
     },
     empty: () => dialectFailure,
-    current: () => pickedSyntax || undefined,
+    current: () => pickedSyntax || BASE_SYNTAX, // never opens on an empty right column
     onPick: (it) => { pickedSyntax = it.id; },
     render(item, right) {
       if (item.id === BASE_SYNTAX) {
@@ -243,7 +243,7 @@ export function createSettingsView(opts: {
     // Layouts and Plugins belong to the reader (Templates also to newsite, and lists none without it), Export to
     // export, Developer to developer.
     ...(hasFeature(api, "reader") || hasFeature(api, "newsite") ? [
-      ...(hasFeature(api, "reader") ? [markdown] : []),
+      ...(hasFeature(api, "reader") ? [reader] : []),
       { id: "templates", label: "Templates", ...templates },
       ...(hasFeature(api, "reader") ? [
         { id: "layouts", label: "Layouts", ...layouts },
