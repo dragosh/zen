@@ -27,7 +27,7 @@ type SiteOptions struct {
 	Portable bool   // opens from disk (the default)
 	Hosted   bool   // scripts as files, for a web server
 	Drafts   bool
-	NoDrafts bool // leave drafts out even when build.drafts is true (the app's dialog)
+	NoDrafts bool // leave drafts out even when export.drafts is true (the app's dialog)
 	Clean    bool
 	NoPrint  bool // no print.html
 }
@@ -103,7 +103,7 @@ func WriteSite(env SiteEnv, b SiteOptions, stdout, stderr io.Writer) error {
 		id = filepath.Base(root)
 	}
 	// Portable output opens from disk and from any web server, so it is the
-	// default; --hosted (or build.portable: false) loads scripts as files.
+	// default; --hosted (or export.portable: false) loads scripts as files.
 	portable := true
 	if bc.Portable != nil {
 		portable = *bc.Portable

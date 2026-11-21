@@ -10,5 +10,5 @@ plugins:
   quiz: true
   check: true
 
-build:
+export:
   out: _site

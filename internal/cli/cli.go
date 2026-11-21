@@ -122,7 +122,7 @@ type Build struct {
 	Portable bool   // --portable: opens from disk (the default)
 	Hosted   bool   // --hosted: scripts as files, for a web server
 	Drafts   bool
-	NoDrafts bool // leave drafts out even when build.drafts is true (the app's dialog)
+	NoDrafts bool // leave drafts out even when export.drafts is true (the app's dialog)
 	Clean    bool
 	NoPrint  bool // --no-print: no print.html
 }

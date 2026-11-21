@@ -155,7 +155,7 @@ func writeAtomic(path string, data []byte, perm os.FileMode) error {
 }
 
 // BuildOptions returns the form's starting values for the open folder: the
-// build: section of the config, then what was used last time.
+// export: section of the config, then what was used last time.
 func (s *Session) BuildOptions() (r0 BuildOptions, err error) {
 	defer s.logFail("BuildOptions", &err)
 	root, err := s.buildFolder()
@@ -365,7 +365,7 @@ func (s *Session) CancelBuild() {
 	}
 }
 
-// SaveBuildDefaults writes out, portable and drafts into the build: section of
+// SaveBuildDefaults writes out, portable and drafts into the export: section of
 // the folder's .zenmd.yml (clean and print are per run). Without confirm it
 // only returns the preview text; with it, it edits the YAML tree, so comments
 // and other keys stay, and writes the file atomically. It returns the same
@@ -401,13 +401,9 @@ func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (r0 string, er
 	if fresh {
 		setKey(top, "version", scalar("1", "!!int"))
 	}
-	build := mapValue(top, "build")
-	switch {
-	case build == nil || build.Kind == yaml.ScalarNode && build.Tag == "!!null":
-		build = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
-		setKey(top, "build", build)
-	case build.Kind != yaml.MappingNode:
-		return "", errors.New("build in .zenmd.yml must be a mapping with keys such as out and portable")
+	build, renamed, err := exportSection(top)
+	if err != nil {
+		return "", err
 	}
 
 	out := o.Out
@@ -443,17 +439,20 @@ func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (r0 string, er
 		changes = append(changes, change{w.key, "", w.val})
 		setKey(build, w.key, scalar(w.val, w.tag))
 	}
-	if len(changes) == 0 {
-		return "Nothing to change: .zenmd.yml already has these build defaults.", nil
+	if len(changes) == 0 && !renamed {
+		return "Nothing to change: .zenmd.yml already has these export defaults.", nil
 	}
 	var sb strings.Builder
-	if added {
+	if added && !renamed {
 		sb.WriteString("Adds to .zenmd.yml:")
 	} else {
 		sb.WriteString("Changes .zenmd.yml:")
 	}
+	if renamed {
+		sb.WriteString("\n  build: becomes export: (its values move with it)")
+	}
 	for _, c := range changes {
-		sb.WriteString("\n  build." + c.key + ": " + c.now)
+		sb.WriteString("\n  export." + c.key + ": " + c.now)
 		if c.was != "" {
 			sb.WriteString("  (was " + c.was + ")")
 		}
@@ -485,6 +484,73 @@ func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (r0 string, er
 		return "", err
 	}
 	return preview, nil
+}
+
+// exportSection returns the export: mapping of the top-level mapping, creating
+// it when there is none. An old build: mapping moves into it (renamed in place
+// when there is no export:, else its keys are added to the ones export: lacks)
+// and the build: key goes; renamed says it did. A build: or export: that is
+// not a mapping is an error and nothing has changed.
+func exportSection(top *yaml.Node) (exp *yaml.Node, renamed bool, err error) {
+	isNull := func(n *yaml.Node) bool { return n == nil || n.Kind == yaml.ScalarNode && n.Tag == "!!null" }
+	old, cur := mapValue(top, "build"), mapValue(top, "export")
+	if !isNull(old) && old.Kind != yaml.MappingNode {
+		return nil, false, errors.New("build in .zenmd.yml must be a mapping with keys such as out and portable")
+	}
+	if !isNull(cur) && cur.Kind != yaml.MappingNode {
+		return nil, false, errors.New("export in .zenmd.yml must be a mapping with keys such as out and portable")
+	}
+	switch {
+	case old == nil: // no old key: the plain case
+		if isNull(cur) {
+			cur = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+			setKey(top, "export", cur)
+		}
+		return cur, false, nil
+	case isNull(cur):
+		if old.Kind != yaml.MappingNode {
+			old = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
+		}
+		if cur == nil && mapKey(top, "export") == nil { // rename in place: position and comments stay
+			if k := mapKey(top, "build"); k != nil {
+				k.Value = "export"
+			}
+			if mapValue(top, "export") != old {
+				setKey(top, "export", old)
+			}
+			return old, true, nil
+		}
+		setKey(top, "export", old)
+		deleteKey(top, "build")
+		return old, true, nil
+	}
+	for i := 0; i+1 < len(old.Content); i += 2 {
+		if mapValue(cur, old.Content[i].Value) == nil {
+			cur.Content = append(cur.Content, old.Content[i], old.Content[i+1])
+		}
+	}
+	deleteKey(top, "build")
+	return cur, true, nil
+}
+
+// mapKey is the key node of key in a mapping node, or nil.
+func mapKey(m *yaml.Node, key string) *yaml.Node {
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value == key {
+			return m.Content[i]
+		}
+	}
+	return nil
+}
+
+// deleteKey removes key from a mapping node.
+func deleteKey(m *yaml.Node, key string) {
+	for i := 0; i+1 < len(m.Content); i += 2 {
+		if m.Content[i].Value == key {
+			m.Content = append(m.Content[:i], m.Content[i+2:]...)
+			return
+		}
+	}
 }
 
 func scalar(v, tag string) *yaml.Node { return &yaml.Node{Kind: yaml.ScalarNode, Tag: tag, Value: v} }

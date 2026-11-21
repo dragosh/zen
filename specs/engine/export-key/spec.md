@@ -7,7 +7,7 @@
 | Branch | `feature/19-export` (found while checking roadmap step 10, #19) |
 | Wave | 41 |
 | Depends on | engine/config-name (the legacy-name pattern), app/export |
-| Owns | `engine/config/**` + tests (the key), `engine/session/buildui.go` + tests (Save as folder defaults), every place that documents or uses the key: `docs/{BUILD,ENGINE,PLAN}.md`, `README.md`, `examples/showcase/{.zenmd.yml,build/index.md}`, `examples/demo/features/export.md`, `engine/session/demo_test.go` (the guard's key list), the Problems Fix text if one names `build:` |
+| Owns | `engine/session/build.go`, `internal/cli/cli.go` (the default and help), `apps/zenmark/frontend/src/{shell/buildsite.ts,api/fake.ts}` + tests, `engine/config/**` + tests (the key), `engine/session/buildui.go` + tests (Save as folder defaults), every place that documents or uses the key: `docs/{BUILD,ENGINE,PLAN}.md`, `README.md`, `examples/showcase/{.zenmd.yml,build/index.md}`, `examples/demo/features/export.md`, `engine/session/demo_test.go` (the guard's key list), the Problems Fix text if one names `build:` |
 
 ## Purpose
 
@@ -28,7 +28,12 @@ old folders keep working, and they're told how to move on.
 4. **Docs and examples** say `export:` everywhere, apart from the one sentence in docs/BUILD.md that says `build:` is still read.
    - The demo's guard (`TestDemoMatchesAssembly`) allows `export` in `.zenmd.yml` with the export feature. It allows `build` never.
    - A grep test, like `TestNoLegacyNameOutsideNotices`, fails on a `build:` config example outside the legacy notes.
-5. **No other "build" changes.** The `zenmd build` command alias, the app's Build tab and `app-assembly.yml` keep their names, because they mean something else or are aliases already.
+5. **Default output: `exports/html`** (was `_site`).
+   - The website goes to `exports/html` in the folder when neither `-o`, `export.out` nor the dialog names another place. That covers the CLI default and its help text, the dialog's default, Settings › Export and the fake api.
+   - The output folder is never read as pages: no sidebar entries, and no live reload from writing it, as `_site` is today. Check how `_site` is kept out and make `exports/` work the same way.
+   - A folder whose config says `out: _site` keeps it, because only the default changes.
+   - The docs and the demo's Export page say `exports/html`.
+6. **No other "build" changes.** The `zenmd build` command alias, the app's Build tab and `app-assembly.yml` keep their names, because they mean something else or are aliases already.
 
 ## Interfaces
 
@@ -43,6 +48,7 @@ None new. The config keeps its fields; only the YAML key changes.
 | 3 | Save as folder defaults writes `export:`, moves an existing `build:` mapping, keeps comments and other keys | `engine/session/buildui_test.go` |
 | 4 | No `build:` config examples outside the legacy notes | a grep test in `engine/config` |
 | 5 | The notice shows under Problems | the existing notice path test, extended |
+| 6 | The default output is exports/html (CLI, dialog, Settings); a configured out wins; exports/ is never pages or a reload | `engine/session/build_test.go`, `internal/cli` tests, `buildsite.test.ts`, a workspace or watch test |
 
 ## UI
 

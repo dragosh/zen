@@ -359,7 +359,7 @@ func excluded(globs []string, p string) bool {
 func checkEditURL(u string) error {
 	pu, err := url.Parse(strings.ReplaceAll(u, "{path}", "x"))
 	if err != nil || (pu.Scheme != "http" && pu.Scheme != "https") || pu.Host == "" {
-		return errors.New("build.editURL must be an http or https address, with {path} for the page")
+		return errors.New("export.editURL must be an http or https address, with {path} for the page")
 	}
 	return nil
 }

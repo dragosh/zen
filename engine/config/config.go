@@ -44,15 +44,15 @@ type Config struct {
 	theme    string
 	plugins  map[string]plugin
 	warnings []string
-	notice   string // the folder still has the old settings file (Notice)
+	notices  []string // the old names still in use: the settings file, the old build: key (Notices)
 	limits   Limits
 	layouts  LayoutDefaults
 	dialects []string // markdown.dialects of the folder's .zenmd.yml
 	logo     string   // logo: a folder-relative image path (the folder's, else the global one)
 
 	templates any            // the global templates: key, read by TemplatesDir
-	build     map[string]any // merged build: sections, checked by Build
-	buildErr  error          // a build: key that is not a mapping
+	build     map[string]any // merged export: sections, checked by Build
+	buildErr  error          // an export: key that is not a mapping
 }
 
 // LayoutRule maps a path pattern (glob: * within a folder, ** across folders)
@@ -230,20 +230,28 @@ func Load(globalPath, workspaceRoot string) *Config {
 	}
 	if workspaceRoot != "" {
 		path, legacy, both := WorkspaceConfigPath(workspaceRoot)
+		if n := Notice(legacy, both); n != "" {
+			c.notices = append(c.notices, n)
+		}
 		c.loadFile(path, false)
-		c.notice = Notice(legacy, both)
 	}
 	return c
 }
 
-// Notice is the text about a folder that still has the old settings file, or
-// "". Pages carry it as a warning (ForPage); it is not a load warning, so a
-// build does not print it twice.
-func (c *Config) Notice() string {
+// Notices are the texts about old names the config still uses: the folder's
+// old settings file, and the old build: key of either file (see export.go).
+// Pages carry them as warnings (ForPage); they are not load warnings, so a
+// build does not print them twice.
+func (c *Config) Notices() []string {
 	if c == nil {
-		return ""
+		return nil
 	}
-	return c.notice
+	return append([]string(nil), c.notices...)
+}
+
+// Notice is Notices as one text, one line each, or "".
+func (c *Config) Notice() string {
+	return strings.Join(c.Notices(), "\n")
 }
 
 // Warnings returns the problems found while loading the config files.
@@ -266,9 +274,7 @@ func (c *Config) ForPage(frontmatter map[string]any) Settings {
 	for id, p := range c.plugins {
 		s.plugins[id] = plugin{enabled: p.enabled, options: cloneMap(p.options)}
 	}
-	if c.notice != "" {
-		s.Warnings = append(s.Warnings, c.notice)
-	}
+	s.Warnings = append(s.Warnings, c.notices...)
 	warn := func(format string, args ...any) {
 		s.Warnings = append(s.Warnings, "frontmatter: "+fmt.Sprintf(format, args...))
 	}
@@ -477,6 +483,8 @@ func (c *Config) loadFile(path string, global bool) {
 				warn("logo must be an image path inside the folder, such as img/logo.svg")
 			}
 		case "build":
+			c.legacyBuild(path, doc, v)
+		case "export":
 			c.mergeBuild(v)
 		case "templates":
 			if !global {

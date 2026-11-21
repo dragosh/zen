@@ -15,7 +15,7 @@ import (
 type rewriter struct {
 	from    string // workspace path of the page
 	fromOut string // its output file
-	edit    string // build.editURL, "" for none
+	edit    string // export.editURL, "" for none
 
 	page func(p string) (out string, ok bool)   // a page that is written
 	slug func(s string) (string, bool)          // frontmatter slug -> page path
@@ -203,7 +203,7 @@ func delAttrs(attrs []html.Attribute, keys ...string) []html.Attribute {
 }
 
 // anchor rewrites the attributes of an <a>. drop reports that the whole
-// element goes (an Edit link without a build.editURL).
+// element goes (an Edit link without a export.editURL).
 func (r *rewriter) anchor(attrs []html.Attribute) (out []html.Attribute, changed, drop bool) {
 	if action, ok := attr(attrs, "data-zen-action"); ok {
 		switch action {

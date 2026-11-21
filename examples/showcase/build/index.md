@@ -65,7 +65,7 @@ first. The same options are in Settings › Export, next to the PDF export.
 ## Settings
 
 ```yaml
-build:
+export:
   out: _site
   id: my-notes
   editURL: https://github.com/me/notes/edit/main/{path}

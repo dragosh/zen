@@ -12,5 +12,5 @@ plugins:
   diagram: { theme: neutral }
 
 # zenmd build turns this folder into a website you can host anywhere.
-build:
+export:
   out: _site

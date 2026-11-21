@@ -12,7 +12,7 @@ zenmd export site [folder] [-o dir] [--hosted] [--drafts] [--clean]
 
 | Option | Meaning |
 |---|---|
-| `-o`, `--out` | output folder (default `build.out`, else `<folder>/_site`) |
+| `-o`, `--out` | output folder (default `export.out`, else `<folder>/_site`) |
 | *(default)* | portable: opens from disk (`file://`) and from any web server. Scripts are embedded in each page and loaded as Blob modules |
 | `--hosted` | for a web server only: scripts stay separate files loaded with `import()`, which browsers refuse from `file://` (each block then says so) |
 | `--portable` | the default, named explicitly (cannot be combined with `--hosted`) |
@@ -70,7 +70,7 @@ Only files inside the folder are copied.
 
 ```yaml
 # .zenmd.yml or the global config.yml; flags win
-build:
+export:
   out: _site
   id: my-notes          # storage namespace for readers; default: folder name
   editURL: https://github.com/me/notes/edit/main/{path}   # the docs layout's "Edit this page"
@@ -78,6 +78,8 @@ build:
   portable: true        # false = --hosted
   exclude: ["private/**"]
 ```
+
+The key was `build:` before; it is still read, with a note under Problems, and Save as folder defaults renames it.
 
 ## What an app is built from
 

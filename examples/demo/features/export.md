@@ -70,7 +70,7 @@ The same choices can live in the folder's `.zenmd.yml`, so every export of the
 folder is the same:
 
 ```yaml
-build:
+export:
   out: _site
   drafts: false
   portable: true   # false = for a web server only
