@@ -2,7 +2,7 @@
 import { expect, test } from "vitest";
 import { icon, type IconName } from "./icons";
 
-const NAMES: IconName[] = ["cog", "export", "search", "pencil", "panel", "printer"];
+const NAMES: IconName[] = ["cog", "export", "search", "pencil", "panel", "printer", "sidebar"];
 
 // One icon set (ui/top-bar-actions): the same drawing for every icon of the app.
 test.each(NAMES)("%s: 24 viewBox, 16px, stroke only, aria-hidden", (name) => {
