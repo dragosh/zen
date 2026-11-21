@@ -2,8 +2,6 @@ package sandbox
 
 import (
 	"html"
-	"os"
-	"path/filepath"
 	"regexp"
 	"strings"
 	"testing"
@@ -60,17 +58,19 @@ func (noLinks) ResolveLink(from, href string) workspace.Link { return workspace.
 
 func page(t *testing.T, fm string) render.Page {
 	t.Helper()
-	g := filepath.Join(t.TempDir(), "config.yml")
-	if err := os.WriteFile(g, []byte("plugins:\n  sandbox:\n    images:\n      python: \"python:3.12-slim\"\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
 	reg := plugins.NewRegistry()
+	reg.SetUserOptions(func(id string) map[string]any {
+		if id == "sandbox" {
+			return map[string]any{"images": map[string]any{"python": "python:3.12-slim"}}
+		}
+		return nil
+	})
 	for _, p := range []plugins.Plugin{codeblock.New(), New()} {
 		if err := reg.Register(p); err != nil {
 			t.Fatal(err)
 		}
 	}
-	r := render.New(reg, config.Load(g, ""), noLinks{})
+	r := render.New(reg, config.Default(), noLinks{})
 	src := fm + "# T\n\n~~~sandbox {image=python cmd=\"python main.py\" file=main.py}\nimport os\nprint(\"a <b> & 'c'\")  # hi\n~~~\n"
 	p, err := r.Render("a.md", []byte(src))
 	if err != nil {

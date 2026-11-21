@@ -167,12 +167,36 @@ func networkOpt(ctx plugins.Context) bool {
 
 // ---- block ----
 
+var (
+	langRe = regexp.MustCompile(`^[A-Za-z0-9_+#-]{1,30}$`)
+	// extLang is the language of a file by its extension.
+	extLang = map[string]string{".py": "python", ".sh": "bash", ".js": "javascript", ".go": "go", ".rb": "ruby"}
+)
+
+// codeClass is the class of the code element. A read-only block names its
+// language (lang=, else the file's extension) in it, for the codeblock
+// plugin's HTML hook to colour when that plugin is on for the page; an
+// editable block is a textarea, which stays plain.
+func codeClass(attrs map[string]string) string {
+	if v, ok := attrs["editable"]; ok && v != "false" {
+		return "zen-sandbox-code"
+	}
+	lang := attrs["lang"]
+	if !langRe.MatchString(lang) {
+		lang = extLang[strings.ToLower(filepath.Ext(attrs["file"]))]
+	}
+	if lang == "" {
+		return "zen-sandbox-code"
+	}
+	return "zen-sandbox-code language-" + lang
+}
+
 const snippet = "plugins:\n  sandbox:\n    images:\n      python: \"python:3.12-slim\"\n"
 
 func (plugin) RenderBlock(ctx plugins.Context, b plugins.Block) (string, error) {
 	imgs := images(ctx)
 	key := b.Attrs["image"]
-	code := `<pre class="zen-sandbox-code">` + html.EscapeString(b.Body) + `</pre>`
+	code := `<pre class="` + codeClass(b.Attrs) + `">` + html.EscapeString(b.Body) + `</pre>`
 	if _, ok := imgs[key]; ok && key != "" {
 		return `<div class="zen-sandbox zen-sandbox-ready">` + code + `</div>`, nil
 	}
