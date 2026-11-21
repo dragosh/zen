@@ -76,7 +76,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 30 | [ui/inspector-details](ui/inspector-details/spec.md) | a problem's click jumps to it and marks it like a Vale mark, details on the right; the Build tab as a list with details; `kit/ui/src/{inspector,panel}`, `page/index.ts` | ui/inspector-polish, ui/lint, ui/find | done |
 | 30 | [app/logging](app/logging/spec.md) | the Console tells the app's story at debug/info/warn/error, folder-relative paths only, rate-limited debug, Info+ by default; `kit/desktop`, logging in `engine/session`, `apps/zenmark` | ui/developer-tab, #25 | done |
 | 31 | [app/demo-guide](app/demo-guide/spec.md) | `examples/demo` shows only what the build has (Intro, Plugins, Layouts, Configuration, growing per roadmap step), guarded by the assembly; the full tour moves to `examples/showcase` | kit/shell-features, #12 | done |
-| 31 | [plugins/logging](plugins/logging/spec.md) | the Console shows the built-in plugins: action and stream calls at debug, sandbox runs with capped output and exit, quiz scores, diagram errors; `engine/plugins/log.go`, logging in `engine/session` and `builtins/plugins/{sandbox,quiz,diagram}` | app/logging, core/plugin-extras | in progress |
+| 31 | [plugins/logging](plugins/logging/spec.md) | the Console shows the built-in plugins: action and stream calls at debug, sandbox runs with capped output and exit, quiz scores, diagram errors; `engine/plugins/log.go`, logging in `engine/session` and `builtins/plugins/{sandbox,quiz,diagram}` | app/logging, core/plugin-extras | done |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 
