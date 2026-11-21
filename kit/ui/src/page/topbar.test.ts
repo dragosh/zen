@@ -27,11 +27,11 @@ beforeEach(() => {
 });
 afterEach(() => { unmount?.(); unmount = undefined; vi.restoreAllMocks(); });
 
-test("Find then Edit: icons with the name as aria-label, the tooltip as title, no visible text", async () => {
+test("Find, Edit then Print: icons with the name as aria-label, the tooltip as title, no visible text", async () => {
   env = build();
   await mount();
-  expect(names()).toEqual(["Find", "Edit"]);
-  expect(buttons().map((b) => b.title)).toEqual(["Find (⌘F)", "Edit (⌘E)"]);
+  expect(names()).toEqual(["Find", "Edit", "Print"]);
+  expect(buttons().map((b) => b.title)).toEqual(["Find (⌘F)", "Edit (⌘E)", "Print (⌘P)"]);
   for (const b of buttons()) {
     expect(b.textContent).toBe("");
     expect(b.querySelector("svg")).not.toBeNull();
@@ -40,15 +40,19 @@ test("Find then Edit: icons with the name as aria-label, the tooltip as title, n
 });
 
 test("each button is missing without its feature, and none is left with neither", async () => {
-  env = build(["find"]);
+  env = build(["find", "print"]);
   await mount();
   expect(names()).toEqual(["Edit"]);
   unmount!(); unmount = undefined;
-  env = build(["editor"]);
+  env = build(["editor", "print"]);
   await mount();
   expect(names()).toEqual(["Find"]);
   unmount!(); unmount = undefined;
-  env = build(["editor", "find"]);
+  env = build(["find", "editor"]);
+  await mount();
+  expect(names()).toEqual(["Print"]);
+  unmount!(); unmount = undefined;
+  env = build(["editor", "find", "print"]);
   await mount();
   expect(names()).toEqual([]);
 });
@@ -80,6 +84,16 @@ test("Edit opens the page in the editor, as ⌘E does", async () => {
   await mount();
   buttons()[1].click();
   expect(env.api.callsTo("openEditor")).toEqual([["README.md"]]);
+});
+
+test("Print asks for the page to be printed, as ⌘P does (the PRINT_PAGE event)", async () => {
+  env = build();
+  await mount();
+  const asked = vi.fn();
+  document.addEventListener("zen:print-page", asked);
+  buttons().find((b) => b.getAttribute("aria-label") === "Print")!.click();
+  expect(asked).toHaveBeenCalledTimes(1);
+  document.removeEventListener("zen:print-page", asked);
 });
 
 test("unmounting takes the buttons away", async () => {
