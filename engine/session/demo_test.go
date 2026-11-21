@@ -315,8 +315,9 @@ func TestDemoFolder(t *testing.T) {
 	if len(sub) != 0 {
 		t.Errorf("sections missing from the sidebar: %v", sub)
 	}
-	if got := paths(tree[1].Children); got != "notes/scratch.md" {
-		t.Errorf("Other pages = %s", got)
+	// Other pages groups the unlinked page by its folder.
+	if len(tree[1].Children) != 1 || tree[1].Children[0].Title != "notes" || paths(tree[1].Children[0].Children) != "notes/scratch.md" {
+		t.Errorf("Other pages = %+v", tree[1].Children)
 	}
 	var all []string
 	var walk func([]NavNode)

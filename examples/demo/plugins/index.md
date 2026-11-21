@@ -4,49 +4,27 @@ nav:
 ---
 # Plugins
 
-Plugins add renderers to zen. The built-in ones run in Go when a page is
-rendered. Their output is cleaned like everything else, so the content of a
+Plugins add renderers to Zenmark. The built-in ones run when a page is
+rendered, and their output is cleaned like everything else, so the content of a
 page can never inject scripts into it.
 
 | Plugin | Does | On by default |
 |---|---|---|
 | [codeblock](codeblock.md) | colours code blocks, adds Copy and Wrap buttons | yes |
 | [diagram](diagram.md) | draws mermaid diagrams | yes |
-| [quiz](quiz.md) | questions with saved answers and scores | yes |
-| [sandbox](sandbox.md) | runs a code block in a container | yes, after setup |
-| [check](check.md) | a checklist block, used by the [course layout](../layouts/course.md) | yes |
-| `lint` | Vale flags (a switch, see [linting](../editing/linting.md)) | yes |
+| [check](check.md) | a checklist block you can tick | yes |
 
-Turn one off or set its options in frontmatter, `.zenmd.yml` or `config.yml`:
+Settings has a **Plugins** section that lists them with help and snippets to
+copy into a page; see [Settings](../configuration/settings.md).
+
+Turn one off, or set its options, in frontmatter or `.zenmd.yml`:
 
 ```yaml
 plugins:
   codeblock: true
   diagram: { theme: neutral }   # a mapping turns it on with options
-  lint: false                   # false turns it off
+  check: false                  # false turns it off
 ```
 
-How plugins are written into markdown: [plugin syntax](directives.md). A folder
-written for MyST or Jupyter Book can use [its own syntax](dialects.md) too.
-
-A plugin is a part of a page. The look of a whole page, such as slides or a
-blog post, is a [layout](../layouts/index.md).
-
-## Your own plugins
-
-A plugin is one Tengo file zen runs itself, or a folder with a `plugin.yml`: a
-program zen runs, scripts and styles for the page, or both. This folder carries
-five in `.zen/plugins/`:
-
-| Plugin | Does | Made of |
-|---|---|---|
-| `note` | callout boxes | a shell script |
-| `calc` | sums, worked out by `bc` | a `plugin.yml` only |
-| `progress` | checklists that remember what you ticked | JavaScript and CSS |
-| `callout` | tip and caution boxes | one Tengo file |
-| `wordcount` | the words of a page, and a list of every page | a Tengo file that reads the folder |
-
-zen asks before it uses them for the first time. The settings page (the cog)
-lists every plugin with an Allow or Block button, and shows help for each one,
-with snippets to copy into a page. To make one, read
-[Writing your own plugin](writing-plugins.md).
+A plugin is a part of a page. The look of a whole page is a
+[layout](../layouts/index.md).

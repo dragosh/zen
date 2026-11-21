@@ -282,7 +282,7 @@ A `layouts:` key in `plugin.yml` or in a Tengo `plugin` map is an error:
 
 ## Example
 
-`examples/demo/.zen/layouts/memo/` is a layout of a folder (template plus CSS,
-fields `to`, `from`, `date`); `examples/demo/layouts/` has a page for each
-built-in layout and the how-to "Writing your own layout"; `examples/demo/blog/`
+`examples/showcase/.zen/layouts/memo/` is a layout of a folder (template plus CSS,
+fields `to`, `from`, `date`); `examples/showcase/layouts/` has a page for each
+built-in layout and the how-to "Writing your own layout"; `examples/showcase/blog/`
 chooses `post` by path with `layouts:` in the folder's `.zenmd.yml`.

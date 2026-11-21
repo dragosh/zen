@@ -1,34 +1,27 @@
 ---
-title: Zenmark user guide
+title: Zenmark guide
 ---
-# Zenmark user guide
+# Zenmark guide
 
-**Zenmark** turns a folder of markdown into a small site you can read, edit and
-check, entirely on your Mac. This folder is a working example: every page
-documents one feature while showing it off. Open it with:
+**Zenmark** turns a folder of markdown into a small site you read on your Mac.
+You open a folder, and its pages appear in a sidebar built from the links
+between them. Nothing is imported, indexed or uploaded: the folder stays as it
+is, and a page you change in any editor updates on screen by itself.
 
-```sh
-cd examples/demo
-zen
-```
+This folder is a working example. Every page explains one thing while showing
+it, and the guide only describes what this version of Zenmark has.
 
-## Start here
+## Introduction
 
-1. [Install zen](getting-started/install.md) and the `zenmd` command.
-2. [Open a folder](getting-started/opening-folders.md) from the app or a terminal.
-3. Learn how the [sidebar and links](reading/navigation.md) work.
-4. Tune a page with [frontmatter](reading/frontmatter.md).
-5. [Edit a page](editing/editor.md) and let [Vale check your writing](editing/linting.md).
+1. [Open a folder](intro/opening-folders.md), and what Zenmark shows first.
+2. How the [sidebar, links and breadcrumbs](intro/navigation.md) work.
+3. Tune a page with [frontmatter](intro/frontmatter.md).
+4. Check a page with the [Inspector and the Developer panel](intro/inspector.md).
+5. [Keyboard shortcuts](intro/shortcuts.md) and the [markdown showcase](intro/markdown.md).
 
-## More
+## The rest of the guide
 
-- [Plugins](plugins/index.md): code colours, diagrams and how plugins are written.
-  Make your own with a script or a few lines of JavaScript:
-  [Writing your own plugin](plugins/writing-plugins.md).
-- [Layouts](layouts/index.md): the look of a whole page, such as docs, a blog post
-  or slides. Write your own with a little HTML and CSS:
-  [Writing your own layout](layouts/writing-your-own-layout.md).
-- [Settings](configuration/settings.md): the settings page and config files.
-- [Keyboard shortcuts](reference/shortcuts.md) and a [markdown showcase](reference/markdown.md).
-- A small [blog](blog/index.md) that picks its layout by path.
-- [Build a website](build/index.md) from this folder with `zenmd export site`, or export it as a PDF with `zenmd export pdf`.
+- [Plugins](plugins/index.md): code colours, diagrams and checklists.
+- [Layouts](layouts/index.md): the look of a whole page.
+- [Configuration](configuration/settings.md): the Settings page and the
+  `.zenmd.yml` file.

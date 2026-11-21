@@ -41,7 +41,7 @@ func Example_renderFolder() {
 	res, err := s.Build(context.Background(), session.BuildOptions{Out: filepath.Join(out, "site"), Portable: true}, nil)
 	fmt.Println(err, res.Pages > 0)
 	// Output:
-	// demo README.md
+	// showcase README.md
 	// true
 	// <nil> true
 }

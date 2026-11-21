@@ -26,7 +26,7 @@ Repository: `zenmark-org/zenmd` (always pass `--repo zenmark-org/zenmd` to `gh`)
   behaviour (CommonMark), a real bug, or both. Say which in the body.
 - Classify each, with one **type** label and one or more **area** labels:
   - Type: `bug` (does not work as it should), `enhancement` (a new feature
-    or a change), `documentation` (docs, the user guide `examples/demo`,
+    or a change), `documentation` (docs, the user guide `examples/demo`, the feature tour `examples/showcase`,
     README); `question` only when the note is a question, not a task.
   - Area: `engine` (engine/, builtins/, runtime/: format, rendering, plugin
     host, build, print), `kit` (kit/desktop, kit/ui), `app` (apps/zenmark:

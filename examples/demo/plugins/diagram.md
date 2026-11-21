@@ -4,7 +4,7 @@ plugins:
 ---
 # Diagrams
 
-Write a ` ```mermaid ` block and zen draws it. Diagrams follow the light or
+Write a ` ```mermaid ` block and Zenmark draws it. Diagrams follow the light or
 dark theme.
 
 ## Flowchart
@@ -14,9 +14,9 @@ graph LR
   A[Open folder] --> B{README.md?}
   B -- yes --> C[Show README]
   B -- no --> D[Pick a page]
-  C --> E[Edit]
+  C --> E[Read]
   D --> E
-  E -->|save| C
+  E -->|follow a link| C
 ```
 
 ## Sequence
@@ -24,12 +24,11 @@ graph LR
 ```mermaid
 sequenceDiagram
   participant You
-  participant Editor
-  participant Main as Main window
-  You->>Editor: type
-  Editor-->>Main: unsaved text (live)
-  You->>Editor: ⌘S
-  Editor->>Main: saved, reload from disk
+  participant Sidebar
+  participant Page
+  You->>Sidebar: choose a page
+  Sidebar->>Page: open it
+  Page-->>You: the rendered page
 ```
 
 ## When a diagram is wrong

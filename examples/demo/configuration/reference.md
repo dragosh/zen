@@ -1,22 +1,21 @@
 ---
-title: All settings
+title: The .zenmd.yml reference
 ---
-# All settings
+# The .zenmd.yml reference
 
-## config.yml and .zenmd.yml
+The keys that do something in this version of Zenmark. The same keys work in
+the global `config.yml`.
 
 ```yaml
 version: 1                      # file format version
 
-layout: docs                    # layout of every page that names none
-layouts:                        # layout by path, the first match wins
-  "blog/**": post
-  "talks/*.md": slides
+logo: images/logo.svg           # an image in the folder, shown beside the
+                                # folder's title in the sidebar
 
 plugins:
   codeblock: true               # or { lineNumbers: true, wrap: true }
   diagram: { theme: neutral }   # neutral | default | dark
-  lint: true                    # Vale flags
+  check: true
 
 limits:                         # global config.yml only
   files: 2000                   # markdown files, up to 100000
@@ -24,10 +23,13 @@ limits:                         # global config.yml only
   openTimeout: 30               # seconds opening a folder may take, up to 600
 ```
 
-While a folder opens, zen shows a loader with what it is doing and a Cancel
-button; Cancel, or running past `openTimeout`, keeps the folder that was open.
+While a folder opens, Zenmark shows a loader with what it is doing and a
+Cancel button; Cancel, or running past `openTimeout`, keeps the folder that was
+open.
 
 ## Frontmatter
+
+A page can override the folder's settings.
 
 | Key | Type | Example |
 |---|---|---|
@@ -37,10 +39,5 @@ button; Cancel, or running past `openTimeout`, keeps the folder that was open.
 | `nav.order` | number | `nav: { order: 2 }` |
 | `nav.parent` | path or slug | `nav: { parent: guides/index.md }` |
 | `nav.hidden` | true / false | `nav: { hidden: true }` |
-| `layout` | layout name, or a mapping with the name and options | `layout: { name: post, reading: false }` |
-| `layoutOptions` | options of the layout | `layoutOptions: { ratio: "4:3" }` |
-| `plugins.<name>` | true / false / options | `plugins: { lint: false }` |
-
-## Vale
-
-`.vale.ini` at the folder root; see [linting](../editing/linting.md).
+| `layout` | layout name | `layout: article` |
+| `plugins.<name>` | true / false / options | `plugins: { check: false }` |

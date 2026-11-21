@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | in progress |
+| Status | done |
 | Target version | 0.7.0 |
 | Branch | `feature/12-builtin-plugins` (roadmap step 3, #12) |
 | Wave | 31 |
