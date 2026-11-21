@@ -7,6 +7,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- Find in page is back in Zenmark (⌘F, ⌘G, ⇧⌘G, Edit › Find), with a page in the demo guide (#14).
 - All built-in layouts are back in Zenmark (docs, post, landing, wide, handout, slides, course), each with a page in the demo guide (#13).
 - The rating plugin: a reader gives a page or a course 1 to 5 stars (or up to 10, with labels), kept on this Mac, with a list of every rating in the folder.
 - Course: a Skip step button; a skipped step shows ✗, unlocks the next one and turns into ✓ when it is finished later.
