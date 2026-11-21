@@ -165,6 +165,54 @@ test("says so when the service is stopped or the tool is missing", async () => {
   expect(q(w, ".zen-sandbox-note")!.textContent).toMatch(/not installed/i);
 });
 
+test("the note goes away once the service runs: Check again, the window's focus, or a run", async () => {
+  api.invokeResult = { service: "stopped", images: ["python"] };
+  const w = render();
+  await settle();
+  const again = q<HTMLButtonElement>(w, ".zen-sandbox-note .zen-sandbox-recheck")!;
+  expect(again.textContent).toBe("Check again");
+  // still stopped: one note, not two
+  again.click();
+  await settle();
+  expect(w.querySelectorAll(".zen-sandbox-note").length).toBe(1);
+  // started in a terminal: Check again clears it
+  api.invokeResult = { service: "running", images: ["python"] };
+  q<HTMLButtonElement>(w, ".zen-sandbox-recheck")!.click();
+  await settle();
+  expect(q(w, ".zen-sandbox-note")).toBeNull();
+
+  // coming back to the window checks again by itself
+  api.invokeResult = { service: "stopped", images: ["python"] };
+  const v = render();
+  await settle();
+  expect(q(v, ".zen-sandbox-note")).not.toBeNull();
+  api.invokeResult = { service: "running", images: ["python"] };
+  window.dispatchEvent(new Event("focus"));
+  await settle();
+  expect(q(v, ".zen-sandbox-note")).toBeNull();
+
+  // a run that gets output clears it too
+  api.invokeResult = { service: "stopped", images: ["python"] };
+  const r = render();
+  await settle();
+  click(r, ".zen-sandbox-run");
+  streamEvt("call-1", { s: "out", t: "hi" });
+  await settle();
+  expect(q(r, ".zen-sandbox-note")).toBeNull();
+});
+
+test("unmounting stops listening to the window's focus", async () => {
+  api.invokeResult = { service: "stopped", images: ["python"] };
+  render();
+  await settle();
+  const before = api.callsTo("pluginInvoke").length;
+  rt.unmountAll();
+  await settle();
+  window.dispatchEvent(new Event("focus"));
+  await settle();
+  expect(api.callsTo("pluginInvoke").length).toBe(before);
+});
+
 test("a block that is not configured shows the code and the message but no Run", async () => {
   api.calls.length = 0;
   const w = render(ATTRS, "print(1)", "Add an image to config.yml");
