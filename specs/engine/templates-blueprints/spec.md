@@ -196,10 +196,16 @@ ask:                                   # as today
   author:  { label: Author, default: "the team" }
   product: { label: Product name, default: "{{title}}" }
 layout: docs                           # the folder's default layout (.zenmd.yml layout:)
-home:                                  # README.md, the first page
-  template: overview
-  title: "{{title}}"
-sections:                              # in sidebar order; each one is a folder with an index page
+home:                                  # README.md: the folder's start page, a short contents page
+  title: "{{title}}"                     # (Zenmark and GitHub open README.md); it links each section in order
+sections:                              # in sidebar order; each one is a folder with an index.md
+  - id: overview
+    title: Overview
+    folder: overview
+    template: overview                 # overview/index.md is the overview page itself
+    index: { template: overview }
+    pages:
+      - { file: presentation.md, title: "{{product}} in five slides", layout: slides }
   - id: getting-started
     title: Getting started
     folder: getting-started
@@ -226,8 +232,11 @@ sections:                              # in sidebar order; each one is a folder 
     pages: [ { file: configuration.md, title: Configuration } ]
   - id: glossary
     title: Glossary
-    file: glossary.md                  # one page, not a folder
-    template: glossary
+    folder: glossary
+    template: term                     # one term per file, each with the term layout
+    index: { layout: glossary }        # glossary/index.md: built from the term files, A–Z
+    pages:
+      - { file: example-term.md, title: Example term }
   - id: releases
     title: Releases
     folder: releases
@@ -235,16 +244,17 @@ sections:                              # in sidebar order; each one is a folder 
     order: newest-first                # release pages sort by version or date, newest on top
     pages: [ { file: "{{today}}-first-release.md", title: "First release", set: { version: 0.1.0 } } ]
 files: [CONTRIBUTING.md]               # other files copied as they are (today's behaviour)
-templates: [overview, tutorial, how-to, explanation, reference, glossary, release-notes]   # copied into .zen/templates
+templates: [overview, tutorial, how-to, explanation, reference, term, release-notes]   # copied into .zen/templates
 ```
 
 **What Zenmark does with it, on `zenmd init --blueprint techdocs` or File › New from Blueprint…:**
 
 1. **The questions:** it asks the `ask:` values, as today.
-2. **The home page:** it writes `README.md` from `home.template`, with one link to each section in order. The sidebar is built from links, so this gives the order.
+2. **The start page:** it writes `README.md`, a short contents page with one link to each section in order. The sidebar is built from links, so this gives the order. The overview itself is the first section's `index.md`, not the README.
 3. **For each section:**
-   - **A folder section** gets its folder, an `index.md` from the index settings (a landing page with cards by default) and its starting `pages` from the section's template skeleton. Values such as `{{title}}`, `{{author}}`, `{{today}}` and the `set:` fields are filled in.
+   - **A folder section** gets its folder, an `index.md` from the index settings (a landing page with cards by default, or the section's template or layout when `index:` names one) and its starting `pages` from the section's template skeleton. Values such as `{{title}}`, `{{author}}`, `{{today}}` and the `set:` fields are filled in.
    - **A `file:` section** is written as that one page.
+   - **A starting page with its own `layout:`**, such as the overview's slides, keeps that layout and skips the section's template.
 4. **`.zenmd.yml`:**
    - `layout:`;
    - a `templates:` path rule per section (`"how-tos/**": how-to`);
@@ -273,16 +283,71 @@ A blueprint can still be a plain folder with files, as today. `sections:` is opt
 
 | Section | Folder | Its pages follow | Starts with | The template asks for |
 |---|---|---|---|---|
-| Overview | `README.md` (home) | `overview` | the home page | a title; a one-paragraph summary of what the product is and who it's for; "Key features" (a list); "Where to go next" with a link to every section (filled in by the blueprint) |
+| Overview | `overview/` | `overview` | `overview/index.md`, plus `presentation.md`, a slides deck | a title; a one-paragraph summary of what the product is and who it's for; "Key features" (a list); "Where to go next" with a link to every section (filled in by the blueprint). Other pages in the folder may use any layout, such as slides for a pitch |
 | Getting started | `getting-started/` | `tutorial` | Installation; Your first steps | a goal paragraph; "Before you start" (a list of what's needed); numbered steps (H2s or an ordered list); "What you built"; at most 2,000 words |
 | How-tos | `how-tos/` | `how-to` | Do one task | a summary that names the task; "Steps" with an ordered list; optional "Troubleshooting"; no section called "Background" or "Why" (a suggestion to move it to Explanation) |
 | Explanation | `explanation/` | `explanation` | How it works | a summary; at least two H2 sections; no numbered steps at the top level (a suggestion to move them to a how-to); diagrams welcome |
 | Reference | `reference/` | `reference` | Configuration | a summary; tables or definition lists over prose (a suggestion above 300 words of prose); every code block names its language |
-| Glossary | `glossary.md` | `glossary` | the glossary page | one H1, then terms as a definition list or H2s in alphabetical order (a warning when they're out of order); each term has a definition; MyST `glossary` is accepted |
+| Glossary | `glossary/` | `term` (one file per term) | `glossary/index.md` (built) and one example term | each term page: the term as its title and a definition of at most 60 words as its first paragraph; optional aliases, an abbreviation, see-also links and Examples. The index is never written by hand (see "The glossary" below) |
 | Releases | `releases/` | `release-notes` | First release | `version` (semver) and `date` fields, required; sections from Added, Changed, Fixed, Removed, Security and Deprecated, in that order and only those; each section is a list; the index lists releases newest first |
 
-- **New templates in `builtins/pagetemplates/`:** `overview` and `glossary`. `release-notes` gets the `version` and `date` fields. `tutorial`, `how-to`, `explanation` and `reference` are as in "Built-in page templates", refined here.
+- **New templates in `builtins/pagetemplates/`:** `overview` and `term`. `release-notes` gets the `version` and `date` fields. `tutorial`, `how-to`, `explanation` and `reference` are as in "Built-in page templates", refined here.
 - **The demo:** the Blueprints section of the demo guide has a "Technical documentation" page showing the tree a fresh folder gets, and one page per section template showing its checks.
+
+## The glossary: one term per file
+
+The glossary is a folder of term pages, with an index built from them. MyST's
+`glossary` directive is not used yet. It may later be read as another way to
+write terms.
+
+### The `term` layout (new built-in)
+
+```yaml
+---
+title: Idempotent                 # the term
+layout: term
+aliases: [idempotence]            # other spellings; found by the index's filter and by links
+abbr: ""                          # an abbreviation, shown after the term
+see: [side-effect.md, retry.md]   # related terms, as links
+tags: [http]                      # optional grouping
+---
+An operation is idempotent when doing it twice has the same effect as doing it once.
+
+## Examples
+…
+```
+
+- **The page shows:**
+  - the term, large, with its abbreviation and aliases under it;
+  - the definition, which is the first paragraph, set apart;
+  - the rest of the text;
+  - "See also" links from `see:`;
+  - **‹ previous** and **next ›** links, to the terms before and after it in alphabetical order.
+- **Its structure (checked):**
+  - a `title` is required;
+  - the first paragraph is the definition and is required, at most 60 words (a warning beyond);
+  - every `see:` entry is a term page in the same folder (an error if it's missing).
+
+### The `glossary` layout (new built-in), for `glossary/index.md`
+
+- **Built, not written:** the index renders the term pages of its own folder, every `.md` beside it whose layout is `term`. The file holds only its frontmatter and an optional intro paragraph, so it never needs editing when terms change, and git sees no churn.
+- **Dictionary navigation:**
+  - **The letter bar:** A to Z, plus # for terms that start with a digit or symbol. It stays at the top while scrolling, and letters with no terms are greyed out.
+  - **Jumping:** clicking a letter jumps to it. With the bar focused, ←/→ move along it and Enter jumps.
+  - **The list:** terms are grouped under a heading per letter, sorted alphabetically by their title, ignoring case and accents.
+  - **Each entry:** the term (a link to its page), its abbreviation and aliases, and its definition.
+  - **Filter:** a filter field over the list. Typing narrows it by term, alias or definition text, and Esc clears it. It is plain text, never a regex.
+  - **Count:** the total number of terms shows under the title.
+- **Rebuilt on every change:** when a term file is added, renamed, deleted or edited, the index re-renders. The watcher already reloads the page that changed; it also reloads any open `glossary` page of the same folder. That includes the editor's live preview: typing a definition updates the index.
+- **The sidebar:** the term pages sit under the index, in alphabetical order (`nav: { sort: title }`, set by the blueprint), not in the order they were made.
+- **Exported sites:** the index is rendered at export, with the letter bar working. The filter needs scripts; without them it's hidden and the full list shows.
+- **Problems on the index:**
+  - two terms with the same title, or a term whose alias is another term's title (a warning);
+  - a term with no definition (a warning, which also shows on the term's own page);
+  - a `see:` link to a missing term.
+- **Interfaces:** `layouts` gets a way to read sibling pages at render time (the landing layout's cards already do this; reuse it). The `glossary` layout is the second user of it.
+- **CLI:** `zenmd new page glossary/<term>.md --template term --title "<Term>"` adds a term; `zenmd check` checks the glossary.
+- **The demo:** the demo guide gets a small glossary (five terms used in the guide) under Layouts › Glossary, to show both layouts.
 
 ## Settings
 
@@ -301,7 +366,8 @@ A blueprint can still be a plain folder with files, as today. `sections:` is opt
 3. **Wave 48:** Settings › Templates and Blueprints, Page Info, the sidebar mark, and the editor's outline strip.
 4. **Wave 49:**
    - blueprints with `sections:`;
-   - the techdocs blueprint rewritten, with its seven sections and the `overview` and `glossary` templates;
+   - the techdocs blueprint rewritten, with its seven sections and the `overview` and `term` templates;
+   - the `term` and `glossary` layouts, with the built index and its live rebuild;
    - `zenmd blueprint new|save|check|list|add-section`, and the app's matching Settings actions;
    - the other built-in blueprints updated;
    - every blueprint's starting pages checked clean.
@@ -330,7 +396,10 @@ The Problems kind `structure` uses `ProblemTarget` with `{ kind: "structure", li
 | 7 | Built-in blueprints start clean under `zenmd check` | `builtins/blueprints` tests |
 | 8 | The New Page picker writes the skeleton and fields; a path rule preselects | `newpage.test.ts` |
 | 9 | `sections:` builds the folders, index pages, README links in order, path rules, `.zen/templates`; a `file:` section is one page; `newest-first` | `builtins/blueprints` and `engine/blueprints` tests |
-| 10 | techdocs: a fresh folder has the seven sections in this order and passes `zenmd check` | `builtins/blueprints/techdocs_test.go` |
+| 10 | techdocs: a fresh folder has the seven sections in this order (Overview as `overview/index.md` with a slides page) and passes `zenmd check` | `builtins/blueprints/techdocs_test.go` |
+| 12 | The glossary index lists the folder's term pages A–Z, with letters, groups, entries and the filter; ignores non-term pages | `builtins/layouts/glossary` tests, `runtime` test for the bar and filter |
+| 13 | Editing, adding or deleting a term re-renders an open glossary index, including the editor preview | `engine/session` watch test, `kit/ui` page test |
+| 14 | The term layout: definition, aliases, see-also, previous and next; its structure checks | `builtins/layouts/term` tests |
 | 11 | `zenmd blueprint new`, `save` (from a folder's links and rules), `check`, `list` and `add-section` (changes only what it says) | `internal/cli` tests |
 
 ## UI
