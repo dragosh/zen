@@ -14,7 +14,7 @@ page can never inject scripts into it.
 | [diagram](diagram.md) | draws mermaid diagrams | yes |
 | [quiz](quiz.md) | questions with saved answers and scores | yes |
 | [sandbox](sandbox.md) | runs a code block in a container | yes, after setup |
-| `check` | a checklist block, used by the [course layout](../layouts/course.md) | yes |
+| [check](check.md) | a checklist block, used by the [course layout](../layouts/course.md) | yes |
 | `lint` | Vale flags (a switch, see [linting](../editing/linting.md)) | yes |
 
 Turn one off or set its options in frontmatter, `.zenmd.yml` or `config.yml`:

@@ -107,7 +107,7 @@ func TestDemoFolder(t *testing.T) {
 		t.Errorf("README children = %v", got)
 	}
 	for _, n := range tree[0].Children {
-		if n.Path == "plugins/index.md" && strings.Join(paths(n.Children), ",") != "plugins/writing-plugins.md,plugins/codeblock.md,plugins/diagram.md,plugins/quiz.md,plugins/sandbox.md,plugins/directives.md,plugins/dialects.md" {
+		if n.Path == "plugins/index.md" && strings.Join(paths(n.Children), ",") != "plugins/writing-plugins.md,plugins/codeblock.md,plugins/diagram.md,plugins/quiz.md,plugins/sandbox.md,plugins/check.md,plugins/directives.md,plugins/dialects.md" {
 			t.Errorf("Plugins children = %v", paths(n.Children))
 		}
 		if n.Path == "layouts/index.md" && strings.Join(paths(n.Children), ",") != "layouts/docs.md,layouts/post.md,layouts/landing.md,layouts/wide.md,layouts/handout.md,layouts/slides.md,layouts/course.md,layouts/writing-your-own-layout.md,layouts/memo.md" {
