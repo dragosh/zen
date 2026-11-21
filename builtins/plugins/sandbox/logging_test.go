@@ -2,7 +2,6 @@ package sandbox
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"os"
 	"path/filepath"
@@ -63,51 +62,31 @@ func TestLogRun(t *testing.T) {
 	if _, err := runStream(t, context.Background(), cfg(nil), codePayload); err != nil {
 		t.Fatal(err)
 	}
-	want(t, h, `(?m)^INFO sandbox: run python main\.py source=plugin$`)
-	want(t, h, `(?m)^INFO sandbox: │ hello source=plugin$`)
-	want(t, h, `(?m)^INFO sandbox: ! oops source=plugin$`)
-	want(t, h, `(?m)^INFO sandbox: exit 3 in \d+\.\d s source=plugin$`)
-	if strings.Contains(h.text(), "more lines") {
-		t.Errorf("a short output has no tail entry:\n%s", h.text())
+	// the steps, in order, and never the program's output (it is in the block)
+	steps := []string{
+		`INFO sandbox: run python: python main\.py`,
+		`INFO sandbox: checking the container service`,
+		`INFO sandbox: the container service is running`,
+		`INFO sandbox: wrote main\.py \(\d+ bytes\) to a temporary folder, mounted at /work`,
+		`INFO sandbox: starting container zen-[0-9a-f]{12} \(image python\)`,
+		`INFO sandbox: the program is running \(first output after \d+\.\d s\)`,
+		`INFO sandbox: exit 3 in \d+\.\d s`,
+		`INFO sandbox: removed the temporary folder`,
 	}
-}
-
-func TestLogOutputCapped(t *testing.T) {
-	long := strings.Repeat("a", 300)
-	fake(t, fmt.Sprintf(`i=1; while [ $i -le 25 ]; do echo "line$i"; i=$((i+1)); done; echo %s`, long))
-	h := capture(t)
-	if _, err := runStream(t, context.Background(), cfg(nil), codePayload); err != nil {
-		t.Fatal(err)
+	text := h.text()
+	at := 0
+	for _, st := range steps {
+		loc := regexp.MustCompile(`(?m)^` + st + ` source=plugin$`).FindStringIndex(text[at:])
+		if loc == nil {
+			t.Fatalf("the log lacks %s after the earlier steps:\n%s", st, text)
+		}
+		at += loc[1]
 	}
-	n := 0
-	for _, r := range h.list() {
-		if strings.HasPrefix(r, "INFO sandbox: │ ") {
-			n++
+	for _, out := range []string{"hello", "oops"} {
+		if strings.Contains(text, out) {
+			t.Errorf("the program's output %q is logged:\n%s", out, text)
 		}
 	}
-	if n != 20 {
-		t.Errorf("%d output lines logged, want 20:\n%s", n, h.text())
-	}
-	want(t, h, `(?m)^INFO sandbox: … 6 more lines \(see the block\) source=plugin$`)
-	if strings.Contains(h.text(), "line21") {
-		t.Errorf("line 21 is logged:\n%s", h.text())
-	}
-	// the long line comes after 25 short ones, so it is not logged; log it first
-	fake(t, fmt.Sprintf(`echo %s`, long))
-	h2 := capture(t)
-	if _, err := runStream(t, context.Background(), cfg(nil), codePayload); err != nil {
-		t.Fatal(err)
-	}
-	for _, r := range h2.list() {
-		if strings.Contains(r, "│ aaa") {
-			body := strings.TrimPrefix(strings.SplitN(r, " source=", 2)[0], "INFO sandbox: │ ")
-			if got := len([]rune(body)); got > 200 {
-				t.Errorf("a logged line has %d characters, want at most 200", got)
-			}
-			return
-		}
-	}
-	t.Errorf("the long line is not logged:\n%s", h2.text())
 }
 
 func TestLogTimeout(t *testing.T) {
@@ -124,7 +103,7 @@ func TestLogStopped(t *testing.T) {
 	h := capture(t)
 	c, cancel := context.WithCancel(context.Background())
 	go func() {
-		for i := 0; i < 100 && !strings.Contains(h.text(), "│ started"); i++ {
+		for i := 0; i < 100 && !strings.Contains(h.text(), "the program is running"); i++ {
 			sleepMs(50)
 		}
 		cancel()
@@ -140,7 +119,7 @@ func TestLogOutputLimit(t *testing.T) {
 	h := capture(t)
 	c, cancel := context.WithCancelCause(context.Background())
 	go func() {
-		for i := 0; i < 100 && !strings.Contains(h.text(), "│ started"); i++ {
+		for i := 0; i < 100 && !strings.Contains(h.text(), "the program is running"); i++ {
 			sleepMs(50)
 		}
 		cancel(plugins.ErrOutputLimit)
@@ -159,7 +138,7 @@ func TestLogServiceStopped(t *testing.T) {
 		t.Fatal("want an error")
 	}
 	want(t, h, `(?m)^WARN sandbox: the container service is not running source=plugin$`)
-	if strings.Contains(h.text(), "sandbox: run ") {
+	if strings.Contains(h.text(), "starting container") {
 		t.Errorf("a run that never started is logged as started:\n%s", h.text())
 	}
 }

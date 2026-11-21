@@ -299,6 +299,8 @@ func (plugin) Stream(c context.Context, ctx plugins.Context, payload []byte, emi
 		return fmt.Errorf("file %q must be a plain file name", req.File)
 	}
 
+	plugins.Log("sandbox", slog.LevelInfo, "run "+req.Image+": "+cut(req.Cmd, maxLogLine))
+	plugins.Log("sandbox", slog.LevelInfo, "checking the container service")
 	switch serviceState(c) {
 	case "missing":
 		plugins.Log("sandbox", slog.LevelWarn, "the container tool is not installed")
@@ -311,18 +313,23 @@ func (plugin) Stream(c context.Context, ctx plugins.Context, payload []byte, emi
 		logStop(c)
 		return c.Err()
 	}
+	plugins.Log("sandbox", slog.LevelInfo, "the container service is running")
 
 	tmp, err := os.MkdirTemp("", "zen-sandbox-")
 	if err != nil {
 		return errors.New("could not create a temporary folder")
 	}
-	defer os.RemoveAll(tmp)
+	defer func() {
+		os.RemoveAll(tmp)
+		plugins.Log("sandbox", slog.LevelInfo, "removed the temporary folder")
+	}()
 	if err := os.Chmod(tmp, 0o755); err != nil {
 		return errors.New("could not prepare the temporary folder")
 	}
 	if err := os.WriteFile(filepath.Join(tmp, file), []byte(req.Code), 0o644); err != nil {
 		return errors.New("could not write the code")
 	}
+	plugins.Log("sandbox", slog.LevelInfo, fmt.Sprintf("wrote %s (%d bytes) to a temporary folder, mounted at /work", file, len(req.Code)))
 	var rnd [6]byte
 	if _, err := rand.Read(rnd[:]); err != nil {
 		return errors.New("could not name the container")
@@ -340,7 +347,8 @@ func (plugin) Stream(c context.Context, ctx plugins.Context, payload []byte, emi
 		ref, "sh", "-c", req.Cmd)
 
 	limit := time.Duration(intOpt(ctx, "timeout", 30, 1, maxTimeout)) * time.Second
-	plugins.Log("sandbox", slog.LevelInfo, "run "+req.Image+" "+file)
+	// Option values are user-scoped (config.yml) and never logged: the image key and the container's name only.
+	plugins.Log("sandbox", slog.LevelInfo, "starting container "+name+" (image "+req.Image+")")
 	tc, cancel := context.WithTimeout(c, limit)
 	defer cancel()
 	return runContainer(c, tc, name, args, emit)
@@ -363,7 +371,7 @@ func runContainer(parent, tc context.Context, name string, args []string, emit f
 	}
 
 	var mu sync.Mutex
-	logged := 0 // output lines so far, under mu
+	first := true // no output yet, under mu
 	send := func(v any) {
 		b, err := json.Marshal(v)
 		if err != nil {
@@ -371,15 +379,9 @@ func runContainer(parent, tc context.Context, name string, args []string, emit f
 		}
 		mu.Lock()
 		emit(b)
-		if m, ok := v.(map[string]string); ok {
-			logged++
-			if logged <= maxLogLines {
-				mark := "│ "
-				if m["s"] == "err" {
-					mark = "! "
-				}
-				plugins.Log("sandbox", slog.LevelInfo, mark+cut(m["t"], maxLogLine))
-			}
+		if _, ok := v.(map[string]string); ok && first {
+			first = false
+			plugins.Log("sandbox", slog.LevelInfo, "the program is running (first output after "+seconds(time.Since(start).Milliseconds())+" s)")
 		}
 		mu.Unlock()
 	}
@@ -422,11 +424,6 @@ func runContainer(parent, tc context.Context, name string, args []string, emit f
 		}
 	}
 
-	mu.Lock()
-	if logged > maxLogLines {
-		plugins.Log("sandbox", slog.LevelInfo, fmt.Sprintf("… %d more lines (see the block)", logged-maxLogLines))
-	}
-	mu.Unlock()
 	if parent.Err() != nil {
 		logStop(parent)
 		return parent.Err()
@@ -450,11 +447,8 @@ func runContainer(parent, tc context.Context, name string, args []string, emit f
 	return nil
 }
 
-// Console limits of a run's output: the first lines only, each cut short.
-const (
-	maxLogLines = 20
-	maxLogLine  = 200
-)
+// maxLogLine cuts the command in the Console; the program's output is never logged (it is in the block).
+const maxLogLine = 200
 
 // cut keeps at most n characters of s, ending in "…" when it cut.
 func cut(s string, n int) string {

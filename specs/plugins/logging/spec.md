@@ -23,11 +23,16 @@ entry at Info+, and a successful stream logs only at debug.
    - **Each stream** logs at debug when it starts and when it ends, the end with its duration.
    - Failures keep their current warn entries.
    - The payload and the answer are never logged.
-3. **sandbox:**
-   - **Start:** a run logs at info: `sandbox: run <image key> <file>`. It shows the key, not the image reference, and never the code.
-   - **Program output:** the first 20 lines of the run's output, stdout and stderr, are logged at info, each cut to 200 characters. Lines go to the Console as they come, as `sandbox: │ <line>` and `sandbox: ! <line>` for stderr. After 20 lines there is one `sandbox: … N more lines (see the block)` entry at the end.
-   - **End:** `sandbox: exit <code> in <s> s` at info, or at warn for a timeout, for output over the limit, or when the service isn't running. Stop is info, as `sandbox: stopped`.
-   - **Status probe:** each probe logs at debug.
+3. **sandbox** logs the steps of a run at info, in order, and never the program's output, which is in the block (changed after the first check in the app):
+   - `sandbox: run <image key>: <cmd>`, with the command cut to 200 characters;
+   - `checking the container service`, then `the container service is running`, or a warn if it is stopped or missing;
+   - `wrote <file> (<n> bytes) to a temporary folder, mounted at /work`;
+   - `starting container zen-<id> (image <key>)`. Image references and limits are user-scoped options, so they are not logged;
+   - `the program is running (first output after <s> s)`;
+   - `exit <code> in <s> s`, or a warn for a timeout or for output over the limit, or `stopped`;
+   - `removed the temporary folder`.
+
+   A status probe logs at debug.
 4. **quiz:**
    - A Check logs at info: `quiz <id>: checked, <score>% (passed|not passed)`.
    - Reading or saving results that fails is a warn, as today in the page's console.
