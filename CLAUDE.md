@@ -66,7 +66,7 @@ task test && task build                             # the lead, after each merge
   `wails3` and `task` live in `$(go env GOPATH)/bin`.
 - After `apps/<app>/app-assembly.yml` changes, run `go run ./kit/assembly/cmd/gen apps/zenmark`.
   `TestAssemblyGenerated` catches drift.
-- Known flaky under load (timing limits): `TestLargeFile`, `TestLargeBlock` and `TestH2StreamCancelWithEscapedChild`. Rerun them alone.
+- Known flaky under load (timing limits): `TestLargeFile`, `TestLargeBlock`, `TestH2StreamCancelWithEscapedChild`, `TestH2L2EscapedGrandchildTimesOut` and `TestAtomicSave`. Rerun them alone.
 
 ## Conventions
 
