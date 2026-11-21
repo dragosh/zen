@@ -104,7 +104,7 @@ func TestBuildOptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := (BuildOptions{Out: filepath.Join(b.dir, "_site"), Portable: true, Print: true}); o != want {
+	if want := (BuildOptions{Out: filepath.Join(b.dir, "exports", "html"), Portable: true, Print: true}); o != want {
 		t.Fatalf("defaults: %+v, want %+v", o, want)
 	}
 

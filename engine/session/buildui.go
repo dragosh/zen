@@ -177,10 +177,10 @@ func (s *Session) BuildOptions() (r0 BuildOptions, err error) {
 	return o, nil
 }
 
-// absOut makes the output folder absolute: "" is _site, relative is inside root.
+// absOut makes the output folder absolute: "" is exports/html, relative is inside root.
 func absOut(root, out string) string {
 	if out == "" {
-		out = "_site"
+		out = config.DefaultExportOut
 	}
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(root, out)
@@ -408,7 +408,7 @@ func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (r0 string, er
 
 	out := o.Out
 	if out == "" {
-		out = "_site"
+		out = config.DefaultExportOut
 	}
 	if abs := absOut(root, out); !strings.HasPrefix(abs, root+string(filepath.Separator)) {
 		out = abs

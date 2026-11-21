@@ -84,10 +84,10 @@ func TestExportPDFOut(t *testing.T) {
 			t.Errorf("stdout %q", r.stdout)
 		}
 	}
-	// Default: <folder>/<folder name>.pdf, for a relative folder and from inside it.
-	want(run(t, h, nil, "export", "pdf", "My Docs"), filepath.Join(dir, "My Docs.pdf"))
-	want(run(t, dir, nil, "export", "pdf"), filepath.Join(dir, "My Docs.pdf"))
-	want(run(t, h, nil, "export", "pdf", dir), filepath.Join(dir, "My Docs.pdf"))
+	// Default: <folder>/exports/pdf/<folder name>.pdf, for a relative folder and from inside it.
+	want(run(t, h, nil, "export", "pdf", "My Docs"), filepath.Join(dir, "exports", "pdf", "My Docs.pdf"))
+	want(run(t, dir, nil, "export", "pdf"), filepath.Join(dir, "exports", "pdf", "My Docs.pdf"))
+	want(run(t, h, nil, "export", "pdf", dir), filepath.Join(dir, "exports", "pdf", "My Docs.pdf"))
 	// A relative -o is relative to the current folder, not the exported one.
 	want(run(t, h, nil, "export", "pdf", "My Docs", "-o", "out.pdf"), filepath.Join(h, "out.pdf"))
 	want(run(t, h, nil, "export", "pdf", "My Docs", "--out", "out.pdf"), filepath.Join(h, "out.pdf"))
@@ -171,11 +171,11 @@ func TestPDFNameSanitised(t *testing.T) {
 			t.Errorf("PDFName(%q) = %q is unsafe", in, got)
 		}
 	}
-	// The default output of a folder is inside it, named after it.
-	if got := DefaultPDFOut(filepath.Join("/x", "My Docs")); got != filepath.Join("/x", "My Docs", "My Docs.pdf") {
+	// The default output of a folder is exports/pdf inside it, named after it.
+	if got := DefaultPDFOut(filepath.Join("/x", "My Docs")); got != filepath.Join("/x", "My Docs", "exports", "pdf", "My Docs.pdf") {
 		t.Errorf("DefaultPDFOut = %q", got)
 	}
-	if got := DefaultPDFOut("/"); got != "/export.pdf" {
+	if got := DefaultPDFOut("/"); got != "/exports/pdf/export.pdf" {
 		t.Errorf("DefaultPDFOut(/) = %q", got)
 	}
 }
@@ -226,5 +226,18 @@ func TestExportNeedsFeature(t *testing.T) {
 	}
 	if r := run(t, h, nil, "My Docs"); r.code != 0 || !r.launched {
 		t.Errorf("opening a folder in a bare build: %+v", r)
+	}
+}
+
+// The help names the new default outputs.
+func TestExportHelpDefaults(t *testing.T) {
+	r := run(t, t.TempDir(), nil, "--help")
+	for _, want := range []string{"default: exports/html in the folder", "<folder>/exports/pdf/<folder name>.pdf"} {
+		if !strings.Contains(r.stdout, want) {
+			t.Errorf("help lacks %q", want)
+		}
+	}
+	if strings.Contains(r.stdout, "_site") {
+		t.Error("help still names _site")
 	}
 }

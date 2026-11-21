@@ -39,7 +39,7 @@ func runBuild(t *testing.T, dir, cfg string, b SiteOptions, edit ...func(*SiteEn
 	err := WriteSite(env, b, &stdout, &stderr)
 	out := b.Out
 	if out == "" {
-		out = filepath.Join(dir, "_site")
+		out = filepath.Join(dir, "exports", "html")
 	}
 	return buildRun{out: out, stdout: stdout.String(), stderr: stderr.String(), err: err}
 }
@@ -83,7 +83,7 @@ func TestBuildSiteReport(t *testing.T) {
 	if r.err != nil {
 		t.Fatal(r.err)
 	}
-	if !regexp.MustCompile(`^Built 2 pages and 3 files into _site \(1 warning\)\nPrint version: _site/print.html\n$`).MatchString(r.stdout) {
+	if !regexp.MustCompile(`^Built 2 pages and 3 files into exports/html \(1 warning\)\nPrint version: exports/html/print.html\n$`).MatchString(r.stdout) {
 		t.Errorf("summary %q", r.stdout)
 	}
 	if !strings.Contains(r.stderr, "a.md: ") || !strings.Contains(r.stderr, "nosuch") || strings.Count(r.stderr, "\n") != 1 {
@@ -101,7 +101,7 @@ func TestBuildSiteReport(t *testing.T) {
 	// Clean builds report no warnings in the summary.
 	clean := tree(t, map[string]string{"README.md": "# Home\n"})
 	r = runBuild(t, clean, cfg, SiteOptions{})
-	if r.err != nil || r.stdout != "Built 1 pages and 2 files into _site\nPrint version: _site/print.html\n" || r.stderr != "" {
+	if r.err != nil || r.stdout != "Built 1 pages and 2 files into exports/html\nPrint version: exports/html/print.html\n" || r.stderr != "" {
 		t.Errorf("clean build: %+v", r)
 	}
 	// An output outside the folder is named in full.
@@ -396,7 +396,7 @@ func TestBuildConfig(t *testing.T) {
 		"docs.md":     "---\nlayout: docs\n---\n# Docs\n\ntext\n",
 		"wip.md":      "---\ndraft: true\n---\n# WIP\n",
 		"secret/x.md": "# X\n",
-		".zenmd.yml":  "version: 1\nbuild:\n  out: public\n  id: my-notes\n  editURL: https://github.com/me/notes/edit/main/{path}\n  exclude: [\"secret/**\"]\n",
+		".zenmd.yml":  "version: 1\nexport:\n  out: public\n  id: my-notes\n  editURL: https://github.com/me/notes/edit/main/{path}\n  exclude: [\"secret/**\"]\n",
 	})
 	cfg := t.TempDir()
 	r := runBuild(t, dir, cfg, SiteOptions{})
@@ -428,19 +428,19 @@ func TestBuildConfig(t *testing.T) {
 	if r.err != nil || !r.has("wip.html") {
 		t.Fatalf("drafts: %v %v", r.err, r.files(t))
 	}
-	// build.drafts and build.portable from the folder.
-	if err := os.WriteFile(filepath.Join(dir, ".zenmd.yml"), []byte("version: 1\nbuild:\n  drafts: true\n  portable: true\n  zzz: 1\n"), 0o644); err != nil {
+	// export.drafts and build.portable from the folder.
+	if err := os.WriteFile(filepath.Join(dir, ".zenmd.yml"), []byte("version: 1\nexport:\n  drafts: true\n  portable: true\n  zzz: 1\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 	r = runBuild(t, dir, cfg, SiteOptions{})
-	if r.err != nil || !r.has("wip.html") || !strings.Contains(strings.ReplaceAll(r.read(t, "README.html"), "&#39;", "'"), "script-src 'self' file: blob:") || !strings.Contains(r.stderr, "build.zzz") {
+	if r.err != nil || !r.has("wip.html") || !strings.Contains(strings.ReplaceAll(r.read(t, "README.html"), "&#39;", "'"), "script-src 'self' file: blob:") || !strings.Contains(r.stderr, "export.zzz") {
 		t.Errorf("config build section: %v %q", r.err, r.stderr)
 	}
 	// A wrong type is an error naming the key.
-	if err := os.WriteFile(filepath.Join(dir, ".zenmd.yml"), []byte("version: 1\nbuild:\n  drafts: soon\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(dir, ".zenmd.yml"), []byte("version: 1\nexport:\n  drafts: soon\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if r := runBuild(t, dir, cfg, SiteOptions{}); r.err == nil || !strings.Contains(r.err.Error(), "build.drafts") {
+	if r := runBuild(t, dir, cfg, SiteOptions{}); r.err == nil || !strings.Contains(r.err.Error(), "export.drafts") {
 		t.Errorf("wrong type: %v", r.err)
 	}
 }
@@ -490,5 +490,18 @@ func TestBuildSiteWithoutRuntime(t *testing.T) {
 	err := WriteSite(SiteEnv{Runtime: fstest.MapFS{}}, SiteOptions{Dir: t.TempDir()}, &bytes.Buffer{}, &bytes.Buffer{})
 	if err == nil || !strings.Contains(err.Error(), "runtime") {
 		t.Errorf("WriteSite: %v", err)
+	}
+}
+
+// A folder whose config says out: _site keeps it; only the default moved.
+func TestConfiguredSiteOutKept(t *testing.T) {
+	dir := tree(t, map[string]string{"README.md": "# Home\n", ".zenmd.yml": "version: 1\nexport:\n  out: _site\n"})
+	r := runBuild(t, dir, t.TempDir(), SiteOptions{})
+	if r.err != nil {
+		t.Fatal(r.err)
+	}
+	r.out = filepath.Join(dir, "_site")
+	if !r.has("index.html") || exists(filepath.Join(dir, "exports")) {
+		t.Errorf("out: _site not used: %v", r.stdout)
 	}
 }

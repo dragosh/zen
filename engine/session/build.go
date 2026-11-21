@@ -93,7 +93,7 @@ func WriteSite(env SiteEnv, b SiteOptions, stdout, stderr io.Writer) error {
 		out = bc.Out
 	}
 	if out == "" {
-		out = "_site"
+		out = config.DefaultExportOut
 	}
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(root, out)

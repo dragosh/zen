@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -37,8 +39,8 @@ func TestHeadlessPlan(t *testing.T) {
 	if w.Name != "print" || !strings.Contains(w.Title, "My Docs") {
 		t.Errorf("window %q %q", w.Name, w.Title)
 	}
-	// A default output: inside the folder, named after it.
-	if got := planHeadless(cli.ExportPDF{Dir: "/x/My Docs"}, "My Docs").Out; got != "/x/My Docs/My Docs.pdf" {
+	// A default output: exports/pdf in the folder, named after it.
+	if got := planHeadless(cli.ExportPDF{Dir: "/x/My Docs"}, "My Docs").Out; got != "/x/My Docs/exports/pdf/My Docs.pdf" {
 		t.Errorf("default out %q", got)
 	}
 
@@ -188,5 +190,25 @@ func TestPrintFailedEndsExport(t *testing.T) {
 	}
 	if time.Since(start) > time.Second {
 		t.Error("the failure must not wait for the timeout")
+	}
+}
+
+// The default folder is created for the headless export; a chosen -o is left alone.
+func TestEnsureDefaultPDFDir(t *testing.T) {
+	dir := t.TempDir()
+	e := cli.ExportPDF{Dir: dir}
+	plan := planHeadless(e, "x")
+	if err := ensurePDFDir(e, plan.Out); err != nil {
+		t.Fatal(err)
+	}
+	if fi, err := os.Stat(filepath.Join(dir, "exports", "pdf")); err != nil || !fi.IsDir() {
+		t.Errorf("exports/pdf not created: %v", err)
+	}
+	chosen := cli.ExportPDF{Dir: dir, Out: filepath.Join(dir, "nosuch", "a.pdf")}
+	if err := ensurePDFDir(chosen, chosen.Out); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "nosuch")); err == nil {
+		t.Error("-o: its folder is the user's to make")
 	}
 }

@@ -16,7 +16,7 @@ function fakeApi(over: Partial<BuildApi> = {}) {
     buildOptions: rec("buildOptions", () => Promise.resolve({ ...OPTIONS })),
     buildWebsite: rec("buildWebsite", () => new Promise<BuildResult>((res, rej) => { finish = (r) => (r instanceof Error ? rej(r) : res(r)); })),
     cancelBuild: rec("cancelBuild", () => Promise.resolve()),
-    saveBuildDefaults: rec("saveBuildDefaults", () => Promise.resolve("Adds to .zenmd.yml:\n  build.drafts: true")),
+    saveBuildDefaults: rec("saveBuildDefaults", () => Promise.resolve("Adds to .zenmd.yml:\n  export.drafts: true")),
     pickBuildFolder: rec("pickBuildFolder", () => Promise.resolve("")),
     openBuiltSite: rec("openBuiltSite", () => Promise.resolve()),
     revealBuiltSite: rec("revealBuiltSite", () => Promise.resolve()),
@@ -241,7 +241,7 @@ test("Save as folder defaults previews the change first and writes only on confi
   btn("Save as folder defaults").click();
   await settle();
   expect(f.to("saveBuildDefaults")[0].args).toEqual([{ ...OPTIONS, drafts: true }, false]);
-  expect(q(".zen-buildsite-preview").textContent).toContain("build.drafts: true");
+  expect(q(".zen-buildsite-preview").textContent).toContain("export.drafts: true");
   btn("Cancel changes").click();
   expect(d.el.querySelector(".zen-buildsite-preview")).toBeNull();
   expect(f.to("saveBuildDefaults")).toHaveLength(1);
@@ -281,4 +281,20 @@ test("read-only: no save defaults; with the editor the link is there; destroy dr
   expect(full.f.listeners.progress.size).toBe(1);
   full.d.destroy();
   expect(full.f.listeners.progress.size).toBe(0);
+});
+
+test("the default output is exports/html: before the options arrive, and for an emptied field", async () => {
+  // buildOptions never answers: the field shows the default meanwhile.
+  const f = fakeApi({ buildOptions: () => new Promise<BuildOptions>(() => {}) });
+  const d = createBuildForm({ api: f.api, doc: document, root: () => ROOT, onOpenPage: vi.fn() });
+  document.body.append(d.el);
+  void d.refresh();
+  expect(d.el.querySelector<HTMLInputElement>(".zen-buildsite-out")!.value).toBe("exports/html");
+  document.body.replaceChildren();
+  // An emptied field builds into exports/html in the folder.
+  const { f: f2, q, btn } = await open();
+  q<HTMLInputElement>(".zen-buildsite-out").value = "  ";
+  btn("Export").click();
+  await settle();
+  expect(f2.to("buildWebsite")[0].args[0]).toMatchObject({ out: `${ROOT}/exports/html` });
 });

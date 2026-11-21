@@ -175,10 +175,10 @@ Init options:
   --list              list the templates; --update <id>; --dir
 
 Export pdf options:
-  -o, --out <file>    output file (default: <folder>/<folder name>.pdf)
+  -o, --out <file>    output file (default: <folder>/exports/pdf/<folder name>.pdf)
 
 Build options (export site, build):
-  -o, --out <dir>     output folder (default: _site in the folder)
+  -o, --out <dir>     output folder (default: exports/html in the folder)
   --hosted            output for a web server (does not open from disk)
   --portable          output that also opens from disk (the default)
   --drafts            include pages with "draft: true"

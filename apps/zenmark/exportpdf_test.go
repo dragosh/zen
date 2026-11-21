@@ -22,13 +22,11 @@ type fakePDF struct {
 	pages               int
 	saveErr             error
 	revealed            []string
-	settings            string // the folder of the settings file
 }
 
 func useFakePDF(t *testing.T, f *fakePDF) {
 	t.Helper()
 	old := pdfIO
-	f.settings = t.TempDir()
 	pdfIO = pdfHooks{
 		window: func(context.Context) (application.Window, error) { return nil, nil },
 		panel: func(_ application.Window, name, dir string) (string, error) {
@@ -41,8 +39,7 @@ func useFakePDF(t *testing.T, f *fakePDF) {
 			f.titles = append(f.titles, title)
 			return f.pages, f.saveErr
 		},
-		reveal:   func(path string) error { f.revealed = append(f.revealed, path); return nil },
-		settings: func() string { return f.settings },
+		reveal: func(path string) error { f.revealed = append(f.revealed, path); return nil },
 	}
 	t.Cleanup(func() { pdfIO = old })
 }
@@ -62,13 +59,17 @@ func TestExportPDFCancelled(t *testing.T) {
 	if err := z.RevealExport(); err == nil {
 		t.Error("nothing was exported: RevealExport must say so")
 	}
-	// The name offered is the folder's name; Documents when no folder was used before.
-	ws := z.Startup().Workspace.Name
-	if f.panelName != ws+".pdf" {
-		t.Errorf("name %q, want %q", f.panelName, ws+".pdf")
+	// The panel starts in exports/pdf of the folder, with the folder's name; the
+	// folder is created for it (behaviour 6).
+	st := z.Startup().Workspace
+	if f.panelName != st.Name+".pdf" {
+		t.Errorf("name %q, want %q", f.panelName, st.Name+".pdf")
 	}
-	if home, _ := os.UserHomeDir(); f.panelDir != filepath.Join(home, "Documents") {
-		t.Errorf("dir %q, want Documents", f.panelDir)
+	if want := filepath.Join(st.Root, "exports", "pdf"); f.panelDir != want {
+		t.Errorf("dir %q, want %q", f.panelDir, want)
+	}
+	if fi, err := os.Stat(f.panelDir); err != nil || !fi.IsDir() {
+		t.Errorf("exports/pdf was not created: %v", err)
 	}
 }
 
@@ -90,13 +91,13 @@ func TestExportPathFromPanelOnly(t *testing.T) {
 	if strings.Contains(f.panelName, "..") || strings.ContainsAny(f.panelName, "/\\") {
 		t.Errorf("panel name %q", f.panelName)
 	}
-	// The next panel starts in the folder of the last export.
+	// The next panel starts in exports/pdf again, wherever the last file went.
 	f.chosen = ""
 	if _, err := z.ExportPDF(context.Background(), "x"); err != nil {
 		t.Fatal(err)
 	}
-	if f.panelDir != out {
-		t.Errorf("second panel dir %q, want %q", f.panelDir, out)
+	if filepath.Base(f.panelDir) != "pdf" || filepath.Base(filepath.Dir(f.panelDir)) != "exports" {
+		t.Errorf("second panel dir %q, want <folder>/exports/pdf", f.panelDir)
 	}
 	// A blank title falls back to the app name for the job.
 	f.chosen = filepath.Join(out, "B.pdf")
