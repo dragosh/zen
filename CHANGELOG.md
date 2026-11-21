@@ -7,6 +7,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- The editor is back in Zenmark: editor windows (⌘E), New Page (⌘N), moving, dragging and hiding pages in the sidebar, and editing the settings files; the demo guide has an Edit a page page (#15).
 - Find in page is back in Zenmark (⌘F, ⌘G, ⇧⌘G, Edit › Find), with a page in the demo guide (#14).
 - All built-in layouts are back in Zenmark (docs, post, landing, wide, handout, slides, course), each with a page in the demo guide (#13).
 - The rating plugin: a reader gives a page or a course 1 to 5 stars (or up to 10, with labels), kept on this Mac, with a list of every rating in the folder.
@@ -24,6 +25,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 - Find in page: ⌘F (Edit › Find) opens a find bar in the reader and the editor with a match count, next/previous (⌘G, ⇧⌘G) and a match-case toggle (#4).
 
 ### Changed
+- Find, Edit and the Inspector are icons in the top bar (a magnifying glass, a pencil and a panel); the sidebar footer keeps Settings and Export, and every icon comes from one set.
 - Every interactive block (quiz, rating, checklists, sandbox, course) uses one set of frames, buttons, choices and text styles, documented in docs/PLUGIN-UI.md for future plugins and layouts; the course's step list lines up wrapped titles.
 - `examples/demo` is the Zenmark guide for what the app has today and grows with each roadmap step; the full tour is `examples/showcase`.
 - Sandbox: read-only code is coloured like a code block, and the note about a stopped container service checks again when you come back to the window or press Check again.
