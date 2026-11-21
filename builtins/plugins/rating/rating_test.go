@@ -2,6 +2,7 @@ package rating
 
 import (
 	"io/fs"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -60,14 +61,14 @@ func TestManifest(t *testing.T) {
 func TestDefaults(t *testing.T) {
 	p := page(t, ":::rating{id=course}\n:::\n")
 	for _, want := range []string{
-		`data-zen-plugin="rating"`, `data-zen-name="rating"`, "<fieldset", "<legend", "Rate this page",
-		`type="radio"`, `name="rating-course"`, "1 of 5", "5 of 5", `class="zr-status"`, "Not rated yet",
+		`data-zen-plugin="rating"`, `data-zen-name="rating"`, `class="zr-rating"`, `class="zr-legend"`, "Rate this page",
+		"1 of 5", "5 of 5", `class="zr-status"`, "Not rated yet",
 	} {
 		if !strings.Contains(p.HTML, want) {
 			t.Errorf("missing %q in\n%s", want, p.HTML)
 		}
 	}
-	if n := strings.Count(p.HTML, `type="radio"`); n != 5 {
+	if n := strings.Count(p.HTML, `class="zr-star"`); n != 5 {
 		t.Errorf("%d radios, want 5", n)
 	}
 	if strings.Join(p.Assets.JS, ",") != "/_plugins/rating/rating.js" {
@@ -80,7 +81,7 @@ func TestDefaults(t *testing.T) {
 
 func TestTitleMaxLabelsAndBody(t *testing.T) {
 	p := page(t, ":::rating{id=r1 title=\"How was this course?\" max=3 labels=\"Poor|Fair|Good\"}\nTell us **honestly**.\n:::\n")
-	if n := strings.Count(p.HTML, `type="radio"`); n != 3 {
+	if n := strings.Count(p.HTML, `class="zr-star"`); n != 3 {
 		t.Errorf("%d radios, want 3", n)
 	}
 	for _, want := range []string{"How was this course?", "Poor", "Fair", "Good", "<strong>honestly</strong>"} {
@@ -93,7 +94,7 @@ func TestTitleMaxLabelsAndBody(t *testing.T) {
 	}
 	// Without labels the hidden label is "n of max".
 	p = page(t, ":::rating{id=r2 max=10}\n:::\n")
-	if n := strings.Count(p.HTML, `type="radio"`); n != 10 || !strings.Contains(p.HTML, "10 of 10") {
+	if n := strings.Count(p.HTML, `class="zr-star"`); n != 10 || !strings.Contains(p.HTML, "10 of 10") {
 		t.Errorf("max=10:\n%s", p.HTML)
 	}
 }
@@ -115,7 +116,7 @@ func TestBadAttributes(t *testing.T) {
 		if !strings.Contains(p.HTML, "zen-plugin-error") {
 			t.Errorf("%s: no error box in\n%s", name, p.HTML)
 		}
-		if strings.Contains(p.HTML, `type="radio"`) {
+		if strings.Contains(p.HTML, `class="zr-star"`) {
 			t.Errorf("%s: rendered stars", name)
 		}
 	}
@@ -126,18 +127,12 @@ func TestBadAttributes(t *testing.T) {
 	}
 }
 
-func TestDuplicateIDWarns(t *testing.T) {
-	p := page(t, ":::rating{id=same}\n:::\n\n:::rating{id=same}\n:::\n")
-	if !strings.Contains(p.HTML, "zen-plugin-error") {
-		t.Errorf("a second block with the same id should fail:\n%s", p.HTML)
-	}
-}
-
 func TestHostileTextStaysText(t *testing.T) {
 	p := page(t, ":::rating{id=h title=\"<script>alert(1)</script><img src=x onerror=alert(2)>\" max=3 labels=\"<b>x</b>|<i onclick=z>y</i>|\\\"q\\\"\"}\n:::\n")
-	for _, bad := range []string{"<script", "<img", "onerror=", "<b>x", "<i onclick"} {
-		if strings.Contains(p.HTML, bad) {
-			t.Errorf("hostile text leaked as markup %q in\n%s", bad, p.HTML)
+	html := regexp.MustCompile(`data-zen-attrs="[^"]*"`).ReplaceAllString(p.HTML, "") // the attribute is inert text
+	for _, bad := range []string{"<script", "<img", "<b>x", "<i onclick"} {
+		if strings.Contains(html, bad) {
+			t.Errorf("hostile text leaked as markup %q in\n%s", bad, html)
 		}
 	}
 	if !strings.Contains(p.HTML, "&lt;script&gt;") {

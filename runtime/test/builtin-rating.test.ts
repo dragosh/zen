@@ -25,7 +25,7 @@ afterEach(() => rt.destroy());
 
 const settle = async () => { for (let i = 0; i < 8; i++) await new Promise((r) => setTimeout(r, 0)); };
 
-/** What zen renders for a rating block: Go's fieldset inside the wrapper. */
+/** What zen renders for a rating block: Go's text structure inside the wrapper (the sanitiser allows no fieldset or radio). */
 function render(attrs: Record<string, string> = { id: "course", title: "How was this course?" }, labels: string[] = []): HTMLElement {
   const max = Number(attrs.max || 5);
   const w = document.createElement("div");
@@ -34,20 +34,37 @@ function render(attrs: Record<string, string> = { id: "course", title: "How was 
   w.setAttribute("data-zen-attrs", JSON.stringify(attrs));
   let stars = "";
   for (let i = 1; i <= max; i++) {
-    stars += `<label class="zr-star"><input type="radio" name="rating-${attrs.id}" value="${i}"><span class="zr-glyph" aria-hidden="true">☆</span><span class="zr-sr">${labels[i - 1] ?? `${i} of ${max}`}</span></label>`;
+    stars += `<span class="zr-star"><span class="zr-glyph" aria-hidden="true">☆</span><span class="zr-sr"></span></span>`;
   }
-  w.innerHTML = `<fieldset class="zr-rating"><legend class="zr-legend">${attrs.title ?? "Rate this page"}</legend><div class="zr-stars">${stars}</div><p class="zr-status">Not rated yet</p></fieldset>`;
+  w.innerHTML = `<div class="zr-rating"><div class="zr-legend"></div><div class="zr-stars">${stars}</div><div class="zr-status">Not rated yet</div></div>`;
+  // Text goes in through textContent, as Go's escaping does, so a hostile title stays text.
+  w.querySelector(".zr-legend")!.textContent = attrs.title ?? "Rate this page";
+  w.querySelectorAll(".zr-sr").forEach((e, i) => { e.textContent = labels[i] ?? `${i + 1} of ${max}`; });
   root.replaceChildren(w);
   rt.mountAll(root);
   return w;
 }
 const radios = (w: HTMLElement) => Array.from(w.querySelectorAll<HTMLInputElement>("input[type=radio]"));
 const status = (w: HTMLElement) => w.querySelector(".zr-status")!.textContent;
+
 const clearBtn = (w: HTMLElement) => w.querySelector<HTMLButtonElement>("button.zr-clear");
 const key = (id = "course") => `rating-${id}`;
 const writes = (id = "course") => api.callsTo("pluginStorageSet").filter((c) => c[1] === key(id)).map((c) => JSON.parse(c[2] as string));
 const keydown = (el: HTMLElement, k: string) => el.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true }));
 const seed = async (id: string, v: unknown) => { await api.pluginStorageSet("rating", key(id), JSON.stringify(v)); };
+
+test("builds a fieldset with a legend and labelled radios in one group", async () => {
+  const w = render();
+  await settle();
+  const fs = w.querySelector("fieldset")!;
+  expect(fs.querySelector("legend")!.textContent).toBe("How was this course?");
+  expect(radios(w)).toHaveLength(5);
+  expect(new Set(radios(w).map((r) => r.name))).toEqual(new Set(["rating-course"]));
+  expect(radios(w).map((r) => r.value)).toEqual(["1", "2", "3", "4", "5"]);
+  for (const r of radios(w)) expect(r.closest("label")).not.toBeNull();
+  expect(radios(w)[2].closest("label")!.textContent).toContain("3 of 5");
+  expect(w.querySelector(".zr-status")!.getAttribute("aria-live")).toBe("polite");
+});
 
 test("starts not rated, with no Clear button", async () => {
   const w = render();
@@ -173,6 +190,8 @@ test("clean-up restores the markup", async () => {
   expect(clearBtn(w)).not.toBeNull();
   rt.unmountAll();
   expect(w.querySelector("button")).toBeNull();
+  expect(w.querySelector("fieldset")).toBeNull();
+  expect(w.querySelector(".zr-legend")!.textContent).toBe("How was this course?");
   expect(w.querySelector(".zr-status")!.textContent).toBe("Not rated yet");
 });
 
