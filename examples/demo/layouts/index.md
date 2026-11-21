@@ -28,6 +28,7 @@ has these layouts:
 | [wide](wide.md) | the whole pane, for wide tables and diagrams |
 | [handout](handout.md) | a one-pager on a paper sheet |
 | [slides](slides.md) | a page shown as slides, one at a time |
+| [course](course.md) | a page shown as steps, unlocked by checklists |
  Settings has a **Layouts** section that lists the
 layouts with help and snippets to copy; see
 [Settings](../configuration/settings.md).

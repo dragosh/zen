@@ -3,8 +3,10 @@ title: Checklists
 ---
 # Checklists
 
-A `check` block holds a checklist. The boxes show what the markdown says,
-ticked (`[x]`) or not (`[ ]`); clicking them does nothing.
+A `check` block holds a checklist. On an ordinary page the boxes show what the
+markdown says, ticked (`[x]`) or not (`[ ]`), and clicking them does nothing.
+In a page with `layout: course` you tick them, and ticking every box of a step
+unlocks the next one: try the [course](../layouts/course.md).
 
 ## Syntax
 

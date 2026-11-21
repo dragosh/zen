@@ -22,6 +22,7 @@ layout: wide
 | wide | template, CSS | nothing | none | tables, diagrams | no reading column |
 | handout | template, CSS | date, author | paper | one-pagers | a paper sheet |
 | slides | CSS, script | nothing | ratio, transition | talks | one slide at a time |
+| course | CSS, script | nothing | id | lessons | steps with saved progress |
 
 ```mermaid
 graph LR; Page --> Layout --> Reader; Page --> Plugins --> Layout
