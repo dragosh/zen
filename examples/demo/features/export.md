@@ -21,6 +21,8 @@ The dialog asks for:
 - the output folder;
 - whether the site opens from disk (every page carries its scripts) or only
   from a web server (smaller pages);
+- the theme: **Auto** follows the reader's system, **Light (white)** or
+  **Dark (black)** fixes the colours of every page;
 - whether to include pages marked `draft: true`;
 - whether to start clean.
 
@@ -63,7 +65,12 @@ zenmd export site                       # writes exports/html in the folder
 zenmd export site -o public --hosted    # for a web server only
 zenmd export pdf                        # writes exports/pdf/<folder name>.pdf
 zenmd export pdf -o ~/Desktop/guide.pdf
+zenmd export site --scheme dark --save-defaults   # a black website, remembered for the folder
 ```
+
+Everything you can choose in Settings is a flag too (`--no-drafts`, `--scheme`,
+`--all`, `--cover`, `--open`, `--save-defaults`, …); run `zenmd help` for the
+list. A flag wins over the folder's settings for that run.
 
 ## Folder defaults
 
@@ -75,5 +82,7 @@ export:
   out: exports/html
   drafts: false
   portable: true   # false = for a web server only
+  theme:
+    scheme: auto   # auto, light or dark
   exclude: ["private/**"]
 ```

@@ -710,13 +710,13 @@ test("export in place", async () => {
   expect(d.querySelector("[role=dialog]")).toBeNull();
   expect(build.buildOptions).toHaveBeenCalled();
   expect(d.querySelector<HTMLInputElement>(".zen-buildsite-out")!.value).toBe("_site");
-  expect(Array.from(d.querySelectorAll<HTMLInputElement>("input[type=radio]")).map((r) => [r.value, r.checked])).toEqual([["portable", false], ["hosted", true]]);
+  expect(Array.from(d.querySelectorAll<HTMLInputElement>("[data-field=opens] input[type=radio]")).map((r) => [r.value, r.checked])).toEqual([["portable", false], ["hosted", true]]);
   expect(Array.from(d.querySelectorAll<HTMLInputElement>("input[type=checkbox]")).map((b) => [b.name, b.checked])).toEqual([["drafts", true], ["clean", false], ["print", true]]);
   expect(btn(d, "Export").type).toBe("submit");
   // Build starts, progress shows with Cancel
   btn(d, "Export").click();
   await settle();
-  expect(build.buildWebsite).toHaveBeenCalledWith({ out: "/Users/me/site/_site", portable: false, drafts: true, clean: false, print: true });
+  expect(build.buildWebsite).toHaveBeenCalledWith({ out: "/Users/me/site/_site", portable: false, drafts: true, clean: false, print: true, scheme: "auto" });
   expect(d.querySelector("[role=progressbar]")).not.toBeNull();
   btn(d, "Cancel").click();
   expect(build.cancelBuild).toHaveBeenCalledTimes(1);

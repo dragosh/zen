@@ -105,7 +105,7 @@ func TestBuildOptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := (BuildOptions{Out: filepath.Join(b.dir, "exports", "html"), Portable: true, Print: true}); o != want {
+	if want := (BuildOptions{Out: filepath.Join(b.dir, "exports", "html"), Portable: true, Print: true, Scheme: "auto"}); o != want {
 		t.Fatalf("defaults: %+v, want %+v", o, want)
 	}
 
@@ -118,12 +118,12 @@ func TestBuildOptions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if want := (BuildOptions{Out: filepath.Join(b2.dir, "public"), Drafts: true, Print: true}); o != want {
+	if want := (BuildOptions{Out: filepath.Join(b2.dir, "public"), Drafts: true, Print: true, Scheme: "auto"}); o != want {
 		t.Fatalf("from config: %+v, want %+v", o, want)
 	}
 
 	// What was used last time wins, and is kept per folder, atomically.
-	used := BuildOptions{Out: filepath.Join(b2.dir, "other"), Portable: true, Drafts: false, Clean: true, Print: false}
+	used := BuildOptions{Out: filepath.Join(b2.dir, "other"), Portable: true, Drafts: false, Clean: true, Print: false, Scheme: "auto"}
 	if _, err := b2.z.BuildWebsite(used); err != nil {
 		t.Fatal(err)
 	}

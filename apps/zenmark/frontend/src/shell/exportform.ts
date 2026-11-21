@@ -27,6 +27,7 @@ export function check(name: string, label: string) {
   const i = el("input");
   i.type = "checkbox";
   i.name = name;
+  i.dataset.field = name; // the id of the option in apps/zenmark/export-options.json
   l.append(i, el("span", "", label));
   return { l, i };
 }
@@ -37,6 +38,7 @@ export function pathField(id: number, label: string, initial: string, choose: ()
   const input = el("input", "zen-buildsite-out");
   input.type = "text";
   input.id = `zen-buildsite-out-${id}`;
+  input.dataset.field = "out"; // the id of the option in apps/zenmark/export-options.json
   input.autocomplete = "off";
   input.spellcheck = false;
   input.value = initial;
@@ -47,11 +49,12 @@ export function pathField(id: number, label: string, initial: string, choose: ()
   return { label: l, input, choose: pick, row };
 }
 
-/** A group of radio buttons under a label; hint is the small line under a choice. */
+/** A group of radio buttons under a label (name is its field in apps/zenmark/export-options.json); hint is the small line under a choice. */
 export function radioGroup(id: number, name: string, label: string, choices: { value: string; label: string; hint?: string }[]) {
   const l = el("p", "zen-buildsite-label", label);
   const group = el("div", "zen-buildsite-opens");
   group.setAttribute("role", "radiogroup");
+  group.dataset.field = name; // the id of the option in apps/zenmark/export-options.json
   group.setAttribute("aria-labelledby", (l.id = `zen-buildsite-${name}-${id}`));
   const radios = choices.map((c) => {
     const lab = el("label", "zen-buildsite-choice");

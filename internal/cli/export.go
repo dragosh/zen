@@ -20,11 +20,14 @@ type ExportPDF struct {
 	Drafts  bool   // include pages with draft: true (export.pdf.drafts, --drafts)
 	Section string // only this page and the pages under it ("" for all)
 	NoCover bool   // leave out the cover and the contents (export.pdf.cover: false, --no-cover)
+	// Open: the exporter opens the PDF with the system once it is written (export.pdf.open, --open). It is off on
+	// the command line unless the config says so; the app's form starts on.
+	Open bool
 	// MakeDir: the output folder is made when missing (the default, or export.pdf.out); with -o it is the user's to make.
 	MakeDir bool
 }
 
-// PDFExporter writes the PDF. It prints "Wrote <path> (<n> pages)" to stdout and
+// PDFExporter writes the PDF and, when e.Open, opens it. It prints "Wrote <path> (<n> pages)" to stdout and
 // one line per block that was not ready to stderr, and returns an error when
 // no file was written. Return UsageError for a wrong request (exit 2).
 type PDFExporter func(ExportPDF, io.Writer, io.Writer) error
@@ -81,60 +84,27 @@ func runExport(args []string, cwd string, stdout, stderr io.Writer, build Builde
 
 // runExportPDF parses the arguments after `zenmd export pdf` and calls the exporter.
 func runExportPDF(args []string, cwd string, stdout, stderr io.Writer, pdf PDFExporter) int {
-	var paths []string
-	out, hasOut, flags := "", false, true
-	var drafts, noCover bool
-	section := ""
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		switch {
-		case flags && arg == "--":
-			flags = false
-		case flags && (arg == "-h" || arg == "--help"):
-			fmt.Fprint(stdout, usage)
-			return 0
-		case flags && arg == "--drafts":
-			drafts = true
-		case flags && arg == "--no-cover":
-			noCover = true
-		case flags && arg == "--section":
-			if i+1 >= len(args) {
-				return fail(stderr, usageError("--section needs a page"))
-			}
-			i++
-			section = args[i]
-		case flags && strings.HasPrefix(arg, "--section="):
-			_, section, _ = strings.Cut(arg, "=")
-			if section == "" {
-				return fail(stderr, usageError("--section needs a page"))
-			}
-		case flags && (arg == "-o" || arg == "--out"):
-			if i+1 >= len(args) {
-				return fail(stderr, usageError(arg+" needs a file name"))
-			}
-			i++
-			out, hasOut = args[i], true
-		case flags && (strings.HasPrefix(arg, "-o=") || strings.HasPrefix(arg, "--out=")):
-			_, out, _ = strings.Cut(arg, "=")
-			hasOut = true
-		case flags && strings.HasPrefix(arg, "-") && arg != "-":
-			return fail(stderr, usageError("unknown option "+arg))
-		default:
-			paths = append(paths, arg)
-		}
+	f, err := parseOptions(args, pdfOptions)
+	if err != nil {
+		return fail(stderr, err)
 	}
-	if hasOut && out == "" {
-		return fail(stderr, usageError("-o needs a file name"))
+	if f.help {
+		fmt.Fprint(stdout, usage)
+		return 0
 	}
-	if len(paths) > 1 {
+	if f.on[flagDryRun] && !f.on[flagSaveDefaults] {
+		return fail(stderr, usageError(flagDryRun+" goes with "+flagSaveDefaults))
+	}
+	hasOut, out := f.on["--out"], f.val["--out"]
+	if len(f.paths) > 1 {
 		return fail(stderr, usageError("more than one path given"))
 	}
 
 	e := ExportPDF{Dir: cwd}
 	shown := "the current folder"
-	if len(paths) == 1 {
-		shown = paths[0]
-		e.Dir = paths[0]
+	if len(f.paths) == 1 {
+		shown = f.paths[0]
+		e.Dir = f.paths[0]
 		if !filepath.IsAbs(e.Dir) {
 			e.Dir = filepath.Join(cwd, e.Dir)
 		}
@@ -147,15 +117,25 @@ func runExportPDF(args []string, cwd string, stdout, stderr io.Writer, pdf PDFEx
 		return fail(stderr, errors.New(shown+": export takes a folder, not a file"))
 	}
 
-	// The folder's export.pdf gives the defaults; the flags win.
-	gp, _ := config.GlobalPath()
-	pc, err := config.Load(gp, e.Dir).PDF()
+	// A flag wins over the folder's export.pdf, which wins over config.yml, then the built-in default.
+	loaded := loadConfig(e.Dir)
+	pc, err := loaded.PDF()
 	if err != nil {
 		return fail(stderr, err)
 	}
-	e.Drafts = drafts || pc.Drafts
-	e.NoCover = noCover || !pc.CoverOn()
-	e.Section = section
+	pick := func(flag string, config bool) bool {
+		switch {
+		case f.on[flag]:
+			return true
+		case f.off[flag]:
+			return false
+		}
+		return config
+	}
+	e.Drafts = pick("--drafts", pc.Drafts)
+	e.NoCover = !pick("--cover", pc.CoverOn())
+	e.Open = pick("--open", pc.Open != nil && *pc.Open)
+	e.Section = f.val["--section"]
 	e.MakeDir = !hasOut
 	e.Out = DefaultPDFOut(e.Dir)
 	if !hasOut && pc.Out != "" {
@@ -185,7 +165,30 @@ func runExportPDF(args []string, cwd string, stdout, stderr io.Writer, pdf PDFEx
 	if pdf == nil {
 		return fail(stderr, errors.New("this zenmd cannot export PDFs"))
 	}
-	noticeLegacyConfig(stderr, e.Dir)
+	printNotices(stderr, loaded)
+	if f.on[flagSaveDefaults] {
+		keys := []config.ExportKey{}
+		if hasOut {
+			v, err := config.PDFOutValue(e.Dir, e.Out)
+			if err != nil {
+				return fail(stderr, err)
+			}
+			if filepath.IsAbs(v) { // the config refuses it when it reads it back
+				return fail(stderr, errors.New("export.pdf.out must be a path inside the folder, such as exports/pdf/guide.pdf; "+e.Out+" is outside it"))
+			}
+			keys = append(keys, config.StrKey("pdf.out", v))
+		}
+		for _, k := range []struct{ flag, key string }{{"--drafts", "pdf.drafts"}, {"--cover", "pdf.cover"}, {"--open", "pdf.open"}} {
+			if f.given(k.flag) {
+				keys = append(keys, config.BoolKey(k.key, f.on[k.flag]))
+			}
+		}
+		if done, err := saveDefaults(stdout, e.Dir, keys, f.on[flagDryRun]); err != nil {
+			return fail(stderr, err)
+		} else if done {
+			return 0
+		}
+	}
 	if err := pdf(e, stdout, stderr); err != nil {
 		return fail(stderr, err)
 	}

@@ -73,6 +73,9 @@ type Options struct {
 	Exclude          []string
 	// NoPrint leaves print.html out (zenmd build --no-print).
 	NoPrint bool
+	// Scheme forces the colours of every page: "light" or "dark" sets data-theme on <html>; "" and "auto" leave it to
+	// the reader's system (and the pages are as they were without the option).
+	Scheme string
 }
 
 // Report is what a build produced.

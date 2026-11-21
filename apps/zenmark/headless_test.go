@@ -242,3 +242,25 @@ func TestEnsurePDFDirFromConfig(t *testing.T) {
 		t.Errorf("books not created: %v", err)
 	}
 }
+
+// --open (export.pdf.open) opens the PDF once it is written, and only then; a failing open is a warning.
+func TestOpenWritten(t *testing.T) {
+	old := openPDF
+	t.Cleanup(func() { openPDF = old })
+	var opened []string
+	openPDF = func(args ...string) error { opened = append(opened, args...); return nil }
+	var stderr bytes.Buffer
+	openWritten(cli.ExportPDF{}, "/x/a.pdf", &stderr)
+	if len(opened) != 0 || stderr.Len() != 0 {
+		t.Fatalf("Open off: opened %v, stderr %q", opened, stderr.String())
+	}
+	openWritten(cli.ExportPDF{Open: true}, "/x/a.pdf", &stderr)
+	if len(opened) != 1 || opened[0] != "/x/a.pdf" || stderr.Len() != 0 {
+		t.Fatalf("Open on: opened %v, stderr %q", opened, stderr.String())
+	}
+	openPDF = func(...string) error { return errors.New("no app\nfor it") }
+	openWritten(cli.ExportPDF{Open: true}, "/x/a.pdf", &stderr)
+	if got := stderr.String(); got != "zenmd: could not open /x/a.pdf: no app for it\n" {
+		t.Errorf("failed open: %q", got)
+	}
+}

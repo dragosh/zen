@@ -204,7 +204,7 @@ function payload(data: unknown): unknown {
 }
 
 function buildOptions(o: Raw): BuildOptions {
-  return { out: String(o?.out ?? ""), portable: o?.portable !== false, drafts: o?.drafts === true, clean: o?.clean === true, print: o?.print !== false };
+  return { out: String(o?.out ?? ""), portable: o?.portable !== false, drafts: o?.drafts === true, clean: o?.clean === true, print: o?.print !== false, scheme: o?.scheme === "light" || o?.scheme === "dark" ? o.scheme : "auto" };
 }
 
 function pdfOptions(o: Raw): PdfOptions {

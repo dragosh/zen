@@ -104,35 +104,6 @@ func TestExportPDFPrecedence(t *testing.T) {
 	}
 }
 
-// --open opens the written PDF with macOS open, after it is written and only then.
-func TestExportPDFOpen(t *testing.T) {
-	h, dir := pdfSetup(t)
-	var opened []string
-	old := openFile
-	openFile = func(path string) error { opened = append(opened, path); return nil }
-	t.Cleanup(func() { openFile = old })
-
-	want := filepath.Join(dir, "exports", "pdf", "My Docs.pdf")
-	if r := run(t, h, nil, "export", "pdf", "My Docs"); r.code != 0 || len(opened) != 0 {
-		t.Fatalf("default: %+v opened %v", r, opened)
-	}
-	if r := run(t, h, nil, "export", "pdf", "My Docs", "--open"); r.code != 0 || len(opened) != 1 || opened[0] != want {
-		t.Fatalf("--open: %+v opened %v", r, opened)
-	}
-	opened = nil
-	pdfErr = os.ErrNotExist
-	r := run(t, h, nil, "export", "pdf", "My Docs", "--open")
-	pdfErr = nil
-	if r.code != 1 || len(opened) != 0 {
-		t.Fatalf("failed export: %+v opened %v", r, opened)
-	}
-	// A failing open is a warning: the PDF is written.
-	openFile = func(string) error { return os.ErrPermission }
-	if r := run(t, h, nil, "export", "pdf", "My Docs", "--open"); r.code != 0 || !strings.Contains(r.stderr, "could not open") {
-		t.Fatalf("open fails: %+v", r)
-	}
-}
-
 const original = "# mine\nversion: 1\nexport:\n  # site\n  out: exports/html\n  exclude:\n    - \"x/**\" # keep\nplugins:\n  check: true\n"
 
 // --save-defaults writes the flags given into the folder's .zenmd.yml as Save as folder defaults does: comments and
@@ -200,6 +171,9 @@ func TestSaveDefaultsPDF(t *testing.T) {
 	h, dir := pdfSetup(t)
 	yml := filepath.Join(dir, ".zenmd.yml")
 	writeFile(t, yml, original)
+	if err := os.MkdirAll(filepath.Join(dir, "pdf"), 0o755); err != nil {
+		t.Fatal(err)
+	}
 
 	r := run(t, h, nil, "export", "pdf", "My Docs", "--no-cover", "--open", "--drafts", "-o", filepath.Join(dir, "pdf", "guide.pdf"), "--section", "a.md", "--save-defaults", "--dry-run")
 	if r.code != 0 || r.pdfd || readFile(t, yml) != original {
@@ -213,9 +187,6 @@ func TestSaveDefaultsPDF(t *testing.T) {
 	if strings.Contains(r.stdout, "section") {
 		t.Errorf("--section is per run, not a default:\n%s", r.stdout)
 	}
-	old := openFile
-	openFile = func(string) error { return nil }
-	t.Cleanup(func() { openFile = old })
 	r = run(t, h, nil, "export", "pdf", "My Docs", "--no-cover", "--open", "--save-defaults")
 	if r.code != 0 || !r.pdfd || !r.p.NoCover || !r.p.Open {
 		t.Fatalf("save: %+v", r)

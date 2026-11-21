@@ -16,7 +16,15 @@ type Build struct {
 	Drafts   bool     // include pages with draft: true
 	Portable *bool    // output that opens from file:// (nil = the default, true)
 	Exclude  []string // globs of pages left out, on top of the app's excludes
+	// Scheme is export.theme.scheme: "auto" (the reader's system), "light" or "dark"; "" when not set (auto).
+	Scheme string
 }
+
+// Schemes are the values of export.theme.scheme and of `--scheme`.
+var Schemes = []string{"auto", "light", "dark"}
+
+// themeKeys are the keys of export.theme that engine/export-theme adds later; they are not unknown.
+var themeKeys = map[string]bool{"name": true, "tokens": true, "dark": true, "css": true, "logo": true, "favicon": true, "footer": true, "social": true, "switch": true}
 
 // siteIDRE is what a site id may look like: it becomes part of a storage key.
 var siteIDRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
@@ -36,8 +44,8 @@ func (c *Config) mergeBuild(v any) {
 		c.build = map[string]any{}
 	}
 	for k, x := range m {
-		// pdf: is a mapping of its own; the folder's keys win one by one there too.
-		if pm, ok := x.(map[string]any); ok && k == "pdf" {
+		// pdf: and theme: are mappings of their own; the folder's keys win one by one there too.
+		if pm, ok := x.(map[string]any); ok && (k == "pdf" || k == "theme") {
 			if old, ok := c.build[k].(map[string]any); ok {
 				merged := map[string]any{}
 				for ok2, ov := range old {
@@ -96,6 +104,11 @@ func (c *Config) Build() (Build, []string, error) {
 			}
 		case "pdf":
 			// read by PDF()
+		case "theme":
+			var w []string
+			if b.Scheme, w, err = c.exportTheme(); err == nil {
+				warns = append(warns, w...)
+			}
 		case "editURL":
 			err = str(k, &b.EditURL)
 		case "drafts":
@@ -125,4 +138,40 @@ func (c *Config) Build() (Build, []string, error) {
 		}
 	}
 	return b, warns, nil
+}
+
+// exportTheme reads export.theme: the scheme, and warnings for keys that are not known.
+func (c *Config) exportTheme() (scheme string, warns []string, err error) {
+	m, ok := c.build["theme"].(map[string]any)
+	if !ok {
+		return "", nil, errors.New("export.theme must be a mapping")
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		switch {
+		case k == "scheme":
+			s, ok := m[k].(string)
+			if !ok || !ValidScheme(s) {
+				return "", nil, errors.New("export.theme.scheme must be auto, light or dark")
+			}
+			scheme = s
+		case !themeKeys[k]:
+			warns = append(warns, fmt.Sprintf("export.theme.%s: unknown key", k))
+		}
+	}
+	return scheme, warns, nil
+}
+
+// ValidScheme reports whether s is auto, light or dark.
+func ValidScheme(s string) bool {
+	for _, v := range Schemes {
+		if s == v {
+			return true
+		}
+	}
+	return false
 }

@@ -54,7 +54,9 @@ export type PdfOptions = { out: string; drafts: boolean; cover: boolean; open: b
 export type PdfRun = PdfOptions & { section: boolean };
 /** How an Export PDF of the form ended (the pdf:export event): the file, or the error. */
 export type PdfExported = { path?: string; error?: string };
-export type BuildOptions = { out: string; portable: boolean; drafts: boolean; clean: boolean; print: boolean };
+/** The website's colours: auto follows the reader's system, light is black on white, dark is white on black (export.theme.scheme). */
+export type Scheme = "auto" | "light" | "dark";
+export type BuildOptions = { out: string; portable: boolean; drafts: boolean; clean: boolean; print: boolean; scheme: Scheme };
 export type BuildWarning = { path: string; message: string };
 export type BuildResult = { out: string; pages: number; files: number; warnings: BuildWarning[]; millis: number; cancelled: boolean };
 export type BuildProgress = { done: number; total: number };

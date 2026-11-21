@@ -242,7 +242,25 @@ func ExportPDF(e cli.ExportPDF, stdout, stderr io.Writer) error {
 	if err := a.Run(); err != nil {
 		return oneLineError(err)
 	}
-	return <-result
+	err = <-result
+	if err == nil {
+		openWritten(e, plan.Out, stderr)
+	}
+	return err
+}
+
+// openPDF opens a file with the system's default app; tests replace it.
+var openPDF = desktop.OpenFile
+
+// openWritten opens the PDF once it is written, when --open (or export.pdf.open) asks for it. A failure is a
+// warning: the file is written.
+func openWritten(e cli.ExportPDF, path string, stderr io.Writer) {
+	if !e.Open {
+		return
+	}
+	if err := openPDF(path); err != nil {
+		fmt.Fprintf(stderr, "zenmd: could not open %s: %s\n", path, oneLine(err.Error()))
+	}
 }
 
 func oneLineError(err error) error { return errors.New(oneLine(err.Error())) }

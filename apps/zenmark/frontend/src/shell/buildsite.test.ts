@@ -321,7 +321,7 @@ test("Theme: a radio group Auto, Light (white), Dark (black); auto by default, f
   btn("Build Again").click();
   btn("Save as folder defaults").click();
   await settle();
-  expect(f.to("saveBuildDefaults")[0].args).toEqual([expect.objectContaining({ scheme: "auto" }), false]);
+  expect(f.to("saveBuildDefaults")[0].args).toEqual([expect.objectContaining({ scheme: "dark" }), false]);
 });
 
 test("Theme: the folder's scheme is shown, and the radios are locked while building", async () => {

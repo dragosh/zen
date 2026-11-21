@@ -20,6 +20,9 @@ type PrintOptions struct {
 	// SiteID names the storage plugins and layouts use in the document when it is opened
 	// outside the app (print.html); "" is "print".
 	SiteID string
+	// Scheme is "light" or "dark" to force the colours of print.html on screen (the PDF is always light); "" and
+	// "auto" follow the reader's system.
+	Scheme string
 }
 
 // ErrTooManyPages is returned when the document would have more pages than PrintOptions.Max.
@@ -199,6 +202,7 @@ type printSection struct {
 
 type printData struct {
 	CSP, Title, Meta, Date string
+	Theme                  string // data-theme of <html>: light or dark, "" for the reader's system
 	Toc                    []tocItem
 	Sections               []printSection
 	Styles                 []template.CSS
@@ -332,7 +336,7 @@ func (c *printer) document(items []printItem, tree []NavNode) (string, error) {
 		}
 	}
 
-	d := printData{CSP: csp(c.portable), Sections: secs, Styles: styles, Toc: tocOf(tree, n, sectionID)}
+	d := printData{CSP: csp(c.portable), Theme: themeAttr(c.o.Scheme), Sections: secs, Styles: styles, Toc: tocOf(tree, n, sectionID)}
 	d.Title = c.coverTitle(items)
 	d.Date = c.o.Date
 	switch len(items) {
@@ -461,7 +465,7 @@ func titleOfPath(p string) string { return p }
 
 var printTmpl = template.Must(template.New("print").Parse(`{{define "toc"}}<ul>{{range .}}<li>{{if .Href}}<a href="{{.Href}}">{{.Title}}</a>{{else}}<span>{{.Title}}</span>{{end}}{{if .Children}}{{template "toc" .Children}}{{end}}</li>{{end}}</ul>{{end}}` +
 	`<!doctype html>
-<html lang="en">
+<html lang="en"{{if .Theme}} data-theme="{{.Theme}}"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -514,7 +518,7 @@ func (s *site) writePrint() (string, error) {
 	for _, p := range sidebarOrder(tree, have) {
 		items = append(items, printItem{Page: s.pages[p].page})
 	}
-	pc := &printer{in: s.in, o: PrintOptions{SiteID: s.o.SiteID}, warn: s.warn, file: s.copyWorkspace, portable: s.o.Portable}
+	pc := &printer{in: s.in, o: PrintOptions{SiteID: s.o.SiteID, Scheme: s.o.Scheme}, warn: s.warn, file: s.copyWorkspace, portable: s.o.Portable}
 	doc, err := pc.document(items, tree)
 	if err != nil {
 		return "", err

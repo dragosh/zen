@@ -2,7 +2,7 @@
 // website through the build services, in place in the page (no modal), with progress, Cancel and a
 // result. File › Export › Website… (⇧⌘B) opens Settings there (registerBuildSite). All text goes in
 // through textContent.
-import type { BuildOptions, BuildProgress, BuildResult } from "../api";
+import type { BuildOptions, BuildProgress, BuildResult, Scheme } from "../api";
 import { button, el, hasFeature, type BuildInfo } from "@zenmd/kit";
 import { WORKSPACE_CONFIG, actionButton, check, createShell, message, nextId, pathField, plural, radioGroup, saveDefaultsFlow, setBar, shownOut } from "./exportform";
 
@@ -35,6 +35,9 @@ export function rememberBuild(root: string, result: BuildResult): void {
 export function lastBuild(root: string): { result: BuildResult; at: number } | undefined {
   return lastBuilds.get(root);
 }
+
+/** What the form shows before the folder's options arrive; the defaults of the table in apps/zenmark/export-options.json. */
+const DEFAULTS = { portable: true, drafts: false, clean: false, print: true, scheme: "auto" as Scheme };
 
 function absoluteOut(root: string, text: string): string {
   let t = text.trim().replace(/^\.\//, "");
@@ -84,12 +87,17 @@ export function createBuildForm(opts: BuildFormOptions): BuildForm {
   ]);
   const portable = { i: opens.radios[0] };
   const hosted = { i: opens.radios[1] };
+  const theme = radioGroup(id, "scheme", "Theme", [
+    { value: "auto", label: "Auto", hint: "Follows the reader's system." },
+    { value: "light", label: "Light (white)", hint: "Black on white." },
+    { value: "dark", label: "Dark (black)", hint: "White on black." },
+  ]);
   const drafts = check("drafts", "Include drafts");
   const clean = check("clean", "Start clean (empties the output folder first)");
   const print = check("print", "Also write print.html");
-  options.append(field.label, field.row, opens.label, opens.group, drafts.l, clean.l, print.l);
+  options.append(field.label, field.row, opens.label, opens.group, theme.label, theme.group, drafts.l, clean.l, print.l);
 
-  const inputs = [out, portable.i, hosted.i, drafts.i, clean.i, print.i];
+  const inputs = [out, portable.i, hosted.i, ...theme.radios, drafts.i, clean.i, print.i];
   let state: "form" | "building" | "result" = "form";
   let destroyed = false;
   let cancelling = false;
@@ -103,7 +111,8 @@ export function createBuildForm(opts: BuildFormOptions): BuildForm {
     choose.disabled = saveLink.disabled = on;
   }
   function read(): BuildOptions {
-    return { out: absoluteOut(rootNow(), out.value), portable: portable.i.checked, drafts: drafts.i.checked, clean: clean.i.checked, print: print.i.checked };
+    const scheme = (theme.radios.find((r) => r.checked)?.value ?? DEFAULTS.scheme) as Scheme;
+    return { out: absoluteOut(rootNow(), out.value), portable: portable.i.checked, drafts: drafts.i.checked, clean: clean.i.checked, print: print.i.checked, scheme };
   }
   function fill_(o: BuildOptions): void {
     out.value = shownOut(rootNow(), o.out);
@@ -112,6 +121,7 @@ export function createBuildForm(opts: BuildFormOptions): BuildForm {
     drafts.i.checked = o.drafts;
     clean.i.checked = o.clean;
     print.i.checked = o.print;
+    for (const r of theme.radios) r.checked = r.value === o.scheme;
   }
   function showUnsaved(): void {
     const pages = (opts.unsaved?.() ?? []).filter((p) => p !== WORKSPACE_CONFIG && !p.startsWith("zen:"));
@@ -150,7 +160,7 @@ export function createBuildForm(opts: BuildFormOptions): BuildForm {
     build.disabled = false;
     if (root === filledFor && !force) return;
     filledFor = root;
-    fill_({ out: `${root}/exports/html`, portable: true, drafts: false, clean: false, print: true });
+    fill_({ out: `${root}/exports/html`, ...DEFAULTS });
     ready = api.buildOptions().then(fill_, (err) => { if (!destroyed) error.textContent = message(err); });
     await ready;
   }

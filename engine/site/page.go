@@ -149,7 +149,7 @@ func (s *site) writePage(b *built) error {
 		title = pg.Path
 	}
 	out, err := render(shellTmpl, shellData{
-		Lang: lang, Title: title, CSP: csp(s.o.Portable), CSS: css,
+		Lang: lang, Theme: themeAttr(s.o.Scheme), Title: title, CSP: csp(s.o.Portable), CSS: css,
 		Items:  s.navItems(s.in.Tree(), pg.Path, b.out),
 		Crumbs: crumbs, ArticleClass: article, Layout: layout,
 		Body: template.HTML(body), Data: data, Script: script,

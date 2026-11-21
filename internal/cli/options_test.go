@@ -78,6 +78,12 @@ func TestEveryTableOptionIsParsed(t *testing.T) {
 					args = append(args, "--save-defaults")
 				}
 				r := run(t, h, nil, args...)
+				if o.Flag == "--dry-run" { // shows the change and exports nothing
+					if r.code != 0 || r.built || r.pdfd {
+						t.Errorf("%s %v: %+v", target, f, r)
+					}
+					continue
+				}
 				if r.code != 0 || !(r.built || r.pdfd) {
 					t.Errorf("%s %v: %+v", target, f, r)
 				}
@@ -140,9 +146,10 @@ func TestHelpFollowsTheTable(t *testing.T) {
 		}
 		flat := squash(section)
 		listed := map[string]bool{}
-		for _, m := range regexp.MustCompile(`(?m)^\s+(-[^ ,]+(?:, -[^ ,]+)*)`).FindAllStringSubmatch(section, -1) {
+		// A line of an option starts with two spaces and its flags, then two spaces and the help.
+		for _, m := range regexp.MustCompile(`(?m)^  (-\S.*?)(?:\s{2,}|$)`).FindAllStringSubmatch(section, -1) {
 			for _, f := range strings.Split(m[1], ", ") {
-				listed[f] = true
+				listed[strings.Fields(f)[0]] = true
 			}
 		}
 		want := map[string]bool{}
