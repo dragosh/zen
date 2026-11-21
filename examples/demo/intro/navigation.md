@@ -24,9 +24,22 @@ or <kbd>⇧F10</kbd> on the selected row) for a menu:
 
 | Item | What it does |
 |---|---|
-| Open | the page |
+| Open, Open in Editor | the page, or its [editor window](editor.md) |
+| New Page Here… | the New Page dialog, in that page's folder |
+| Move Up, Move Down | one place among the pages next to it (<kbd>⌥↑</kbd> and <kbd>⌥↓</kbd> do the same) |
 | Copy Path, Copy Link | `guides/install.md`, or `[Install](install.md)` ready to paste |
 | Reveal in Finder | the file, selected in Finder |
+| Hide from Sidebar | leaves the page (and the pages under it) out of the sidebar, after asking |
+
+You can also drag a page up or down among its siblings. A line shows where it
+will land; <kbd>Esc</kbd> cancels. Pages move within their group only; to put a
+page under another one, use `nav: parent` in its
+[frontmatter](frontmatter.md#navigation).
+
+The order is saved in the pages themselves: Zenmark numbers the pages of the
+group 10, 20, 30… in `nav: order` and changes **only the frontmatter** of the
+files whose number changed. Hiding writes `nav: hidden: true`; to show the page
+again, remove that line (the page is still reachable by links).
 
 The arrow keys move in the sidebar: <kbd>↑</kbd> and <kbd>↓</kbd> between
 rows, <kbd>→</kbd> and <kbd>←</kbd> to open and close a branch.

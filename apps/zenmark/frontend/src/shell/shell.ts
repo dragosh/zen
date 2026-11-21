@@ -350,12 +350,12 @@ export function createShell(root: HTMLElement, { api, features, search, random =
     layout = createLayout({
       onBack: back, onForward: forward, onOpenFolder: () => void openFolder(), onSettings: () => toggleSettings(),
       onClose: () => void closeFolder(), onExport: () => openExport(),
-      // Another footer button was turned on (the Inspector): Settings closes, so the two never overlap.
+      // Another button of the view group was turned on (the Inspector, in the top bar): Settings closes, so the two never overlap.
       onCloseView: (v) => { if (v === "settings") closeSettings(); },
     });
     layout.setIdentity(identity(workspace));
     root.replaceChildren(layout.el);
-    // What the build leaves out leaves no trace: no sidebar without nav, no Inspector button without the inspector feature.
+    // What the build leaves out leaves no trace: no sidebar without nav, no Inspector button (top bar) without the inspector feature.
     if (!has("nav")) {
       layout.toggleSidebar();
       layout.el.querySelector('[data-action="toggle-sidebar"]')?.remove();

@@ -1,8 +1,8 @@
 # The Inspector and the Developer panel
 
 The **Inspector** is a panel under the page that tells you about the page you
-are reading. Open and close it with the **Inspector** button at the bottom of
-the sidebar, or with <kbd>⌥⌘I</kbd>. Drag its top edge to resize it; Zenmark
+are reading. Open and close it with the **Inspector** button in the top bar (a
+window with a panel and a prompt), or with <kbd>⌥⌘I</kbd>. Drag its top edge to resize it; Zenmark
 remembers the height and whether it was open.
 
 Every tab has two columns: a list on the left and the selected item's

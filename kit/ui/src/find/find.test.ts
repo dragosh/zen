@@ -389,3 +389,34 @@ describe("bindFind", () => {
     expect(find.open).not.toHaveBeenCalled();
   });
 });
+
+// ---- ui/top-bar-actions: the Find button's toggle and state signal
+describe("toggle and onChange", () => {
+  const mk = () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    return createFind({ doc: document, host, finder: textareaFinder(document.createElement("textarea")) });
+  };
+  it("toggle opens the bar, and closes it when open", () => {
+    const f = mk();
+    f.toggle();
+    expect(f.isOpen).toBe(true);
+    f.toggle();
+    expect(f.isOpen).toBe(false);
+    f.destroy();
+  });
+  it("onChange tells every open and close, and only real changes, until it is removed", () => {
+    const f = mk();
+    const seen: boolean[] = [];
+    const off = f.onChange((open) => seen.push(open));
+    f.open();
+    f.open(); // already open
+    f.close();
+    f.close(); // already closed
+    expect(seen).toEqual([true, false]);
+    off();
+    f.open();
+    expect(seen).toEqual([true, false]);
+    f.destroy();
+  });
+});

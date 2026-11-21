@@ -163,6 +163,14 @@
   text-overflow: ellipsis;
 }
 
+/* The top bar's action group (ui/top-bar-actions): the page's actions (Find, Edit) and the Inspector, icon buttons
+   of the footer's size and on style (.zen-settings-button), right-aligned. */
+.zen-top-actions {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: var(--space-2);
+}
 .zen-actions {
   display: flex;
   flex: none;

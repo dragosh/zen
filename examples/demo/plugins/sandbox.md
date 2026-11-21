@@ -22,9 +22,9 @@ It uses the `container` tool on your Mac (Apple's container platform), not Docke
    container image pull python:3.12-slim
    ```
 
-4. Name the image in your global config, `config.yml`. Settings › Configuration
-   shows where it is (Reveal in Finder); if it isn't there yet, create
-   `~/Library/Application Support/zen/config.yml` in any text editor. Add:
+4. Name the image in your global config. Open **Settings › Configuration**,
+   pick **config.yml** and press **Open in Editor** (or **Create** if it isn't
+   there yet). Add:
 
    ```yaml
    plugins:

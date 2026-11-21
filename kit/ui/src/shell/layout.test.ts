@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { beforeEach, expect, test } from "vitest";
 import { INSPECTOR_CLOSE, INSPECTOR_STATE, INSPECTOR_TOGGLE } from "../inspector/events";
+import { icon } from "./icons";
 import { createLayout, navSideRow, setNavSide, SIDEBAR_DEFAULT, SIDEBAR_MAX, SIDEBAR_MIN, storedNavSide, WIDTH_KEY } from "./layout";
 
 beforeEach(() => localStorage.clear());
@@ -133,12 +134,12 @@ const inspectorBtn = (l: ReturnType<typeof createLayout>) => l.el.querySelector<
 const state = (available: boolean, open: boolean, count: number) =>
   document.dispatchEvent(new CustomEvent(INSPECTOR_STATE, { detail: { available, open, count } }));
 
-test("the Inspector button is an icon button right after the cog in the footer, hidden until a page offers one", () => {
+test("the Inspector button is an icon button last in the top bar's action group, hidden until a page offers one", () => {
   const l = createLayout();
-  const foot = l.el.querySelector(".zen-sidebar-foot")!;
-  const kids = Array.from(foot.children);
-  expect(kids[0].getAttribute("aria-label")).toBe("Settings");
-  expect(kids[2]).toBe(inspectorBtn(l)); // Settings, Export, Inspector
+  const group = l.el.querySelector(".zen-top-actions")!;
+  expect(l.el.querySelector("header")!.contains(group)).toBe(true);
+  expect(Array.from(group.children)).toEqual([l.slots.actions, inspectorBtn(l)]); // the page's actions, then the Inspector
+  expect(l.el.querySelector(".zen-sidebar-foot")!.contains(inspectorBtn(l))).toBe(false);
   expect(inspectorBtn(l).classList.contains("zen-settings-button")).toBe(true);
   expect(inspectorBtn(l).querySelector("svg")).not.toBeNull();
   expect(inspectorBtn(l).title).toContain("⌥⌘I");
@@ -182,11 +183,12 @@ test("the Inspector button carries a red count badge, none at 0, and a name that
   expect(badge().textContent).toBe("1");
 });
 
-test("the footer has the cog and the Inspector button, and no Developer button: the Console is a tab of the Inspector (#25)", () => {
+test("the footer has Settings and Export only, and no Developer button: the Console is a tab of the Inspector (#25)", () => {
   const l = createLayout();
   expect(l.el.querySelector(".zen-developer-button")).toBeNull();
-  expect(l.el.querySelector(".zen-sidebar-foot")!.children).toHaveLength(3);
-  expect(l.el.querySelector(".zen-sidebar-foot")!.lastElementChild!.classList.contains("zen-inspector-button")).toBe(true);
+  const kids = Array.from(l.el.querySelector(".zen-sidebar-foot")!.children);
+  expect(kids.map((k) => k.getAttribute("aria-label"))).toEqual(["Settings", "Export"]);
+  expect(l.el.querySelector(".zen-sidebar-foot .zen-inspector-button")).toBeNull();
   expect("setDeveloperAvailable" in l || "setDeveloperOpen" in l).toBe(false);
   l.destroy();
 });
@@ -256,15 +258,17 @@ test("the close button is Close folder, with its shortcut in the tooltip, and as
   l.destroy();
 });
 
-test("footer buttons per feature: Settings, Export, Inspector in that order, icons with tooltips and labels; Export asks the shell", () => {
+test("footer buttons: Settings and Export with icons, tooltips and labels; the Inspector is in the top bar; Export asks the shell", () => {
   let exported = 0;
   const l = createLayout({ onExport: () => { exported++; } });
   const kids = Array.from(l.el.querySelector(".zen-sidebar-foot")!.children) as HTMLButtonElement[];
-  expect(kids.map((b) => b.getAttribute("aria-label"))).toEqual(["Settings", "Export", "Inspector"]);
+  expect(kids.map((b) => b.getAttribute("aria-label"))).toEqual(["Settings", "Export"]);
   expect(kids[0].title).toBe("Settings ⌘,");
   expect(kids[1].title).toBe("Export ⇧⌘B");
-  expect(kids[2].title).toContain("⌥⌘I");
-  for (const b of kids) expect(b.querySelector("svg")).not.toBeNull();
+  const insp = l.el.querySelector<HTMLButtonElement>(".zen-top-actions .zen-inspector-button")!;
+  expect(insp.getAttribute("aria-label")).toBe("Inspector");
+  expect(insp.title).toBe("Inspector (⌥⌘I)");
+  for (const b of [...kids, insp]) expect(b.querySelector("svg")).not.toBeNull();
   expect(l.el.querySelector(".zen-developer-button")).toBeNull();
   kids[1].click();
   expect(exported).toBe(1);
@@ -385,13 +389,13 @@ test("active footer buttons: inverted (the icon in --bg on --fg), in tokens, wit
 });
 
 // The footer is one group: at most one button is on, so two views never overlap (Settings and the Inspector),
-// and a future footer button joins the same rule through addFooterButton.
+// and a future footer button joins the same rule through addViewButton.
 test("footer buttons: one active at a time; opening one closes the view of the other", () => {
   const closed: string[] = [];
   const l = createLayout({ onCloseView: (v) => closed.push(v) });
   document.body.append(l.el);
   const btn = (sel: string) => l.el.querySelector<HTMLElement>(sel)!;
-  const on = () => Array.from(l.el.querySelectorAll<HTMLElement>(".zen-sidebar-foot button"))
+  const on = () => Array.from(l.el.querySelectorAll<HTMLElement>(".zen-sidebar-foot button, .zen-top-actions button"))
     .filter((b) => b.getAttribute("aria-expanded") === "true" || b.getAttribute("aria-pressed") === "true")
     .map((b) => b.getAttribute("aria-label") ?? b.textContent);
   let inspectorClosed = 0;
@@ -416,7 +420,8 @@ test("footer buttons: one active at a time; opening one closes the view of the o
   expect(on()).toHaveLength(1);
   // a future footer button follows the same rule
   let mineClosed = 0;
-  const mine = l.addFooterButton({ id: "notes", label: "Notes", title: "Notes", view: "notes", onClick: () => l.setActive("notes", true), close: () => { mineClosed++; } });
+  const mine = l.addViewButton({ id: "notes", label: "Notes", title: "Notes", view: "notes", onClick: () => l.setActive("notes", true), close: () => { mineClosed++; } });
+  expect(l.el.querySelector(".zen-sidebar-foot")!.contains(mine)).toBe(true); // the footer is the default place
   mine.click();
   expect(closed).toEqual(["settings"]);
   expect(mine.getAttribute("aria-expanded")).toBe("true");
@@ -425,4 +430,50 @@ test("footer buttons: one active at a time; opening one closes the view of the o
   expect(mineClosed).toBe(1);
   expect(mine.getAttribute("aria-expanded")).toBe("false");
   l.el.remove();
+});
+
+// ui/top-bar-actions: a view button's place (footer or top bar) is apart from its group.
+test("a view button placed in the top bar is in the same one-at-a-time group as the footer's", () => {
+  const closed: string[] = [];
+  const l = createLayout({ onCloseView: (v) => closed.push(v) });
+  document.body.append(l.el);
+  let topClosed = 0;
+  const top = l.addViewButton({ id: "notes", label: "Notes", title: "Notes", view: "notes", place: "top", onClick: () => l.setActive("notes", true), close: () => { topClosed++; } });
+  const group = l.el.querySelector(".zen-top-actions")!;
+  expect(group.contains(top)).toBe(true);
+  expect(l.el.querySelector(".zen-sidebar-foot")!.contains(top)).toBe(false);
+  expect(top.classList.contains("zen-settings-button")).toBe(true); // the footer's icon button, so its on style
+  top.click();
+  expect(top.getAttribute("aria-expanded")).toBe("true");
+  l.setActive("settings", true); // opening Settings closes the one in the top bar
+  expect(topClosed).toBe(1);
+  expect(top.getAttribute("aria-expanded")).toBe("false");
+  l.setActive("notes", true); // and the other way round
+  expect(closed).toEqual(["settings"]);
+  l.el.remove();
+});
+
+test("addTopButton puts a plain icon button in the group, in order, with no part in the view group", () => {
+  const l = createLayout();
+  let n = 0;
+  const b = l.addTopButton({ id: "x", label: "X", title: "X (⌘X)", icon: icon(document, "pencil"), onClick: () => n++ });
+  expect(l.el.querySelector(".zen-top-actions")!.contains(b)).toBe(true);
+  expect(b.getAttribute("aria-label")).toBe("X");
+  expect(b.title).toBe("X (⌘X)");
+  expect(b.textContent).toBe("");
+  expect(b.querySelector("svg")).not.toBeNull();
+  expect(b.classList.contains("zen-settings-button")).toBe(true);
+  b.click();
+  expect(n).toBe(1);
+  l.setActive("settings", true);
+  expect(b.hasAttribute("aria-expanded")).toBe(false);
+});
+
+test("the top bar's buttons use the footer's icon set and the same size", () => {
+  const css = readFileSync(resolve(__dirname, "../styles/shell.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+  expect(css).toMatch(/\.zen-top-actions\s*\{[^}]*display:\s*flex/);
+  const l = createLayout();
+  expect(inspectorBtn(l).querySelector("svg")!.getAttribute("stroke-width")).toBeNull(); // the paths carry the stroke
+  expect(inspectorBtn(l).querySelector("path, rect")!.getAttribute("stroke-width")).toBe("1.5");
+  l.destroy();
 });

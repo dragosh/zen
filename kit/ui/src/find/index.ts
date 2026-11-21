@@ -237,6 +237,10 @@ export type Find = {
   /** Shows the bar with the field focused and its text selected; seed (or the finder's selection) becomes the query. */
   open(seed?: string): void;
   close(): void;
+  /** Opens the bar, or closes it when it is open (the top bar's Find button). */
+  toggle(): void;
+  /** Tells whenever the bar opens or closes (not when nothing changes), for the Find button's aria-pressed. Returns the way to stop. */
+  onChange(fn: (open: boolean) => void): () => void;
   /** Next / previous match, wrapping around. With the bar closed they open it. */
   next(): void;
   prev(): void;
@@ -267,6 +271,8 @@ export function createFind(o: FindOptions): Find {
   let total = 0;
   let index = -1;
   let previous: HTMLElement | null = null;
+  const listeners = new Set<(open: boolean) => void>();
+  const changed = (open: boolean) => { for (const fn of Array.from(listeners)) fn(open); };
 
   const paintCount = () => {
     if (!bar) return;
@@ -354,6 +360,7 @@ export function createFind(o: FindOptions): Find {
     get query() { return query; },
     open(seed) {
       const text = seedText(seed ?? finder.selected());
+      const opened = !bar;
       if (!bar) {
         const active = doc.activeElement as HTMLElement | null;
         previous = active && active !== doc.body ? active : null;
@@ -368,6 +375,15 @@ export function createFind(o: FindOptions): Find {
       }
       input.focus();
       input.select();
+      if (opened) changed(true);
+    },
+    toggle() {
+      if (bar) api.close();
+      else api.open();
+    },
+    onChange(fn) {
+      listeners.add(fn);
+      return () => void listeners.delete(fn);
     },
     close() {
       if (!bar) return;
@@ -380,6 +396,7 @@ export function createFind(o: FindOptions): Find {
       const back = previous;
       previous = null;
       if (back?.isConnected) back.focus();
+      changed(false);
     },
     next() {
       if (!bar) api.open();

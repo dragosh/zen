@@ -12,7 +12,8 @@ for behaviour. Implemented by the `ui/*` specs.
   already exists for its kind; a new pattern needs a reason in its spec.
   - **Settings:** every section uses the two-column frame. The left column holds the items, one per row, vertically (Theme, Navigation; Zoom, Motion…). The right column holds the selected item's controls, preview, help and actions. A section with nothing to list shows its empty text, or its failure text, in the left column, where the items would be. Nothing that lists items lives in the right column.
   - **Panels:** every Inspector tab uses the panel's two resizable columns and the same padding and header tools.
-  - **Sidebar footer:** its buttons are one group, so at most one is on and two views never overlap. Turning one on closes the view of the one that was on; clicking the one that is on closes its view. Settings and Export share one view and only move the mark. A new footer button joins the group through `addFooterButton` (kit/ui `layout.ts`).
+  - **View buttons:** Settings, Export and the Inspector are one group that spans the sidebar footer and the top bar, so at most one is on and two views never overlap. Turning one on closes the view of the one that was on; clicking the one that is on closes its view. Settings and Export share one view and only move the mark. A new button joins the group through `addViewButton` (kit/ui `layout.ts`), with its `place` ("footer" or "top").
+  - **Top bar actions:** Find (a magnifying glass), Edit (a pencil) and the Inspector (a window with a bottom panel and a `>_` prompt) are icon buttons at the right of the top bar, in that order, each only with its feature. They are the footer's icon buttons (size, focus ring and on style: `aria-pressed` for Find, `aria-expanded` for the Inspector). Every icon of the app comes from `kit/ui/src/shell/icons.ts`: 24 viewBox, 16px, stroke `currentColor` 1.5, no fill, round caps.
   - **States:** the same `aria-*` state means the same look everywhere. Active, selected, disabled, empty and error each have one style.
   - **Fix the pattern, not the instance.** When feedback hits one place, change the shared component so that every place that uses it changes together, and add a test that holds the rule for all of them.
 - **Black and white.** No hue anywhere in the chrome. Buttons are grayscale.
@@ -68,7 +69,7 @@ Spacing scale 4/8/12/16/24/32/48. Radius 6px. No shadows except the modal.
 
 ```
 ┌────────────┬─────────────────────────────────────────────┐
-│ ☯ my-docs  │ README › Guides › Install          [ Edit ] │  top bar 44px
+│ ☯ my-docs  │ README › Guides › Install      [🔍] [✎] [▤] │  top bar 44px
 ├────────────┼─────────────────────────────────────────────┤
 │ README     │                                             │
 │ ▾ Guides   │        Install                              │
@@ -80,9 +81,10 @@ Spacing scale 4/8/12/16/24/32/48. Radius 6px. No shadows except the modal.
 │   notes/a  │                                             │
 └────────────┴─────────────────────────────────────────────┘
   sidebar 260px (resizable 200–400, ⌘\ toggles)
+  top bar actions, right: Find (⌘F), Edit (⌘E), Inspector (⌥⌘I)
 ```
 
-- **Sidebar.** A 44px header with the folder's logo (`.zenmd.yml` `logo:`, else the mark), its title (the home page's first heading, else the folder name) and a × that closes the folder; a footer with Settings (⌘,), Export (⇧⌘B) and the Inspector (⌥⌘I), each only with its feature; Settings › Appearance › Navigation puts the sidebar on the left or the right (ui/nav-panel). The cog opens a Settings page in the main pane (the sidebar stays; Esc or Back returns): the section list (Appearance, Configuration, Markdown, Layouts, Plugins, Templates, Export, Developer, each only when its feature is in the build) on the left, and every section in two columns: its items on the left, the selected item's preview, help and actions on the right (ui/settings-layout). Export and the Developer switch work in place. What the build contains is the Inspector's Build tab. Tree of pages; a node with children has
+- **Sidebar.** A 44px header with the folder's logo (`.zenmd.yml` `logo:`, else the mark), its title (the home page's first heading, else the folder name) and a × that closes the folder; a footer with Settings (⌘,) and Export (⇧⌘B), each only with its feature (the Inspector is in the top bar); Settings › Appearance › Navigation puts the sidebar on the left or the right (ui/nav-panel). The cog opens a Settings page in the main pane (the sidebar stays; Esc or Back returns): the section list (Appearance, Configuration, Markdown, Layouts, Plugins, Templates, Export, Developer, each only when its feature is in the build) on the left, and every section in two columns: its items on the left, the selected item's preview, help and actions on the right (ui/settings-layout). Export and the Developer switch work in place. What the build contains is the Inspector's Build tab. Tree of pages; a node with children has
   a disclosure triangle and is itself a page. Current page is marked with a
   filled background (`--btn-bg`) and `aria-current="page"`. "Other pages"
   lists files nothing links to. Arrow keys move, Enter opens, ←/→ collapse/expand.

@@ -40,7 +40,7 @@ test("no Inspector button in the actions; the sidebar button is told, and toggle
   mount();
   await settle();
   expect(env.slots.actions.querySelector(".zen-inspector-toggle")).toBeNull();
-  expect(Array.from(env.slots.actions.children).map((c) => c.textContent)).toEqual(["Edit"]);
+  expect(Array.from(env.slots.actions.children).map((c) => c.getAttribute("aria-label"))).toEqual(["Find", "Edit"]);
   expect(panel().hidden).toBe(true);
   expect(panel().compareDocumentPosition(env.slots.main) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(states.at(-1)).toEqual({ available: true, open: false, count: 1 });

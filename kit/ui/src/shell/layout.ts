@@ -1,8 +1,8 @@
 // The frame: sidebar (nav) | resize edge | header + main. Owns the sidebar
 // width and visibility; knows nothing about what is mounted in the slots.
-import { INSPECTOR_CLOSE, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorIcon, inspectorLabel, type InspectorState } from "../inspector/events";
+import { INSPECTOR_CLOSE, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorLabel, type InspectorState } from "../inspector/events";
 import "../nav/panel.css";
-import { button, el, logo } from "./dom";
+import { button, el, iconButton, logo } from "./dom";
 import type { Slots } from "./types";
 
 export const SIDEBAR_DEFAULT = 260;
@@ -27,17 +27,23 @@ export type LayoutHandlers = {
 };
 
 /**
- * A button of the sidebar footer. The footer is one group: at most one button is on, so two views never overlap.
- * Turning one on (setActive) closes the view of the one that was on, unless both open the same view.
+ * A button of the view group: at most one is on, so two views never overlap. Turning one on (setActive) closes the
+ * view of the one that was on, unless both open the same view. The group spans the sidebar footer (Settings, Export)
+ * and the top bar (the Inspector): `place` is where the button sits, apart from the group it is in.
  */
-export type FooterButton = {
+export type ViewButton = {
   id: string; label: string; title: string; icon?: Node;
+  /** Where the button sits; default the sidebar footer. */
+  place?: "footer" | "top";
   /** The view it opens; buttons that share a view (Settings and Export) switch without closing it. */
   view: string;
   onClick(button: HTMLButtonElement): void;
   /** Closes its view when another button is turned on. */
   close(): void;
 };
+
+/** A plain action of the top bar (Find, Edit): not part of the view group, so it has no say in what is open. */
+export type TopButton = { id: string; label: string; title: string; icon: Node; onClick(button: HTMLButtonElement): void };
 
 export type NavSide = "left" | "right";
 export const NAV_SIDE_KEY = "zen.navSide";
@@ -87,54 +93,6 @@ export function navSideRow(doc: Document = document): HTMLElement {
   return row;
 }
 
-const SVG = "http://www.w3.org/2000/svg";
-/** A gear outline, built with DOM APIs. */
-function cogIcon(doc: Document): SVGSVGElement {
-  const svg = doc.createElementNS(SVG, "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("width", "16");
-  svg.setAttribute("height", "16");
-  svg.setAttribute("aria-hidden", "true");
-  svg.setAttribute("class", "zen-icon");
-  const gear = doc.createElementNS(SVG, "path");
-  gear.setAttribute("d", "M10.3 2.6h3.4l.5 2.6 1.6.9 2.5-.9 1.7 2.9-2 1.7v1.9l2 1.7-1.7 2.9-2.5-.9-1.6.9-.5 2.6h-3.4l-.5-2.6-1.6-.9-2.5.9-1.7-2.9 2-1.7v-1.9l-2-1.7 1.7-2.9 2.5.9 1.6-.9z");
-  const hub = doc.createElementNS(SVG, "circle");
-  hub.setAttribute("cx", "12");
-  hub.setAttribute("cy", "12");
-  hub.setAttribute("r", "3");
-  for (const n of [gear, hub]) {
-    n.setAttribute("fill", "none");
-    n.setAttribute("stroke", "currentColor");
-    n.setAttribute("stroke-width", "1.6");
-    n.setAttribute("stroke-linejoin", "round");
-  }
-  svg.append(gear, hub);
-  return svg;
-}
-
-/** A tray with an arrow leaving it, built with DOM APIs. */
-function exportIcon(doc: Document): SVGSVGElement {
-  const svg = doc.createElementNS(SVG, "svg");
-  svg.setAttribute("viewBox", "0 0 24 24");
-  svg.setAttribute("width", "16");
-  svg.setAttribute("height", "16");
-  svg.setAttribute("aria-hidden", "true");
-  svg.setAttribute("class", "zen-icon");
-  const tray = doc.createElementNS(SVG, "path");
-  tray.setAttribute("d", "M5 13v6h14v-6");
-  const arrow = doc.createElementNS(SVG, "path");
-  arrow.setAttribute("d", "M12 15V3M7.5 7.5 12 3l4.5 4.5");
-  for (const n of [tray, arrow]) {
-    n.setAttribute("fill", "none");
-    n.setAttribute("stroke", "currentColor");
-    n.setAttribute("stroke-width", "1.6");
-    n.setAttribute("stroke-linecap", "round");
-    n.setAttribute("stroke-linejoin", "round");
-  }
-  svg.append(tray, arrow);
-  return svg;
-}
-
 export type Layout = {
   el: HTMLElement;
   /** The folder's logo (an image URL, "" for Zenmark's mark) and title in the sidebar header. */
@@ -158,8 +116,10 @@ export type Layout = {
    * (Settings › Export shows). The Inspector also follows the page's INSPECTOR_STATE events.
    */
   setActive(button: "settings" | "export" | "inspector" | (string & {}), on: boolean): void;
-  /** Adds a button to the sidebar footer, in the same one-at-a-time group as Settings, Export and the Inspector. */
-  addFooterButton(b: FooterButton): HTMLButtonElement;
+  /** Adds a button to the one-at-a-time view group of Settings, Export and the Inspector, in the footer or the top bar (`place`). */
+  addViewButton(b: ViewButton): HTMLButtonElement;
+  /** Adds a plain icon button to the top bar's action group, before the Inspector, after the page's own actions. */
+  addTopButton(b: TopButton): HTMLButtonElement;
   /** Puts a panel at the bottom of the content area, below the page (and Settings); null removes it (a build with `developer` but not `inspector` puts its Console panel here). */
   setBottomPanel(panel: HTMLElement | null): void;
   destroy(): void;
@@ -184,16 +144,16 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
   // The nav slot is the body; the sidebar adds the settings cog (bottom) below it.
   const navBody = el("div", "zen-sidebar-body");
   const foot = el("div", "zen-sidebar-foot");
-  const settings = button("Settings", () => handlers.onSettings?.(settings), { className: "ghost zen-settings-button", text: "", title: "Settings ⌘," });
-  settings.append(cogIcon(nav.ownerDocument));
+  const doc = nav.ownerDocument;
+  const settings = iconButton("cog", "Settings", "Settings ⌘,", () => handlers.onSettings?.(settings));
   settings.setAttribute("aria-expanded", "false");
   // The Inspector of the page shown (ui/inspector): the page announces itself with INSPECTOR_STATE
   // events on the document, this button asks for a toggle with INSPECTOR_TOGGLE. It shows while a page can be inspected.
-  const doc = nav.ownerDocument;
-  const inspector = button("Inspector", () => doc.dispatchEvent(new CustomEvent(INSPECTOR_TOGGLE)), { className: "ghost zen-settings-button zen-inspector-button", text: "", title: "Inspector ⌥⌘I" });
+  // Its button is in the top bar, its entry is in the footer's group (Settings and the Inspector never show together).
+  const inspector = iconButton("panel", "Inspector", "Inspector (⌥⌘I)", () => doc.dispatchEvent(new CustomEvent(INSPECTOR_TOGGLE)), "zen-inspector-button");
   const inspectorBadge = el("span", "zen-inspector-badge");
   inspectorBadge.hidden = true;
-  inspector.append(inspectorIcon(doc), inspectorBadge);
+  inspector.append(inspectorBadge);
   inspector.setAttribute("aria-label", inspectorLabel(0));
   inspector.setAttribute("aria-expanded", "false");
   inspector.hidden = true;
@@ -203,11 +163,11 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
     activate("inspector", d.open);
     inspector.setAttribute("aria-label", inspectorLabel(d.count));
     inspectorBadge.hidden = d.count === 0;
-    inspectorBadge.textContent = String(d.count);
+    inspectorBadge.textContent = d.count > 0 ? String(d.count) : "";
   };
   doc.addEventListener(INSPECTOR_STATE, onInspector);
 
-  // The footer group: which view each button opens, how it shows that it is on, and how its view closes.
+  // The view group: which view each button opens, how it shows that it is on, and how its view closes.
   type Entry = { el: HTMLButtonElement; attr: "aria-expanded" | "aria-pressed"; view: string; close(): void };
   const footer = new Map<string, Entry>();
   const isOn = (e: Entry) => e.el.getAttribute(e.attr) === "true";
@@ -223,10 +183,9 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
     }
     me.el.setAttribute(me.attr, String(on));
   }
-  const exportBtn = button("Export", () => handlers.onExport?.(), { className: "ghost zen-settings-button zen-export-button", text: "", title: "Export ⇧⌘B" });
-  exportBtn.append(exportIcon(doc));
+  const exportBtn = iconButton("export", "Export", "Export ⇧⌘B", () => handlers.onExport?.(), "zen-export-button");
   exportBtn.setAttribute("aria-pressed", "false");
-  foot.append(settings, exportBtn, inspector);
+  foot.append(settings, exportBtn);
   footer.set("settings", { el: settings, attr: "aria-expanded", view: "settings", close: () => handlers.onCloseView?.("settings") });
   footer.set("export", { el: exportBtn, attr: "aria-pressed", view: "settings", close: () => handlers.onCloseView?.("settings") });
   footer.set("inspector", { el: inspector, attr: "aria-expanded", view: "inspector", close: () => doc.dispatchEvent(new CustomEvent(INSPECTOR_CLOSE)) });
@@ -262,8 +221,11 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
   controls.append(toggle, back, forward);
 
   const breadcrumb = el("div", "zen-breadcrumb");
+  // The top bar's action group, right-aligned: the page's own actions (Find, Edit), then the Inspector.
   const actions = el("div", "zen-actions");
-  header.append(controls, breadcrumb, actions);
+  const topGroup = el("div", "zen-top-actions");
+  topGroup.append(actions, inspector);
+  header.append(controls, breadcrumb, topGroup);
   const main = el("main", "zen-main");
   content.append(header, main);
   frame.append(nav, edge, content);
@@ -360,13 +322,20 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
     setActive(which, on) {
       activate(which, on);
     },
-    addFooterButton(b) {
+    addViewButton(b) {
       const btn = button(b.label, () => b.onClick(btn), { className: "ghost zen-settings-button", text: b.icon ? "" : b.label, title: b.title });
       if (b.icon) btn.append(b.icon);
-      btn.dataset.footer = b.id;
+      btn.dataset.view = b.id;
       btn.setAttribute("aria-expanded", "false");
-      foot.append(btn);
+      (b.place === "top" ? topGroup : foot).append(btn);
       footer.set(b.id, { el: btn, attr: "aria-expanded", view: b.view, close: b.close });
+      return btn;
+    },
+    addTopButton(b) {
+      const btn = button(b.label, () => b.onClick(btn), { className: "ghost zen-settings-button", text: "", title: b.title });
+      btn.append(b.icon);
+      btn.dataset.action = b.id;
+      topGroup.insertBefore(btn, inspector); // the Inspector stays last
       return btn;
     },
     setBottomPanel(panel) {

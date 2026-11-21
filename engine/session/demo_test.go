@@ -295,7 +295,7 @@ func TestDemoFolder(t *testing.T) {
 		t.Fatalf("top level = %s", paths(tree))
 	}
 	// Intro is the README and its pages; then Plugins, Layouts and Configuration.
-	want := "intro/opening-folders.md,intro/navigation.md,intro/find.md,intro/frontmatter.md,intro/inspector.md,intro/shortcuts.md,intro/markdown.md," +
+	want := "intro/opening-folders.md,intro/navigation.md,intro/find.md,intro/frontmatter.md,intro/editor.md,intro/inspector.md,intro/shortcuts.md,intro/markdown.md," +
 		"plugins/index.md,layouts/index.md,configuration/settings.md"
 	if got := paths(tree[0].Children); got != want {
 		t.Errorf("README children = %s\nwant %s", got, want)

@@ -7,7 +7,7 @@ import { bindFind, createFind, domFinder } from "../find";
 import { markText } from "../lint";
 import { installRuntime } from "@zenmd/runtime/plugins";
 import { installImageZoom } from "@zenmd/runtime/zoom/zoom";
-import { button, el } from "../shell/dom";
+import { button, el, iconButton } from "../shell/dom";
 import { reducedMotion as a11yReducedMotion } from "../shell/a11y";
 import type { Ctx, Feature } from "../shell/types";
 import { loadAssets } from "./assets";
@@ -146,7 +146,7 @@ export const pageFeature: Feature = {
       if (!path) return;
       ctx.api.openEditor(path).catch((err) => console.error(`zen: could not edit ${path}`, err));
     };
-    const edit = button("Edit", openEditor, { title: "Edit (⌘E)" });
+    const edit = iconButton("pencil", "Edit", "Edit (⌘E)", openEditor);
 
     // Vale alerts (ui/lint): marks in the article; the list is in the Inspector (ui/inspector),
     // whose button in the sidebar footer (shell/layout.ts) carries the count; it is wired by events.
@@ -170,6 +170,8 @@ export const pageFeature: Feature = {
     };
     // Without the editor feature (a read-only app) there is no Edit button, no ⌘E and no edit links.
     const editable = hasFeature(ctx.api, "editor");
+    // The top bar's actions are icon buttons, Find then Edit (the Inspector's is the layout's): ui/top-bar-actions.
+    const findOn = hasFeature(ctx.api, "find");
     if (editable) slots.actions.append(edit);
     // The panel sits beside the main pane, before it (inspector.css makes room for it).
     if (inspectorOn) main.before(inspector.el);
@@ -220,6 +222,11 @@ export const pageFeature: Feature = {
         },
       }),
     });
+    // The Find button toggles the bar and is on while it is shown, however it was opened (button, ⌘F, Edit › Find) or closed.
+    const findButton = iconButton("search", "Find", "Find (⌘F)", () => find.toggle());
+    findButton.setAttribute("aria-pressed", "false");
+    const offFindState = find.onChange((open) => findButton.setAttribute("aria-pressed", String(open)));
+    if (findOn) slots.actions.prepend(findButton);
     const offFind = bindFind(doc, ctx.api, find, { active: () => hasFeature(ctx.api, "find") && ctx.store.get().mode === "read" && shownPath !== null });
     function render(page: Page): void {
       plugins.unmountAll();
@@ -382,7 +389,9 @@ export const pageFeature: Feature = {
       seq++;
       zoom.destroy();
       offFind();
+      offFindState();
       find.destroy();
+      findButton.remove();
       stopProgress();
       plugins.destroy();
       anchorListeners.clear();
