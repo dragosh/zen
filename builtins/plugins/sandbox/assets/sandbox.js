@@ -64,6 +64,7 @@ function mount(root, ctx) {
   function firstOutput() {
     if (started) return;
     started = true;
+    showNote(null); // output means the service is up
     spin.hidden = true;
     status.textContent = "running…";
   }
@@ -123,6 +124,7 @@ function mount(root, ctx) {
         else {
           append(msg, true);
           status.textContent = "failed";
+          check(); // the service may have stopped since the note was last checked
         }
       },
     ).finally(() => {
@@ -134,18 +136,43 @@ function mount(root, ctx) {
   run.addEventListener("click", start);
   stop.addEventListener("click", () => { if (handle) handle.cancel(); });
 
-  ctx.invoke({ op: "status" }).then((s) => {
-    if (gone || !s) return;
-    if (s.service === "missing") {
-      box.insertBefore(el(doc, "div", "zen-sandbox-note", "Apple's container tool is not installed. Install it, then run `container system start` in a terminal."), box.firstChild);
-    } else if (s.service === "stopped") {
-      box.insertBefore(el(doc, "div", "zen-sandbox-note", "The container service is not running. Run `container system start` in a terminal, then press Run."), box.firstChild);
+  // The service note follows the service: it is checked when the block mounts, when the window gets
+  // the focus back (say, after `container system start` in a terminal) and on Check again.
+  let note = null;
+  function showNote(text) {
+    if (!text) {
+      if (note) note.remove();
+      note = null;
+      return;
     }
-  }).catch(() => {});
+    if (!note) {
+      note = el(doc, "div", "zen-sandbox-note");
+      const again = el(doc, "button", "zen-sandbox-recheck", "Check again");
+      again.type = "button";
+      again.addEventListener("click", check);
+      note.append(el(doc, "span", "zen-sandbox-note-text"), " ", again);
+      box.insertBefore(note, box.firstChild);
+    }
+    note.firstChild.textContent = text;
+  }
+  function check() {
+    ctx.invoke({ op: "status" }).then((s) => {
+      if (gone || !s) return;
+      if (s.service === "missing") showNote("Apple's container tool is not installed. Install it, then run `container system start` in a terminal.");
+      else if (s.service === "stopped") showNote("The container service is not running. Run `container system start` in a terminal, then press Run.");
+      else showNote(null);
+    }).catch(() => {});
+  }
+  const onFocus = () => { if (note) check(); };
+  const view = doc.defaultView;
+  view?.addEventListener("focus", onFocus);
+  check();
 
   return () => {
     gone = true;
+    view?.removeEventListener("focus", onFocus);
     if (handle) handle.cancel();
+    showNote(null);
     bar.remove();
     con.remove();
   };

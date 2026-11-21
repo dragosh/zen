@@ -24,6 +24,7 @@ platform, `/opt/homebrew/bin/container` here, version 1.6), not Docker.
 ## How it works
 
 1. **Frontend** (`sandbox.js`): renders the code (editable `<textarea>` optional via `{editable}`), Run / Stop, and an output pane. Run calls `ctx.invoke({op: "run", code, image, cmd, file})` and appends streamed chunks; Stop calls `{op: "stop", id}`.
+   The service note (stopped or missing) has a **Check again** button and is checked again when the window gets the focus back, after a failed run, and cleared on the first output of a run (#12).
 2. **Backend** (`action` hook): checks `container system status` (offers the exact `container system start` command when the service is not running — it is not running on this Mac today), writes the code to a temp dir, then runs
    `container run --rm --name zen-<id> --read-only --progress none --no-dns --network none -c 1 -m 512M -v <tmp>:/work -w /work <image> sh -c <cmd>`
    with a wall-clock limit (default 30 s) and returns stdout, stderr, exit code. Stop = `container kill zen-<id>`.

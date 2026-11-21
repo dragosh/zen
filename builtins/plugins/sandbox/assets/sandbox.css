@@ -1,5 +1,8 @@
 .zen-sandbox { margin: 1em 0; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--bg-subtle); font-family: var(--font-ui); }
 .zen-sandbox-note { padding: 8px 12px; color: var(--fg-muted); border-bottom: 1px solid var(--rule); }
+.zen-sandbox-recheck { font: inherit; margin-left: 4px; padding: 1px 10px; border: 0; border-radius: var(--radius); background: var(--btn-bg); color: var(--fg); cursor: pointer; }
+.zen-sandbox-recheck:hover { background: var(--btn-bg-hover); }
+.zen-sandbox-recheck:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
 .zen-sandbox-snippet { margin: 8px 0 0; padding: 8px; background: var(--bg); border: 1px solid var(--rule); border-radius: var(--radius); color: var(--fg); font-family: var(--font-mono); white-space: pre; overflow-x: auto; }
 .zen-sandbox-code, .zen-sandbox-editor { display: block; box-sizing: border-box; width: 100%; margin: 0; padding: 12px; border: 0; background: transparent; color: var(--fg); font-family: var(--font-mono); font-size: 0.88em; line-height: 1.5; white-space: pre; overflow-x: auto; }
 .zen-sandbox-editor { resize: vertical; min-height: 6em; white-space: pre; outline: none; }

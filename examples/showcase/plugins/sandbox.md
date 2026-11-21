@@ -83,5 +83,6 @@ red-tinted.
 - A run stops after `timeout` seconds. Stop kills the container at once.
 - The code is at most 1 MB and the console keeps the first 1 MB of output.
 - If the service is stopped, the block says so and tells you to run
-  `container system start`. If an image is not set up, the block shows the code
+  `container system start`. The note goes away by itself when you come back
+  to the window with the service running, or press **Check again**. If an image is not set up, the block shows the code
   and the setting to add.
