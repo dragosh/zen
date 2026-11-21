@@ -9,7 +9,8 @@ stays. Press <kbd>Esc</kbd> or <kbd>⌘[</kbd>, or choose a page, to go back.
 Sections are listed on the left; the selected item shows on the right.
 
 - **Configuration**: **config.yml** holds settings for all folders and
-  **.zenmd.yml** the settings for the open folder. Each shows its text, and
+  **.zenmd.yml** the settings for the open folder. Each shows its text;
+  **Open in Editor** edits it (**Create** when it doesn't exist yet), and
   **Reveal in Finder** shows the file in Finder. See the
   [`.zenmd.yml` reference](reference.md).
 - **Appearance**: System, Light or Dark, for every Zenmark window on this Mac.

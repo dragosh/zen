@@ -7,6 +7,7 @@ Only the keys Zenmark has today.
 | Keys | Action |
 |---|---|
 | <kbd>⌘O</kbd> | open a folder |
+| <kbd>⌘N</kbd> | a [new page](editor.md#new-pages) |
 | <kbd>⇧⌘W</kbd> | close the folder |
 | <kbd>⌘,</kbd> | Settings (<kbd>Esc</kbd> goes back) |
 | <kbd>⌘[</kbd> / <kbd>⌘]</kbd> | back / forward |
@@ -30,6 +31,7 @@ Only the keys Zenmark has today.
 | <kbd>↑</kbd> <kbd>↓</kbd> | move between rows |
 | <kbd>→</kbd> <kbd>←</kbd> | open / close a branch |
 | <kbd>⇧F10</kbd> or the menu key | the selected page's menu |
+| <kbd>⌥↑</kbd> <kbd>⌥↓</kbd> | move the selected page up or down |
 
 ## Inspector
 
@@ -37,6 +39,18 @@ Only the keys Zenmark has today.
 |---|---|
 | <kbd>⌥⌘I</kbd> | open or close the Inspector |
 | <kbd>⌥⌘J</kbd> | open it on the Console, once Developer is on in Settings |
+
+## Editor window
+
+| Keys | Action |
+|---|---|
+| <kbd>⌘E</kbd> | [edit](editor.md) the open page |
+| <kbd>⌘S</kbd> | save |
+| <kbd>⌘B</kbd> / <kbd>⌘I</kbd> | bold / italic |
+| <kbd>⌘K</kbd> | link |
+| <kbd>⇧⌘P</kbd> | split view |
+| <kbd>Tab</kbd> / <kbd>⇧Tab</kbd> | indent / outdent |
+| <kbd>Esc</kbd> | close the editor (asks about unsaved changes) |
 
 ## Edit
 
