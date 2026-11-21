@@ -40,4 +40,9 @@ Only the keys Zenmark has today.
 
 ## Edit
 
-<kbd>⌘C</kbd> copies, <kbd>⌘A</kbd> selects all.
+| Keys | Action |
+|---|---|
+| <kbd>⌘F</kbd> | [find in the page](find.md) |
+| <kbd>⌘G</kbd> / <kbd>⇧⌘G</kbd> | the next / previous match |
+| <kbd>⌘C</kbd> | copy |
+| <kbd>⌘A</kbd> | select all |

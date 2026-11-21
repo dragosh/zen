@@ -295,7 +295,7 @@ func TestDemoFolder(t *testing.T) {
 		t.Fatalf("top level = %s", paths(tree))
 	}
 	// Intro is the README and its pages; then Plugins, Layouts and Configuration.
-	want := "intro/opening-folders.md,intro/navigation.md,intro/frontmatter.md,intro/inspector.md,intro/shortcuts.md,intro/markdown.md," +
+	want := "intro/opening-folders.md,intro/navigation.md,intro/find.md,intro/frontmatter.md,intro/inspector.md,intro/shortcuts.md,intro/markdown.md," +
 		"plugins/index.md,layouts/index.md,configuration/settings.md"
 	if got := paths(tree[0].Children); got != want {
 		t.Errorf("README children = %s\nwant %s", got, want)
@@ -385,6 +385,8 @@ func TestDemoFolder(t *testing.T) {
 
 // demoAssembly is what apps/zenmark/app-assembly.yml lists; a nil list means `all`.
 type demoAssembly struct {
+	Features yaml.Node `yaml:"features"`
+	Addons   yaml.Node `yaml:"addons"`
 	Plugins  yaml.Node `yaml:"plugins"`
 	Layouts  yaml.Node `yaml:"layouts"`
 	Dialects yaml.Node `yaml:"dialects"`
@@ -427,7 +429,26 @@ func TestDemoMatchesAssembly(t *testing.T) {
 	blockPlugin := map[string]string{"mermaid": "diagram", "diagram": "diagram", "check": "check", "quiz": "quiz", "quiz-results": "quiz", "sandbox": "sandbox", "rating": "rating", "rating-results": "rating"}
 	fence := regexp.MustCompile("(?m)^\\s*(?:```+|~~~+|:::+)\\s*(\\{[a-z-]+\\}|[A-Za-z][\\w-]*)")
 	// Words for features this build lacks (the showcase has them); the guide must not name them.
-	lacking := []string{"Vale", "MyST", "Jupyter", "zenmd export", "New Site", "newsite", ".zen/", "Print Page", "Find Next", "Open in Editor", "Edit this page"}
+	lacking := []string{".zen/"}
+	// Words for a feature, an add-on or a dialect: allowed once the assembly has it.
+	haveFeature, haveAddon := assemblyIDs(t, a.Features), assemblyIDs(t, a.Addons)
+	for _, w := range []struct {
+		set   map[string]bool
+		id    string
+		words []string
+	}{
+		{haveFeature, "find", []string{"Find Next", "Find Previous", "Edit › Find"}},
+		{haveFeature, "editor", []string{"Open in Editor", "Edit this page"}},
+		{haveFeature, "print", []string{"Print Page"}},
+		{haveFeature, "export", []string{"zenmd export"}},
+		{haveFeature, "newsite", []string{"New Site", "newsite"}},
+		{haveAddon, "vale", []string{"Vale"}},
+		{haveDialect, "myst", []string{"MyST", "Jupyter"}},
+	} {
+		if !allowed(w.set, w.id) {
+			lacking = append(lacking, w.words...)
+		}
+	}
 	// A plugin's own name may appear once the assembly has it.
 	for _, id := range []string{"quiz", "sandbox", "rating"} {
 		if !allowed(havePlugin, id) {
