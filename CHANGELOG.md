@@ -7,6 +7,11 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- Export is back in Zenmark: File › Export › Website… (⇧⌘B) and PDF… (⇧⌘P), Settings › Export and the Export button, with an Export page in the demo guide (#19).
+- Settings › Export › PDF is a form like the website's (output file, drafts, pages, cover, open when done, Save as folder defaults), saved under export.pdf.
+- An exported website has the app's fixed top bar: a button to hide the sidebar, back and forward, and the breadcrumb.
+- A light (white) or dark (black) website export: export.theme.scheme, Settings › Export › Website › Theme, and --scheme.
+- Every export choice in Settings is a zenmd export flag too (--no-drafts, --all, --cover, --open, --save-defaults, --dry-run, …), checked against one table of options.
 - MyST markdown is back in Zenmark (Settings › Reader, or markdown.dialects in .zenmd.yml), with a MyST page in the demo guide (#22).
 - Printing is back in Zenmark: File › Print Page… (⌘P) and a printer icon in the top bar; the demo guide has a Print a page page (#18).
 - The editor is back in Zenmark: editor windows (⌘E), New Page (⌘N), moving, dragging and hiding pages in the sidebar, and editing the settings files; the demo guide has an Edit a page page (#15).
@@ -27,6 +32,9 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 - Find in page: ⌘F (Edit › Find) opens a find bar in the reader and the editor with a match count, next/previous (⌘G, ⇧⌘G) and a match-case toggle (#4).
 
 ### Changed
+- Exports go to exports/html and exports/pdf/<folder name>.pdf by default, and exports/ is never read as pages.
+- The export settings in .zenmd.yml are under export: (was build:, still read, with a note under Problems).
+- The top bar's icons stay at the right edge when Settings is open, and the sidebar button uses the shared sidebar icon.
 - Settings › Markdown is now Settings › Reader: a Markdown heading over CommonMark and GFM (the default) and the dialects; the demo's markdown showcase is now the Markdown page under Reader.
 - The demo guide groups the app's features in a Features section, one page each (reader, navigation, find, editor, inspector, print, developer), after the Intro.
 - Find, Edit and the Inspector are icons in the top bar (a magnifying glass, a pencil and a panel); the sidebar footer keeps Settings and Export, and every icon comes from one set.
