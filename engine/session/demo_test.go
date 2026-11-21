@@ -294,25 +294,32 @@ func TestDemoFolder(t *testing.T) {
 	if len(tree) != 2 || tree[0].Path != "README.md" || tree[1].Title != "Other pages" {
 		t.Fatalf("top level = %s", paths(tree))
 	}
-	// Intro is the README and its pages; then Plugins, Layouts and Configuration.
-	want := "intro/opening-folders.md,intro/navigation.md,intro/find.md,intro/frontmatter.md,intro/editor.md,intro/printing.md,intro/inspector.md,intro/shortcuts.md,intro/markdown.md," +
+	// Intro is the README and its pages; then Features, Plugins, Layouts and Configuration.
+	want := "intro/opening-folders.md,intro/frontmatter.md,intro/shortcuts.md,features/index.md," +
 		"plugins/index.md,layouts/index.md,configuration/settings.md"
 	if got := paths(tree[0].Children); got != want {
 		t.Errorf("README children = %s\nwant %s", got, want)
 	}
 	sub := map[string]string{
+		"features/index.md":         "features/reader.md,features/navigation.md,features/find.md,features/editor.md,features/inspector.md,features/printing.md,features/developer.md",
+		"features/reader.md":        "features/markdown.md",
 		"plugins/index.md":          "plugins/codeblock.md,plugins/diagram.md,plugins/check.md,plugins/quiz.md,plugins/sandbox.md,plugins/rating.md",
 		"layouts/index.md":          "layouts/article.md,layouts/docs.md,layouts/post.md,layouts/landing.md,layouts/wide.md,layouts/handout.md,layouts/slides.md,layouts/course.md",
 		"configuration/settings.md": "configuration/reference.md",
 	}
-	for _, n := range tree[0].Children {
-		if w, ok := sub[n.Path]; ok {
-			if got := paths(n.Children); got != w {
-				t.Errorf("%s children = %s, want %s", n.Path, got, w)
+	var check func([]NavNode)
+	check = func(ns []NavNode) {
+		for _, n := range ns {
+			if w, ok := sub[n.Path]; ok {
+				if got := paths(n.Children); got != w {
+					t.Errorf("%s children = %s, want %s", n.Path, got, w)
+				}
+				delete(sub, n.Path)
 			}
-			delete(sub, n.Path)
+			check(n.Children)
 		}
 	}
+	check(tree[0].Children)
 	if len(sub) != 0 {
 		t.Errorf("sections missing from the sidebar: %v", sub)
 	}
@@ -357,11 +364,11 @@ func TestDemoFolder(t *testing.T) {
 			t.Errorf("%s: layout %q, want %s", p, pg.Layout.Name, wantLayout)
 		}
 		broken := strings.Count(pg.HTML, `data-zen-link="broken"`)
-		if want := map[bool]int{true: 1, false: 0}[p == "intro/navigation.md"]; broken != want {
+		if want := map[bool]int{true: 1, false: 0}[p == "features/navigation.md"]; broken != want {
 			t.Errorf("%s: %d broken links, want %d", p, broken, want)
 		}
 	}
-	nav, _ := z.Page("intro/navigation.md")
+	nav, _ := z.Page("features/navigation.md")
 	if !strings.Contains(nav.HTML, `data-path="intro/opening-folders.md"`) {
 		t.Error("slug link [A slug](open) not resolved")
 	}
@@ -380,6 +387,57 @@ func TestDemoFolder(t *testing.T) {
 	}
 	if ck, _ := z.Page("plugins/check.md"); strings.Count(ck.HTML, `type="checkbox"`) < 3 {
 		t.Error("the check page should show its checklists")
+	}
+}
+
+// TestDemoFeaturesMatchAssembly checks that features/ holds one page per
+// feature of the build (and no page for a feature it lacks), plus the index and
+// the markdown showcase that sits under the reader.
+func TestDemoFeaturesMatchAssembly(t *testing.T) {
+	_, file, _, _ := runtime.Caller(0)
+	raw, err := os.ReadFile(filepath.Join(filepath.Dir(file), "..", "..", "apps", "zenmark", "app-assembly.yml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var a demoAssembly
+	if err := yaml.Unmarshal(raw, &a); err != nil {
+		t.Fatal(err)
+	}
+	page := map[string]string{"reader": "reader.md", "nav": "navigation.md", "find": "find.md", "editor": "editor.md",
+		"inspector": "inspector.md", "print": "printing.md", "developer": "developer.md"}
+	have := assemblyIDs(t, a.Features)
+	if have == nil { // `all`
+		have = map[string]bool{}
+		for id := range page {
+			have[id] = true
+		}
+	}
+	want := map[string]bool{"index.md": true, "markdown.md": true}
+	for id := range have {
+		p, ok := page[id]
+		if !ok {
+			t.Errorf("feature %q has no page mapped in the test; add it", id)
+			continue
+		}
+		want[p] = true
+	}
+	entries, err := os.ReadDir(filepath.Join(demoDir(), "features"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	got := map[string]bool{}
+	for _, e := range entries {
+		got[e.Name()] = true
+	}
+	for p := range want {
+		if !got[p] {
+			t.Errorf("features/%s is missing", p)
+		}
+	}
+	for p := range got {
+		if !want[p] {
+			t.Errorf("features/%s is a page for a feature this build lacks", p)
+		}
 	}
 }
 
