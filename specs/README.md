@@ -82,6 +82,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 34 | [ui/top-bar-actions](ui/top-bar-actions/spec.md) | Find, Edit and the Inspector as icons in the top bar (magnifying glass, pencil, panel), one icon set in `kit/ui/src/shell/icons.ts`, the footer keeps Settings and Export, the view group stays | ui/nav-panel, ui/find, #25 | done |
 | 35 | [ui/reader-settings](ui/reader-settings/spec.md) | `dialects: all` (#22); Settings › Markdown becomes Settings › Reader with CommonMark and GFM as the default and the dialects under a Markdown heading; the demo Reader page holds CommonMark/GFM and MyST | engine/dialects, ui/settings-layout, app/demo-guide | done |
 | 36–40 | [plugins/myst-builtins](plugins/myst-builtins/spec.md) | every common MyST directive and role as a built-in, in phases: callouts, figures and tables, math, tabs/dropdowns/cards, roles and the rest of MyST syntax | engine/dialects, builtins/dialects/myst, ui/plugin-kit | planned |
+| 41 | [engine/export-key](engine/export-key/spec.md) | the website export settings key is `export:` in .zenmd.yml and config.yml; `build:` still read with a Problems note, moved on Save as folder defaults | engine/config-name, app/export | in progress |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 
