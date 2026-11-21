@@ -25,7 +25,7 @@ func Example_embed() {
 		Presets: builtins.SiteTemplates(), Runtime: runtime,
 	})
 	defer s.Close()
-	if err := s.Open(filepath.Join("..", "examples", "demo")); err != nil {
+	if err := s.Open(filepath.Join("..", "examples", "showcase")); err != nil {
 		fmt.Println(err)
 		return
 	}

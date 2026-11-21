@@ -29,7 +29,7 @@ func docFiles(t *testing.T) []string {
 			add(m)
 		}
 	}
-	for _, dir := range []string{"examples/demo", "builtins/sitetemplates"} {
+	for _, dir := range []string{"examples/demo", "examples/showcase", "builtins/sitetemplates"} {
 		err := filepath.WalkDir(filepath.Join(root, dir), func(p string, d fs.DirEntry, err error) error {
 			if err != nil {
 				return err

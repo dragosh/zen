@@ -20,10 +20,10 @@ import (
 
 var updateGolden = flag.Bool("update-golden", false, "rewrite testdata/demo-render.golden")
 
-// demoHashes renders every page of examples/demo and hashes the result.
+// demoHashes renders every page of examples/showcase and hashes the result.
 func demoHashes(t *testing.T, r *render.Renderer) string {
 	t.Helper()
-	demo := filepath.Join("..", "..", "examples", "demo")
+	demo := filepath.Join("..", "..", "examples", "showcase")
 	var lines []string
 	err := filepath.WalkDir(demo, func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() || !strings.HasSuffix(p, ".md") {
