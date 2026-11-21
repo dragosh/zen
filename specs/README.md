@@ -77,6 +77,8 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 30 | [app/logging](app/logging/spec.md) | the Console tells the app's story at debug/info/warn/error, folder-relative paths only, rate-limited debug, Info+ by default; `kit/desktop`, logging in `engine/session`, `apps/zenmark` | ui/developer-tab, #25 | done |
 | 31 | [app/demo-guide](app/demo-guide/spec.md) | `examples/demo` shows only what the build has (Intro, Plugins, Layouts, Configuration, growing per roadmap step), guarded by the assembly; the full tour moves to `examples/showcase` | kit/shell-features, #12 | done |
 | 31 | [plugins/logging](plugins/logging/spec.md) | the Console shows the built-in plugins: action and stream calls at debug, sandbox runs with capped output and exit, quiz scores, diagram errors; `engine/plugins/log.go`, logging in `engine/session` and `builtins/plugins/{sandbox,quiz,diagram}` | app/logging, core/plugin-extras | done |
+| 32 | [plugins/rating](plugins/rating/spec.md) | `:::rating`: 1–5 stars (or up to 10) with optional labels, kept on this Mac, Clear, and `:::rating-results`; demo page and the last step of the demo course; `builtins/plugins/rating` | core/plugin-extras, plugins/quiz | done |
+| 33 | [ui/plugin-kit](ui/plugin-kit/spec.md) | one kit of block, button, choice and field classes shipped on every page; quiz, rating, check, sandbox and course adopt it; docs/PLUGIN-UI.md, the style guide for future plugins and layouts | plugins/rating | done |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 

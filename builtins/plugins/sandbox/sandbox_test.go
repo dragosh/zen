@@ -393,3 +393,17 @@ func TestStreamLongLine(t *testing.T) {
 		t.Errorf("lost output: %d", total)
 	}
 }
+
+// The block's frame is the plugin kit's (runtime/src/css/plugin-kit.css), ready or not.
+func TestRenderBlockUsesKitFrame(t *testing.T) {
+	h := New().(plugins.BlockHook)
+	for name, image := range map[string]string{"ready": "python", "setup": "nope"} {
+		out, err := h.RenderBlock(cfg(nil), plugins.Block{Name: "sandbox", Fenced: true, Body: "x", Attrs: map[string]string{"image": image}})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !strings.Contains(out, `class="zen-block zen-sandbox `) {
+			t.Errorf("%s: no kit frame: %s", name, out)
+		}
+	}
+}

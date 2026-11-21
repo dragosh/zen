@@ -11,7 +11,7 @@ function el(doc, name, cls, text) {
   return e;
 }
 function button(doc, cls, text) {
-  const b = el(doc, "button", cls, text);
+  const b = el(doc, "button", cls + " zen-btn", text);
   b.type = "button";
   return b;
 }
@@ -40,14 +40,15 @@ export default {
     const total = steps.length;
     const key = safeKey(ctx.attrs.id || ctx.page.path);
 
-    // ---- state: { step, done: [index], checks: { index: [ticked labels] } } ----
-    let state = { step: 0, done: [], checks: {} };
+    // ---- state: { step, done: [index], skipped: [index], checks: { index: [ticked labels] } } ----
+    let state = { step: 0, done: [], skipped: [], checks: {} };
     try {
       const saved = await ctx.storage.get(key);
       if (saved && typeof saved === "object") {
         state = {
           step: Number.isInteger(saved.step) ? saved.step : 0,
           done: Array.isArray(saved.done) ? saved.done.filter((i) => Number.isInteger(i) && i >= 0 && i < total) : [],
+          skipped: Array.isArray(saved.skipped) ? saved.skipped.filter((i) => Number.isInteger(i) && i >= 0 && i < total) : [],
           checks: saved.checks && typeof saved.checks === "object" ? saved.checks : {},
         };
       }
@@ -55,6 +56,7 @@ export default {
       console.error("zen: course progress could not be read", err);
     }
     const done = new Set(state.done);
+    const skipped = new Set(state.skipped.filter((i) => !done.has(i))); // done wins
 
     // ---- DOM ----
     const root = el(doc, "div", "course-root");
@@ -67,7 +69,7 @@ export default {
     const bar = el(doc, "div", "course-progress");
     const fill = el(doc, "div", "course-progress-fill");
     bar.append(fill);
-    const reset = button(doc, "course-reset", "Reset");
+    const reset = button(doc, "course-reset zen-btn-quiet", "Reset");
     meta.append(count, bar, reset);
     header.append(introBox, meta);
 
@@ -79,8 +81,11 @@ export default {
     const main = el(doc, "div", "course-main");
     const footer = el(doc, "div", "course-nav");
     const prev = button(doc, "course-prev", "Previous");
-    const next = button(doc, "course-next", "Next");
-    footer.append(prev, next);
+    const next = button(doc, "course-next zen-btn-primary", "Next");
+    const skip = button(doc, "course-skip zen-btn-quiet", "Skip step");
+    const actions = el(doc, "div", "course-actions");
+    actions.append(next, skip); // Skip step follows Next in tab order
+    footer.append(prev, actions);
 
     const sections = steps.map((s) => {
       const sec = el(doc, "section", "course-step");
@@ -90,13 +95,20 @@ export default {
     });
     const items = steps.map((s, i) => {
       const li = el(doc, "li");
-      const b = button(doc, "course-step-link", s.title);
+      const b = el(doc, "button", "course-step-link");
+      b.type = "button";
+      b.append(el(doc, "span", "course-step-title", s.title));
       b.addEventListener("click", () => open(i));
       li.append(b);
       list.append(li);
       return { li, b };
     });
     const boxesOf = (i) => Array.from(sections[i].querySelectorAll('[data-zen-name="check"] input[type="checkbox"]'));
+    // The checklists are the kit's: a frame, each item a choice with its box inside.
+    for (const c of main.querySelectorAll('[data-zen-name="check"]')) {
+      c.classList.add("zen-block", "zen-block-body");
+      for (const li of c.querySelectorAll("li")) if (li.querySelector(':scope > input[type="checkbox"]')) li.classList.add("zen-choice");
+    }
     const allBoxes = sections.flatMap((_, i) => boxesOf(i));
     for (const b of allBoxes) b.disabled = false;
     for (let i = 0; i < total; i++) {
@@ -117,7 +129,7 @@ export default {
     let step = 0;
     const firstUndone = () => {
       let i = 0;
-      while (i < total && done.has(i)) i++;
+      while (i < total && (done.has(i) || skipped.has(i))) i++;
       return Math.min(i, total - 1);
     };
     step = Math.max(0, Math.min(state.step, firstUndone()));
@@ -129,7 +141,7 @@ export default {
         const ticked = boxesOf(i).filter((b) => b.checked).map(label);
         if (ticked.length) checks[i] = ticked;
       }
-      return { step, done: Array.from(done).sort((a, b) => a - b), checks };
+      return { step, done: Array.from(done).sort((a, b) => a - b), skipped: Array.from(skipped).sort((a, b) => a - b), checks };
     }
     async function save() {
       try {
@@ -144,17 +156,18 @@ export default {
         s.hidden = i !== step;
       });
       items.forEach(({ li, b }, i) => {
-        const locked = !done.has(i) && i > reach;
-        li.dataset.state = done.has(i) ? "done" : i === step ? "current" : locked ? "locked" : "open";
+        const locked = !done.has(i) && !skipped.has(i) && i > reach;
+        li.dataset.state = done.has(i) ? "done" : skipped.has(i) ? "skipped" : i === step ? "current" : locked ? "locked" : "open";
         b.disabled = locked;
         if (i === step) b.setAttribute("aria-current", "step");
         else b.removeAttribute("aria-current");
       });
-      count.textContent = `${done.size} of ${total} steps`;
+      count.textContent = `${done.size} of ${total} steps${skipped.size ? ` \u00b7 ${skipped.size} skipped` : ""}`;
       fill.style.width = total ? `${(done.size / total) * 100}%` : "0%";
       prev.disabled = step === 0;
       const last = step === total - 1;
       next.textContent = last ? "Finish" : "Next";
+      skip.hidden = total === 0 || done.has(step);
       next.disabled = total === 0 || gated(step) || (last && done.has(step));
       ctx.badge(ctx.page.path, total > 0 ? `${done.size}/${total}` : null);
     }
@@ -168,6 +181,14 @@ export default {
     next.addEventListener("click", () => {
       if (gated(step)) return;
       done.add(step);
+      skipped.delete(step);
+      if (step < total - 1) step++;
+      draw();
+      save();
+    });
+    skip.addEventListener("click", () => {
+      if (total === 0 || done.has(step)) return;
+      skipped.add(step);
       if (step < total - 1) step++;
       draw();
       save();
@@ -175,12 +196,18 @@ export default {
     const onChange = (e) => {
       if (!(e.target instanceof doc.defaultView.HTMLInputElement) || !allBoxes.includes(e.target)) return;
       if (gated(step)) done.delete(step); // unticking takes the step back
+      else if (skipped.has(step)) {
+        // every box of a skipped step ticked: it is done after all
+        skipped.delete(step);
+        done.add(step);
+      }
       draw();
       save();
     };
     main.addEventListener("change", onChange);
     reset.addEventListener("click", () => {
       done.clear();
+      skipped.clear();
       step = 0;
       for (const b of allBoxes) b.checked = false;
       draw();

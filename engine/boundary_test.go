@@ -34,7 +34,7 @@ func TestPackageLayout(t *testing.T) {
 		"engine/session/sessiontest", "engine/site", "engine/sitetemplates", "engine/watch", "engine/workspace",
 		"builtins", "builtins/dialects/myst", "builtins/layouts", "builtins/sitetemplates",
 		"builtins/plugins/check", "builtins/plugins/codeblock", "builtins/plugins/diagram",
-		"builtins/plugins/quiz", "builtins/plugins/sandbox",
+		"builtins/plugins/quiz", "builtins/plugins/rating", "builtins/plugins/sandbox",
 	}
 	internal := []string{"internal/atomicfile", "internal/cli"}
 	apps := []string{"apps/zenmark"}

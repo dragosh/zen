@@ -27,3 +27,16 @@ func TestFS(t *testing.T) {
 		t.Error("zen.js is an ES module")
 	}
 }
+
+// TestKitShipped: the plugin kit (runtime/src/css/plugin-kit.css) is part of zen.css, so every page has it.
+func TestKitShipped(t *testing.T) {
+	css, err := fs.ReadFile(zenruntime.FS(), "zen.css")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, c := range []string{".zen-block", ".zen-btn", ".zen-btn-primary", ".zen-btn-quiet", ".zen-choice", ".zen-field"} {
+		if !strings.Contains(string(css), c) {
+			t.Errorf("zen.css lacks %s", c)
+		}
+	}
+}

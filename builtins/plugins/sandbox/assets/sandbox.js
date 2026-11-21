@@ -39,15 +39,15 @@ function mount(root, ctx) {
     codeEl.replaceWith(editor);
   }
 
-  const bar = el(doc, "div", "zen-sandbox-bar");
-  const run = el(doc, "button", "zen-sandbox-run", "Run");
-  const stop = el(doc, "button", "zen-sandbox-stop", "Stop");
+  const bar = el(doc, "div", "zen-sandbox-bar zen-block-bar");
+  const run = el(doc, "button", "zen-sandbox-run zen-btn zen-btn-primary", "Run");
+  const stop = el(doc, "button", "zen-sandbox-stop zen-btn", "Stop");
   run.type = stop.type = "button";
   stop.disabled = true;
   const spin = el(doc, "span", "zen-sandbox-spin");
   spin.setAttribute("aria-hidden", "true");
   spin.hidden = true;
-  const status = el(doc, "span", "zen-sandbox-status");
+  const status = el(doc, "span", "zen-sandbox-status zen-block-status");
   status.setAttribute("role", "status");
   bar.append(run, stop, spin, status);
   const con = el(doc, "pre", "zen-sandbox-console");
@@ -147,7 +147,7 @@ function mount(root, ctx) {
     }
     if (!note) {
       note = el(doc, "div", "zen-sandbox-note");
-      const again = el(doc, "button", "zen-sandbox-recheck", "Check again");
+      const again = el(doc, "button", "zen-sandbox-recheck zen-btn", "Check again");
       again.type = "button";
       again.addEventListener("click", check);
       note.append(el(doc, "span", "zen-sandbox-note-text"), " ", again);

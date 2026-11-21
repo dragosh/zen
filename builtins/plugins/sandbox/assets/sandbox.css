@@ -1,23 +1,15 @@
-.zen-sandbox { margin: 1em 0; border: 1px solid var(--rule); border-radius: var(--radius); background: var(--bg-subtle); font-family: var(--font-ui); }
+/* :::sandbox — only what is the sandbox's own (code, console, spinner); the frame, bar and buttons are the plugin kit's (docs/PLUGIN-UI.md). */
+.zen-sandbox { margin: 1em 0; }
 .zen-sandbox-note { padding: 8px 12px; color: var(--fg-muted); border-bottom: 1px solid var(--rule); }
-.zen-sandbox-recheck { font: inherit; margin-left: 4px; padding: 1px 10px; border: 0; border-radius: var(--radius); background: var(--btn-bg); color: var(--fg); cursor: pointer; }
-.zen-sandbox-recheck:hover { background: var(--btn-bg-hover); }
-.zen-sandbox-recheck:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+.zen-sandbox-note .zen-btn { margin-left: 4px; padding-top: 1px; padding-bottom: 1px; }
 .zen-sandbox-snippet { margin: 8px 0 0; padding: 8px; background: var(--bg); border: 1px solid var(--rule); border-radius: var(--radius); color: var(--fg); font-family: var(--font-mono); white-space: pre; overflow-x: auto; }
 .zen-sandbox-code, .zen-sandbox-editor { display: block; box-sizing: border-box; width: 100%; margin: 0; padding: 12px; border: 0; background: transparent; color: var(--fg); font-family: var(--font-mono); font-size: 0.88em; line-height: 1.5; white-space: pre; overflow-x: auto; }
 .zen-sandbox-editor { resize: vertical; min-height: 6em; white-space: pre; outline: none; }
 .zen-sandbox-editor:focus-visible { outline: 2px solid var(--focus); outline-offset: -2px; }
-.zen-sandbox-bar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); font-size: 13px; }
-.zen-sandbox-bar button { font: inherit; padding: 3px 12px; border: 0; border-radius: var(--radius); background: var(--btn-bg); color: var(--fg); cursor: pointer; }
-.zen-sandbox-bar button:hover:not(:disabled) { background: var(--btn-bg-hover); }
-.zen-sandbox-bar button:focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
-.zen-sandbox-bar button:disabled { opacity: 0.45; cursor: default; }
-.zen-sandbox-bar .zen-sandbox-run { background: var(--btn-primary-bg); color: var(--btn-primary-fg); }
-.zen-sandbox-bar .zen-sandbox-run:hover:not(:disabled) { background: var(--btn-primary-bg); opacity: 0.85; }
+.zen-sandbox-bar { border-bottom: 1px solid var(--rule); }
 .zen-sandbox-spin { width: 12px; height: 12px; border: 2px solid var(--rule); border-top-color: var(--fg-muted); border-radius: 50%; animation: zen-sandbox-spin 0.8s linear infinite; }
 .zen-sandbox-spin[hidden] { display: none; }
 @keyframes zen-sandbox-spin { to { transform: rotate(360deg); } }
 @media (prefers-reduced-motion: reduce) { .zen-sandbox-spin { animation-duration: 2.4s; } }
-.zen-sandbox-status { color: var(--fg-muted); }
 .zen-sandbox-console { margin: 0; padding: 10px 12px; max-height: 24em; min-height: 3em; overflow: auto; background: var(--bg); border-radius: 0 0 var(--radius) var(--radius); color: var(--fg); font-family: var(--font-mono); font-size: 0.88em; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
 .zen-sandbox-err { color: var(--lint-error); }

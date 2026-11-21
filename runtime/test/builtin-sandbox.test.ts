@@ -260,3 +260,14 @@ test("unmounting a running block cancels its stream", async () => {
   expect(api.callsTo("pluginCancel")).toEqual([["call-1"]]);
   expect(w.isConnected).toBe(true);
 });
+
+test("controls carry the plugin kit classes", async () => {
+  const w = render();
+  await settle();
+  expect(q(w, ".zen-sandbox-bar")!.classList.contains("zen-block-bar")).toBe(true);
+  expect(q(w, ".zen-sandbox-run")!.classList.contains("zen-btn")).toBe(true);
+  expect(q(w, ".zen-sandbox-run")!.classList.contains("zen-btn-primary")).toBe(true);
+  expect(q(w, ".zen-sandbox-stop")!.classList.contains("zen-btn")).toBe(true);
+  expect(q(w, ".zen-sandbox-stop")!.classList.contains("zen-btn-primary")).toBe(false);
+  expect(q(w, ".zen-sandbox-status")!.classList.contains("zen-block-status")).toBe(true);
+});

@@ -196,7 +196,7 @@ func TestBuiltinCatalog(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !reflect.DeepEqual(c.Plugins, []string{"codeblock", "diagram", "check", "quiz", "sandbox"}) {
+	if !reflect.DeepEqual(c.Plugins, []string{"codeblock", "diagram", "check", "quiz", "sandbox", "rating"}) {
 		t.Errorf("plugins %v", c.Plugins)
 	}
 	if !reflect.DeepEqual(c.Layouts, []string{"article", "docs", "post", "landing", "wide", "handout", "slides", "course"}) {

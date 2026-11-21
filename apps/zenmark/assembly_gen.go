@@ -10,6 +10,7 @@ import (
 	"github.com/zenmark-org/zenmd/builtins/plugins/codeblock"
 	"github.com/zenmark-org/zenmd/builtins/plugins/diagram"
 	"github.com/zenmark-org/zenmd/builtins/plugins/quiz"
+	"github.com/zenmark-org/zenmd/builtins/plugins/rating"
 	"github.com/zenmark-org/zenmd/builtins/plugins/sandbox"
 	"github.com/zenmark-org/zenmd/builtins/sitetemplates"
 	"github.com/zenmark-org/zenmd/engine/dialects"
@@ -21,7 +22,7 @@ import (
 // assemblyPlugins is the registry of the built-in plugins this app includes.
 func assemblyPlugins() *plugins.Registry {
 	r := plugins.NewRegistry()
-	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New(), check.New(), quiz.New(), sandbox.New()} {
+	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New(), check.New(), quiz.New(), sandbox.New(), rating.New()} {
 		if err := r.Register(p); err != nil {
 			panic(err)
 		}
@@ -32,7 +33,7 @@ func assemblyPlugins() *plugins.Registry {
 // assemblyLayouts is the registry of the built-in layouts this app includes
 // (article, the fallback, is always there).
 func assemblyLayouts(version string) *enginelayouts.Registry {
-	return layouts.Registry(version, "article")
+	return layouts.Registry(version, "article", "docs", "post", "landing", "wide", "handout", "slides", "course")
 }
 
 // assemblyTemplates holds the built-in site templates this app includes.
@@ -58,8 +59,8 @@ func assemblyDialects() *dialects.Registry {
 var assemblyInfo = session.BuildInfo{
 	App:       "zenmark",
 	Features:  []string{"reader", "nav", "inspector", "developer"},
-	Plugins:   []string{"codeblock", "diagram", "check", "quiz", "sandbox"},
-	Layouts:   []string{"article"},
+	Plugins:   []string{"codeblock", "diagram", "check", "quiz", "sandbox", "rating"},
+	Layouts:   []string{"article", "docs", "post", "landing", "wide", "handout", "slides", "course"},
 	Templates: []string{},
 	Dialects:  []string{},
 	Theme:     "default",

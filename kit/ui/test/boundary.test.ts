@@ -49,7 +49,7 @@ test("kit/ui imports only @zenmd/runtime and its own files", () => {
 test("the runtime does not import the kit", () => {
   for (const file of files(join(repo, "runtime", "src"))) {
     for (const spec of specifiers(readFileSync(file, "utf8"))) {
-      expect(spec, relative(repo, file)).not.toMatch(/kit/);
+      expect(spec, relative(repo, file)).not.toMatch(/(^|[/@])kit(\/|$)/); // the kit package, not runtime/src/css/plugin-kit.css
     }
   }
 });

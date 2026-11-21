@@ -16,6 +16,7 @@ import (
 	"github.com/zenmark-org/zenmd/builtins/plugins/codeblock"
 	"github.com/zenmark-org/zenmd/builtins/plugins/diagram"
 	"github.com/zenmark-org/zenmd/builtins/plugins/quiz"
+	"github.com/zenmark-org/zenmd/builtins/plugins/rating"
 	"github.com/zenmark-org/zenmd/builtins/plugins/sandbox"
 	"github.com/zenmark-org/zenmd/engine/plugins"
 )
@@ -264,7 +265,7 @@ func demoDir() string {
 func TestDemoFolder(t *testing.T) {
 	demo := demoDir()
 	reg := plugins.NewRegistry()
-	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New(), check.New()} {
+	for _, p := range []plugins.Plugin{codeblock.New(), diagram.New(), check.New(), rating.New()} {
 		if err := reg.Register(p); err != nil {
 			t.Fatal(err)
 		}
@@ -300,8 +301,8 @@ func TestDemoFolder(t *testing.T) {
 		t.Errorf("README children = %s\nwant %s", got, want)
 	}
 	sub := map[string]string{
-		"plugins/index.md":          "plugins/codeblock.md,plugins/diagram.md,plugins/check.md,plugins/quiz.md,plugins/sandbox.md",
-		"layouts/index.md":          "layouts/article.md",
+		"plugins/index.md":          "plugins/codeblock.md,plugins/diagram.md,plugins/check.md,plugins/quiz.md,plugins/sandbox.md,plugins/rating.md",
+		"layouts/index.md":          "layouts/article.md,layouts/docs.md,layouts/post.md,layouts/landing.md,layouts/wide.md,layouts/handout.md,layouts/slides.md,layouts/course.md",
 		"configuration/settings.md": "configuration/reference.md",
 	}
 	for _, n := range tree[0].Children {
@@ -347,8 +348,13 @@ func TestDemoFolder(t *testing.T) {
 		if len(pg.Warnings) > 0 {
 			t.Errorf("%s: warnings %v", p, pg.Warnings)
 		}
-		if pg.Layout.Name != "article" {
-			t.Errorf("%s: layout %q, want article", p, pg.Layout.Name)
+		// Each layout's own page shows it; every other page is an article.
+		wantLayout := map[string]string{"layouts/docs.md": "docs", "layouts/post.md": "post", "layouts/index.md": "landing", "layouts/landing.md": "docs", "layouts/wide.md": "wide", "layouts/handout.md": "handout", "layouts/slides.md": "slides", "layouts/course.md": "course"}[p]
+		if wantLayout == "" {
+			wantLayout = "article"
+		}
+		if pg.Layout.Name != wantLayout {
+			t.Errorf("%s: layout %q, want %s", p, pg.Layout.Name, wantLayout)
 		}
 		broken := strings.Count(pg.HTML, `data-zen-link="broken"`)
 		if want := map[bool]int{true: 1, false: 0}[p == "intro/navigation.md"]; broken != want {
@@ -364,6 +370,13 @@ func TestDemoFolder(t *testing.T) {
 	}
 	if dg, _ := z.Page("plugins/diagram.md"); strings.Count(dg.HTML, `class="zen-diagram"`) < 2 {
 		t.Error("the diagram page should draw its diagrams")
+	}
+	// The rating plugin has its page, and the course ends with a rating step.
+	if rp, _ := z.Page("plugins/rating.md"); !strings.Contains(rp.HTML, `data-zen-name="rating"`) || !strings.Contains(rp.HTML, `data-zen-name="rating-results"`) || strings.Count(rp.HTML, `class="zr-star"`) < 5 {
+		t.Errorf("plugins/rating.md should hold a live rating and a results block: %s", rp.HTML)
+	}
+	if cp, _ := z.Page("layouts/course.md"); !strings.Contains(cp.HTML, "Rate this course") || !strings.Contains(cp.HTML, `data-zen-name="rating"`) || !strings.Contains(cp.HTML, "Very good") || strings.Index(cp.HTML, "Rate this course") > strings.Index(cp.HTML, "Done") {
+		t.Errorf("the course should have a rating step before Done: %s", cp.HTML)
 	}
 	if ck, _ := z.Page("plugins/check.md"); strings.Count(ck.HTML, `type="checkbox"`) < 3 {
 		t.Error("the check page should show its checklists")
@@ -411,12 +424,12 @@ func TestDemoMatchesAssembly(t *testing.T) {
 	allowed := func(set map[string]bool, id string) bool { return set == nil || set[id] }
 
 	// The block syntax of each plugin that has one, and the dialects' marks.
-	blockPlugin := map[string]string{"mermaid": "diagram", "diagram": "diagram", "check": "check", "quiz": "quiz", "quiz-results": "quiz", "sandbox": "sandbox"}
+	blockPlugin := map[string]string{"mermaid": "diagram", "diagram": "diagram", "check": "check", "quiz": "quiz", "quiz-results": "quiz", "sandbox": "sandbox", "rating": "rating", "rating-results": "rating"}
 	fence := regexp.MustCompile("(?m)^\\s*(?:```+|~~~+|:::+)\\s*(\\{[a-z-]+\\}|[A-Za-z][\\w-]*)")
 	// Words for features this build lacks (the showcase has them); the guide must not name them.
 	lacking := []string{"Vale", "MyST", "Jupyter", "zenmd export", "New Site", "newsite", ".zen/", "Print Page", "Find Next", "Open in Editor", "Edit this page"}
 	// A plugin's own name may appear once the assembly has it.
-	for _, id := range []string{"quiz", "sandbox"} {
+	for _, id := range []string{"quiz", "sandbox", "rating"} {
 		if !allowed(havePlugin, id) {
 			lacking = append(lacking, id)
 		}

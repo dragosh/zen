@@ -307,3 +307,18 @@ test("the stylesheet uses the app's tokens and no fixed colours", () => {
   expect(css).toMatch(/var\(--lint-error\)/);
   expect(css).toMatch(/var\(--code-meta\)/);
 });
+
+test("controls carry the plugin kit classes", async () => {
+  const w = render();
+  await settle();
+  expect(w.querySelector(".zq-check")!.classList.contains("zen-btn")).toBe(true);
+  expect(w.querySelector(".zq-check")!.classList.contains("zen-btn-primary")).toBe(true);
+  expect(w.querySelector(".zq-retry")!.classList.contains("zen-btn")).toBe(true);
+  for (const q of Array.from(w.querySelectorAll(".zq-question"))) {
+    expect(q.classList.contains("zen-block")).toBe(true);
+    expect(q.querySelector("legend")!.classList.contains("zen-block-head")).toBe(true);
+  }
+  expect(Array.from(w.querySelectorAll(".zq-option")).every((l) => l.classList.contains("zen-choice"))).toBe(true);
+  expect(w.querySelector("input[type=text]")!.classList.contains("zen-field")).toBe(true);
+  expect(w.querySelector(".zq-summary")!.classList.contains("zen-block-status")).toBe(true);
+});

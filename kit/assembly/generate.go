@@ -18,6 +18,7 @@ var pluginPackages = map[string]string{
 	"check":     "builtins/plugins/check",
 	"quiz":      "builtins/plugins/quiz",
 	"sandbox":   "builtins/plugins/sandbox",
+	"rating":    "builtins/plugins/rating",
 }
 
 // dialectPackages maps a built-in dialect id to its package.
