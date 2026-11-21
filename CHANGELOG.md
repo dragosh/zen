@@ -7,6 +7,7 @@ follows [Semantic Versioning](https://semver.org) (see docs/VERSIONING.md).
 ## [Unreleased]
 
 ### Added
+- Printing is back in Zenmark: File › Print Page… (⌘P) and a printer icon in the top bar; the demo guide has a Print a page page (#18).
 - The editor is back in Zenmark: editor windows (⌘E), New Page (⌘N), moving, dragging and hiding pages in the sidebar, and editing the settings files; the demo guide has an Edit a page page (#15).
 - Find in page is back in Zenmark (⌘F, ⌘G, ⇧⌘G, Edit › Find), with a page in the demo guide (#14).
 - All built-in layouts are back in Zenmark (docs, post, landing, wide, handout, slides, course), each with a page in the demo guide (#13).
