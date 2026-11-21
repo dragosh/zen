@@ -1,9 +1,9 @@
 ---
-title: Getting started with Zenmark
+title: Learn by doing
 layout: course
 layoutOptions: { id: getting-started }
 ---
-# Getting started with Zenmark
+# Learn by doing
 
 Work through the steps in order. Tick the boxes to unlock the next step. Your
 progress is saved on this Mac. The steps use the other plugins too, so a course
@@ -51,7 +51,7 @@ frontmatter of this page:
 
 ```yaml
 ---
-title: Getting started with Zenmark
+title: Learn by doing
 layout: course
 layoutOptions: { id: getting-started }
 ---
