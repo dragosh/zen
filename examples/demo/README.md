@@ -21,7 +21,7 @@ it, and the guide only describes what this version of Zenmark has.
 
 ## The rest of the guide
 
-- [Plugins](plugins/index.md): code colours, diagrams and checklists.
+- [Plugins](plugins/index.md): code colours, diagrams, checklists and quizzes.
 - [Layouts](layouts/index.md): the look of a whole page.
 - [Configuration](configuration/settings.md): the Settings page and the
   `.zenmd.yml` file.

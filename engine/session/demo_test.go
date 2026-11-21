@@ -300,7 +300,7 @@ func TestDemoFolder(t *testing.T) {
 		t.Errorf("README children = %s\nwant %s", got, want)
 	}
 	sub := map[string]string{
-		"plugins/index.md":          "plugins/codeblock.md,plugins/diagram.md,plugins/check.md",
+		"plugins/index.md":          "plugins/codeblock.md,plugins/diagram.md,plugins/check.md,plugins/quiz.md",
 		"layouts/index.md":          "layouts/article.md",
 		"configuration/settings.md": "configuration/reference.md",
 	}
@@ -411,10 +411,16 @@ func TestDemoMatchesAssembly(t *testing.T) {
 	allowed := func(set map[string]bool, id string) bool { return set == nil || set[id] }
 
 	// The block syntax of each plugin that has one, and the dialects' marks.
-	blockPlugin := map[string]string{"mermaid": "diagram", "diagram": "diagram", "check": "check", "quiz": "quiz", "sandbox": "sandbox"}
+	blockPlugin := map[string]string{"mermaid": "diagram", "diagram": "diagram", "check": "check", "quiz": "quiz", "quiz-results": "quiz", "sandbox": "sandbox"}
 	fence := regexp.MustCompile("(?m)^\\s*(?:```+|~~~+|:::+)\\s*(\\{[a-z-]+\\}|[A-Za-z][\\w-]*)")
 	// Words for features this build lacks (the showcase has them); the guide must not name them.
-	lacking := []string{"Vale", "MyST", "Jupyter", "sandbox", "quiz", "zenmd export", "New Site", "newsite", ".zen/", "Print Page", "Find Next", "Open in Editor", "Edit this page"}
+	lacking := []string{"Vale", "MyST", "Jupyter", "zenmd export", "New Site", "newsite", ".zen/", "Print Page", "Find Next", "Open in Editor", "Edit this page"}
+	// A plugin's own name may appear once the assembly has it.
+	for _, id := range []string{"quiz", "sandbox"} {
+		if !allowed(havePlugin, id) {
+			lacking = append(lacking, id)
+		}
+	}
 
 	pages := 0
 	err = filepath.WalkDir(demo(t), func(p string, d fs.DirEntry, err error) error {
