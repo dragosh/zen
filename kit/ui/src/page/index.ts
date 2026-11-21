@@ -7,6 +7,7 @@ import { bindFind, createFind, domFinder } from "../find";
 import { markText } from "../lint";
 import { installRuntime } from "@zenmd/runtime/plugins";
 import { installImageZoom } from "@zenmd/runtime/zoom/zoom";
+import { PRINT_PAGE } from "@zenmd/runtime/print/page";
 import { button, el, iconButton } from "../shell/dom";
 import { reducedMotion as a11yReducedMotion } from "../shell/a11y";
 import type { Ctx, Feature } from "../shell/types";
@@ -173,6 +174,9 @@ export const pageFeature: Feature = {
     // The top bar's actions are icon buttons, Find then Edit (the Inspector's is the layout's): ui/top-bar-actions.
     const findOn = hasFeature(ctx.api, "find");
     if (editable) slots.actions.append(edit);
+    // Print, after Edit: the same request as ⌘P and File › Print Page… (the shell's installPagePrint runs it).
+    const printButton = iconButton("printer", "Print", "Print (⌘P)", () => doc.dispatchEvent(new CustomEvent(PRINT_PAGE)));
+    if (hasFeature(ctx.api, "print")) slots.actions.append(printButton);
     // The panel sits beside the main pane, before it (inspector.css makes room for it).
     if (inspectorOn) main.before(inspector.el);
 
@@ -407,6 +411,7 @@ export const pageFeature: Feature = {
       error.remove();
       article.remove();
       edit.remove();
+      printButton.remove();
       inspector.destroy();
     };
   },

@@ -3,7 +3,7 @@ title: Print a page
 ---
 # Print a page
 
-**File › Print Page…** (<kbd>⌘P</kbd>) prints the page you are reading
+The printer in the top bar, **File › Print Page…** or <kbd>⌘P</kbd> prints the page you are reading
 through the macOS print panel, so **Save as PDF** is in it too. The page prints
 as it looks, in black on white whatever the app's theme. The sidebar, top bar
 and buttons are left out; what they show stays, such as quiz questions and the

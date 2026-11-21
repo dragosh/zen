@@ -83,6 +83,9 @@ export async function printPage(doc: Document, opts: PagePrintOptions = {}): Pro
  * flow. A request while one is waiting is ignored. The menu event reaches every window; only the one
  * with the focus prints. Returns the remover.
  */
+/** Asks the page to print, as ⌘P does: the top bar's Print button sends it on the document (ui/top-bar-actions). */
+export const PRINT_PAGE = "zen:print-page";
+
 export function installPagePrint(doc: Document, api: PagePrintApi, opts: PagePrintOptions = {}): () => void {
   let busy = false;
   const run = () => {
@@ -100,9 +103,11 @@ export function installPagePrint(doc: Document, api: PagePrintApi, opts: PagePri
     }
   };
   doc.addEventListener("keydown", onKey);
+  doc.addEventListener(PRINT_PAGE, run);
   const off = api.on("menu:print-page", () => { if (doc.hasFocus()) run(); });
   return () => {
     doc.removeEventListener("keydown", onKey);
+    doc.removeEventListener(PRINT_PAGE, run);
     off();
   };
 }
