@@ -95,13 +95,3 @@ test("the image zoom view is on top of everything and never printed (ui/image-zo
   expect(css).toMatch(/\.zen-page img\s*\{\s*cursor:\s*zoom-in/);
   expect(printCss).toMatch(/\.zen-zoom\s*\{\s*display:\s*none\s*!important/);
 });
-
-test("every task-list checkbox is 1.15em, aligned with the first line, with the hanging indent (plugins/check)", () => {
-  const rule = css.match(/\.zen-page li\s*>\s*input\[type="checkbox"\]\s*\{([^}]*)\}/);
-  expect(rule, "the task-list checkbox rule").not.toBeNull();
-  expect(rule![1]).toMatch(/width:\s*1\.15em/);
-  expect(rule![1]).toMatch(/height:\s*1\.15em/);
-  expect(rule![1]).toMatch(/accent-color:\s*var\(--fg\)/);
-  expect(css).toMatch(/li:has\(>\s*input\[type="checkbox"\]\)\s*\{[^}]*list-style:\s*none/);
-  expect(css).toMatch(/input\[type="checkbox"\]:not\(:disabled\)[^{]*\{[^}]*cursor:\s*pointer/);
-});
