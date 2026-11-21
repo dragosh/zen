@@ -81,6 +81,7 @@ Read first: [docs/PLAN.md](../docs/PLAN.md), [docs/UI.md](../docs/UI.md),
 | 33 | [ui/plugin-kit](ui/plugin-kit/spec.md) | one kit of block, button, choice and field classes shipped on every page; quiz, rating, check, sandbox and course adopt it; docs/PLUGIN-UI.md, the style guide for future plugins and layouts | plugins/rating | done |
 | 34 | [ui/top-bar-actions](ui/top-bar-actions/spec.md) | Find, Edit and the Inspector as icons in the top bar (magnifying glass, pencil, panel), one icon set in `kit/ui/src/shell/icons.ts`, the footer keeps Settings and Export, the view group stays | ui/nav-panel, ui/find, #25 | done |
 | 35 | [ui/reader-settings](ui/reader-settings/spec.md) | `dialects: all` (#22); Settings › Markdown becomes Settings › Reader with CommonMark and GFM as the default and the dialects under a Markdown heading; the demo Reader page holds CommonMark/GFM and MyST | engine/dialects, ui/settings-layout, app/demo-guide | done |
+| 36–40 | [plugins/myst-builtins](plugins/myst-builtins/spec.md) | every common MyST directive and role as a built-in, in phases: callouts, figures and tables, math, tabs/dropdowns/cards, roles and the rest of MyST syntax | engine/dialects, builtins/dialects/myst, ui/plugin-kit | planned |
 
 Features in the same wave own disjoint paths and can be built in parallel.
 
