@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | in progress |
+| Status | done |
 | Target version | 0.7.0 |
 | Branch | `feature/12-builtin-plugins` (roadmap step 3, #12) |
 | Wave | 31 |
@@ -19,7 +19,7 @@ a checklist in a page is a real to-do list.
 
 1. **Clickable.** Outside a page with `layout: course`, a `:::check` block's boxes are enabled. Clicking a box or its label ticks or unticks it. A plain `- [ ]` task list that isn't in a `:::check` block stays read-only (disabled), as on GitHub.
 2. **Persistent.**
-   - Ticks are saved through `ctx.storage` under `check-<page path>#<n>`, where n is the block's index in the page (0-based), as `{ version: 1, ticked: [label, …] }`.
+   - Ticks are saved through `ctx.storage` under `check-<page path>#<n>` (storage keys allow only letters, digits, `.`, `_`, `-` and 64 characters, so the key is `check-<path>.<n>` with other characters in the path replaced by `-`, and a long or altered path is shortened and given an 8-digit hash), where n is the block's index in the page (0-based), as `{ version: 1, ticked: [label, …] }`.
    - A box is matched by its label text (trimmed, whitespace collapsed), so editing other items keeps the ticks.
    - On mount, the saved ticks are applied, replacing the `[x]` written in the markdown. A block with nothing saved shows the markdown's own `[x]`.
    - The storage is the plugin's own, on this Mac in the app; in a built site it is the browser's (whatever `ctx.storage` uses there).

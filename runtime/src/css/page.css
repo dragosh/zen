@@ -85,7 +85,8 @@
 .zen-page li { margin: .25em 0; }
 .zen-page li > ul, .zen-page li > ol { margin-bottom: 0; }
 .zen-page li:has(> input[type="checkbox"]) { list-style: none; margin-left: -1.4em; }
-.zen-page li > input[type="checkbox"] { margin: 0 .45em 0 0; vertical-align: -1px; accent-color: var(--fg); }
+.zen-page li > input[type="checkbox"] { width: 1.15em; height: 1.15em; margin: 0 .45em 0 0; vertical-align: -.2em; accent-color: var(--fg); }
+.zen-page li > input[type="checkbox"]:not(:disabled) { cursor: pointer; }
 
 .zen-page code { font: .88em var(--font-mono); background: var(--bg-subtle); padding: .1em .35em; border-radius: 4px; }
 .zen-page pre { background: var(--bg-subtle); padding: 14px 16px; border-radius: var(--radius); overflow: auto; margin: 0 0 1em; line-height: 1.5; }
