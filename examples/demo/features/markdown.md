@@ -1,6 +1,13 @@
-# Markdown showcase
+---
+title: Markdown
+---
+# Markdown
 
-Everything zen renders, in one page.
+CommonMark and GitHub Flavored Markdown (GFM) are the default: they are always on
+in every folder, and everything on this page is written in them. Other syntaxes,
+such as [MyST](myst.md), are dialects you can add on top.
+
+Everything Zenmark renders as Markdown, in one page.
 
 ## Text
 

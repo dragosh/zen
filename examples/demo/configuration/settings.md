@@ -16,8 +16,8 @@ Sections are listed on the left; the selected item shows on the right.
 - **Appearance**: System, Light or Dark, for every Zenmark window on this Mac.
 - **Accessibility**: zoom, reduced motion, increased contrast, and for the
   reader the text size, font, line spacing, line width and underlined links.
-- **Markdown**: the syntax Zenmark reads. CommonMark and GitHub Flavored
-  Markdown are always on; see the [reader](../features/reader.md).
+- **Reader**: the Markdown syntax Zenmark reads. CommonMark and GitHub Flavored
+  Markdown are always on, and MyST can be added; see the [reader](../features/reader.md).
 - **Layouts**: the [layouts](../layouts/index.md) of this build, with the help
   of the selected one.
 - **Plugins**: the [plugins](../plugins/index.md) of this build with their

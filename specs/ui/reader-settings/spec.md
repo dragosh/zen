@@ -2,7 +2,7 @@
 
 | | |
 |---|---|
-| Status | in progress |
+| Status | done |
 | Target version | 0.7.0 |
 | Branch | `feature/22-dialects` (roadmap step 13, #22) |
 | Wave | 35 |
@@ -33,7 +33,7 @@ build's dialects (MyST), roadmap step 13, gives that section its first dialect.
    - **Look:** the heading uses the Settings frame's existing style, if there is one for groups. Otherwise it is the `--fg-muted` small text the frame uses for notes, with no new style.
 3. **The demo, Features › Reader:**
    - The reader page has a "Markdown" part that links two sub-pages:
-     - `features/markdown.md`, the showcase, titled "CommonMark and GFM" and marked as the default;
+     - `features/markdown.md`, titled just "Markdown", never "markdown showcase": every place in the demo that says "markdown showcase" says "Markdown". It opens by saying that CommonMark and GFM are the default and are always on;
      - `features/myst.md`, "MyST": how to turn it on (Settings › Reader, or `markdown: dialects: [myst]` in `.zenmd.yml`), the fence and colon forms, and options, with live examples.
    - The demo's `.zenmd.yml` turns MyST on, so the live examples render.
    - Use only plugins this build has, such as notes written as quiz or check blocks. If MyST needs a block the build lacks, show it as a code sample, not live.

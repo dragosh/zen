@@ -37,6 +37,8 @@ export type SettingsSection = {
   items?: () => SettingsItem[] | Promise<SettingsItem[]>;
   /** Fills the right column (after the item's title as h3) for the selected item; may return a clean-up function. */
   render?: (item: SettingsItem, right: HTMLElement) => void | (() => void);
+  /** A small heading over the rows of the left column (a group name); not shown when the list is empty. */
+  heading?: string;
   /** What the right column says when the list has no rows. */
   empty?: string | (() => string);
   /** The id of the row that is current (Appearance: the theme in use); it wins over the remembered selection. */
@@ -421,7 +423,8 @@ export function createSettingsFrame(sections: SettingsSection[]): SettingsView {
       pane.list.replaceChildren(...(text ? [el("p", "zen-settings-empty", text)] : []));
       return;
     }
-    pane.list.replaceChildren(...pane.items.map((it) => {
+    const head = pane.section.heading ? [Object.assign(el("div", "zen-settings-list-heading", pane.section.heading), { role: "presentation" })] : [];
+    pane.list.replaceChildren(...head, ...pane.items.map((it) => {
       const r = el("div", "zen-settings-item");
       r.setAttribute("role", "option");
       r.dataset.item = it.id;

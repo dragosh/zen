@@ -45,7 +45,7 @@ export type BuildInfo = { app: string; features: string[]; addons: AddonInfo[]; 
   /** The app's version ("dev" when unstamped), shown in Zenmark › About. */
   version?: string };
 
-/** A markdown dialect of the build (engine/dialects) and whether the open folder uses it: Settings › Markdown lists these. */
+/** A markdown dialect of the build (engine/dialects) and whether the open folder uses it: Settings › Reader lists these. */
 export type DialectInfo = { id: string; name: string; summary: string; on: boolean };
 
 /** Whether the app was built with the add-on (`hasAddon(host, "vale")`): false when the host lists none. */
@@ -71,7 +71,7 @@ export interface KitHost extends RuntimeHost {
   addons?: readonly AddonInfo[];
   /** The assembly of this build (add-ons, plugins, layouts, templates, theme); known once startup has answered. Hosts without one omit it. */
   build?: BuildInfo;
-  /** The markdown dialects of this build with the open folder's choice (Settings › Markdown); an app without them omits it. */
+  /** The markdown dialects of this build with the open folder's choice (Settings › Reader); an app without them omits it. */
   dialects?(): Promise<DialectInfo[]>;
   /** Turns a dialect on or off for the open folder (writes its .zenmd.yml); refused in a read-only app. */
   setDialect?(id: string, on: boolean): Promise<void>;

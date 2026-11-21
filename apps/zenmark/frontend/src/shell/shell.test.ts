@@ -570,7 +570,7 @@ test("Settings shows the plugins and its sections", async () => {
   await s.start();
   cog().click();
   await tick();
-  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Configuration", "Appearance", "Accessibility", "Markdown", "Templates", "Layouts", "Plugins", "Export", "Developer"]);
+  expect(Array.from(settingsPage()!.querySelectorAll(".zen-settings-section")).map((b) => b.textContent)).toEqual(["Configuration", "Appearance", "Accessibility", "Reader", "Templates", "Layouts", "Plugins", "Export", "Developer"]);
   expect(api.callsTo("plugins")).toHaveLength(0); // a list is read when its section is chosen
 });
 

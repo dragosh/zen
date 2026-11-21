@@ -302,7 +302,7 @@ func TestDemoFolder(t *testing.T) {
 	}
 	sub := map[string]string{
 		"features/index.md":         "features/reader.md,features/navigation.md,features/find.md,features/editor.md,features/inspector.md,features/printing.md,features/developer.md",
-		"features/reader.md":        "features/markdown.md",
+		"features/reader.md":        "features/markdown.md,features/myst.md",
 		"plugins/index.md":          "plugins/codeblock.md,plugins/diagram.md,plugins/check.md,plugins/quiz.md,plugins/sandbox.md,plugins/rating.md",
 		"layouts/index.md":          "layouts/article.md,layouts/docs.md,layouts/post.md,layouts/landing.md,layouts/wide.md,layouts/handout.md,layouts/slides.md,layouts/course.md",
 		"configuration/settings.md": "configuration/reference.md",
@@ -388,11 +388,26 @@ func TestDemoFolder(t *testing.T) {
 	if ck, _ := z.Page("plugins/check.md"); strings.Count(ck.HTML, `type="checkbox"`) < 3 {
 		t.Error("the check page should show its checklists")
 	}
+	// The reader's sub-pages: Markdown says it is the default, and the MyST page renders a MyST fence as its container.
+	md, _ := z.Page("features/markdown.md")
+	if !strings.HasPrefix(md.Title, "Markdown") || strings.Contains(strings.ToLower(md.HTML), "showcase") || !strings.Contains(md.HTML, "CommonMark") || !strings.Contains(md.HTML, "always on") {
+		t.Errorf("features/markdown.md: title %q, %s", md.Title, md.HTML)
+	}
+	my, _ := z.Page("features/myst.md")
+	if my.Title != "MyST" || !strings.Contains(my.HTML, `data-zen-plugin="check"`) || strings.Contains(my.HTML, "language-{") {
+		t.Errorf("features/myst.md: a MyST fence should render as its container: %s", my.HTML)
+	}
+	// No page of the demo says "markdown showcase".
+	for _, p := range files {
+		if src, _ := z.ws.Read(p); strings.Contains(strings.ToLower(string(src)), "markdown showcase") {
+			t.Errorf("%s says \"markdown showcase\"", p)
+		}
+	}
 }
 
 // TestDemoFeaturesMatchAssembly checks that features/ holds one page per
 // feature of the build (and no page for a feature it lacks), plus the index and
-// the markdown showcase that sits under the reader.
+// the Markdown and MyST pages that sit under the reader.
 func TestDemoFeaturesMatchAssembly(t *testing.T) {
 	_, file, _, _ := runtime.Caller(0)
 	raw, err := os.ReadFile(filepath.Join(filepath.Dir(file), "..", "..", "apps", "zenmark", "app-assembly.yml"))
@@ -412,7 +427,7 @@ func TestDemoFeaturesMatchAssembly(t *testing.T) {
 			have[id] = true
 		}
 	}
-	want := map[string]bool{"index.md": true, "markdown.md": true}
+	want := map[string]bool{"index.md": true, "markdown.md": true, "myst.md": true}
 	for id := range have {
 		p, ok := page[id]
 		if !ok {
@@ -606,7 +621,7 @@ func TestDemoMatchesAssembly(t *testing.T) {
 	b, _ := os.ReadFile(filepath.Join(demo(t), ".zenmd.yml"))
 	_ = yaml.Unmarshal(b, &cfg)
 	for k := range cfg {
-		if k != "version" && k != "logo" && k != "plugins" {
+		if k != "version" && k != "logo" && k != "plugins" && k != "markdown" {
 			t.Errorf(".zenmd.yml sets %q, which this build does not use", k)
 		}
 	}

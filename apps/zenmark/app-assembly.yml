@@ -13,5 +13,5 @@ addons: []
 plugins: [codeblock, diagram, check, quiz, sandbox, rating]
 layouts: all
 templates: []
-dialects: []
+dialects: all
 theme: default

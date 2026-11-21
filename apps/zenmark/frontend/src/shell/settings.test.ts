@@ -94,21 +94,21 @@ test("section list per build", () => {
     s.destroy();
     return n;
   };
-  expect(list()).toEqual(["Configuration", "Appearance", "Accessibility", "Markdown", "Templates", "Layouts", "Plugins", "Export", "Developer"]); // the full build; no This build
+  expect(list()).toEqual(["Configuration", "Appearance", "Accessibility", "Reader", "Templates", "Layouts", "Plugins", "Export", "Developer"]); // the full build; no This build
   // the starting shell
-  expect(list(["reader", "nav", "inspector", "developer"])).toEqual(["Configuration", "Appearance", "Accessibility", "Markdown", "Templates", "Layouts", "Plugins", "Developer"]);
+  expect(list(["reader", "nav", "inspector", "developer"])).toEqual(["Configuration", "Appearance", "Accessibility", "Reader", "Templates", "Layouts", "Plugins", "Developer"]);
   // the bare shell
   expect(list([])).toEqual(["Appearance", "Accessibility"]);
   // a feature brings its section
-  expect(list(["reader", "editor"])).toEqual(["Configuration", "Appearance", "Accessibility", "Markdown", "Templates", "Layouts", "Plugins"]);
+  expect(list(["reader", "editor"])).toEqual(["Configuration", "Appearance", "Accessibility", "Reader", "Templates", "Layouts", "Plugins"]);
   expect(list(["newsite"])).toEqual(["Appearance", "Accessibility", "Templates"]);
   expect(list(["export"])).toEqual(["Appearance", "Accessibility", "Export"]);
   expect(list(["developer"])).toEqual(["Appearance", "Accessibility", "Developer"]);
   expect(list(["editor"])).toEqual(["Configuration", "Appearance", "Accessibility"]);
-  expect(list(["reader"])).toEqual(["Configuration", "Appearance", "Accessibility", "Markdown", "Templates", "Layouts", "Plugins"]);
+  expect(list(["reader"])).toEqual(["Configuration", "Appearance", "Accessibility", "Reader", "Templates", "Layouts", "Plugins"]);
 });
 
-test("templates: below Markdown in every build with the reader; without New Site it lists none and asks nothing", async () => {
+test("templates: below Reader in every build with the reader; without New Site it lists none and asks nothing", async () => {
   const { api, s } = setup({ features: ["reader", "nav", "inspector", "developer"] });
   await go(s, "templates");
   expect(api.callsTo("siteTemplates")).toHaveLength(0);
@@ -119,7 +119,7 @@ test("templates: below Markdown in every build with the reader; without New Site
 test("every section is two columns, and the arrows of the section list move through the sections", async () => {
   const { s } = setup();
   await settle();
-  for (const id of ["appearance", "accessibility", "config", "markdown", "layouts", "plugins", "templates", "export", "developer"]) {
+  for (const id of ["appearance", "accessibility", "config", "reader", "layouts", "plugins", "templates", "export", "developer"]) {
     expect(panel(s, id).querySelector(".zen-settings-cols"), id).not.toBeNull();
   }
   expect(s.el.querySelector("h1")!.textContent).toBe("Settings");
@@ -289,87 +289,91 @@ test("configuration preview is text", async () => {
 
 // ---- 5: markdown
 
-test("markdown section: the syntaxes are the items, like Plugins and Layouts; the selected one's switch, summary and sample are on the right", async () => {
+test("reader section: the syntaxes are the items, like Plugins and Layouts; the selected one's switch, summary and sample are on the right", async () => {
   const { api, s } = setup({ dialects: [{ ...MYST_DIALECT }, { id: "x", name: "<b>X</b>", summary: "<i>s</i>", on: true }] });
-  await go(s, "markdown");
+  await go(s, "reader");
   // the left column: CommonMark and GFM first, always on, then the build's dialects with their state
-  expect(rows(s, "markdown").map((r) => [r.dataset.item, r.querySelector(".zen-settings-item-label")!.textContent, r.querySelector(".zen-settings-item-note")?.textContent])).toEqual([
-    ["commonmark", "CommonMark and GFM", "Always on"], ["myst", "MyST", "Off"], ["x", "<b>X</b>", "On"],
+  expect(rows(s, "reader").map((r) => [r.dataset.item, r.querySelector(".zen-settings-item-label")!.textContent, r.querySelector(".zen-settings-item-note")?.textContent])).toEqual([
+    ["commonmark", "CommonMark and GFM", "Default"], ["myst", "MyST", "Off"], ["x", "<b>X</b>", "On"],
   ]);
-  expect(row(s, "markdown", "commonmark").getAttribute("aria-selected")).toBe("true"); // selected by default
-  expect(detail(s, "markdown").querySelector("h3")!.textContent).toBe("CommonMark and GFM");
-  expect(detail(s, "markdown").textContent).toContain("tables");
-  expect(detail(s, "markdown").querySelector("input")).toBeNull(); // nothing to switch: always on
+  expect(row(s, "reader", "commonmark").getAttribute("aria-selected")).toBe("true"); // selected by default
+  // a small heading "Markdown" over the items, drawn by the frame; no section called Markdown
+  expect(leftCol(s, "reader").querySelector(".zen-settings-list-heading")!.textContent).toBe("Markdown");
+  expect(tab(s, "reader").textContent).toBe("Reader");
+  expect(s.el.querySelector('.zen-settings-section[data-section="markdown"]')).toBeNull();
+  expect(detail(s, "reader").querySelector("h3")!.textContent).toBe("CommonMark and GFM");
+  expect(detail(s, "reader").textContent).toContain("tables");
+  expect(detail(s, "reader").querySelector("input")).toBeNull(); // nothing to switch: always on
   // nothing that lists items is in the right column
-  expect(detail(s, "markdown").querySelector(".zen-dialect-list, .zen-dialect-entry")).toBeNull();
+  expect(detail(s, "reader").querySelector(".zen-dialect-list, .zen-dialect-entry")).toBeNull();
   // a dialect: its switch, summary, sample and preview
-  row(s, "markdown", "myst").click();
+  row(s, "reader", "myst").click();
   await settle();
-  expect(detail(s, "markdown").querySelector("h3")!.textContent).toBe("MyST");
-  const box = () => detail(s, "markdown").querySelector<HTMLInputElement>('input[type="checkbox"][data-dialect]')!;
+  expect(detail(s, "reader").querySelector("h3")!.textContent).toBe("MyST");
+  const box = () => detail(s, "reader").querySelector<HTMLInputElement>('input[type="checkbox"][data-dialect]')!;
   expect([box().checked, box().disabled]).toEqual([false, false]);
-  expect(detail(s, "markdown").textContent).toContain(MYST_DIALECT.summary);
-  const sample = detail(s, "markdown").querySelector("pre")!;
+  expect(detail(s, "reader").textContent).toContain(MYST_DIALECT.summary);
+  const sample = detail(s, "reader").querySelector("pre")!;
   expect(sample.textContent).toContain("{note}");
   expect(api.callsTo("preview").at(-1)![1]).toBe(sample.textContent);
-  expect(detail(s, "markdown").querySelector(".zen-page")).not.toBeNull();
+  expect(detail(s, "reader").querySelector(".zen-page")).not.toBeNull();
   // turning it on writes the folder; the list's note follows and the selection stays
   box().click();
   await settle();
   expect(api.callsTo("setDialect")).toEqual([["myst", true]]);
   expect(box().checked).toBe(true);
-  expect(row(s, "markdown", "myst").getAttribute("aria-selected")).toBe("true");
-  expect(row(s, "markdown", "myst").querySelector(".zen-settings-item-note")!.textContent).toBe("On");
+  expect(row(s, "reader", "myst").getAttribute("aria-selected")).toBe("true");
+  expect(row(s, "reader", "myst").querySelector(".zen-settings-item-note")!.textContent).toBe("On");
   // a refused change puts the box back and says why
   api.failNext("setDialect", new Error("could not save .zenmd.yml"));
   box().click();
   await settle();
   expect(box().checked).toBe(true);
-  expect(detail(s, "markdown").querySelector("[role=status]")!.textContent).toContain("could not save .zenmd.yml");
+  expect(detail(s, "reader").querySelector("[role=status]")!.textContent).toContain("could not save .zenmd.yml");
   // names and summaries are text; a dialect without a sample shows none
-  row(s, "markdown", "x").click();
+  row(s, "reader", "x").click();
   await settle();
-  expect(panel(s, "markdown").querySelector("b, i")).toBeNull();
-  expect(detail(s, "markdown").querySelector("pre")).toBeNull();
+  expect(panel(s, "reader").querySelector("b, i")).toBeNull();
+  expect(detail(s, "reader").querySelector("pre")).toBeNull();
 });
 
-test("markdown section: no folder or a read-only app disables the switch; no dialects leaves CommonMark and GFM; a failure is in the left column", async () => {
+test("reader section: no folder or a read-only app disables the switch; no dialects leaves CommonMark and GFM; a failure is in the left column", async () => {
   const none = setup({ hasWorkspace: false });
-  await go(none.s, "markdown");
-  row(none.s, "markdown", "myst").click();
+  await go(none.s, "reader");
+  row(none.s, "reader", "myst").click();
   await settle();
-  expect(detail(none.s, "markdown").querySelector<HTMLInputElement>("input[data-dialect]")!.disabled).toBe(true);
-  expect(detail(none.s, "markdown").textContent).toContain("Open a folder");
+  expect(detail(none.s, "reader").querySelector<HTMLInputElement>("input[data-dialect]")!.disabled).toBe(true);
+  expect(detail(none.s, "reader").textContent).toContain("Open a folder");
   const ro = setup({ features: ZENMARK_BUILD.features.filter((f) => f !== "editor") });
-  await go(ro.s, "markdown");
-  row(ro.s, "markdown", "myst").click();
+  await go(ro.s, "reader");
+  row(ro.s, "reader", "myst").click();
   await settle();
-  expect(detail(ro.s, "markdown").querySelector<HTMLInputElement>("input[data-dialect]")!.disabled).toBe(true);
-  expect(detail(ro.s, "markdown").textContent).toContain("read-only");
+  expect(detail(ro.s, "reader").querySelector<HTMLInputElement>("input[data-dialect]")!.disabled).toBe(true);
+  expect(detail(ro.s, "reader").textContent).toContain("read-only");
   const empty = setup({ dialects: [] });
-  await go(empty.s, "markdown");
-  expect(rows(empty.s, "markdown").map((r) => r.dataset.item)).toEqual(["commonmark"]);
-  expect(panel(empty.s, "markdown").textContent).not.toContain("No dialects");
+  await go(empty.s, "reader");
+  expect(rows(empty.s, "reader").map((r) => r.dataset.item)).toEqual(["commonmark"]);
+  expect(panel(empty.s, "reader").textContent).not.toContain("No dialects");
   const failing = setup();
   failing.api.failNext("dialects", new Error("<i>down</i>"));
-  await go(failing.s, "markdown");
-  expect(leftCol(failing.s, "markdown").textContent).toContain("Could not read the markdown syntaxes: <i>down</i>");
-  expect(leftCol(failing.s, "markdown").querySelector("i")).toBeNull();
+  await go(failing.s, "reader");
+  expect(leftCol(failing.s, "reader").textContent).toContain("Could not read the markdown syntaxes: <i>down</i>");
+  expect(leftCol(failing.s, "reader").querySelector("i")).toBeNull();
 });
 
-test("markdown section: switching folders refreshes the dialect states", async () => {
+test("reader section: switching folders refreshes the dialect states", async () => {
   const { api, s } = setup();
-  await go(s, "markdown");
+  await go(s, "reader");
   expect(api.callsTo("dialects").length).toBeGreaterThan(0);
   const before = api.callsTo("dialects").length;
   await api.setDialect("myst", true);
   s.show();
   await settle();
   expect(api.callsTo("dialects").length).toBeGreaterThan(before);
-  expect(row(s, "markdown", "myst").querySelector(".zen-settings-item-note")!.textContent).toBe("On");
-  row(s, "markdown", "myst").click();
+  expect(row(s, "reader", "myst").querySelector(".zen-settings-item-note")!.textContent).toBe("On");
+  row(s, "reader", "myst").click();
   await settle();
-  expect(detail(s, "markdown").querySelector<HTMLInputElement>('input[data-dialect="myst"]')!.checked).toBe(true);
+  expect(detail(s, "reader").querySelector<HTMLInputElement>('input[data-dialect="myst"]')!.checked).toBe(true);
 });
 
 // ---- 6: plugin, layout and template lists

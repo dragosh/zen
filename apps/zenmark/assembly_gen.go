@@ -5,6 +5,7 @@ package app
 import (
 	"io/fs"
 
+	"github.com/zenmark-org/zenmd/builtins/dialects/myst"
 	"github.com/zenmark-org/zenmd/builtins/layouts"
 	"github.com/zenmark-org/zenmd/builtins/plugins/check"
 	"github.com/zenmark-org/zenmd/builtins/plugins/codeblock"
@@ -47,7 +48,7 @@ func assemblyTemplates() fs.FS {
 
 // assemblyDialects is the registry of the markdown dialects this app includes.
 func assemblyDialects() *dialects.Registry {
-	r, err := dialects.NewRegistry()
+	r, err := dialects.NewRegistry(myst.New())
 	if err != nil {
 		panic(err)
 	}
@@ -62,6 +63,6 @@ var assemblyInfo = session.BuildInfo{
 	Plugins:   []string{"codeblock", "diagram", "check", "quiz", "sandbox", "rating"},
 	Layouts:   []string{"article", "docs", "post", "landing", "wide", "handout", "slides", "course"},
 	Templates: []string{},
-	Dialects:  []string{},
+	Dialects:  []string{"myst"},
 	Theme:     "default",
 }

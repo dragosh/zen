@@ -2,7 +2,7 @@ package app
 
 import "github.com/zenmark-org/zenmd/engine/session"
 
-// DialectInfo is one markdown dialect of this build for Settings › Markdown:
+// DialectInfo is one markdown dialect of this build for Settings › Reader:
 // its id, name, one-line summary and whether the open folder uses it.
 type DialectInfo = session.DialectInfo
 

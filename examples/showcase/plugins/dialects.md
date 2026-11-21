@@ -18,7 +18,7 @@ markdown:
 ```
 
 Without that, a ```` ```{note} ```` fence stays a code block, as it always was.
-In the app you can do the same in Settings › Markdown, and zen offers it when it
+In the app you can do the same in Settings › Reader, and zen offers it when it
 finds a `myst.yml`, a Jupyter Book `_config.yml` or a Sphinx `conf.py` in the
 folder. This folder has it on.
 
