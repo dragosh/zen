@@ -245,3 +245,180 @@ test("group summaries get a chevron and no native marker", () => {
   expect(css).toMatch(/\.zen-site-nav details\[open\] > summary::before\s*\{[^}]*rotate\(45deg\)/);
   expect(css).toMatch(/prefers-reduced-motion[^{]*\{[^}]*summary::before/);
 });
+
+// ---- the top bar (ui/site-topbar) ----
+const BAR = `<div class="zen-site-frame" data-test>
+<aside class="zen-site-side" id="zen-site-side"><details class="zen-site-menu"><summary>Contents</summary><nav><ul><li><a href="a.html">A</a></li></ul></nav></details></aside>
+<div class="zen-site-body"><header class="zen-top zen-site-top"><div class="zen-top-controls">
+<button type="button" class="ghost zen-site-sidebar-toggle" aria-label="Hide sidebar" title="Hide sidebar (⌘\\)" aria-expanded="true" aria-controls="zen-site-side" hidden></button>
+<button type="button" class="ghost zen-site-back" aria-label="Back" title="Back (⌘[)" disabled hidden>‹</button>
+<button type="button" class="ghost zen-site-forward" aria-label="Forward" title="Forward (⌘])" disabled hidden>›</button>
+</div><nav class="zen-site-crumbs"><ol><li>Home</li></ol></nav></header>
+<main><article class="zen-page">x</article></main></div></div>
+<script type="application/json" id="zen-page">{"path":"a.md","siteId":"notes","root":"","assets":{"css":[],"js":[]},"portable":false}</script>`;
+const q = <T extends HTMLElement>(s: string) => document.querySelector<T>(s)!;
+function bar(): void {
+  document.body.innerHTML = BAR;
+  start(document);
+}
+const key = (k: string, mods: KeyboardEventInit = { metaKey: true }) => document.dispatchEvent(new KeyboardEvent("keydown", { key: k, bubbles: true, cancelable: true, ...mods }));
+
+beforeEach(() => {
+  try { localStorage.clear(); sessionStorage.clear(); history.replaceState(null, ""); } catch { /* none */ }
+});
+
+test("top bar: the script shows the buttons and puts the sidebar icon in the toggle", () => {
+  document.body.innerHTML = BAR;
+  expect(q(".zen-site-sidebar-toggle").hidden).toBe(true); // without the script
+  start(document);
+  for (const s of [".zen-site-sidebar-toggle", ".zen-site-back", ".zen-site-forward"]) expect(q(s).hidden, s).toBe(false);
+  const svg = q(".zen-site-sidebar-toggle").querySelector("svg")!;
+  expect(svg.getAttribute("viewBox")).toBe("0 0 24 24");
+  expect(svg.getAttribute("width")).toBe("16");
+  expect(svg.querySelector("[stroke-width='1.5']")).not.toBeNull();
+  expect(q(".zen-site-back").textContent).toBe("‹");
+});
+
+test("top bar: the toggle hides and shows the sidebar, follows aria, and is remembered per site", () => {
+  bar();
+  const t = q(".zen-site-sidebar-toggle");
+  expect(t.getAttribute("aria-expanded")).toBe("true");
+  t.click();
+  expect(t.getAttribute("aria-expanded")).toBe("false");
+  expect(t.getAttribute("aria-label")).toBe("Hide sidebar".replace("Hide", "Show"));
+  expect(q(".zen-site-frame").dataset.sidebar).toBe("closed");
+  expect(q(".zen-site-side").hidden).toBe(true);
+  expect(localStorage.getItem("zen.site.notes.sidebar")).toBe("closed");
+  bar(); // the next page of the site starts the way it was left
+  expect(q(".zen-site-sidebar-toggle").getAttribute("aria-expanded")).toBe("false");
+  expect(q(".zen-site-side").hidden).toBe(true);
+  q(".zen-site-sidebar-toggle").click();
+  expect(q(".zen-site-sidebar-toggle").getAttribute("aria-label")).toBe("Hide sidebar");
+  expect(q(".zen-site-side").hidden).toBe(false);
+  expect(localStorage.getItem("zen.site.notes.sidebar")).toBe("open");
+});
+
+test("top bar: another site's choice is not read", () => {
+  localStorage.setItem("zen.site.other.sidebar", "closed");
+  bar();
+  expect(q(".zen-site-side").hidden).toBe(false);
+});
+
+test("top bar: ⌘\\ toggles the sidebar, as in the app", () => {
+  bar();
+  key("\\");
+  expect(q(".zen-site-sidebar-toggle").getAttribute("aria-expanded")).toBe("false");
+  key("\\");
+  expect(q(".zen-site-sidebar-toggle").getAttribute("aria-expanded")).toBe("true");
+  key("\\", {}); // no modifier: a plain backslash is not a shortcut
+  expect(q(".zen-site-sidebar-toggle").getAttribute("aria-expanded")).toBe("true");
+});
+
+test("top bar: with the script on, the sidebar details stay open and the Contents summary is not needed", () => {
+  bar();
+  expect((q(".zen-site-menu") as HTMLDetailsElement).open).toBe(true);
+  expect(q(".zen-site-frame").hasAttribute("data-js")).toBe(true);
+});
+
+test("top bar: Back and Forward use history and are disabled when there is nowhere to go", () => {
+  const back = vi.spyOn(history, "back").mockImplementation(() => {});
+  const fwd = vi.spyOn(history, "forward").mockImplementation(() => {});
+  bar(); // the first page of the visit
+  expect((q(".zen-site-back") as HTMLButtonElement).disabled).toBe(true);
+  expect((q(".zen-site-forward") as HTMLButtonElement).disabled).toBe(true);
+  q(".zen-site-back").click();
+  key("[");
+  expect(back).not.toHaveBeenCalled();
+  history.replaceState(null, ""); // a link to the next page: a new entry, with no state yet
+  bar();
+  expect((q(".zen-site-back") as HTMLButtonElement).disabled).toBe(false);
+  expect((q(".zen-site-forward") as HTMLButtonElement).disabled).toBe(true);
+  q(".zen-site-back").click();
+  expect(back).toHaveBeenCalledTimes(1);
+  key("[");
+  expect(back).toHaveBeenCalledTimes(2);
+  key("]");
+  expect(fwd).not.toHaveBeenCalled();
+  // Back was done: the first entry shows again (its state comes back with it), so Forward is open.
+  history.replaceState({ zenIdx: 0 }, "");
+  window.dispatchEvent(new PopStateEvent("popstate", { state: { zenIdx: 0 } }));
+  expect((q(".zen-site-back") as HTMLButtonElement).disabled).toBe(true);
+  expect((q(".zen-site-forward") as HTMLButtonElement).disabled).toBe(false);
+  q(".zen-site-forward").click();
+  key("]");
+  expect(fwd).toHaveBeenCalledTimes(2);
+});
+
+test("top bar: tooltips name the shortcuts", () => {
+  bar();
+  expect(q(".zen-site-back").title).toBe("Back (⌘[)");
+  expect(q(".zen-site-forward").title).toBe("Forward (⌘])");
+  expect(q(".zen-site-sidebar-toggle").title).toBe("Hide sidebar (⌘\\)");
+  q(".zen-site-sidebar-toggle").click();
+  expect(q(".zen-site-sidebar-toggle").title).toBe("Show sidebar (⌘\\)");
+});
+
+test("top bar: a page without a sidebar has no toggle to wire and ⌘\\ does nothing", () => {
+  document.body.innerHTML = BAR.replace(/<aside[\s\S]*?<\/aside>/, "").replace(/<button[^>]*zen-site-sidebar-toggle[\s\S]*?<\/button>/, "");
+  start(document);
+  expect(() => key("\\")).not.toThrow();
+  expect(q(".zen-site-back").hidden).toBe(false);
+});
+
+test("top bar: works when localStorage is blocked", () => {
+  vi.spyOn(window, "localStorage", "get").mockImplementation(() => { throw new Error("denied"); });
+  bar();
+  q(".zen-site-sidebar-toggle").click();
+  expect(q(".zen-site-sidebar-toggle").getAttribute("aria-expanded")).toBe("false");
+});
+
+// ---- the top bar's CSS (no DOM) ----
+const css = () => readFileSync(resolve(import.meta.dirname, "static.css"), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
+const rule = (raw: string, sel: string): string => {
+  const src = raw.replace(/\/\*[\s\S]*?\*\//g, "");
+  for (const m of Array.from(src.matchAll(/([^{}]+)\{([^{}]*)\}/g))) if (m[1].split(",").map((s) => s.trim()).includes(sel)) return m[2];
+  return "";
+};
+
+test("top bar css: fixed in place, the app's height, tokens only", () => {
+  const top = rule(css(), ".zen-site-top");
+  expect(top).toMatch(/position:\s*(sticky|fixed)/);
+  expect(top).toMatch(/top:\s*0/);
+  const shared = readFileSync(resolve(import.meta.dirname, "../css/top-bar.css"), "utf8");
+  expect(rule(shared, ".zen-top")).toMatch(/height:\s*44px/);
+  expect(rule(shared, ".zen-top")).toMatch(/border-bottom:\s*1px solid var\(--rule\)/);
+  expect(top).toMatch(/background:\s*var\(--bg\)/);
+  expect(top + shared).not.toMatch(/#[0-9a-fA-F]{3,6}\b|rgb\(/);
+});
+
+test("top bar css: the app's top bar and icon styles come from one shared stylesheet", () => {
+  const dir = resolve(import.meta.dirname, "..");
+  expect(readFileSync(resolve(dir, "static/static.css"), "utf8")).toContain('@import "../css/top-bar.css"');
+  const kit = readFileSync(resolve(dir, "../../kit/ui/src/styles/shell.css"), "utf8");
+  expect(kit).toContain('@import "@zenmd/runtime/css/top-bar.css"');
+  expect(kit).not.toMatch(/^\.zen-top\s*\{/m);
+  expect(kit).not.toMatch(/^\.zen-icon\s*\{/m);
+  const shared = readFileSync(resolve(dir, "css/top-bar.css"), "utf8");
+  expect(rule(shared, ".zen-icon")).toMatch(/display:\s*block/);
+  expect(rule(shared, ".zen-top-controls button")).toMatch(/min-width:\s*28px/);
+});
+
+test("top bar css: narrow windows put the sidebar over the page, the bar stays", () => {
+  const narrow = css().slice(css().indexOf("@media (max-width: 719px)"));
+  expect(narrow).toMatch(/\.zen-site-frame\[data-js\][^{]*\.zen-site-side\s*\{[^}]*position:\s*fixed/);
+  expect(narrow).toMatch(/data-sidebar="open"/);
+  expect(narrow).not.toMatch(/\.zen-site-top\s*\{[^}]*position:\s*static/);
+});
+
+test("top bar css: without scripts the buttons stay hidden and Contents stays", () => {
+  const c = css();
+  // the Contents summary is only dropped when the script has run (data-js)
+  expect(c).toMatch(/\.zen-site-frame\[data-js\][^{]*\.zen-site-menu > summary\s*\{[^}]*display:\s*none/);
+  expect(c).not.toMatch(/\.zen-site-sidebar-toggle\s*\{[^}]*display/); // [hidden] in the HTML does it
+});
+
+test("top bar css: left out when printing", () => {
+  const print = readFileSync(resolve(import.meta.dirname, "../css/print.css"), "utf8");
+  expect(print).toMatch(/\.zen-site-top[^{]*\{[^}]*display:\s*none/);
+  expect(css()).toMatch(/@media print[^]*\.zen-site-top/);
+});

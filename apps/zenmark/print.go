@@ -50,7 +50,7 @@ func (z *Zen) PrintWindow(ctx context.Context, title string) (err error) {
 }
 
 // PrintSite opens the Print Preview window for the whole folder, or focuses
-// the one that is open.
+// the one that is open. It starts from the folder's PDF defaults (the window asks).
 func (z *Zen) PrintSite() (err error) {
 	defer z.logCall("PrintSite", &err)
 	if err := requireFeature("print"); err != nil {
@@ -61,19 +61,58 @@ func (z *Zen) PrintSite() (err error) {
 		return errNoWorkspace
 	}
 	desktop.LogApp(slog.LevelInfo, "print", "what", "site", "pages", len(z.s.Workspace().Tree))
+	return printWins.Open(z, z.previewSpec(ws.Name, nil, ""))
+}
+
+// previewSpec is the preview window of the folder; opts is nil for the folder's
+// defaults, else the options go in the URL. extra is the window name's suffix.
+func (z *Zen) previewSpec(folder string, opts url.Values, suffix string) desktop.WindowSpec {
 	current := z.s.Current()
 	u := "/?window=" + printWindowName
+	if opts != nil {
+		u += "&" + opts.Encode()
+	}
 	if current != "" {
 		u += "&page=" + url.QueryEscape(current)
 	}
-	name := ws.Name
+	name := folder
 	if name == "" {
 		name = Name
 	}
-	return printWins.Open(z, desktop.WindowSpec{
-		Name: printWindowName, Title: name + " — Print", URL: u,
+	return desktop.WindowSpec{
+		Name: printWindowName + suffix, Title: name + " — Print", URL: u,
 		Width: printWindowWidth, Height: printWindowHeight, X: 60, Y: 60,
-	})
+	}
+}
+
+// previewQuery is how the options of a run reach the preview window: drafts,
+// cover and pages (a section only when a page is open).
+func (z *Zen) previewQuery(o PDFRun) url.Values {
+	b := func(v bool) string {
+		if v {
+			return "1"
+		}
+		return "0"
+	}
+	pages := "all"
+	if o.Section && z.s.Current() != "" {
+		pages = "section"
+	}
+	return url.Values{"drafts": {b(o.Drafts)}, "cover": {b(o.Cover)}, "pages": {pages}}
+}
+
+// PreviewPDF opens the Print Preview window with the form's options set
+// (Settings › Export › PDF › Preview…), or focuses the one that is open.
+func (z *Zen) PreviewPDF(o PDFRun) (err error) {
+	defer z.logCall("PreviewPDF", &err)
+	if err := requireExportPDF(); err != nil {
+		return err
+	}
+	ws := z.s.Workspace()
+	if ws == nil {
+		return errNoWorkspace
+	}
+	return printWins.Open(z, z.previewSpec(ws.Name, z.previewQuery(o), ""))
 }
 
 // printWins tracks the open preview window of each running service.

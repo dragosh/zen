@@ -3,6 +3,7 @@
 import { INSPECTOR_CLOSE, INSPECTOR_STATE, INSPECTOR_TOGGLE, inspectorLabel, type InspectorState } from "../inspector/events";
 import "../nav/panel.css";
 import { button, el, iconButton, logo } from "./dom";
+import { icon } from "./icons";
 import type { Slots } from "./types";
 
 export const SIDEBAR_DEFAULT = 260;
@@ -211,7 +212,9 @@ export function createLayout(handlers: LayoutHandlers = {}): Layout {
   const content = el("div", "zen-content");
   const header = el("header", "zen-top");
   const controls = el("div", "zen-top-controls");
-  const toggle = button("Toggle sidebar", () => layout.toggleSidebar(), { className: "ghost", text: "◧", title: "Toggle sidebar ⌘\\" });
+  // The sidebar icon, the same as an exported site's toggle (ui/site-topbar).
+  const toggle = button("Toggle sidebar", () => layout.toggleSidebar(), { className: "ghost", text: "", title: "Toggle sidebar ⌘\\" });
+  toggle.append(icon(doc, "sidebar"));
   toggle.dataset.action = "toggle-sidebar";
   toggle.setAttribute("aria-controls", nav.id);
   const back = button("Back", () => handlers.onBack?.(), { className: "ghost", text: "‹", title: "Back ⌘[" });

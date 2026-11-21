@@ -11,7 +11,7 @@ layouts:
   "blog/**": post
 
 # zenmd export site: export this folder as a static website (see build/index.md).
-build:
+export:
   out: _site
   editURL: https://github.com/zenmark-org/zenmd/edit/main/examples/demo/{path}
 

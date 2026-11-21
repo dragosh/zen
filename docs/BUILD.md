@@ -7,18 +7,29 @@ written as plain HTML with its assets next to it. Spec:
 [examples/showcase/build/index.md](../examples/showcase/build/index.md).
 
 ```sh
-zenmd export site [folder] [-o dir] [--hosted] [--drafts] [--clean]
+zenmd export site [folder] [-o dir] [--hosted] [--drafts|--no-drafts] [--clean] [--print|--no-print] [--scheme auto|light|dark] [--save-defaults [--dry-run]]
 ```
 
 | Option | Meaning |
 |---|---|
-| `-o`, `--out` | output folder (default `build.out`, else `<folder>/_site`) |
+| `-o`, `--out` | output folder (default `export.out`, else `<folder>/exports/html`) |
 | *(default)* | portable: opens from disk (`file://`) and from any web server. Scripts are embedded in each page and loaded as Blob modules |
 | `--hosted` | for a web server only: scripts stay separate files loaded with `import()`, which browsers refuse from `file://` (each block then says so) |
 | `--portable` | the default, named explicitly (cannot be combined with `--hosted`) |
-| `--drafts` | include pages with `draft: true` |
-| `--no-print` | leave out `print.html`, the whole site as one printable page |
+| `--drafts`, `--no-drafts` | include pages with `draft: true`, or leave them out even when `export.drafts` is true |
+| `--print`, `--no-print` | write `print.html`, the whole site as one printable page (the default), or leave it out |
 | `--clean` | empty the output first (only an empty folder or an earlier build, marked `.zen-build`) |
+| `--scheme auto\|light\|dark` | the website's colours (`export.theme.scheme`): `auto` follows the reader's system (the default), `light` is black on white, `dark` is white on black. A forced scheme sets `data-theme` on every page's `<html>`; the PDF is always light |
+| `--save-defaults` | write the options given into the folder's `.zenmd.yml` under `export:`, then export |
+| `--dry-run` | with `--save-defaults`: print the change, write nothing and export nothing |
+
+**Every choice in Settings is a flag.** The options of both exports are listed
+once, in `apps/zenmark/export-options.json` (flag, negative flag, config key,
+form field, default, help line), and the CLI, its help and the Settings forms
+are tested against that file. The app's forms are a view of the command line:
+the same names, defaults and folder settings. A flag wins over the folder's
+`export:`, which wins over `config.yml`, then the built-in default. `zenmd
+export` also prints the config's notices about names that were renamed.
 
 Exit codes: 0 built (warnings on stderr), 1 error, 2 usage.
 
@@ -32,7 +43,7 @@ the options to `.zenmd.yml` after showing the change.
 ## Output
 
 ```
-_site/
+exports/html/
   index.html              home page (or a redirect to it)
   print.html              the whole site as one document: cover, contents, every page
   README.html, a/b.html   one file per page, same paths
@@ -70,14 +81,18 @@ Only files inside the folder are copied.
 
 ```yaml
 # .zenmd.yml or the global config.yml; flags win
-build:
-  out: _site
+export:
+  out: exports/html
   id: my-notes          # storage namespace for readers; default: folder name
   editURL: https://github.com/me/notes/edit/main/{path}   # the docs layout's "Edit this page"
   drafts: false
   portable: true        # false = --hosted
   exclude: ["private/**"]
+  theme:
+    scheme: auto        # auto, light or dark (--scheme)
 ```
+
+The key was `build:` before; it is still read, with a note under Problems, and Save as folder defaults renames it.
 
 ## What an app is built from
 
@@ -130,10 +145,31 @@ The static runtime is `frontend/src/static/` and its own Vite config
 
 ## PDF
 
-`zenmd export pdf [folder] [-o file.pdf]` writes the whole folder as one PDF:
+`zenmd export pdf [folder] [-o file.pdf] [--drafts|--no-drafts] [--section page|--all] [--cover|--no-cover] [--open|--no-open] [--save-defaults [--dry-run]]` writes the whole folder as one PDF (by default `exports/pdf/<folder name>.pdf`, made when needed; `exports/` is never read as pages):
 the print document (cover, contents, every page in sidebar order) laid out by
 macOS printing, portrait, with the system's default paper size. It runs without
 showing a window, needs macOS and a logged-in session, and prints
-`Wrote <file> (<n> pages)`. In the app, File › Export › PDF… (⇧⌘P) opens the
-preview, where **Export PDF…** saves the file. Spec: `specs/app/export/spec.md`.
+`Wrote <file> (<n> pages)`. `--drafts` adds pages with `draft: true`, `--section`
+keeps one page and the pages under it (`--all`, the default, is the whole
+folder), `--no-cover` leaves out the cover and the contents, and `--open` opens
+the file once it is written (off on the command line, on in the app).
+`--save-defaults` writes the flags given into `export.pdf` of the folder's
+`.zenmd.yml`, the way Save as folder defaults does, and shows the change first
+(`--dry-run` shows it and does nothing else).
 
+The folder's defaults are `export.pdf` in `.zenmd.yml` (or `config.yml`); the flags win, and `-o` wins over `out`:
+
+```yaml
+export:
+  pdf:
+    out: exports/pdf/guide.pdf   # relative is inside the folder, absolute is your own choice
+    drafts: false
+    cover: true
+    open: true                   # open the file when done (--open); without it, the app opens it and the command does not
+```
+
+In the app, Settings › Export › PDF is a form like the website's (output file,
+pages, drafts, cover and contents, open when done, **Export PDF** with no print
+panel, **Preview…**, **Save as folder defaults**). File › Export › PDF… (⇧⌘P)
+opens the print preview, which starts from the same defaults; its **Export PDF…**
+asks where to save. Specs: `specs/app/export/spec.md`, `specs/ui/export-pdf-settings/spec.md`.

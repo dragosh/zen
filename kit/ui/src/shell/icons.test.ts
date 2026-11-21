@@ -2,7 +2,7 @@
 import { expect, test } from "vitest";
 import { icon, type IconName } from "./icons";
 
-const NAMES: IconName[] = ["cog", "export", "search", "pencil", "panel", "printer"];
+const NAMES: IconName[] = ["cog", "export", "search", "pencil", "panel", "printer", "sidebar"];
 
 // One icon set (ui/top-bar-actions): the same drawing for every icon of the app.
 test.each(NAMES)("%s: 24 viewBox, 16px, stroke only, aria-hidden", (name) => {
@@ -30,4 +30,10 @@ test("every icon is its own drawing", () => {
 
 test("a new svg each call", () => {
   expect(icon(document, "cog")).not.toBe(icon(document, "cog"));
+});
+
+// One source of truth: the drawings live in the runtime (the exported site draws the same sidebar icon), the kit re-exports them.
+test("the kit's icon is the runtime's", async () => {
+  const rt = await import("@zenmd/runtime/icons");
+  expect(rt.icon).toBe(icon);
 });

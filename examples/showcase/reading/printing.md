@@ -51,7 +51,7 @@ without the print panel; **Print…** is there when you want paper or the
 printer's options. From the command line, `zenmd export pdf` does the same:
 
 ```sh
-zenmd export pdf                  # writes <folder name>.pdf in the folder
+zenmd export pdf                  # writes exports/pdf/<folder name>.pdf
 zenmd export pdf -o ~/Desktop/guide.pdf
 ```
 

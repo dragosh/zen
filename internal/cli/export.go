@@ -8,39 +8,38 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
-	"unicode"
+
+	"github.com/zenmark-org/zenmd/engine/config"
 )
 
 // ExportPDF describes `zenmd export pdf`: the whole folder as one PDF file.
 type ExportPDF struct {
 	Dir string // absolute folder
-	Out string // absolute output file, "" = <Dir>/<name>.pdf
+	Out string // absolute output file; the default is DefaultPDFOut(Dir)
+
+	Drafts  bool   // include pages with draft: true (export.pdf.drafts, --drafts)
+	Section string // only this page and the pages under it ("" for all)
+	NoCover bool   // leave out the cover and the contents (export.pdf.cover: false, --no-cover)
+	// Open: the exporter opens the PDF with the system once it is written (export.pdf.open, --open). It is off on
+	// the command line unless the config says so; the app's form starts on.
+	Open bool
+	// MakeDir: the output folder is made when missing (the default, or export.pdf.out); with -o it is the user's to make.
+	MakeDir bool
 }
 
-// PDFExporter writes the PDF. It prints "Wrote <path> (<n> pages)" to stdout and
+// PDFExporter writes the PDF and, when e.Open, opens it. It prints "Wrote <path> (<n> pages)" to stdout and
 // one line per block that was not ready to stderr, and returns an error when
 // no file was written. Return UsageError for a wrong request (exit 2).
 type PDFExporter func(ExportPDF, io.Writer, io.Writer) error
 
-// PDFName is the default file name of the PDF of a folder called name: the name with
-// path separators and control characters replaced, never empty, never a hidden file, plus ".pdf".
-func PDFName(name string) string {
-	name = strings.Trim(name, `/\`)
-	name = strings.Map(func(r rune) rune {
-		if r == '/' || r == '\\' || unicode.IsControl(r) {
-			return '-'
-		}
-		return r
-	}, name)
-	name = strings.Trim(strings.TrimSpace(name), ". ")
-	if name == "" {
-		name = "export"
-	}
-	return name + ".pdf"
-}
+// PDFName is the default file name of the PDF of a folder called name (config.PDFName).
+func PDFName(name string) string { return config.PDFName(name) }
 
-// DefaultPDFOut is where the PDF of dir goes without -o: inside it, named after it.
-func DefaultPDFOut(dir string) string { return filepath.Join(dir, PDFName(filepath.Base(dir))) }
+// DefaultPDFOut is where the PDF of dir goes without -o: exports/pdf inside
+// it, named after it. The folder is created by whoever writes the file.
+func DefaultPDFOut(dir string) string {
+	return filepath.Join(dir, filepath.FromSlash(config.DefaultPDFDir), PDFName(filepath.Base(dir)))
+}
 
 // needBuilt checks that the build has the features (kit/shell-features): an
 // app made without export has no `zenmd export site`, and one without export or
@@ -85,43 +84,27 @@ func runExport(args []string, cwd string, stdout, stderr io.Writer, build Builde
 
 // runExportPDF parses the arguments after `zenmd export pdf` and calls the exporter.
 func runExportPDF(args []string, cwd string, stdout, stderr io.Writer, pdf PDFExporter) int {
-	var paths []string
-	out, hasOut, flags := "", false, true
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		switch {
-		case flags && arg == "--":
-			flags = false
-		case flags && (arg == "-h" || arg == "--help"):
-			fmt.Fprint(stdout, usage)
-			return 0
-		case flags && (arg == "-o" || arg == "--out"):
-			if i+1 >= len(args) {
-				return fail(stderr, usageError(arg+" needs a file name"))
-			}
-			i++
-			out, hasOut = args[i], true
-		case flags && (strings.HasPrefix(arg, "-o=") || strings.HasPrefix(arg, "--out=")):
-			_, out, _ = strings.Cut(arg, "=")
-			hasOut = true
-		case flags && strings.HasPrefix(arg, "-") && arg != "-":
-			return fail(stderr, usageError("unknown option "+arg))
-		default:
-			paths = append(paths, arg)
-		}
+	f, err := parseOptions(args, pdfOptions)
+	if err != nil {
+		return fail(stderr, err)
 	}
-	if hasOut && out == "" {
-		return fail(stderr, usageError("-o needs a file name"))
+	if f.help {
+		fmt.Fprint(stdout, usage)
+		return 0
 	}
-	if len(paths) > 1 {
+	if f.on[flagDryRun] && !f.on[flagSaveDefaults] {
+		return fail(stderr, usageError(flagDryRun+" goes with "+flagSaveDefaults))
+	}
+	hasOut, out := f.on["--out"], f.val["--out"]
+	if len(f.paths) > 1 {
 		return fail(stderr, usageError("more than one path given"))
 	}
 
 	e := ExportPDF{Dir: cwd}
 	shown := "the current folder"
-	if len(paths) == 1 {
-		shown = paths[0]
-		e.Dir = paths[0]
+	if len(f.paths) == 1 {
+		shown = f.paths[0]
+		e.Dir = f.paths[0]
 		if !filepath.IsAbs(e.Dir) {
 			e.Dir = filepath.Join(cwd, e.Dir)
 		}
@@ -134,7 +117,34 @@ func runExportPDF(args []string, cwd string, stdout, stderr io.Writer, pdf PDFEx
 		return fail(stderr, errors.New(shown+": export takes a folder, not a file"))
 	}
 
+	// A flag wins over the folder's export.pdf, which wins over config.yml, then the built-in default.
+	loaded := loadConfig(e.Dir)
+	pc, err := loaded.PDF()
+	if err != nil {
+		return fail(stderr, err)
+	}
+	pick := func(flag string, config bool) bool {
+		switch {
+		case f.on[flag]:
+			return true
+		case f.off[flag]:
+			return false
+		}
+		return config
+	}
+	e.Drafts = pick("--drafts", pc.Drafts)
+	e.NoCover = !pick("--cover", pc.CoverOn())
+	e.Open = pick("--open", pc.Open != nil && *pc.Open)
+	e.Section = f.val["--section"]
+	e.MakeDir = !hasOut
 	e.Out = DefaultPDFOut(e.Dir)
+	if !hasOut && pc.Out != "" {
+		o, err := config.ResolvePDFOut(e.Dir, pc.Out)
+		if err != nil {
+			return fail(stderr, errors.New("export.pdf.out: "+err.Error()))
+		}
+		e.Out = o
+	}
 	if hasOut {
 		e.Out = out
 		if !filepath.IsAbs(e.Out) {
@@ -148,13 +158,37 @@ func runExportPDF(args []string, cwd string, stdout, stderr io.Writer, pdf PDFEx
 			e.Out += ".pdf"
 		}
 	}
-	if fi, err := os.Stat(filepath.Dir(e.Out)); err != nil || !fi.IsDir() {
+	// The default exports/pdf is made by the exporter; a chosen folder must exist.
+	if fi, err := os.Stat(filepath.Dir(e.Out)); hasOut && (err != nil || !fi.IsDir()) {
 		return fail(stderr, errors.New("the folder "+filepath.Dir(e.Out)+" does not exist"))
 	}
 	if pdf == nil {
 		return fail(stderr, errors.New("this zenmd cannot export PDFs"))
 	}
-	noticeLegacyConfig(stderr, e.Dir)
+	printNotices(stderr, loaded)
+	if f.on[flagSaveDefaults] {
+		keys := []config.ExportKey{}
+		if hasOut {
+			v, err := config.PDFOutValue(e.Dir, e.Out)
+			if err != nil {
+				return fail(stderr, err)
+			}
+			if filepath.IsAbs(v) { // the config refuses it when it reads it back
+				return fail(stderr, errors.New("export.pdf.out must be a path inside the folder, such as exports/pdf/guide.pdf; "+e.Out+" is outside it"))
+			}
+			keys = append(keys, config.StrKey("pdf.out", v))
+		}
+		for _, k := range []struct{ flag, key string }{{"--drafts", "pdf.drafts"}, {"--cover", "pdf.cover"}, {"--open", "pdf.open"}} {
+			if f.given(k.flag) {
+				keys = append(keys, config.BoolKey(k.key, f.on[k.flag]))
+			}
+		}
+		if done, err := saveDefaults(stdout, e.Dir, keys, f.on[flagDryRun]); err != nil {
+			return fail(stderr, err)
+		} else if done {
+			return 0
+		}
+	}
 	if err := pdf(e, stdout, stderr); err != nil {
 		return fail(stderr, err)
 	}

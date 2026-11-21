@@ -22,6 +22,15 @@ func csp(portable bool) string {
 	return "default-src " + self + "; " + script + "; style-src " + self + " 'unsafe-inline'; img-src " + self + " https:; font-src " + self + "; object-src 'none'; base-uri 'none'"
 }
 
+// themeAttr is the data-theme of the pages for a scheme: light or dark, and "" for auto (the reader's system), which
+// leaves the pages as they were without the option. tokens.css honours data-theme and drops its colour-scheme switch.
+func themeAttr(scheme string) string {
+	if scheme == "light" || scheme == "dark" {
+		return scheme
+	}
+	return ""
+}
+
 type navItem struct {
 	Title    string
 	Href     string
@@ -34,6 +43,7 @@ type crumbItem struct{ Title, Href string }
 
 type shellData struct {
 	Lang, Title, CSP     string
+	Theme                string // data-theme of <html>: light or dark, "" for the reader's system
 	CSS                  []string
 	Items                []navItem
 	Crumbs               []crumbItem
@@ -48,7 +58,7 @@ var langRE = regexp.MustCompile(`^[A-Za-z]{2,3}(-[A-Za-z0-9]{2,8})*$`)
 
 var shellTmpl = template.Must(template.New("shell").Parse(`{{define "node"}}{{if .Children}}<li><details class="zen-site-group"{{if .Open}} open{{end}}><summary>{{if .Href}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Title}}</a>{{else}}{{.Title}}{{end}}</summary><ul>{{range .Children}}{{template "node" .}}{{end}}</ul></details></li>{{else}}<li>{{if .Href}}<a href="{{.Href}}"{{if .Current}} aria-current="page"{{end}}>{{.Title}}</a>{{else}}<span>{{.Title}}</span>{{end}}</li>{{end}}{{end}}` +
 	`<!doctype html>
-<html lang="{{.Lang}}">
+<html lang="{{.Lang}}"{{if .Theme}} data-theme="{{.Theme}}"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -59,10 +69,10 @@ var shellTmpl = template.Must(template.New("shell").Parse(`{{define "node"}}{{if
 <body class="zen-site">
 <a class="zen-skip" href="#main">Skip to content</a>
 <div class="zen-site-frame">
-{{if .Items}}<aside class="zen-site-side"><details class="zen-site-menu"><summary>Contents</summary><nav aria-label="Pages" class="zen-site-nav"><ul>{{range .Items}}{{template "node" .}}{{end}}</ul></nav></details></aside>
+{{if .Items}}<aside class="zen-site-side" id="zen-site-side"><details class="zen-site-menu"><summary>Contents</summary><nav aria-label="Pages" class="zen-site-nav"><ul>{{range .Items}}{{template "node" .}}{{end}}</ul></nav></details></aside>
 {{end}}<div class="zen-site-body">
-{{if .Crumbs}}<nav aria-label="Breadcrumb" class="zen-site-crumbs"><ol>{{range .Crumbs}}<li>{{if .Href}}<a href="{{.Href}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}</li>{{end}}</ol></nav>
-{{end}}<main id="main">
+<header class="zen-top zen-site-top"><div class="zen-top-controls">{{if .Items}}<button type="button" class="ghost zen-site-sidebar-toggle" aria-label="Hide sidebar" title="Hide sidebar (⌘\)" aria-expanded="true" aria-controls="zen-site-side" hidden></button>{{end}}<button type="button" class="ghost zen-site-back" aria-label="Back" title="Back (⌘[)" disabled hidden>‹</button><button type="button" class="ghost zen-site-forward" aria-label="Forward" title="Forward (⌘])" disabled hidden>›</button></div>{{if .Crumbs}}<nav aria-label="Breadcrumb" class="zen-site-crumbs"><ol>{{range .Crumbs}}<li>{{if .Href}}<a href="{{.Href}}">{{.Title}}</a>{{else}}{{.Title}}{{end}}</li>{{end}}</ol></nav>{{end}}</header>
+<main id="main">
 <article class="{{.ArticleClass}}"{{if .Layout}} data-layout="{{.Layout}}"{{end}}>{{.Body}}</article>
 </main>
 </div>
@@ -73,7 +83,7 @@ var shellTmpl = template.Must(template.New("shell").Parse(`{{define "node"}}{{if
 `))
 
 var plainTmpl = template.Must(template.New("plain").Parse(`<!doctype html>
-<html lang="en">
+<html lang="en"{{if .Theme}} data-theme="{{.Theme}}"{{end}}>
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -156,8 +166,8 @@ func (s *site) writeIndex(home string) error {
 		return nil // a root index.md, or the root home written as index.html
 	}
 	data := struct {
-		CSP, Title, Redirect string
-	}{CSP: csp(s.o.Portable), Title: "Home"}
+		CSP, Title, Redirect, Theme string
+	}{CSP: csp(s.o.Portable), Title: "Home", Theme: themeAttr(s.o.Scheme)}
 	target := ""
 	if b, ok := s.pages[home]; ok {
 		target = b.out

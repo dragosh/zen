@@ -27,9 +27,11 @@ type SiteOptions struct {
 	Portable bool   // opens from disk (the default)
 	Hosted   bool   // scripts as files, for a web server
 	Drafts   bool
-	NoDrafts bool // leave drafts out even when build.drafts is true (the app's dialog)
+	NoDrafts bool // leave drafts out even when export.drafts is true (the app's dialog)
 	Clean    bool
 	NoPrint  bool // no print.html
+	// Scheme is the website's colours: "auto", "light" or "dark"; "" = export.theme.scheme (auto without it).
+	Scheme string
 }
 
 // SiteEnv is what a build needs from outside; the CLI fills in the real ones
@@ -93,7 +95,7 @@ func WriteSite(env SiteEnv, b SiteOptions, stdout, stderr io.Writer) error {
 		out = bc.Out
 	}
 	if out == "" {
-		out = "_site"
+		out = config.DefaultExportOut
 	}
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(root, out)
@@ -103,7 +105,7 @@ func WriteSite(env SiteEnv, b SiteOptions, stdout, stderr io.Writer) error {
 		id = filepath.Base(root)
 	}
 	// Portable output opens from disk and from any web server, so it is the
-	// default; --hosted (or build.portable: false) loads scripts as files.
+	// default; --hosted (or export.portable: false) loads scripts as files.
 	portable := true
 	if bc.Portable != nil {
 		portable = *bc.Portable
@@ -115,6 +117,13 @@ func WriteSite(env SiteEnv, b SiteOptions, stdout, stderr io.Writer) error {
 		portable = false
 	}
 	drafts := (bc.Drafts || b.Drafts) && !b.NoDrafts
+	scheme := bc.Scheme
+	if b.Scheme != "" {
+		scheme = b.Scheme
+	}
+	if scheme != "" && !config.ValidScheme(scheme) {
+		return fmt.Errorf("scheme must be auto, light or dark, not %q", scheme)
+	}
 	var input site.Input = in
 	if env.Wrap != nil {
 		input = env.Wrap(in)
@@ -122,7 +131,7 @@ func WriteSite(env SiteEnv, b SiteOptions, stdout, stderr io.Writer) error {
 	rep, err := site.Build(input, site.Options{
 		Out: filepath.Clean(out), SiteID: id, EditURL: bc.EditURL,
 		Drafts: drafts, Portable: portable, NoPrint: b.NoPrint,
-		Clean: b.Clean, Exclude: bc.Exclude,
+		Clean: b.Clean, Exclude: bc.Exclude, Scheme: scheme,
 	})
 	if err != nil {
 		return err

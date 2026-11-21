@@ -162,7 +162,7 @@ func TestServiceRefusesMissing(t *testing.T) {
 			"PrintPage":    func(z *Zen) error { return z.PrintPage() },
 			"PrintSite":    func(z *Zen) error { return z.PrintSite() },
 			"PrintWindow":  func(z *Zen) error { return z.PrintWindow(ctx, "x") },
-			"ExportPDF":    func(z *Zen) error { _, err := z.ExportPDF(ctx, "x"); return err },
+			"ExportPDF":    func(z *Zen) error { _, err := z.ExportPDF(ctx, "x", false); return err },
 			"RevealExport": func(z *Zen) error { return z.RevealExport() },
 		}},
 		{"export", map[string]func(z *Zen) error{
@@ -172,8 +172,13 @@ func TestServiceRefusesMissing(t *testing.T) {
 			"PickBuildFolder":   func(z *Zen) error { _, err := z.PickBuildFolder(); return err },
 			"OpenBuiltSite":     func(z *Zen) error { return z.OpenBuiltSite("out") },
 			"RevealBuiltSite":   func(z *Zen) error { return z.RevealBuiltSite("out") },
-			"ExportPDF":         func(z *Zen) error { _, err := z.ExportPDF(ctx, "x"); return err },
+			"ExportPDF":         func(z *Zen) error { _, err := z.ExportPDF(ctx, "x", false); return err },
 			"RevealExport":      func(z *Zen) error { return z.RevealExport() },
+			"PDFDefaults":       func(z *Zen) error { _, err := z.PDFDefaults(); return err },
+			"SavePDFDefaults":   func(z *Zen) error { _, err := z.SavePDFDefaults(PDFOptions{}, false); return err },
+			"PickPDFFile":       func(z *Zen) error { _, err := z.PickPDFFile(ctx); return err },
+			"RunPDFExport":      func(z *Zen) error { return z.RunPDFExport(PDFRun{}) },
+			"OpenExport":        func(z *Zen) error { return z.OpenExport() },
 		}},
 		{"newsite", map[string]func(z *Zen) error{
 			"SiteTemplates":   func(z *Zen) error { _, err := z.SiteTemplates(); return err },
@@ -200,7 +205,7 @@ func TestServiceRefusesMissing(t *testing.T) {
 	// ExportPDF needs print as well as export.
 	withFeatures(t, without("print")...)
 	z, _, _, _ := newTestZen(t, tree(t, docs), "", "read")
-	if _, err := z.ExportPDF(ctx, "x"); !errors.Is(err, ErrFeatureMissing("print")) {
+	if _, err := z.ExportPDF(ctx, "x", false); !errors.Is(err, ErrFeatureMissing("print")) {
 		t.Errorf("ExportPDF without print: %v", err)
 	}
 	// With the feature the guard lets the call through.

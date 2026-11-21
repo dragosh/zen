@@ -122,9 +122,11 @@ type Build struct {
 	Portable bool   // --portable: opens from disk (the default)
 	Hosted   bool   // --hosted: scripts as files, for a web server
 	Drafts   bool
-	NoDrafts bool // leave drafts out even when build.drafts is true (the app's dialog)
+	NoDrafts bool // --no-drafts: leave drafts out even when export.drafts is true
 	Clean    bool
 	NoPrint  bool // --no-print: no print.html
+	// Scheme is --scheme: "auto", "light" or "dark"; "" leaves it to export.theme.scheme (auto without it).
+	Scheme string
 }
 
 // Builder builds a static website. It writes the summary to stdout and one
@@ -149,7 +151,11 @@ type Initer func(Init, io.Writer, io.Writer) error
 // UsageError is an error that makes zenmd print the usage and exit with 2.
 func UsageError(msg string) error { return usageError(msg) }
 
-const usage = `zenmd - the Zenmark engine: markdown folders as pages, sites and print
+// usage is the help text; the options of the exports come from their lists (options.go).
+var usage = usageText()
+
+func usageText() string {
+	return `zenmd - the Zenmark engine: markdown folders as pages, sites and print
 
 Usage:
   zenmd [path]          open a folder or markdown file (default: current folder)
@@ -157,7 +163,7 @@ Usage:
   zenmd export site [folder]
                         build a static website; options below
   zenmd export pdf [folder] [-o file.pdf]
-                        write the whole folder as one PDF file
+                        write the whole folder as one PDF file; options below
   zenmd build [folder]  same as export site
   zenmd init site [--techdocs|--learning|--planner] [folder]
                         start a folder from a site template; options below
@@ -174,17 +180,12 @@ Init options:
   --title <text>      the site title; --author <text>; --set <key=value>
   --list              list the templates; --update <id>; --dir
 
-Export pdf options:
-  -o, --out <file>    output file (default: <folder>/<folder name>.pdf)
+` + optionHelp("Export site options", siteOptions) + `  (also for zenmd build)
+  A flag wins over the folder's export: settings, then config.yml.
 
-Build options (export site, build):
-  -o, --out <dir>     output folder (default: _site in the folder)
-  --hosted            output for a web server (does not open from disk)
-  --portable          output that also opens from disk (the default)
-  --drafts            include pages with "draft: true"
-  --clean             empty the output folder first (needs a .zen-build file)
-  --no-print          leave out print.html (the whole site as one page)
+` + optionHelp("Export pdf options", pdfOptions) + `  A flag wins over the folder's export.pdf settings, then config.yml.
 `
+}
 
 type usageError string
 
@@ -267,75 +268,99 @@ func noticeLegacyConfig(stderr io.Writer, dir string) {
 	}
 }
 
-// runBuild parses the arguments after `zenmd build` and calls the builder.
+// runBuild parses the arguments after `zenmd build` (or `export site`) and calls the builder.
 func runBuild(args []string, cwd string, stdout, stderr io.Writer, build Builder) int {
-	b := Build{}
-	var paths []string
-	out, hasOut, flags := "", false, true
-	for i := 0; i < len(args); i++ {
-		arg := args[i]
-		switch {
-		case flags && arg == "--":
-			flags = false
-		case flags && (arg == "-h" || arg == "--help"):
-			fmt.Fprint(stdout, usage)
-			return 0
-		case flags && arg == "--portable":
-			b.Portable = true
-		case flags && arg == "--hosted":
-			b.Hosted = true
-		case flags && arg == "--drafts":
-			b.Drafts = true
-		case flags && arg == "--no-print":
-			b.NoPrint = true
-		case flags && arg == "--clean":
-			b.Clean = true
-		case flags && (arg == "-o" || arg == "--out"):
-			if i+1 >= len(args) {
-				return fail(stderr, usageError(arg+" needs a folder"))
-			}
-			i++
-			out, hasOut = args[i], true
-		case flags && (strings.HasPrefix(arg, "-o=") || strings.HasPrefix(arg, "--out=")):
-			_, out, _ = strings.Cut(arg, "=")
-			hasOut = true
-		case flags && strings.HasPrefix(arg, "-") && arg != "-":
-			return fail(stderr, usageError("unknown option "+arg))
-		default:
-			paths = append(paths, arg)
-		}
+	f, err := parseOptions(args, siteOptions)
+	if err != nil {
+		return fail(stderr, err)
 	}
-	if b.Portable && b.Hosted {
-		return fail(stderr, usageError("--portable and --hosted cannot be used together"))
+	if f.help {
+		fmt.Fprint(stdout, usage)
+		return 0
 	}
-	if hasOut && out == "" {
-		return fail(stderr, usageError("-o needs a folder"))
+	if f.on[flagDryRun] && !f.on[flagSaveDefaults] {
+		return fail(stderr, usageError(flagDryRun+" goes with "+flagSaveDefaults))
 	}
-	if len(paths) > 1 {
+	if len(f.paths) > 1 {
 		return fail(stderr, usageError("more than one path given"))
 	}
+	b := Build{
+		Portable: f.on["--portable"], Hosted: f.off["--portable"],
+		Drafts: f.on["--drafts"], NoDrafts: f.off["--drafts"],
+		Clean: f.on["--clean"], NoPrint: f.off["--print"], Scheme: f.val["--scheme"],
+	}
 	b.Dir = cwd
-	if len(paths) == 1 {
-		var err error
-		if b.Dir, _, err = resolve(paths[0], cwd, false); err != nil {
+	if len(f.paths) == 1 {
+		if b.Dir, _, err = resolve(f.paths[0], cwd, false); err != nil {
 			return fail(stderr, err)
 		}
 	}
-	if hasOut {
-		b.Out = out
-		if !filepath.IsAbs(out) {
-			b.Out = filepath.Join(cwd, out)
+	if f.on["--out"] {
+		b.Out = f.val["--out"]
+		if !filepath.IsAbs(b.Out) {
+			b.Out = filepath.Join(cwd, b.Out)
 		}
 		b.Out = filepath.Clean(b.Out)
 	}
 	if build == nil {
 		return fail(stderr, errors.New("this zenmd cannot build sites"))
 	}
-	noticeLegacyConfig(stderr, b.Dir)
+	loaded := loadConfig(b.Dir)
+	printNotices(stderr, loaded)
+	if f.on[flagSaveDefaults] {
+		keys := []config.ExportKey{}
+		if f.on["--out"] {
+			keys = append(keys, config.StrKey("out", config.SiteOutValue(b.Dir, b.Out)))
+		}
+		if f.given("--portable") {
+			keys = append(keys, config.BoolKey("portable", f.on["--portable"]))
+		}
+		if f.given("--drafts") {
+			keys = append(keys, config.BoolKey("drafts", f.on["--drafts"]))
+		}
+		if f.on["--scheme"] {
+			keys = append(keys, config.StrKey("theme.scheme", f.val["--scheme"]))
+		}
+		if done, err := saveDefaults(stdout, b.Dir, keys, f.on[flagDryRun]); err != nil {
+			return fail(stderr, err)
+		} else if done {
+			return 0
+		}
+	}
 	if err := build(b, stdout, stderr); err != nil {
 		return fail(stderr, err)
 	}
 	return 0
+}
+
+// loadConfig reads the global config.yml and the folder's .zenmd.yml.
+func loadConfig(dir string) *config.Config {
+	gp, _ := config.GlobalPath()
+	return config.Load(gp, dir)
+}
+
+// printNotices says on stderr what the config still names the old way: the folder's old settings file and a build:
+// key, in the folder's file or the global one (the app shows the same under Problems).
+func printNotices(stderr io.Writer, c *config.Config) {
+	for _, n := range c.Notices() {
+		fmt.Fprintln(stderr, n)
+	}
+}
+
+// saveDefaults is --save-defaults: it writes the keys into the folder's .zenmd.yml (config.SaveExportKeys, the code
+// behind the app's Save as folder defaults) and prints what changed. With dryRun it only prints it, and done is true:
+// nothing is exported either.
+func saveDefaults(stdout io.Writer, dir string, keys []config.ExportKey, dryRun bool) (done bool, err error) {
+	if len(keys) == 0 {
+		fmt.Fprintln(stdout, "Nothing to change: no option to save was given, such as --drafts.")
+		return dryRun, nil
+	}
+	text, err := config.SaveExportKeys(dir, keys, "Nothing to change: .zenmd.yml already has these export defaults.", !dryRun)
+	if err != nil {
+		return false, err
+	}
+	fmt.Fprintln(stdout, text)
+	return dryRun, nil
 }
 
 var initFlagRE = regexp.MustCompile(`^--[a-z][a-z0-9-]*$`)

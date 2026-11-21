@@ -3,6 +3,7 @@
 // page with the same contract as the app (docs/PLUGINS.md, docs/LAYOUTS.md): it reuses
 // plugins.ts with a static `api`. No Wails bindings are imported; the app's backend does not
 // exist here, so invoke and stream reject with "runs in the zen app only".
+import { icon } from "../icons";
 import { installImageZoom } from "../zoom/zoom";
 import { installRuntime } from "../plugins";
 import type { RuntimeApi } from "../types";
@@ -128,6 +129,140 @@ function readModules(doc: Document): Map<string, Record<string, string>> {
   return out;
 }
 
+/**
+ * The fixed top bar (ui/site-topbar). The shell writes its buttons hidden, so a page without scripts shows only the
+ * breadcrumb; here they are shown and wired: the sidebar button (⌘\, remembered per site), Back and Forward (⌘[ and
+ * ⌘]) over the browser's history. Returns what undoes it.
+ */
+function installTopBar(doc: Document, win: Window, siteId: string): () => void {
+  const q = <T extends HTMLElement>(sel: string) => doc.querySelector<T>(sel);
+  const frame = q(".zen-site-frame");
+  const side = q(".zen-site-side");
+  const toggle = q<HTMLButtonElement>(".zen-site-sidebar-toggle");
+  const back = q<HTMLButtonElement>(".zen-site-back");
+  const forward = q<HTMLButtonElement>(".zen-site-forward");
+  if (!frame && !back && !forward) return () => {};
+  const undo: Array<() => void> = [];
+  let flipSidebar: (() => void) | null = null;
+  for (const b of [toggle, back, forward]) if (b) b.hidden = false;
+  frame?.setAttribute("data-js", "");
+  const store = (): Storage | null => {
+    try {
+      return win.localStorage ?? null;
+    } catch {
+      return null;
+    }
+  };
+  const session = (): Storage | null => {
+    try {
+      return win.sessionStorage ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  // The sidebar. Wide windows use the choice kept for this site; narrow ones start with it closed and open it over the page.
+  if (frame && side && toggle) {
+    const key = `zen.site.${siteId}.sidebar`;
+    const narrow = win.matchMedia?.("(max-width: 719px)");
+    const menu = side.querySelector<HTMLDetailsElement>(".zen-site-menu");
+    if (menu) menu.open = true; // the button is the disclosure now, not the Contents summary
+    toggle.prepend(icon(doc, "sidebar"));
+    let open = true;
+    const show = (on: boolean) => {
+      open = on;
+      frame.dataset.sidebar = on ? "open" : "closed";
+      side.hidden = !on;
+      toggle.setAttribute("aria-expanded", String(on));
+      const text = on ? "Hide sidebar" : "Show sidebar";
+      toggle.setAttribute("aria-label", text);
+      toggle.title = `${text} (⌘\\)`;
+    };
+    const initial = () => {
+      if (narrow?.matches) return false;
+      try {
+        return store()?.getItem(key) !== "closed";
+      } catch {
+        return true;
+      }
+    };
+    show(initial());
+    const flip = () => {
+      show(!open);
+      if (narrow?.matches) return; // narrow windows open it for a moment; the wide choice is not changed
+      try {
+        store()?.setItem(key, open ? "open" : "closed");
+      } catch { /* not remembered; it still applies to this page */ }
+    };
+    toggle.addEventListener("click", flip);
+    const onWidth = () => show(initial());
+    narrow?.addEventListener?.("change", onWidth);
+    const onEsc = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && narrow?.matches && open) show(false);
+    };
+    doc.addEventListener("keydown", onEsc);
+    undo.push(() => {
+      toggle.removeEventListener("click", flip);
+      narrow?.removeEventListener?.("change", onWidth);
+      doc.removeEventListener("keydown", onEsc);
+    });
+    flipSidebar = flip;
+  }
+
+  // Back and Forward. A page does not know its place in the history, so each entry is numbered in history.state
+  // (zenIdx) as it is first shown, and the last number and the furthest one are kept for the tab (sessionStorage).
+  const place = { idx: 0, max: 0 };
+  const sync = () => {
+    let st = null as { zenIdx?: unknown } | null;
+    try {
+      st = win.history.state as { zenIdx?: unknown } | null;
+    } catch { /* none */ }
+    let kept: { idx?: number; max?: number } = {};
+    try {
+      kept = JSON.parse(session()?.getItem(`zen.site.${siteId}.visit`) ?? "{}") ?? {};
+    } catch { /* a visit that does not parse starts over */ }
+    if (st && typeof st === "object" && typeof st.zenIdx === "number") {
+      place.idx = st.zenIdx; // an entry seen before: back, forward or a reload
+      place.max = Math.max(kept.max ?? 0, place.idx);
+    } else {
+      place.idx = typeof kept.idx === "number" ? kept.idx + 1 : 0; // a new entry: what was ahead is gone
+      place.max = place.idx;
+      try {
+        win.history.replaceState({ ...(st && typeof st === "object" ? st : {}), zenIdx: place.idx }, "");
+      } catch { /* the entry stays unnumbered */ }
+    }
+    try {
+      session()?.setItem(`zen.site.${siteId}.visit`, JSON.stringify(place));
+    } catch { /* not kept */ }
+    if (back) back.disabled = place.idx <= 0;
+    if (forward) forward.disabled = place.idx >= place.max;
+  };
+  sync();
+  const goBack = () => { if (back && !back.disabled) win.history.back(); };
+  const goForward = () => { if (forward && !forward.disabled) win.history.forward(); };
+  back?.addEventListener("click", goBack);
+  forward?.addEventListener("click", goForward);
+  win.addEventListener("popstate", sync);
+  win.addEventListener("hashchange", sync);
+
+  const onKey = (e: KeyboardEvent) => {
+    if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey) return;
+    const act = e.key === "\\" ? flipSidebar : e.key === "[" ? goBack : e.key === "]" ? goForward : undefined;
+    if (!act) return;
+    e.preventDefault();
+    act();
+  };
+  doc.addEventListener("keydown", onKey);
+  return () => {
+    undo.forEach((u) => u());
+    back?.removeEventListener("click", goBack);
+    forward?.removeEventListener("click", goForward);
+    win.removeEventListener("popstate", sync);
+    win.removeEventListener("hashchange", sync);
+    doc.removeEventListener("keydown", onKey);
+  };
+}
+
 let stopPrevious: (() => void) | null = null;
 
 export function start(doc: Document = document): void {
@@ -197,7 +332,9 @@ export function start(doc: Document = document): void {
   doc.addEventListener("click", onClick);
   const root = doc.querySelector<HTMLElement>(".zen-page") ?? doc.body;
   const zoom = installImageZoom(root);
+  const stopBar = installTopBar(doc, win, page.siteId);
   stopPrevious = () => {
+    stopBar();
     doc.removeEventListener("click", onClick);
     win.removeEventListener("hashchange", onHash);
     zoom.destroy();

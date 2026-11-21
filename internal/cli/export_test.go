@@ -84,10 +84,10 @@ func TestExportPDFOut(t *testing.T) {
 			t.Errorf("stdout %q", r.stdout)
 		}
 	}
-	// Default: <folder>/<folder name>.pdf, for a relative folder and from inside it.
-	want(run(t, h, nil, "export", "pdf", "My Docs"), filepath.Join(dir, "My Docs.pdf"))
-	want(run(t, dir, nil, "export", "pdf"), filepath.Join(dir, "My Docs.pdf"))
-	want(run(t, h, nil, "export", "pdf", dir), filepath.Join(dir, "My Docs.pdf"))
+	// Default: <folder>/exports/pdf/<folder name>.pdf, for a relative folder and from inside it.
+	want(run(t, h, nil, "export", "pdf", "My Docs"), filepath.Join(dir, "exports", "pdf", "My Docs.pdf"))
+	want(run(t, dir, nil, "export", "pdf"), filepath.Join(dir, "exports", "pdf", "My Docs.pdf"))
+	want(run(t, h, nil, "export", "pdf", dir), filepath.Join(dir, "exports", "pdf", "My Docs.pdf"))
 	// A relative -o is relative to the current folder, not the exported one.
 	want(run(t, h, nil, "export", "pdf", "My Docs", "-o", "out.pdf"), filepath.Join(h, "out.pdf"))
 	want(run(t, h, nil, "export", "pdf", "My Docs", "--out", "out.pdf"), filepath.Join(h, "out.pdf"))
@@ -171,11 +171,11 @@ func TestPDFNameSanitised(t *testing.T) {
 			t.Errorf("PDFName(%q) = %q is unsafe", in, got)
 		}
 	}
-	// The default output of a folder is inside it, named after it.
-	if got := DefaultPDFOut(filepath.Join("/x", "My Docs")); got != filepath.Join("/x", "My Docs", "My Docs.pdf") {
+	// The default output of a folder is exports/pdf inside it, named after it.
+	if got := DefaultPDFOut(filepath.Join("/x", "My Docs")); got != filepath.Join("/x", "My Docs", "exports", "pdf", "My Docs.pdf") {
 		t.Errorf("DefaultPDFOut = %q", got)
 	}
-	if got := DefaultPDFOut("/"); got != "/export.pdf" {
+	if got := DefaultPDFOut("/"); got != "/exports/pdf/export.pdf" {
 		t.Errorf("DefaultPDFOut(/) = %q", got)
 	}
 }
@@ -226,5 +226,68 @@ func TestExportNeedsFeature(t *testing.T) {
 	}
 	if r := run(t, h, nil, "My Docs"); r.code != 0 || !r.launched {
 		t.Errorf("opening a folder in a bare build: %+v", r)
+	}
+}
+
+// The help names the new default outputs.
+func TestExportHelpDefaults(t *testing.T) {
+	r := run(t, t.TempDir(), nil, "--help")
+	for _, want := range []string{"default: exports/html in the folder", "exports/pdf/<folder name>.pdf"} {
+		if !strings.Contains(r.stdout, want) {
+			t.Errorf("help lacks %q", want)
+		}
+	}
+	if strings.Contains(r.stdout, "_site") {
+		t.Error("help still names _site")
+	}
+}
+
+// export.pdf in .zenmd.yml gives the defaults; the flags win (ui/export-pdf-settings, behaviour 4).
+func TestExportPDFConfigAndFlags(t *testing.T) {
+	h, dir := pdfSetup(t)
+	cfg := "version: 1\nexport:\n  pdf:\n    out: pdf/guide.pdf\n    drafts: true\n    cover: false\n"
+	if err := os.WriteFile(filepath.Join(dir, ".zenmd.yml"), []byte(cfg), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	r := run(t, h, nil, "export", "pdf", "My Docs")
+	if r.code != 0 || r.p.Out != filepath.Join(dir, "pdf", "guide.pdf") || !r.p.Drafts || !r.p.NoCover || !r.p.MakeDir {
+		t.Fatalf("config defaults: %+v %q", r.p, r.stderr)
+	}
+	// -o wins over export.pdf.out, and is not made for the user.
+	r = run(t, h, nil, "export", "pdf", "My Docs", "-o", "mine.pdf")
+	if r.code != 0 || r.p.Out != filepath.Join(h, "mine.pdf") || r.p.MakeDir {
+		t.Fatalf("-o: %+v %q", r.p, r.stderr)
+	}
+	r = run(t, h, nil, "export", "pdf", "My Docs", "--section", "docs/a.md")
+	if r.code != 0 || r.p.Section != "docs/a.md" {
+		t.Fatalf("--section: %+v %q", r.p, r.stderr)
+	}
+	r = run(t, h, nil, "export", "pdf", "My Docs", "--section=docs/b.md")
+	if r.code != 0 || r.p.Section != "docs/b.md" {
+		t.Fatalf("--section=: %+v %q", r.p, r.stderr)
+	}
+	// Without a config: cover on, drafts off, the flags set them.
+	other := filepath.Join(h, "Plain")
+	write(t, filepath.Join(other, "README.md"))
+	r = run(t, h, nil, "export", "pdf", "Plain")
+	if r.code != 0 || r.p.Drafts || r.p.NoCover || r.p.Section != "" {
+		t.Fatalf("plain: %+v", r.p)
+	}
+	r = run(t, h, nil, "export", "pdf", "Plain", "--drafts", "--no-cover")
+	if r.code != 0 || !r.p.Drafts || !r.p.NoCover {
+		t.Fatalf("flags: %+v %q", r.p, r.stderr)
+	}
+	// --section needs a page; a config out that leaves the folder is refused.
+	if r := run(t, h, nil, "export", "pdf", "Plain", "--section"); r.code != 2 || !strings.Contains(r.stderr, "--section") {
+		t.Errorf("--section alone: %+v", r)
+	}
+	if err := os.WriteFile(filepath.Join(other, ".zenmd.yml"), []byte("export:\n  pdf:\n    out: ../x.pdf\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if r := run(t, h, nil, "export", "pdf", "Plain"); r.code != 1 || r.pdfd || !strings.Contains(r.stderr, "export.pdf.out") {
+		t.Errorf("escaping out: %+v", r)
+	}
+	if !strings.Contains(run(t, h, nil, "help").stdout, "--no-cover") {
+		t.Error("the help lists --no-cover")
 	}
 }

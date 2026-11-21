@@ -99,31 +99,30 @@ func (s *site) writePage(b *built) error {
 
 	var data template.HTML
 	script := ""
-	if len(js) > 0 || rw.needsJS {
-		cssURLs := []string{}
-		for _, u := range pg.CSS {
-			if a, ok := parseAssetURL(u); ok {
-				cssURLs = append(cssURLs, a.url)
-			}
+	// Every page loads zen.js and carries its data: it also runs the top bar (ui/site-topbar).
+	cssURLs := []string{}
+	for _, u := range pg.CSS {
+		if a, ok := parseAssetURL(u); ok {
+			cssURLs = append(cssURLs, a.url)
 		}
-		sort.Strings(js)
-		if js == nil {
-			js = []string{}
-		}
-		d, err := jsonScript(`id="zen-page"`, pageData{Path: pg.Path, SiteID: s.o.SiteID, Root: root, Assets: pageAsset{CSS: cssURLs, JS: js}, Portable: s.o.Portable})
+	}
+	sort.Strings(js)
+	if js == nil {
+		js = []string{}
+	}
+	d, err := jsonScript(`id="zen-page"`, pageData{Path: pg.Path, SiteID: s.o.SiteID, Root: root, Assets: pageAsset{CSS: cssURLs, JS: js}, Portable: s.o.Portable})
+	if err != nil {
+		return err
+	}
+	data += d
+	for _, m := range sortedModules(modules) {
+		mod, err := jsonScript(`data-zen-module="`+m.key+`"`, m.files)
 		if err != nil {
 			return err
 		}
-		data += d
-		for _, m := range sortedModules(modules) {
-			mod, err := jsonScript(`data-zen-module="`+m.key+`"`, m.files)
-			if err != nil {
-				return err
-			}
-			data += mod
-		}
-		script = root + zenDir + "/zen.js"
+		data += mod
 	}
+	script = root + zenDir + "/zen.js"
 
 	article := "zen-page"
 	layout := ""
@@ -150,7 +149,7 @@ func (s *site) writePage(b *built) error {
 		title = pg.Path
 	}
 	out, err := render(shellTmpl, shellData{
-		Lang: lang, Title: title, CSP: csp(s.o.Portable), CSS: css,
+		Lang: lang, Theme: themeAttr(s.o.Scheme), Title: title, CSP: csp(s.o.Portable), CSS: css,
 		Items:  s.navItems(s.in.Tree(), pg.Path, b.out),
 		Crumbs: crumbs, ArticleClass: article, Layout: layout,
 		Body: template.HTML(body), Data: data, Script: script,

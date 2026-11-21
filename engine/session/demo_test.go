@@ -301,7 +301,7 @@ func TestDemoFolder(t *testing.T) {
 		t.Errorf("README children = %s\nwant %s", got, want)
 	}
 	sub := map[string]string{
-		"features/index.md":         "features/reader.md,features/navigation.md,features/find.md,features/editor.md,features/inspector.md,features/printing.md,features/developer.md",
+		"features/index.md":         "features/reader.md,features/navigation.md,features/find.md,features/editor.md,features/inspector.md,features/printing.md,features/export.md,features/developer.md",
 		"features/reader.md":        "features/markdown.md,features/myst.md",
 		"plugins/index.md":          "plugins/codeblock.md,plugins/diagram.md,plugins/check.md,plugins/quiz.md,plugins/sandbox.md,plugins/rating.md",
 		"layouts/index.md":          "layouts/article.md,layouts/docs.md,layouts/post.md,layouts/landing.md,layouts/wide.md,layouts/handout.md,layouts/slides.md,layouts/course.md",
@@ -419,7 +419,7 @@ func TestDemoFeaturesMatchAssembly(t *testing.T) {
 		t.Fatal(err)
 	}
 	page := map[string]string{"reader": "reader.md", "nav": "navigation.md", "find": "find.md", "editor": "editor.md",
-		"inspector": "inspector.md", "print": "printing.md", "developer": "developer.md"}
+		"inspector": "inspector.md", "print": "printing.md", "export": "export.md", "developer": "developer.md"}
 	have := assemblyIDs(t, a.Features)
 	if have == nil { // `all`
 		have = map[string]bool{}
@@ -551,7 +551,12 @@ func TestDemoMatchesAssembly(t *testing.T) {
 		var front map[string]any
 		if rel == ".zenmd.yml" {
 			_ = yaml.Unmarshal(b, &front)
-			for _, key := range []string{"layouts", "build"} {
+			// export: is allowed with the export feature; build: (its old name) never.
+			keys := []string{"layouts", "build"}
+			if !allowed(haveFeature, "export") {
+				keys = append(keys, "export")
+			}
+			for _, key := range keys {
 				if _, ok := front[key]; ok {
 					t.Errorf("%s: %q does nothing in this build", rel, key)
 				}
@@ -621,7 +626,7 @@ func TestDemoMatchesAssembly(t *testing.T) {
 	b, _ := os.ReadFile(filepath.Join(demo(t), ".zenmd.yml"))
 	_ = yaml.Unmarshal(b, &cfg)
 	for k := range cfg {
-		if k != "version" && k != "logo" && k != "plugins" && k != "markdown" {
+		if k != "version" && k != "logo" && k != "plugins" && k != "markdown" && !(k == "export" && allowed(haveFeature, "export")) {
 			t.Errorf(".zenmd.yml sets %q, which this build does not use", k)
 		}
 	}

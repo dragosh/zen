@@ -12,6 +12,7 @@ apps/zenmark/frontend/bindings
 build/linux/zen.desktop
 build/darwin/helpers/
 _site/
+exports/
 *.provisionprofile
 bin/*.pkg
 runtime/dist

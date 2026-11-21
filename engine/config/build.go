@@ -7,7 +7,7 @@ import (
 	"sort"
 )
 
-// Build is the build: section of the config files: what `zenmd build` does
+// Build is the export: section of the config files: what `zenmd build` does
 // when the command line does not say. Zero values mean "not set".
 type Build struct {
 	Out      string   // output folder, relative to the folder being built
@@ -16,12 +16,20 @@ type Build struct {
 	Drafts   bool     // include pages with draft: true
 	Portable *bool    // output that opens from file:// (nil = the default, true)
 	Exclude  []string // globs of pages left out, on top of the app's excludes
+	// Scheme is export.theme.scheme: "auto" (the reader's system), "light" or "dark"; "" when not set (auto).
+	Scheme string
 }
+
+// Schemes are the values of export.theme.scheme and of `--scheme`.
+var Schemes = []string{"auto", "light", "dark"}
+
+// themeKeys are the keys of export.theme that engine/export-theme adds later; they are not unknown.
+var themeKeys = map[string]bool{"name": true, "tokens": true, "dark": true, "css": true, "logo": true, "favicon": true, "footer": true, "social": true, "switch": true}
 
 // siteIDRE is what a site id may look like: it becomes part of a storage key.
 var siteIDRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
 
-// mergeBuild adds a build: section; the workspace file is loaded after the
+// mergeBuild adds an export: section; the workspace file is loaded after the
 // global one, so its keys win one by one.
 func (c *Config) mergeBuild(v any) {
 	if v == nil {
@@ -29,18 +37,31 @@ func (c *Config) mergeBuild(v any) {
 	}
 	m, ok := v.(map[string]any)
 	if !ok {
-		c.buildErr = errors.New("build must be a mapping with keys such as out and portable")
+		c.buildErr = errors.New("export must be a mapping with keys such as out and portable")
 		return
 	}
 	if c.build == nil {
 		c.build = map[string]any{}
 	}
 	for k, x := range m {
+		// pdf: and theme: are mappings of their own; the folder's keys win one by one there too.
+		if pm, ok := x.(map[string]any); ok && (k == "pdf" || k == "theme") {
+			if old, ok := c.build[k].(map[string]any); ok {
+				merged := map[string]any{}
+				for ok2, ov := range old {
+					merged[ok2] = ov
+				}
+				for pk, pv := range pm {
+					merged[pk] = pv
+				}
+				x = merged
+			}
+		}
 		c.build[k] = x
 	}
 }
 
-// Build returns the merged build: section. Unknown keys are returned as
+// Build returns the merged export: section. Unknown keys are returned as
 // warnings (sorted); a value of the wrong type is an error naming the key.
 func (c *Config) Build() (Build, []string, error) {
 	var b Build
@@ -59,7 +80,7 @@ func (c *Config) Build() (Build, []string, error) {
 	str := func(k string, dst *string) error {
 		s, ok := c.build[k].(string)
 		if !ok {
-			return fmt.Errorf("build.%s must be text", k)
+			return fmt.Errorf("export.%s must be text", k)
 		}
 		*dst = s
 		return nil
@@ -67,7 +88,7 @@ func (c *Config) Build() (Build, []string, error) {
 	flag := func(k string, dst *bool) error {
 		v, ok := c.build[k].(bool)
 		if !ok {
-			return fmt.Errorf("build.%s must be true or false", k)
+			return fmt.Errorf("export.%s must be true or false", k)
 		}
 		*dst = v
 		return nil
@@ -79,7 +100,14 @@ func (c *Config) Build() (Build, []string, error) {
 			err = str(k, &b.Out)
 		case "id":
 			if err = str(k, &b.ID); err == nil && !siteIDRE.MatchString(b.ID) {
-				err = errors.New("build.id must be 1 to 64 letters, digits, '.', '_' or '-'")
+				err = errors.New("export.id must be 1 to 64 letters, digits, '.', '_' or '-'")
+			}
+		case "pdf":
+			// read by PDF()
+		case "theme":
+			var w []string
+			if b.Scheme, w, err = c.exportTheme(); err == nil {
+				warns = append(warns, w...)
 			}
 		case "editURL":
 			err = str(k, &b.EditURL)
@@ -93,21 +121,57 @@ func (c *Config) Build() (Build, []string, error) {
 		case "exclude":
 			list, ok := c.build[k].([]any)
 			if !ok {
-				return Build{}, warns, errors.New("build.exclude must be a list of globs")
+				return Build{}, warns, errors.New("export.exclude must be a list of globs")
 			}
 			for _, e := range list {
 				s, ok := e.(string)
 				if !ok {
-					return Build{}, warns, errors.New("build.exclude must be a list of globs (text)")
+					return Build{}, warns, errors.New("export.exclude must be a list of globs (text)")
 				}
 				b.Exclude = append(b.Exclude, s)
 			}
 		default:
-			warns = append(warns, fmt.Sprintf("build.%s: unknown key", k))
+			warns = append(warns, fmt.Sprintf("export.%s: unknown key", k))
 		}
 		if err != nil {
 			return Build{}, warns, err
 		}
 	}
 	return b, warns, nil
+}
+
+// exportTheme reads export.theme: the scheme, and warnings for keys that are not known.
+func (c *Config) exportTheme() (scheme string, warns []string, err error) {
+	m, ok := c.build["theme"].(map[string]any)
+	if !ok {
+		return "", nil, errors.New("export.theme must be a mapping")
+	}
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	for _, k := range keys {
+		switch {
+		case k == "scheme":
+			s, ok := m[k].(string)
+			if !ok || !ValidScheme(s) {
+				return "", nil, errors.New("export.theme.scheme must be auto, light or dark")
+			}
+			scheme = s
+		case !themeKeys[k]:
+			warns = append(warns, fmt.Sprintf("export.theme.%s: unknown key", k))
+		}
+	}
+	return scheme, warns, nil
+}
+
+// ValidScheme reports whether s is auto, light or dark.
+func ValidScheme(s string) bool {
+	for _, v := range Schemes {
+		if s == v {
+			return true
+		}
+	}
+	return false
 }

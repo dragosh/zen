@@ -30,6 +30,8 @@ type (
 	BuildResult       = session.BuildResult
 	BuildWarning      = session.BuildWarning
 	BuildProgress     = session.BuildProgress
+	PDFOptions        = session.PDFOptions
+	PDFRun            = session.PDFRun
 	SiteTemplate      = session.SiteTemplate
 )
 

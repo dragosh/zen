@@ -1,0 +1,27 @@
+/* The top bar of the app and of an exported site (ui/site-topbar): 44px, a rule below, the sidebar button, Back
+   and Forward in one group, then the breadcrumb. Shared, so the two look the same: the kit's shell.css and the
+   site's static.css import it. Tokens only. */
+.zen-top {
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 14px;
+  border-bottom: 1px solid var(--rule);
+}
+
+.zen-top-controls {
+  display: flex;
+  flex: none;
+  gap: 2px;
+  margin-left: -6px;
+}
+
+.zen-top-controls button {
+  min-width: 28px;
+  padding: 4px 8px;
+}
+
+/* A line icon (icons.ts): a block, so it centres in its button. */
+.zen-icon { display: block; }

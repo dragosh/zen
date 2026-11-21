@@ -272,6 +272,9 @@ func (w *Watcher) addTree(dir string, report bool) error {
 			if p != w.root && ignoredName(d.Name()) {
 				return fs.SkipDir
 			}
+			if rel == config.ExportsDir {
+				return fs.SkipDir
+			}
 			if err := w.fw.Add(p); err != nil {
 				if p == dir && !report {
 					return err
@@ -314,6 +317,9 @@ func ignoredName(name string) bool {
 func ignoredDir(rel string) bool {
 	if rel == "." || rel == "" {
 		return false
+	}
+	if rel = filepath.ToSlash(rel); rel == config.ExportsDir || strings.HasPrefix(rel, config.ExportsDir+"/") {
+		return true // what Zenmark exports, at the top of the folder
 	}
 	for _, part := range strings.Split(filepath.ToSlash(rel), "/") {
 		if ignoredName(part) {

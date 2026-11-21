@@ -60,8 +60,8 @@ func TestSidebar(t *testing.T) {
 	if !strings.Contains(a, `<details class="zen-site-group" open><summary><a href="../README.html"`) {
 		t.Errorf("home not open:\n%s", a)
 	}
-	// Works without JS: no script at all on a page without plugins.
-	lacks(t, "page", a, "<script")
+	// The page works without JS: the script is only for the top bar's buttons, so a page without plugins has no module.
+	lacks(t, "page", a, "data-zen-module")
 	// On another page another path is open.
 	c := read(t, out, "other/c.html")
 	if !strings.Contains(c, `<details class="zen-site-group" open><summary>other`) || strings.Contains(c, `<details class="zen-site-group" open><summary>guide`) {
@@ -145,5 +145,110 @@ func TestShellCSP(t *testing.T) {
 				t.Error("no pages")
 			}
 		}
+	}
+}
+
+// ui/site-topbar: the fixed top bar of the page shell.
+func TestTopBar(t *testing.T) {
+	f := sidebarFake()
+	f.with("guide/a.md", func(p *Page) {
+		p.Breadcrumb = []Crumb{{Title: "Home", Path: "README.md"}, {Title: "Alpha", Path: "guide/a.md"}}
+	})
+	_, out := build(t, f, Options{SiteID: "s"})
+	a := read(t, out, "guide/a.html")
+	bar := regexp.MustCompile(`(?s)<header class="zen-top zen-site-top">.*?</header>`).FindString(a)
+	if bar == "" {
+		t.Fatalf("no top bar:\n%s", a)
+	}
+	// Order: sidebar button, back, forward, then the breadcrumb.
+	last := -1
+	for _, want := range []string{`zen-site-sidebar-toggle`, `zen-site-back`, `zen-site-forward`, `class="zen-site-crumbs"`} {
+		i := strings.Index(bar, want)
+		if i < 0 || i < last {
+			t.Fatalf("%s missing or out of order in:\n%s", want, bar)
+		}
+		last = i
+	}
+	contains(t, "bar", bar,
+		`aria-label="Hide sidebar"`, `aria-expanded="true"`, `aria-controls="zen-site-side"`, `title="Hide sidebar (⌘\)"`,
+		`aria-label="Back"`, `title="Back (⌘[)"`, `aria-label="Forward"`, `title="Forward (⌘])"`, `>‹</button>`, `>›</button>`,
+		`<nav aria-label="Breadcrumb"`, `href="../README.html">Home</a>`)
+	// The buttons need scripts: hidden until zen.js shows them. Back and Forward start disabled.
+	for _, cls := range []string{"zen-site-sidebar-toggle", "zen-site-back", "zen-site-forward"} {
+		if !regexp.MustCompile(`<button[^>]*class="[^"]*` + cls + `[^"]*"[^>]*\bhidden\b`).MatchString(bar) {
+			t.Errorf("%s is not hidden without scripts:\n%s", cls, bar)
+		}
+	}
+	// The bar sits first in the content column, before main; the sidebar carries the id the toggle controls.
+	contains(t, "page", a, `<aside class="zen-site-side" id="zen-site-side">`, `<script src="../_zen/zen.js" defer></script>`, `"siteId":"s"`)
+	if strings.Index(a, `class="zen-top zen-site-top"`) > strings.Index(a, `<main id="main">`) {
+		t.Error("the bar is after main")
+	}
+	// The home page has no breadcrumb but still the bar with its buttons.
+	h := read(t, out, "README.html")
+	contains(t, "home", h, `class="zen-top zen-site-top"`, `zen-site-back`)
+	lacks(t, "home", h, `<nav aria-label="Breadcrumb"`)
+}
+
+// A site of one page has no sidebar, so no sidebar button; Back and Forward stay.
+func TestTopBarNoSidebar(t *testing.T) {
+	f := newFake()
+	f.home = "README.md"
+	f.page("README.md", "Home", "<p>home</p>")
+	f.tree = []NavNode{}
+	_, out := build(t, f, Options{})
+	h := read(t, out, "README.html")
+	contains(t, "home", h, `zen-site-back`, `zen-site-forward`)
+	lacks(t, "home", h, "zen-site-sidebar-toggle", "<aside")
+}
+
+// export.theme.scheme: light or dark sets data-theme on the <html> of every page (the shell, the home that
+// redirects, print.html); auto, the default, leaves the page as it was (a folder without export.theme is
+// byte-identical).
+func TestShellScheme(t *testing.T) {
+	pages := func(o Options) map[string]string {
+		_, out := build(t, sidebarFake(), o)
+		got := map[string]string{}
+		for name, body := range listing(t, out) {
+			if strings.HasSuffix(name, ".html") {
+				got[name] = body
+			}
+		}
+		return got
+	}
+	plain := pages(Options{})
+	if len(plain) < 3 {
+		t.Fatalf("only %d pages", len(plain))
+	}
+	for name, body := range plain {
+		if strings.Contains(body, "data-theme") {
+			t.Errorf("%s: auto has data-theme", name)
+		}
+	}
+	for _, scheme := range []string{"", "auto"} {
+		for name, body := range pages(Options{Scheme: scheme}) {
+			if body != plain[name] {
+				t.Errorf("scheme %q changes %s", scheme, name)
+			}
+		}
+	}
+	for _, scheme := range []string{"light", "dark"} {
+		got := pages(Options{Scheme: scheme})
+		if len(got) != len(plain) {
+			t.Fatalf("%s: %d pages, want %d", scheme, len(got), len(plain))
+		}
+		for name, body := range got {
+			if !regexp.MustCompile(`<html lang="[^"]*" data-theme="` + scheme + `">`).MatchString(body) {
+				t.Errorf("%s %s: no data-theme=%q on <html>", scheme, name, scheme)
+			}
+			if strings.Count(body, "data-theme") != 1 {
+				t.Errorf("%s %s: data-theme appears %d times", scheme, name, strings.Count(body, "data-theme"))
+			}
+		}
+	}
+	// An empty site (the plain "No pages yet" home) is themed too.
+	_, out := build(t, newFake(), Options{Scheme: "dark"})
+	if !strings.Contains(read(t, out, "index.html"), `data-theme="dark"`) {
+		t.Error("the plain home has no data-theme")
 	}
 }

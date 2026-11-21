@@ -108,6 +108,9 @@ func TestFiles(t *testing.T) {
 		"vendor/lib/r.md":        "",
 		"docs/node_modules/r.md": "",
 		"docs/.hidden/r.md":      "",
+		"exports/html/r.md":      "",
+		"exports/pdf/r.md":       "",
+		"docs/exports/keep.md":   "",
 	})
 
 	// symlinks: one leaving the root (file + dir), one staying inside.
@@ -135,6 +138,7 @@ func TestFiles(t *testing.T) {
 		"alias.md",
 		"b.markdown",
 		"docs/deep/x.Markdown",
+		"docs/exports/keep.md",
 		"docs/guide.md",
 		"docs/über uns/caf é.md",
 	}

@@ -9,7 +9,7 @@ images and plugin files it uses copied next to it. Put the result on any
 static host.
 
 ```sh
-zenmd export site                       # writes _site next to your pages
+zenmd export site                       # writes exports/html in the folder
 zenmd export site -o public --hosted    # for a web server only
 ```
 
@@ -65,8 +65,8 @@ first. The same options are in Settings › Export, next to the PDF export.
 ## Settings
 
 ```yaml
-build:
-  out: _site
+export:
+  out: exports/html
   id: my-notes
   editURL: https://github.com/me/notes/edit/main/{path}
   drafts: false

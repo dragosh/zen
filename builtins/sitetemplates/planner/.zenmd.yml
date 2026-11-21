@@ -8,5 +8,5 @@ layouts:
 plugins:
   diagram: { theme: neutral }
 
-build:
+export:
   out: _site

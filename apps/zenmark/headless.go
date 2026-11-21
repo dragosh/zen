@@ -12,6 +12,8 @@ import (
 	"io/fs"
 	"log/slog"
 	"net/http"
+	"net/url"
+	"os"
 	"path/filepath"
 	"runtime"
 	"strings"
@@ -32,6 +34,9 @@ type headlessPlan struct {
 	Out     string
 	Name    string // the folder's name
 	Timeout time.Duration
+	Drafts  bool
+	Section string // only this page and the pages under it
+	NoCover bool
 }
 
 func planHeadless(e cli.ExportPDF, name string) headlessPlan {
@@ -39,7 +44,34 @@ func planHeadless(e cli.ExportPDF, name string) headlessPlan {
 	if out == "" {
 		out = cli.DefaultPDFOut(e.Dir)
 	}
-	return headlessPlan{Out: out, Name: name, Timeout: headlessTimeout}
+	return headlessPlan{Out: out, Name: name, Timeout: headlessTimeout, Drafts: e.Drafts, Section: e.Section, NoCover: e.NoCover}
+}
+
+// ensurePDFDir creates the default exports/pdf folder when the PDF goes there;
+// with -o the folder is the user's to make.
+func ensurePDFDir(e cli.ExportPDF, out string) error {
+	if e.Out != "" && !e.MakeDir && e.Out != cli.DefaultPDFOut(e.Dir) {
+		return nil
+	}
+	if err := os.MkdirAll(filepath.Dir(out), 0o755); err != nil {
+		return fmt.Errorf("export pdf: %w", errors.Unwrap(err))
+	}
+	return nil
+}
+
+// query is the options of the export as the preview window reads them.
+func (p headlessPlan) query() string {
+	b := func(v bool) string {
+		if v {
+			return "1"
+		}
+		return "0"
+	}
+	pages := "all"
+	if p.Section != "" {
+		pages = "section"
+	}
+	return "&drafts=" + b(p.Drafts) + "&cover=" + b(!p.NoCover) + "&pages=" + pages + "&page=" + url.QueryEscape(p.Section)
 }
 
 // windowOptions is the one hidden window, at the print preview's export mode.
@@ -47,7 +79,7 @@ func (p headlessPlan) windowOptions() application.WebviewWindowOptions {
 	return application.WebviewWindowOptions{
 		Name:   printWindowName,
 		Title:  p.Name + " — Print",
-		URL:    "/?window=" + printWindowName + "&export=1&page=",
+		URL:    "/?window=" + printWindowName + "&export=1" + p.query(),
 		Width:  printWindowWidth,
 		Height: printWindowHeight,
 		Hidden: true,
@@ -193,6 +225,9 @@ func ExportPDF(e cli.ExportPDF, stdout, stderr io.Writer) error {
 		return err
 	}
 	plan := planHeadless(e, ws.Name)
+	if err := ensurePDFDir(e, plan.Out); err != nil {
+		return err
+	}
 	var win application.Window
 	h := newHeadlessService(func(path, title string) (int, error) {
 		return desktop.SavePDF(win, path, title)
@@ -207,7 +242,25 @@ func ExportPDF(e cli.ExportPDF, stdout, stderr io.Writer) error {
 	if err := a.Run(); err != nil {
 		return oneLineError(err)
 	}
-	return <-result
+	err = <-result
+	if err == nil {
+		openWritten(e, plan.Out, stderr)
+	}
+	return err
+}
+
+// openPDF opens a file with the system's default app; tests replace it.
+var openPDF = desktop.OpenFile
+
+// openWritten opens the PDF once it is written, when --open (or export.pdf.open) asks for it. A failure is a
+// warning: the file is written.
+func openWritten(e cli.ExportPDF, path string, stderr io.Writer) {
+	if !e.Open {
+		return
+	}
+	if err := openPDF(path); err != nil {
+		fmt.Fprintf(stderr, "zenmd: could not open %s: %s\n", path, oneLine(err.Error()))
+	}
 }
 
 func oneLineError(err error) error { return errors.New(oneLine(err.Error())) }

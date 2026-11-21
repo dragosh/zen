@@ -23,7 +23,6 @@ import (
 
 	"github.com/zenmark-org/zenmd/engine/config"
 	"github.com/zenmark-org/zenmd/engine/site"
-	"gopkg.in/yaml.v3"
 )
 
 // EventBuildProgress is emitted after each page the build renders; the payload
@@ -37,6 +36,8 @@ type BuildOptions struct {
 	Drafts   bool   `json:"drafts"`
 	Clean    bool   `json:"clean"`
 	Print    bool   `json:"print"` // also write print.html (when ui/print is merged)
+	// Scheme is the website's colours: "auto" (the reader's system), "light" or "dark" (export.theme.scheme).
+	Scheme string `json:"scheme"`
 }
 
 // BuildResult is what a build did. Cancelled means the build stopped after a
@@ -120,42 +121,12 @@ func (s *Session) writeBuildFile(root string, f buildFile) {
 		return
 	}
 	if b, err := json.MarshalIndent(f, "", "  "); err == nil {
-		_ = writeAtomic(p, append(b, '\n'), 0o644) // remembering is a convenience: a failure is not an error
+		_ = config.WriteAtomic(p, append(b, '\n'), 0o644) // remembering is a convenience: a failure is not an error
 	}
-}
-
-// writeAtomic writes data next to path and renames it over path.
-func writeAtomic(path string, data []byte, perm os.FileMode) error {
-	dir := filepath.Dir(path)
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return err
-	}
-	tmp, err := os.CreateTemp(dir, "."+filepath.Base(path)+".*.tmp")
-	if err != nil {
-		return err
-	}
-	name := tmp.Name()
-	_, err = tmp.Write(data)
-	if err == nil {
-		err = tmp.Chmod(perm)
-	}
-	if err == nil {
-		err = tmp.Sync()
-	}
-	if cerr := tmp.Close(); err == nil {
-		err = cerr
-	}
-	if err == nil {
-		err = os.Rename(name, path)
-	}
-	if err != nil {
-		_ = os.Remove(name)
-	}
-	return err
 }
 
 // BuildOptions returns the form's starting values for the open folder: the
-// build: section of the config, then what was used last time.
+// export: section of the config, then what was used last time.
 func (s *Session) BuildOptions() (r0 BuildOptions, err error) {
 	defer s.logFail("BuildOptions", &err)
 	root, err := s.buildFolder()
@@ -166,21 +137,30 @@ func (s *Session) BuildOptions() (r0 BuildOptions, err error) {
 	if err != nil {
 		return BuildOptions{}, err
 	}
-	o := BuildOptions{Out: absOut(root, bc.Out), Portable: true, Drafts: bc.Drafts, Print: true}
+	o := BuildOptions{Out: absOut(root, bc.Out), Portable: true, Drafts: bc.Drafts, Print: true, Scheme: "auto"}
+	if bc.Scheme != "" {
+		o.Scheme = bc.Scheme
+	}
 	if bc.Portable != nil {
 		o.Portable = *bc.Portable
 	}
 	if f, ok := s.readBuildFile(root); ok {
 		o = f.BuildOptions
 		o.Out = absOut(root, o.Out)
+		if o.Scheme == "" { // a file written before the theme existed
+			o.Scheme = "auto"
+			if bc.Scheme != "" {
+				o.Scheme = bc.Scheme
+			}
+		}
 	}
 	return o, nil
 }
 
-// absOut makes the output folder absolute: "" is _site, relative is inside root.
+// absOut makes the output folder absolute: "" is exports/html, relative is inside root.
 func absOut(root, out string) string {
 	if out == "" {
-		out = "_site"
+		out = config.DefaultExportOut
 	}
 	if !filepath.IsAbs(out) {
 		out = filepath.Join(root, out)
@@ -305,7 +285,7 @@ func (s *Session) Build(ctx context.Context, o BuildOptions, progress func(done,
 	}}
 	var stdout, stderr bytes.Buffer
 	start := time.Now()
-	err = WriteSite(env, SiteOptions{Dir: root, Out: o.Out, Portable: o.Portable, Hosted: !o.Portable, Drafts: o.Drafts, NoDrafts: !o.Drafts, Clean: o.Clean, NoPrint: !o.Print}, &stdout, &stderr)
+	err = WriteSite(env, SiteOptions{Dir: root, Out: o.Out, Portable: o.Portable, Hosted: !o.Portable, Drafts: o.Drafts, NoDrafts: !o.Drafts, Clean: o.Clean, NoPrint: !o.Print, Scheme: o.Scheme}, &stdout, &stderr)
 	if err != nil {
 		return BuildResult{}, err
 	}
@@ -365,11 +345,11 @@ func (s *Session) CancelBuild() {
 	}
 }
 
-// SaveBuildDefaults writes out, portable and drafts into the build: section of
-// the folder's .zenmd.yml (clean and print are per run). Without confirm it
-// only returns the preview text; with it, it edits the YAML tree, so comments
-// and other keys stay, and writes the file atomically. It returns the same
-// text either way.
+// SaveBuildDefaults writes out, portable and drafts (and the scheme, when it is not auto or the folder already has
+// one) into the export: section of the folder's .zenmd.yml (clean and print are per run). Without confirm it only
+// returns the preview text; with it, it edits the YAML tree, so comments and other keys stay, and writes the file
+// atomically. It returns the same text either way. The editing is config.SaveExportKeys, which `zenmd export
+// --save-defaults` calls too.
 func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (r0 string, err error) {
 	defer s.logFail("SaveBuildDefaults", &err)
 	if err := s.writable(); err != nil {
@@ -379,135 +359,77 @@ func (s *Session) SaveBuildDefaults(o BuildOptions, confirm bool) (r0 string, er
 	if err != nil {
 		return "", err
 	}
-	path, legacy, _ := config.WorkspaceConfigPath(root)
-	var doc yaml.Node
-	data, rerr := os.ReadFile(path)
-	if rerr != nil && !os.IsNotExist(rerr) {
-		return "", rerr
+	if o.Scheme != "" && !config.ValidScheme(o.Scheme) {
+		return "", errors.New("the theme must be auto, light or dark")
 	}
-	if rerr == nil {
-		if err := yaml.Unmarshal(data, &doc); err != nil {
-			return "", fmt.Errorf(".zenmd.yml is not valid YAML: %v", err)
-		}
+	keys := []config.ExportKey{
+		config.StrKey("out", config.SiteOutValue(root, o.Out)),
+		config.BoolKey("portable", o.Portable),
+		config.BoolKey("drafts", o.Drafts),
 	}
-	fresh := doc.Kind == 0
-	if fresh {
-		doc = yaml.Node{Kind: yaml.DocumentNode, Content: []*yaml.Node{{Kind: yaml.MappingNode, Tag: "!!map"}}}
+	// A scheme of auto is the default: it is only written over a scheme the folder already has.
+	if bc, _, err := config.Load("", root).Build(); o.Scheme != "" && (o.Scheme != "auto" || err == nil && bc.Scheme != "") {
+		keys = append(keys, config.StrKey("theme.scheme", o.Scheme))
 	}
-	top := doc.Content[0]
-	if doc.Kind != yaml.DocumentNode || top.Kind != yaml.MappingNode {
-		return "", errors.New(".zenmd.yml is not a YAML mapping; fix it first")
-	}
-	if fresh {
-		setKey(top, "version", scalar("1", "!!int"))
-	}
-	build := mapValue(top, "build")
-	switch {
-	case build == nil || build.Kind == yaml.ScalarNode && build.Tag == "!!null":
-		build = &yaml.Node{Kind: yaml.MappingNode, Tag: "!!map"}
-		setKey(top, "build", build)
-	case build.Kind != yaml.MappingNode:
-		return "", errors.New("build in .zenmd.yml must be a mapping with keys such as out and portable")
-	}
-
-	out := o.Out
-	if out == "" {
-		out = "_site"
-	}
-	if abs := absOut(root, out); !strings.HasPrefix(abs, root+string(filepath.Separator)) {
-		out = abs
-	} else {
-		out, _ = filepath.Rel(root, abs)
-		out = filepath.ToSlash(out)
-	}
-	type change struct{ key, was, now string }
-	var changes []change
-	want := []struct{ key, val, tag string }{
-		{"out", out, "!!str"},
-		{"portable", strconv.FormatBool(o.Portable), "!!bool"},
-		{"drafts", strconv.FormatBool(o.Drafts), "!!bool"},
-	}
-	added := true
-	for _, w := range want {
-		cur := mapValue(build, w.key)
-		if cur != nil {
-			same := cur.Value == w.val || w.key == "out" && filepath.ToSlash(filepath.Clean(cur.Value)) == w.val
-			if same {
-				continue
-			}
-			added = false
-			changes = append(changes, change{w.key, cur.Value, w.val})
-			cur.Value, cur.Tag, cur.Style = w.val, w.tag, 0
-			continue
-		}
-		changes = append(changes, change{w.key, "", w.val})
-		setKey(build, w.key, scalar(w.val, w.tag))
-	}
-	if len(changes) == 0 {
-		return "Nothing to change: .zenmd.yml already has these build defaults.", nil
-	}
-	var sb strings.Builder
-	if added {
-		sb.WriteString("Adds to .zenmd.yml:")
-	} else {
-		sb.WriteString("Changes .zenmd.yml:")
-	}
-	for _, c := range changes {
-		sb.WriteString("\n  build." + c.key + ": " + c.now)
-		if c.was != "" {
-			sb.WriteString("  (was " + c.was + ")")
-		}
-	}
-	preview := sb.String()
-	if !confirm {
-		return preview, nil
-	}
-	var buf bytes.Buffer
-	enc := yaml.NewEncoder(&buf)
-	enc.SetIndent(2)
-	if err := enc.Encode(&doc); err != nil {
-		return "", err
-	}
-	if err := enc.Close(); err != nil {
-		return "", err
-	}
-	perm := os.FileMode(0o644)
-	if fi, err := os.Stat(path); err == nil {
-		perm = fi.Mode().Perm()
-	}
-	if legacy { // the first write moves the old file to the new name
-		if err := config.MoveLegacy(root); err != nil {
-			return "", err
-		}
-		path = filepath.Join(root, config.WorkspaceFile)
-	}
-	if err := writeAtomic(path, buf.Bytes(), perm); err != nil {
-		return "", err
-	}
-	return preview, nil
+	return config.SaveExportKeys(root, keys, "Nothing to change: .zenmd.yml already has these export defaults.", confirm)
 }
 
-func scalar(v, tag string) *yaml.Node { return &yaml.Node{Kind: yaml.ScalarNode, Tag: tag, Value: v} }
-
-// mapValue is the value node of key in a mapping node, or nil.
-func mapValue(m *yaml.Node, key string) *yaml.Node {
-	for i := 0; i+1 < len(m.Content); i += 2 {
-		if m.Content[i].Value == key {
-			return m.Content[i+1]
-		}
-	}
-	return nil
+// PDFOptions are what the PDF form shows and the export uses.
+type PDFOptions struct {
+	Out    string `json:"out"` // absolute from PDFDefaults; the form may send a path relative to the folder
+	Drafts bool   `json:"drafts"`
+	Cover  bool   `json:"cover"` // the cover sheet and the table of contents
+	Open   bool   `json:"open"`  // open the file when done
 }
 
-// setKey sets key to v in a mapping node, replacing an existing value or appending.
-func setKey(m *yaml.Node, key string, v *yaml.Node) {
-	for i := 0; i+1 < len(m.Content); i += 2 {
-		if m.Content[i].Value == key {
-			m.Content[i+1] = v
-			return
-		}
+// PDFRun is a PDF export or preview of the form: the options, and whether it
+// is only the page that was open and the pages under it.
+type PDFRun struct {
+	PDFOptions
+	Section bool `json:"section"`
+}
+
+// PDFDefaults returns the form's starting values for the open folder: the
+// export.pdf section of the config files, over the defaults.
+func (s *Session) PDFDefaults() (r0 PDFOptions, err error) {
+	defer s.logFail("PDFDefaults", &err)
+	root, err := s.buildFolder()
+	if err != nil {
+		return PDFOptions{}, err
 	}
-	m.Content = append(m.Content, &yaml.Node{Kind: yaml.ScalarNode, Tag: "!!str", Value: key}, v)
+	p, err := config.Load(s.globalPath, root).PDF()
+	if err != nil {
+		return PDFOptions{}, err
+	}
+	out, err := config.ResolvePDFOut(root, p.Out)
+	if err != nil {
+		return PDFOptions{}, err
+	}
+	return PDFOptions{Out: out, Drafts: p.Drafts, Cover: p.CoverOn(), Open: p.OpenOn()}, nil
+}
+
+// SavePDFDefaults writes the options into export.pdf of the folder's
+// .zenmd.yml, as SaveBuildDefaults does for the website: the rest of export:
+// and the file's comments stay. Without confirm it only returns the preview.
+func (s *Session) SavePDFDefaults(o PDFOptions, confirm bool) (r0 string, err error) {
+	defer s.logFail("SavePDFDefaults", &err)
+	if err := s.writable(); err != nil {
+		return "", err
+	}
+	root, err := s.buildFolder()
+	if err != nil {
+		return "", err
+	}
+	out, err := config.PDFOutValue(root, o.Out)
+	if err != nil {
+		return "", err
+	}
+	return config.SaveExportKeys(root, []config.ExportKey{
+		config.StrKey("pdf.out", out),
+		config.BoolKey("pdf.drafts", o.Drafts),
+		config.BoolKey("pdf.cover", o.Cover),
+		config.BoolKey("pdf.open", o.Open),
+	}, "Nothing to change: .zenmd.yml already has these PDF defaults.", confirm)
 }
 
 // BuiltSite checks that out is the output of the last build of the open

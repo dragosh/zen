@@ -1,0 +1,21 @@
+{
+  "site": [
+    { "flag": "--out", "short": "-o", "arg": "<dir>", "key": "export.out", "field": "out", "default": "exports/html", "help": "output folder (default: exports/html in the folder)" },
+    { "flag": "--portable", "negative": "--hosted", "key": "export.portable", "field": "opens", "default": true, "help": "portable opens from disk and from any web server (the default); hosted loads scripts as files, for a web server only" },
+    { "flag": "--drafts", "negative": "--no-drafts", "key": "export.drafts", "field": "drafts", "default": false, "help": "include pages with \"draft: true\"" },
+    { "flag": "--clean", "key": null, "field": "clean", "default": false, "help": "empty the output folder first (needs a .zen-build file)" },
+    { "flag": "--print", "negative": "--no-print", "key": null, "field": "print", "default": true, "help": "write print.html, the whole site as one page" },
+    { "flag": "--scheme", "values": ["auto", "light", "dark"], "key": "export.theme.scheme", "field": "scheme", "default": "auto", "help": "the website's colours: auto follows the reader's system, light is black on white, dark is white on black" },
+    { "flag": "--save-defaults", "key": null, "field": null, "default": false, "help": "write the options given here into the folder's .zenmd.yml under export:, then export" },
+    { "flag": "--dry-run", "key": null, "field": null, "default": false, "help": "with --save-defaults: show the change, write nothing and export nothing" }
+  ],
+  "pdf": [
+    { "flag": "--out", "short": "-o", "arg": "<file>", "key": "export.pdf.out", "field": "out", "default": "exports/pdf/<folder name>.pdf", "help": "output file (default: exports/pdf/<folder name>.pdf)" },
+    { "flag": "--drafts", "negative": "--no-drafts", "key": "export.pdf.drafts", "field": "drafts", "default": false, "help": "include pages with \"draft: true\"" },
+    { "flag": "--section", "arg": "<page>", "negative": "--all", "key": null, "field": "pages", "default": "all", "help": "only this page and the pages under it; --all is the whole folder (the default)" },
+    { "flag": "--cover", "negative": "--no-cover", "key": "export.pdf.cover", "field": "cover", "default": true, "help": "the cover and the contents (on by default)" },
+    { "flag": "--open", "negative": "--no-open", "key": "export.pdf.open", "field": "open", "default": { "cli": false, "app": true }, "help": "open the PDF when it is written (off here, on in the app)" },
+    { "flag": "--save-defaults", "key": null, "field": null, "default": false, "help": "write the options given here into the folder's .zenmd.yml under export.pdf, then export" },
+    { "flag": "--dry-run", "key": null, "field": null, "default": false, "help": "with --save-defaults: show the change, write nothing and export nothing" }
+  ]
+}

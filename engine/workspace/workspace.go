@@ -16,6 +16,8 @@ import (
 	"sort"
 	"strings"
 	"sync"
+
+	"github.com/zenmark-org/zenmd/engine/config"
 )
 
 var (
@@ -184,6 +186,9 @@ func (w *Workspace) FilesContext(ctx context.Context, onEntry func(int)) ([]stri
 		name := d.Name()
 		if d.IsDir() {
 			if strings.HasPrefix(name, ".") || name == "node_modules" || name == "vendor" {
+				return fs.SkipDir
+			}
+			if name == config.ExportsDir && filepath.Dir(p) == w.root { // exports/html and exports/pdf
 				return fs.SkipDir
 			}
 			return nil

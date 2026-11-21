@@ -224,3 +224,25 @@ func TestRootRemoved(t *testing.T) {
 		t.Errorf("callback after failure: %+v", got)
 	}
 }
+
+// The exports folder at the top of the folder is never watched: writing a
+// website or a PDF into it raises no events (a folder named exports deeper
+// down is an ordinary folder).
+func TestExportsIgnored(t *testing.T) {
+	root := t.TempDir()
+	write(t, filepath.Join(root, "a.md"), "a")
+	write(t, filepath.Join(root, "exports", "html", "old.png"), "x")
+	_, r := start(t, root)
+
+	write(t, filepath.Join(root, "exports", "html", "pic.png"), "x")
+	write(t, filepath.Join(root, "exports", "html", "deep", "page.md"), "x")
+	write(t, filepath.Join(root, "exports", "pdf", "a.pdf"), "x")
+	write(t, filepath.Join(root, "sub", "exports", "e.md"), "x")
+	r.waitFor(t, Event{"sub/exports/e.md", "created"})
+	r.settle()
+	for _, e := range r.all() {
+		if e.Path != "sub/exports/e.md" {
+			t.Errorf("unexpected event %+v", e)
+		}
+	}
+}

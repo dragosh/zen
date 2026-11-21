@@ -343,3 +343,8 @@ test("the View menu's zoom events reach on() listeners", () => {
   api.emit("menu:zoom-in", undefined);
   expect(got).toEqual(["menu:zoom-in", "menu:zoom-out", "menu:zoom-reset"]);
 });
+
+test("the fake api's default website output is exports/html", async () => {
+  const o = await createFakeApi().buildOptions();
+  expect(o.out).toBe("/Users/me/sample-docs/exports/html");
+});

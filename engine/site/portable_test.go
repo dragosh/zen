@@ -55,7 +55,7 @@ func TestPortableModules(t *testing.T) {
 	}
 	// Pages without scripts carry no modules; relative links only.
 	p2 := read(t, out, "sub/p2.html")
-	lacks(t, "p2", p2, "data-zen-module", "<script")
+	lacks(t, "p2", p2, "data-zen-module", "hello")
 	for name, body := range listing(t, out) {
 		if strings.HasSuffix(name, ".html") {
 			lacks(t, name, body, `href="/`, `src="/`, "file://", "http://localhost")

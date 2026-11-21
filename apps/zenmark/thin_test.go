@@ -17,7 +17,7 @@ var delegating = []string{
 	"Plugins", "PluginTrust", "PluginStorageGet", "PluginStorageSet", "PluginStorageKeys",
 	"PluginInvoke", "PluginStream", "PluginCancel",
 	"Layouts", "LayoutTrust", "LayoutStorageGet", "LayoutStorageSet", "LayoutStorageKeys",
-	"BuildOptions", "BuildWebsite", "CancelBuild", "SaveBuildDefaults",
+	"BuildOptions", "BuildWebsite", "CancelBuild", "SaveBuildDefaults", "PDFDefaults", "SavePDFDefaults",
 	"SiteTemplates", "TemplatesDir", "ReorderNav", "SetNavHidden",
 	"Dialects", "SetDialect", "DismissDialectHint", "DialectHint",
 }

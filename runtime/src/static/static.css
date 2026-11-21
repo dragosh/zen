@@ -3,9 +3,10 @@
 @import "../css/tokens.css";
 @import "../css/base.css";
 @import "../css/page.css";
+@import "../css/top-bar.css";
 
 /* The site scrolls as a document (the app's panes scroll themselves). */
-html { height: auto; }
+html { height: auto; scroll-padding-top: 44px; /* anchors land below the fixed bar */ }
 body.zen-site { height: auto; overflow: auto; font: 13px/1.4 var(--font-ui); }
 
 .zen-skip {
@@ -92,11 +93,23 @@ body.zen-site { height: auto; overflow: auto; font: 13px/1.4 var(--font-ui); }
 .zen-site-nav a:hover, .zen-site-nav summary:hover { background: var(--bg-subtle); }
 .zen-site-nav a[aria-current="page"] { background: var(--btn-bg); font-weight: 600; }
 
-.zen-site-crumbs { padding: var(--space-3) var(--space-6) 0; font-family: var(--font-ui); color: var(--fg-muted); }
-.zen-site-crumbs ol { display: flex; flex-wrap: wrap; gap: var(--space-1); list-style: none; margin: 0; padding: 0; }
+/* The top bar (ui/site-topbar): the app's top bar (top-bar.css), fixed at the top of the content column while the
+   page scrolls. Its buttons are `hidden` in the HTML and shown by zen.js, so without scripts only the breadcrumb shows. */
+.zen-site-top { position: sticky; top: 0; z-index: 5; background: var(--bg); font-family: var(--font-ui); }
+.zen-site-top button { font-family: var(--font-ui); }
+.zen-site-crumbs { flex: 1; min-width: 0; color: var(--fg-muted); overflow: hidden; }
+.zen-site-crumbs ol { display: flex; gap: var(--space-1); list-style: none; margin: 0; padding: 0; white-space: nowrap; }
+.zen-site-crumbs li { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
 .zen-site-crumbs li + li::before { content: "/"; margin-right: var(--space-1); }
 .zen-site-crumbs a { color: var(--fg-muted); }
 .zen-site-crumbs a:hover { color: var(--fg); }
+/* Without a breadcrumb the bar keeps its height and the buttons stay on the left. */
+.zen-site-top:not(:has(.zen-site-crumbs)) { justify-content: flex-start; }
+
+/* With scripts (zen.js sets data-js on the frame) the sidebar button replaces the Contents summary and the
+   sidebar can be closed: the page then takes the whole width. */
+.zen-site-frame[data-js] .zen-site-menu > summary { display: none; }
+.zen-site-frame[data-js][data-sidebar="closed"] { grid-template-columns: minmax(0, 1fr); }
 
 /* Wide screens: the sidebar is always open, with no toggle. Where the browser cannot force a
    closed <details> open (no ::details-content), the toggle stays and works without JavaScript. */
@@ -110,12 +123,14 @@ body.zen-site { height: auto; overflow: auto; font: 13px/1.4 var(--font-ui); }
 @media (max-width: 719px) {
   .zen-site-frame { grid-template-columns: minmax(0, 1fr); }
   .zen-site-side { position: static; height: auto; border-right: 0; border-bottom: 1px solid var(--rule); }
-  .zen-site-crumbs { padding-left: var(--space-4); padding-right: var(--space-4); }
+  /* With scripts the sidebar button opens the sidebar over the page, below the fixed bar. */
+  .zen-site-frame[data-js] .zen-site-side { position: fixed; top: 44px; left: 0; bottom: 0; z-index: 20; width: min(17rem, 85vw); height: auto; background: var(--bg); border-right: 1px solid var(--rule); border-bottom: 0; }
+  .zen-site-frame[data-js][data-sidebar="open"] .zen-site-side { display: block; }
   .zen-page { padding-left: var(--space-4); padding-right: var(--space-4); }
 }
 
 @media print {
-  .zen-site-side, .zen-site-crumbs, .zen-skip { display: none !important; }
+  .zen-site-side, .zen-site-top, .zen-site-crumbs, .zen-skip { display: none !important; }
   .zen-site-frame { display: block; }
   body.zen-site { overflow: visible; }
 }

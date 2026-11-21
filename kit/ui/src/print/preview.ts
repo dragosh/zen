@@ -17,7 +17,7 @@ export type PreviewApi = Pick<
   | "pluginStorageGet" | "pluginStorageSet" | "pluginStorageKeys"
   | "layoutStorageGet" | "layoutStorageSet" | "layoutStorageKeys"
   | "pluginInvoke" | "pluginStream" | "pluginCancel" | "openExternal" | "on"
-> & Partial<Pick<KitHost, "printWindow" | "exportPdf" | "revealExport" | "printReady" | "printFailed">>;
+> & Partial<Pick<KitHost, "printWindow" | "exportPdf" | "revealExport" | "printReady" | "printFailed" | "pdfDefaults" | "pdfExportFailed">>;
 
 type FetchLike = (url: string, init?: { headers?: Record<string, string> }) => Promise<{ ok: boolean; status: number; text(): Promise<string> }>;
 
@@ -42,6 +42,8 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
   const query = new URLSearchParams(opts.search ?? win.location?.search ?? "");
   const currentPage = query.get("page") ?? "";
   const exportMode = query.get("export") === "1";
+  // Settings › Export › PDF › Export PDF: laid out with the form's options, then written to its file without a panel.
+  const autoMode = query.get("auto") === "1";
   const doFetch: FetchLike = opts.fetch ?? ((url, init) => win.fetch(url, init));
 
   // ---- the window ----
@@ -58,8 +60,11 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
   const statusText = el("span", "zen-print-status-text");
   status.append(spinner, statusText);
 
+  // The options come from the window's query (the form, the CLI), else the folder's PDF defaults, else the built-in ones.
+  let withCover = query.get("cover") !== "0";
   const draftsBox = el("input");
   draftsBox.type = "checkbox";
+  draftsBox.checked = query.get("drafts") === "1";
   const draftsLabel = el("label", "zen-print-option");
   draftsLabel.append(draftsBox, document.createTextNode(" Include drafts"));
 
@@ -71,6 +76,7 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
   part.value = "section";
   part.disabled = currentPage === "";
   pagesSelect.append(all, part);
+  if (query.get("pages") === "section" && currentPage !== "") pagesSelect.value = "section";
   const pagesLabel = el("label", "zen-print-option", "Pages: ");
   pagesLabel.htmlFor = pagesSelect.id;
   pagesLabel.append(pagesSelect);
@@ -132,11 +138,13 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
   function failExport(text: string): void {
     if (told) return;
     told = true;
-    void api.printFailed?.(text.trim().split("\n")[0] || "the document could not be prepared")?.catch((err) => console.error("zen: export failed", err));
+    const line = text.trim().split("\n")[0] || "the document could not be prepared";
+    void (autoMode ? api.pdfExportFailed?.(line) : api.printFailed?.(line))?.catch((err) => console.error("zen: export failed", err));
   }
 
   function showError(text: string): void {
     if (exportMode) return failExport(text);
+    if (autoMode) failExport(text);
     setReady(false);
     say("Could not prepare the document");
     const box = el("div", "zen-print-error-box");
@@ -145,8 +153,23 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
     paper.replaceChildren(box);
   }
 
+  /** The folder's PDF defaults start the options the window's query does not set (once). */
+  let defaulted = false;
+  async function applyDefaults(): Promise<void> {
+    if (defaulted) return;
+    defaulted = true;
+    if (exportMode || autoMode || !api.pdfDefaults) return;
+    try {
+      const d = await api.pdfDefaults();
+      if (!query.has("drafts")) draftsBox.checked = d.drafts;
+      if (!query.has("cover")) withCover = d.cover;
+    } catch { /* no defaults: the built-in ones */ }
+  }
+
   async function load(): Promise<void> {
     const mine = ++seq;
+    await applyDefaults();
+    if (mine !== seq || stopped) return;
     teardown();
     setReady(false);
     say("Preparing…", true);
@@ -186,6 +209,7 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
       doc.head.append(copy);
       styles.push(copy);
     }
+    if (!withCover) for (const part of Array.from(content.querySelectorAll(".zen-print-cover, nav.zen-print-toc"))) part.remove();
     paper.append(doc.importNode(content, true));
     const heading = paper.querySelector(".zen-print-title")?.textContent?.trim() ?? "";
     if (heading) {
@@ -221,6 +245,24 @@ export function mountPreview(root: HTMLElement, api: PreviewApi, doc: Document =
     const { late } = await whenReady(paper, { timeout: opts.timeout, quiet: opts.quiet, mounted: Promise.all(mounts) });
     if (mine !== seq || stopped) return;
     setReady(true);
+    if (autoMode) {
+      // Laid out: write the form's file with no panel, then close. A failure stays on show (the app told the form).
+      if (!told) {
+        told = true;
+        prepareForPrint(paper);
+        say(`Exporting ${pagesText(sections.length)}…`, true);
+        try {
+          await api.exportPdf?.(doc.title, true);
+          if (!stopped) close();
+        } catch (err) {
+          if (!stopped) {
+            say("Could not export");
+            showNote(message(err));
+          }
+        }
+      }
+      return;
+    }
     if (exportMode) {
       // Laid out for paper; the app writes the file. The call is made once.
       if (!stopped) {

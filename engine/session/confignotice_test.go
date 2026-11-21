@@ -271,3 +271,24 @@ func TestIndexHidesBothConfigFiles(t *testing.T) {
 	}
 	walk(s.Workspace().Tree)
 }
+
+// The old build: key is a Problems note too, the same way.
+func TestConfigNoticeBuildKey(t *testing.T) {
+	dir := tree(t, map[string]string{"README.md": mystPage, ".zenmd.yml": "version: 1\nbuild:\n  out: x\n"})
+	s := dialectSession(t, dir, t.TempDir(), false, false)
+	const want = "build: in .zenmd.yml is now export:; rename the key"
+	if got := s.ConfigNotice(); got != want {
+		t.Errorf("notice: %q", got)
+	}
+	p, err := s.Page("README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, w := range p.Warnings {
+		found = found || w == want
+	}
+	if !found {
+		t.Errorf("page warnings: %v", p.Warnings)
+	}
+}

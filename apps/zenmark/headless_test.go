@@ -7,6 +7,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -37,8 +39,8 @@ func TestHeadlessPlan(t *testing.T) {
 	if w.Name != "print" || !strings.Contains(w.Title, "My Docs") {
 		t.Errorf("window %q %q", w.Name, w.Title)
 	}
-	// A default output: inside the folder, named after it.
-	if got := planHeadless(cli.ExportPDF{Dir: "/x/My Docs"}, "My Docs").Out; got != "/x/My Docs/My Docs.pdf" {
+	// A default output: exports/pdf in the folder, named after it.
+	if got := planHeadless(cli.ExportPDF{Dir: "/x/My Docs"}, "My Docs").Out; got != "/x/My Docs/exports/pdf/My Docs.pdf" {
 		t.Errorf("default out %q", got)
 	}
 
@@ -188,5 +190,77 @@ func TestPrintFailedEndsExport(t *testing.T) {
 	}
 	if time.Since(start) > time.Second {
 		t.Error("the failure must not wait for the timeout")
+	}
+}
+
+// The default folder is created for the headless export; a chosen -o is left alone.
+func TestEnsureDefaultPDFDir(t *testing.T) {
+	dir := t.TempDir()
+	e := cli.ExportPDF{Dir: dir}
+	plan := planHeadless(e, "x")
+	if err := ensurePDFDir(e, plan.Out); err != nil {
+		t.Fatal(err)
+	}
+	if fi, err := os.Stat(filepath.Join(dir, "exports", "pdf")); err != nil || !fi.IsDir() {
+		t.Errorf("exports/pdf not created: %v", err)
+	}
+	chosen := cli.ExportPDF{Dir: dir, Out: filepath.Join(dir, "nosuch", "a.pdf")}
+	if err := ensurePDFDir(chosen, chosen.Out); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "nosuch")); err == nil {
+		t.Error("-o: its folder is the user's to make")
+	}
+}
+
+// The options of `zenmd export pdf` reach the preview window as its query (ui/export-pdf-settings).
+func TestHeadlessPlanOptions(t *testing.T) {
+	q := func(e cli.ExportPDF) url.Values {
+		u, err := url.Parse(planHeadless(e, "x").windowOptions().URL)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return u.Query()
+	}
+	if v := q(cli.ExportPDF{Dir: "/x"}); v.Get("drafts") != "0" || v.Get("cover") != "1" || v.Get("pages") != "all" || v.Get("page") != "" || v.Get("export") != "1" {
+		t.Errorf("defaults %v", v)
+	}
+	v := q(cli.ExportPDF{Dir: "/x", Drafts: true, NoCover: true, Section: "docs/a b.md"})
+	if v.Get("drafts") != "1" || v.Get("cover") != "0" || v.Get("pages") != "section" || v.Get("page") != "docs/a b.md" {
+		t.Errorf("options %v", v)
+	}
+}
+
+// A folder from export.pdf.out is made like the default one; a -o folder is not.
+func TestEnsurePDFDirFromConfig(t *testing.T) {
+	dir := t.TempDir()
+	e := cli.ExportPDF{Dir: dir, Out: filepath.Join(dir, "books", "a.pdf"), MakeDir: true}
+	if err := ensurePDFDir(e, e.Out); err != nil {
+		t.Fatal(err)
+	}
+	if fi, err := os.Stat(filepath.Join(dir, "books")); err != nil || !fi.IsDir() {
+		t.Errorf("books not created: %v", err)
+	}
+}
+
+// --open (export.pdf.open) opens the PDF once it is written, and only then; a failing open is a warning.
+func TestOpenWritten(t *testing.T) {
+	old := openPDF
+	t.Cleanup(func() { openPDF = old })
+	var opened []string
+	openPDF = func(args ...string) error { opened = append(opened, args...); return nil }
+	var stderr bytes.Buffer
+	openWritten(cli.ExportPDF{}, "/x/a.pdf", &stderr)
+	if len(opened) != 0 || stderr.Len() != 0 {
+		t.Fatalf("Open off: opened %v, stderr %q", opened, stderr.String())
+	}
+	openWritten(cli.ExportPDF{Open: true}, "/x/a.pdf", &stderr)
+	if len(opened) != 1 || opened[0] != "/x/a.pdf" || stderr.Len() != 0 {
+		t.Fatalf("Open on: opened %v, stderr %q", opened, stderr.String())
+	}
+	openPDF = func(...string) error { return errors.New("no app\nfor it") }
+	openWritten(cli.ExportPDF{Open: true}, "/x/a.pdf", &stderr)
+	if got := stderr.String(); got != "zenmd: could not open /x/a.pdf: no app for it\n" {
+		t.Errorf("failed open: %q", got)
 	}
 }

@@ -10,6 +10,8 @@ Only the keys Zenmark has today. What each one does is on its page in
 | <kbd>⌘O</kbd> | open a folder |
 | <kbd>⌘N</kbd> | a new page |
 | <kbd>⌘P</kbd> | print the page |
+| <kbd>⇧⌘B</kbd> | export the folder as a website |
+| <kbd>⇧⌘P</kbd> | export the folder as a PDF (in the editor window: split view) |
 | <kbd>⇧⌘W</kbd> | close the folder |
 | <kbd>⌘,</kbd> | Settings (<kbd>Esc</kbd> goes back) |
 | <kbd>⌘[</kbd> / <kbd>⌘]</kbd> | back / forward |

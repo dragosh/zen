@@ -54,6 +54,14 @@ test("the toggle button toggles the sidebar and reports its state", () => {
   expect(btn.getAttribute("aria-expanded")).toBe("false");
 });
 
+test("the toggle is the sidebar icon, as on an exported site (ui/site-topbar), with no text glyph", () => {
+  const l = createLayout();
+  const btn = l.el.querySelector<HTMLButtonElement>('button[data-action="toggle-sidebar"]')!;
+  expect(btn.textContent).toBe("");
+  expect(btn.querySelector("svg")!.outerHTML).toBe(icon(document, "sidebar").outerHTML);
+  expect(btn.getAttribute("aria-label")).toBe("Toggle sidebar");
+});
+
 test("width is clamped to 200–400", () => {
   const l = createLayout();
   l.setSidebarWidth(50);
